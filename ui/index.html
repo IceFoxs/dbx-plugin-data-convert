@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>数据格式互转工具</title>
+    <title>Data Format Converter</title>
 
-    <!-- 引入核心依赖 (离线需将文件下载至本地) -->
+    <!-- 引入核心依赖 -->
     <script src="js-yaml.min.js"></script>
     <script src="json/index.js"></script>
     <script>
@@ -19,37 +19,35 @@
     <style>
         /* =========================================
            基于 DBX 设计令牌的主题样式
-           优先使用 DBX 注入的 --color-* / --radius-*
-           并保留浏览器默认渲染的兜底
            ========================================= */
         :root {
-            /* 兜底变量 (如果不在 DBX 宿主中运行) */
-            --color-background: #ffffff;
-            --color-foreground: #09090b;
-            --color-card: #ffffff;
-            --color-border: #e4e4e7;
-            --color-muted: #f4f4f5;
-            --color-muted-foreground: #71717a;
-            --color-primary: #18181b;
-            --color-primary-foreground: #fafafa;
-            --radius-md: 0.5rem;
-            --radius-lg: 0.75rem;
-            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            --bg-base: var(--color-background, #ffffff);
+            --bg-card: var(--color-card, #ffffff);
+            --text-main: var(--color-foreground, #09090b);
+            --text-muted: var(--color-muted-foreground, #71717a);
+            --border-light: var(--color-border, #e4e4e7);
+            --primary: var(--color-primary, #18181b);
+            --primary-text: var(--color-primary-foreground, #fafafa);
+            --accent-bg: var(--color-muted, #f4f4f5);
+            --accent-hover: var(--color-border, #e4e4e7);
+
+            --radius-md: var(--radius-md, 0.5rem);
+            --radius-lg: var(--radius-lg, 0.75rem);
+            --font-sans: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif);
+            --font-mono: var(--font-mono, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace);
         }
 
-        /* 强制覆盖一些 DBX 变量名（DBX 的 --color-* 格式） */
-        :root {
-            --bg-base: var(--color-background);
-            --bg-card: var(--color-card);
-            --text-main: var(--color-foreground);
-            --text-muted: var(--color-muted-foreground);
-            --border-light: var(--color-border);
-            --primary: var(--color-primary);
-            --primary-hover: var(--color-primary);
-            --primary-text: var(--color-primary-foreground);
-            --accent-bg: var(--color-muted);
-            --accent-hover: var(--color-border);
+        /* 针对暗色模式的增强对比度优化 */
+        [data-dbx-theme="dark"] {
+            --bg-base: #09090b;
+            --bg-card: #121214;
+            --text-main: #f4f4f5;
+            --text-muted: #a1a1aa;
+            --border-light: #27272a; /* 暗色下非常柔和的边框 */
+            --accent-bg: #18181b;    /* 暗色下的按钮底色 */
+            --accent-hover: #27272a;
+            --primary: #3b82f6;      /* 亮蓝突出显示 */
+            --primary-text: #ffffff;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -69,7 +67,7 @@
         .topbar {
             display: flex;
             align-items: center;
-            gap: 1.5rem;
+            justify-content: space-between;
             padding: 0 1.5rem;
             height: 3.5rem;
             border-bottom: 1px solid var(--border-light);
@@ -96,7 +94,10 @@
             white-space: nowrap;
             flex: 1;
             justify-content: center;
+            overflow-x: auto;
+            scrollbar-width: none;
         }
+        .nav-links::-webkit-scrollbar { display: none; }
 
         .nav-links a {
             text-decoration: none;
@@ -107,18 +108,75 @@
             transition: all 0.15s ease;
             font-weight: 500;
         }
-
         .nav-links a:hover {
             color: var(--text-main);
             background-color: var(--accent-bg);
         }
 
-        .nav-links a.active {
-            color: var(--primary);
-            background-color: var(--accent-bg);
+        /* 语言切换器 */
+        .lang-switcher {
+            position: relative;
+            flex-shrink: 0;
+            margin-left: 1rem;
         }
 
-        .topbar-right { flex-shrink: 0; width: 4rem; }
+        .lang-trigger {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.75rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-light);
+            background-color: transparent;
+            color: var(--text-main);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+        .lang-trigger:hover { background-color: var(--accent-bg); }
+        .lang-trigger svg { width: 1rem; height: 1rem; color: var(--text-muted); }
+
+        /* 下拉菜单 */
+        .lang-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0; /* 防止撑破右侧边缘 */
+            width: 200px;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2);
+            padding: 0.35rem;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .lang-menu.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .lang-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: background-color 0.1s;
+            color: var(--text-main);
+        }
+        .lang-option:hover { background-color: var(--accent-bg); }
+        .lang-option.selected { color: var(--primary); font-weight: 600; background-color: var(--accent-bg); }
+        .lang-option-left { display: flex; align-items: center; gap: 0.5rem; }
+        .lang-option-left span.flag { font-size: 1.1rem; }
 
         /* 主工作区 */
         .main-container {
@@ -143,8 +201,8 @@
             padding: 0.75rem 1.5rem;
             border-radius: 9999px;
             border: 1px solid var(--border-light);
-            box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
             align-self: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
         }
 
         .select-group {
@@ -157,197 +215,83 @@
             position: relative;
         }
 
-        /* --- 自定义下拉菜单 --- */
         .custom-select-trigger {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            display: flex; align-items: center; justify-content: space-between;
             min-width: 100px;
-            background-color: var(--accent-bg);
-            border: 1px solid transparent;
-            padding: 0.4rem 0.75rem;
-            font-size: 0.85rem;
-            border-radius: var(--radius-md);
-            color: var(--text-main);
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.15s ease;
-            user-select: none;
+            background-color: var(--accent-bg); border: 1px solid transparent;
+            padding: 0.4rem 0.75rem; font-size: 0.85rem; border-radius: var(--radius-md);
+            color: var(--text-main); cursor: pointer; font-weight: 600;
+            transition: all 0.15s ease; user-select: none;
         }
         .custom-select-trigger:hover { background-color: var(--accent-hover); }
         .custom-select-trigger.active { border-color: var(--primary); outline: none; }
         .custom-select-trigger svg {
-            width: 0.9rem;
-            height: 0.9rem;
-            color: var(--text-muted);
-            transition: transform 0.2s ease;
+            width: 0.9rem; height: 0.9rem; color: var(--text-muted); transition: transform 0.2s ease;
         }
         .custom-select-trigger.active svg { transform: rotate(180deg); }
 
         .custom-select-options {
-            position: absolute;
-            top: calc(100% + 8px);
-            left: 50%;
-            transform: translateX(-50%) scaleY(0.95);
-            min-width: 130px;
-            background-color: var(--bg-card);
-            border: 1px solid var(--border-light);
-            border-radius: var(--radius-md);
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-            padding: 0.35rem;
-            z-index: 100;
-            opacity: 0;
-            visibility: hidden;
-            transform-origin: top center;
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            position: absolute; top: calc(100% + 8px); left: 50%;
+            transform: translateX(-50%) scaleY(0.95); min-width: 130px;
+            background-color: var(--bg-card); border: 1px solid var(--border-light);
+            border-radius: var(--radius-md); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2);
+            padding: 0.35rem; z-index: 100; opacity: 0; visibility: hidden;
+            transform-origin: top center; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .custom-select-options.open {
-            opacity: 1;
-            visibility: visible;
-            transform: translateX(-50%) scaleY(1);
-        }
+        .custom-select-options.open { opacity: 1; visibility: visible; transform: translateX(-50%) scaleY(1); }
+
         .custom-option {
-            padding: 0.5rem 0.75rem;
-            font-size: 0.85rem;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            color: var(--text-main);
-            transition: background-color 0.1s ease;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            padding: 0.5rem 0.75rem; font-size: 0.85rem; border-radius: var(--radius-md);
+            cursor: pointer; color: var(--text-main); transition: background-color 0.1s ease;
+            font-weight: 500; display: flex; align-items: center; justify-content: space-between;
         }
         .custom-option:hover { background-color: var(--accent-hover); }
-        .custom-option.selected {
-            background-color: var(--accent-bg);
-            color: var(--primary);
-            font-weight: 600;
-        }
-        .custom-option.selected::after {
-            content: '✓';
-            font-size: 0.9rem;
-        }
+        .custom-option.selected { background-color: var(--accent-bg); color: var(--primary); font-weight: 600; }
+        .custom-option.selected::after { content: '✓'; font-size: 0.9rem; }
 
-        /* 反向切换按钮 */
         .swap-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 2.25rem;
-            height: 2.25rem;
-            border-radius: 50%;
-            background-color: var(--primary);
-            border: none;
-            color: var(--primary-text);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            padding: 0;
+            display: flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem;
+            border-radius: 50%; background-color: var(--primary); border: none;
+            color: var(--primary-text); cursor: pointer; transition: all 0.2s ease; padding: 0;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.4);
         }
-        .swap-btn:hover {
-            background-color: var(--primary);
-            opacity: 0.9;
-            transform: rotate(180deg) scale(1.05);
-        }
+        .swap-btn:hover { opacity: 0.9; transform: rotate(180deg) scale(1.05); }
         .swap-btn svg { width: 1.1rem; height: 1.1rem; }
 
-        /* 左右编辑区网格 */
-        .workspace-grid {
-            flex: 1;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
-            min-height: 0;
-        }
-
-        .pane {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-            min-height: 0;
-        }
-
-        .pane-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-shrink: 0;
-            padding: 0 0.25rem;
-        }
-
-        .pane-title {
-            font-size: 0.9rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: var(--text-main);
-        }
+        /* 左右编辑区 */
+        .workspace-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; min-height: 0; }
+        .pane { display: flex; flex-direction: column; gap: 0.75rem; min-height: 0; }
+        .pane-header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; padding: 0 0.25rem; }
+        .pane-title { font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; color: var(--text-main); }
         .pane-title svg { color: var(--text-muted); }
+        .pane-actions { display: flex; align-items: center; gap: 0.5rem; }
 
-        .pane-actions {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        /* 编辑器容器 */
         .editor-container {
-            flex: 1;
-            border: 1px solid var(--border-light);
-            border-radius: var(--radius-lg);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            background-color: var(--bg-card);
-            box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+            flex: 1; border: 1px solid var(--border-light); border-radius: var(--radius-lg);
+            overflow: hidden; display: flex; flex-direction: column; background-color: var(--bg-card);
             transition: border-color 0.2s, box-shadow 0.2s;
         }
-        .editor-container:focus-within {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-        }
+        .editor-container:focus-within { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25); }
 
-        /* 原生 Textarea */
         .textarea {
-            width: 100%;
-            height: 100%;
-            padding: 1.25rem;
-            font-family: var(--font-mono);
-            font-size: 0.85rem;
-            line-height: 1.7;
-            color: var(--text-main);
-            background-color: var(--bg-card);
-            border: none;
-            outline: none;
-            resize: none;
-            tab-size: 2;
+            width: 100%; height: 100%; padding: 1.25rem;
+            font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.7;
+            color: var(--text-main); background-color: var(--bg-card); border: none; outline: none; resize: none; tab-size: 2;
         }
 
-        /* 按钮 */
+        /* 按钮：在暗色下完美融合 */
         .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.4rem;
-            padding: 0.4rem 0.75rem;
-            font-size: 0.8rem;
-            font-weight: 500;
-            border-radius: var(--radius-md);
-            border: 1px solid transparent;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            white-space: nowrap;
+            display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+            padding: 0.4rem 0.75rem; font-size: 0.8rem; font-weight: 500;
+            border-radius: var(--radius-md); border: 1px solid transparent;
+            cursor: pointer; transition: all 0.15s ease; white-space: nowrap;
         }
         .btn svg { width: 0.9rem; height: 0.9rem; flex-shrink: 0; }
 
         .btn-primary {
             background-color: var(--text-main);
             color: var(--bg-card);
-            flex: 1;
-            padding: 0.6rem;
-            font-size: 0.875rem;
-            font-weight: 600;
+            flex: 1; padding: 0.6rem; font-size: 0.875rem; font-weight: 600;
         }
         .btn-primary:hover { opacity: 0.85; }
 
@@ -359,67 +303,38 @@
         .btn-outline:hover {
             background-color: var(--accent-bg);
             color: var(--text-main);
-            border-color: var(--border-light);
+            border-color: var(--accent-hover);
         }
 
-        /* 结果展示区头 */
         .result-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.6rem 1rem;
-            border-bottom: 1px solid var(--border-light);
-            background-color: var(--accent-bg);
-            flex-shrink: 0;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.6rem 1rem; border-bottom: 1px solid var(--border-light);
+            background-color: var(--accent-bg); flex-shrink: 0;
         }
-        .result-header-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
+        .result-header-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
-        /* Toast 提示框 */
+        /* Toast */
         .toast-container {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            pointer-events: none;
+            position: fixed; bottom: 2rem; right: 2rem; z-index: 9999;
+            display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none;
         }
         .toast {
-            background-color: var(--text-main);
-            color: var(--bg-card);
-            padding: 0.75rem 1rem;
-            border-radius: var(--radius-md);
-            font-size: 0.875rem;
-            font-weight: 500;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            background-color: var(--text-main); color: var(--bg-card);
+            padding: 0.75rem 1rem; border-radius: var(--radius-md);
+            font-size: 0.875rem; font-weight: 500; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+            display: flex; align-items: center; gap: 0.5rem;
             animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            pointer-events: auto;
-            transition: opacity 0.3s, transform 0.3s;
+            pointer-events: auto; transition: opacity 0.3s, transform 0.3s;
         }
         .toast.error { background-color: #ef4444; color: #fff; }
         .toast.hide { opacity: 0; transform: translateX(100%); }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
 
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateX(100%); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-
-        /* 响应式 */
         @media (max-width: 900px) {
             .workspace-grid { grid-template-columns: 1fr; }
-            .topbar { flex-direction: column; height: auto; padding: 1rem; gap: 1rem; }
-            .topbar-right { display: none; }
-            .nav-links { flex-wrap: wrap; justify-content: center; }
+            .topbar { flex-wrap: wrap; height: auto; padding: 1rem; gap: 1rem; }
+            .nav-links { justify-content: flex-start; width: 100%; order: 3; }
+            .lang-switcher { margin-left: auto; }
             .toolbar { flex-direction: row; flex-wrap: wrap; border-radius: var(--radius-lg); padding: 1rem; width: 100%;}
             .main-container { padding: 1rem; }
         }
@@ -434,7 +349,6 @@
     </div>
 
     <nav class="nav-links" id="navLinks">
-        <!-- data-i18n 对应键值翻译 -->
         <a data-src="yaml" data-tgt="json" data-i18n="navYamlJson">yaml转json</a>
         <a data-src="yaml" data-tgt="properties" data-i18n="navYamlProps">yaml转properties</a>
         <a data-src="json" data-tgt="properties" data-i18n="navJsonProps">json转properties</a>
@@ -444,11 +358,20 @@
         <a data-src="yaml" data-tgt="xml" data-i18n="navYamlXml">yaml转xml</a>
     </nav>
 
-    <div class="topbar-right"></div>
+    <!-- 语言切换器 -->
+    <div class="lang-switcher" id="langSwitcher">
+        <button class="lang-trigger" id="langTrigger">
+            <span id="currentLangFlag">🇨🇳</span>
+            <span id="currentLangText">简体中文</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="lang-menu" id="langMenu">
+            <!-- 动态生成语言列表 -->
+        </div>
+    </div>
 </header>
 
 <main class="main-container">
-    <!-- 顶部控制台 -->
     <div class="toolbar">
         <div class="select-group">
             <span data-i18n="fromLabel">从</span>
@@ -487,9 +410,7 @@
         </div>
     </div>
 
-    <!-- 左右编辑区 -->
     <div class="workspace-grid">
-        <!-- 左侧：输入区 -->
         <div class="pane">
             <div class="pane-header">
                 <div class="pane-title">
@@ -510,11 +431,9 @@
                     </button>
                 </div>
             </div>
-
             <div class="editor-container">
                 <textarea id="inputText" class="textarea" data-i18n-placeholder="inputPlaceholder"></textarea>
             </div>
-
             <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
                 <button class="btn btn-primary" id="convertBtn">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
@@ -523,7 +442,6 @@
             </div>
         </div>
 
-        <!-- 右侧：输出区 -->
         <div class="pane">
             <div class="pane-header">
                 <div class="pane-title">
@@ -541,10 +459,9 @@
                     </button>
                 </div>
             </div>
-
             <div class="editor-container">
                 <div class="result-header">
-                    <span class="result-header-label" id="outputLabel">Result Output (YAML)</span>
+                    <span class="result-header-label" id="outputLabel">Result Output</span>
                 </div>
                 <textarea id="outputText" class="textarea" data-i18n-placeholder="outputPlaceholder" style="background-color: var(--accent-bg);"></textarea>
             </div>
@@ -557,177 +474,119 @@
 <script>
     document.addEventListener('DOMContentLoaded', async () => {
         // =========================================
-        // 1. 国际化 (I18n) 字典
+        // 1. 国际化 (I18n) 字典配置
         // =========================================
-        const translations = {
-            'zh-CN': {
-                brand: '工具',
-                navYamlJson: 'yaml转json',
-                navYamlProps: 'yaml转properties',
-                navJsonProps: 'json转properties',
-                navJsonXml: 'json转xml',
-                navXmlYaml: 'xml转yaml',
-                navJsonYaml: 'json转yaml',
-                navYamlXml: 'yaml转xml',
-                fromLabel: '从',
-                toLabel: '转为',
-                swapTitle: '互换格式并将结果作为输入',
-                inputLabel: '输入内容',
-                outputLabel: '输出结果',
-                formatBtn: '格式化',
-                mockBtn: '模拟数据',
-                clearBtn: '清空',
-                convertBtn: '执行转换',
-                copyBtn: '复制',
-                inputPlaceholder: '// 在此输入或粘贴源数据...',
-                outputPlaceholder: '等待操作...',
-                toastMockSuccess: '已生成模拟数据并完成转换',
-                toastMockError: '生成模拟数据失败',
-                toastFormatInput: '输入格式化成功',
-                toastFormatOutput: '输出格式化成功',
-                toastFormatError: '格式化失败',
-                toastConvertSuccess: '转换并格式化成功',
-                toastConvertError: '转换失败',
-                toastCopySuccess: '已复制到剪贴板',
-                toastCopyError: '复制失败',
-                toastEmptyInput: '请输入内容',
-                toastSameFormat: '源格式与目标格式相同。',
-                toastConvertSilentError: '转换出错: 请检查源格式是否正确'
-            },
-            'zh-TW': {
-                brand: '工具',
-                navYamlJson: 'yaml轉json',
-                navYamlProps: 'yaml轉properties',
-                navJsonProps: 'json轉properties',
-                navJsonXml: 'json轉xml',
-                navXmlYaml: 'xml轉yaml',
-                navJsonYaml: 'json轉yaml',
-                navYamlXml: 'yaml轉xml',
-                fromLabel: '從',
-                toLabel: '轉為',
-                swapTitle: '互換格式並將結果作為輸入',
-                inputLabel: '輸入內容',
-                outputLabel: '輸出結果',
-                formatBtn: '格式化',
-                mockBtn: '模擬數據',
-                clearBtn: '清空',
-                convertBtn: '執行轉換',
-                copyBtn: '複製',
-                inputPlaceholder: '// 在此輸入或粘貼源數據...',
-                outputPlaceholder: '等待操作...',
-                toastMockSuccess: '已生成模擬數據並完成轉換',
-                toastMockError: '生成模擬數據失敗',
-                toastFormatInput: '輸入格式化成功',
-                toastFormatOutput: '輸出格式化成功',
-                toastFormatError: '格式化失敗',
-                toastConvertSuccess: '轉換並格式化成功',
-                toastConvertError: '轉換失敗',
-                toastCopySuccess: '已複製到剪貼板',
-                toastCopyError: '複製失敗',
-                toastEmptyInput: '請輸入內容',
-                toastSameFormat: '源格式與目標格式相同。',
-                toastConvertSilentError: '轉換出錯: 請檢查源格式是否正確'
-            },
-            'en': {
-                brand: 'Tools',
-                navYamlJson: 'YAML to JSON',
-                navYamlProps: 'YAML to Properties',
-                navJsonProps: 'JSON to Properties',
-                navJsonXml: 'JSON to XML',
-                navXmlYaml: 'XML to YAML',
-                navJsonYaml: 'JSON to YAML',
-                navYamlXml: 'YAML to XML',
-                fromLabel: 'From',
-                toLabel: 'To',
-                swapTitle: 'Swap formats and use result as input',
-                inputLabel: 'Input',
-                outputLabel: 'Output',
-                formatBtn: 'Format',
-                mockBtn: 'Mock',
-                clearBtn: 'Clear',
-                convertBtn: 'Convert',
-                copyBtn: 'Copy',
-                inputPlaceholder: '// Enter or paste source data here...',
-                outputPlaceholder: 'Waiting for operation...',
-                toastMockSuccess: 'Mock data generated and converted',
-                toastMockError: 'Failed to generate mock data',
-                toastFormatInput: 'Input formatted',
-                toastFormatOutput: 'Output formatted',
-                toastFormatError: 'Format failed',
-                toastConvertSuccess: 'Converted and formatted',
-                toastConvertError: 'Conversion failed',
-                toastCopySuccess: 'Copied to clipboard',
-                toastCopyError: 'Copy failed',
-                toastEmptyInput: 'Please enter content',
-                toastSameFormat: 'Source and target formats are the same.',
-                toastConvertSilentError: 'Error: Please check source format'
-            }
-        };
+        const languageConfigs = [
+            { code: 'en', name: 'English', flag: '🇺🇸', dict: { brand: 'Tools', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock Data', clearBtn: 'Clear', convertBtn: 'Convert', copyBtn: 'Copy', inputPlaceholder: '// Enter data...', outputPlaceholder: 'Waiting...', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format' } },
+            { code: 'ja', name: '日本語', flag: '🇯🇵', dict: { brand: 'ツール', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '変換元', toLabel: '変換先', swapTitle: '入れ替え', inputLabel: '入力', outputLabel: '出力', formatBtn: '整形', mockBtn: 'モック', clearBtn: 'クリア', convertBtn: '変換', copyBtn: 'コピー', inputPlaceholder: '// データを入力...', outputPlaceholder: '待機中...', toastMockSuccess: 'モック生成完了', toastFormatInput: '入力整形完了', toastFormatOutput: '出力整形完了', toastFormatError: '整形失敗', toastConvertSuccess: '変換完了', toastConvertError: '変換失敗', toastCopySuccess: 'コピーしました', toastCopyError: 'コピー失敗', toastEmptyInput: '入力が空です', toastSameFormat: '同じ形式です' } },
+            { code: 'ko', name: '한국어', flag: '🇰🇷', dict: { brand: '도구', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '변환 전', toLabel: '변환 후', swapTitle: '교체', inputLabel: '입력', outputLabel: '출력', formatBtn: '포맷', mockBtn: '모의', clearBtn: '지우기', convertBtn: '변환', copyBtn: '복사', inputPlaceholder: '// 데이터 입력...', outputPlaceholder: '대기 중...', toastMockSuccess: '모의 생성됨', toastFormatInput: '입력 포맷됨', toastFormatOutput: '출력 포맷됨', toastFormatError: '포맷 실패', toastConvertSuccess: '변환됨', toastConvertError: '변환 실패', toastCopySuccess: '복사됨', toastCopyError: '복사 실패', toastEmptyInput: '입력이 비어있음', toastSameFormat: '같은 형식' } },
+            { code: 'zh-CN', name: '简体中文', flag: '🇨🇳', dict: { brand: '工具', navYamlJson: 'yaml转json', navYamlProps: 'yaml转properties', navJsonProps: 'json转properties', navJsonXml: 'json转xml', navXmlYaml: 'xml转yaml', navJsonYaml: 'json转yaml', navYamlXml: 'yaml转xml', fromLabel: '从', toLabel: '转为', swapTitle: '互换格式', inputLabel: '输入内容', outputLabel: '输出结果', formatBtn: '格式化', mockBtn: '模拟数据', clearBtn: '清空', convertBtn: '执行转换', copyBtn: '复制', inputPlaceholder: '// 在此输入或粘贴源数据...', outputPlaceholder: '等待操作...', toastMockSuccess: '已生成模拟数据', toastFormatInput: '输入格式化成功', toastFormatOutput: '输出格式化成功', toastFormatError: '格式化失败', toastConvertSuccess: '转换成功', toastConvertError: '转换失败', toastCopySuccess: '已复制', toastCopyError: '复制失败', toastEmptyInput: '请输入内容', toastSameFormat: '格式相同' } },
+            { code: 'zh-TW', name: '繁體中文', flag: '繁', dict: { brand: '工具', navYamlJson: 'yaml轉json', navYamlProps: 'yaml轉properties', navJsonProps: 'json轉properties', navJsonXml: 'json轉xml', navXmlYaml: 'xml轉yaml', navJsonYaml: 'json轉yaml', navYamlXml: 'yaml轉xml', fromLabel: '從', toLabel: '轉為', swapTitle: '互換格式', inputLabel: '輸入內容', outputLabel: '輸出結果', formatBtn: '格式化', mockBtn: '模擬數據', clearBtn: '清空', convertBtn: '執行轉換', copyBtn: '複製', inputPlaceholder: '// 在此輸入或粘貼源數據...', outputPlaceholder: '等待操作...', toastMockSuccess: '已生成模擬數據', toastFormatInput: '輸入格式化成功', toastFormatOutput: '輸出格式化成功', toastFormatError: '格式化失敗', toastConvertSuccess: '轉換成功', toastConvertError: '轉換失敗', toastCopySuccess: '已複製', toastCopyError: '複製失敗', toastEmptyInput: '請輸入內容', toastSameFormat: '格式相同' } }
+        ];
 
         let currentLang = 'zh-CN';
-        let currentTheme = 'light';
+        let currentDict = languageConfigs.find(c => c.code === 'zh-CN').dict;
 
         // =========================================
         // 2. DBX 环境与 API 桥接
         // =========================================
-        // 如果在 DBX 环境中，优先获取 DBX 提供的 API
         if (window.dbxPlugin) {
             try {
                 await window.dbxPlugin.ready;
-                if (window.dbxPlugin.locale) currentLang = window.dbxPlugin.locale;
-                if (window.dbxPlugin.theme && window.dbxPlugin.theme.appearance) {
-                    currentTheme = window.dbxPlugin.theme.appearance;
+                if (window.dbxPlugin.locale && languageConfigs.find(c => c.code === window.dbxPlugin.locale)) {
+                    currentLang = window.dbxPlugin.locale;
                 }
-
-                // 监听 DBX 环境变化（主题、语言）
                 window.addEventListener('dbx-plugin-env', (event) => {
                     const env = event.detail;
-                    if (env.locale) currentLang = env.locale;
-                    if (env.theme && env.theme.appearance) {
-                        currentTheme = env.theme.appearance;
-                        // 强制刷新 CSS 变量或做额外处理（如果需要）
-                        document.documentElement.setAttribute('data-dbx-theme', currentTheme);
+                    if (env.locale && languageConfigs.find(c => c.code === env.locale)) {
+                        currentLang = env.locale;
+                        renderLangMenu();
+                        applyI18n();
                     }
-                    applyI18n();
+                    if (env.theme && env.theme.appearance) {
+                        document.documentElement.setAttribute('data-dbx-theme', env.theme.appearance);
+                    }
                 });
             } catch (err) {
-                console.warn('DBX 环境初始化异常', err);
+                console.warn('DBX init error:', err);
             }
         } else {
-            // 浏览器独立预览环境兜底
             const userLang = navigator.language || 'zh-CN';
-            currentLang = translations[userLang] ? userLang : (userLang.startsWith('zh') ? 'zh-CN' : 'en');
-            currentTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            document.documentElement.setAttribute('data-dbx-theme', currentTheme);
+            if (languageConfigs.find(c => c.code === userLang)) currentLang = userLang;
+            else if (userLang.startsWith('zh')) currentLang = userLang === 'zh-TW' ? 'zh-TW' : 'zh-CN';
+            // 模拟系统暗色模式
+            if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-dbx-theme', 'dark');
+            }
         }
 
         // =========================================
-        // 3. 应用国际化
+        // 3. 语言菜单渲染与切换
+        // =========================================
+        const langMenu = document.getElementById('langMenu');
+        const langTrigger = document.getElementById('langTrigger');
+        const currentLangFlag = document.getElementById('currentLangFlag');
+        const currentLangText = document.getElementById('currentLangText');
+
+        function renderLangMenu() {
+            langMenu.innerHTML = '';
+            languageConfigs.forEach(lang => {
+                const div = document.createElement('div');
+                div.className = `lang-option ${lang.code === currentLang ? 'selected' : ''}`;
+                div.innerHTML = `
+                    <div class="lang-option-left">
+                        <span class="flag">${lang.flag}</span>
+                        <span>${lang.name}</span>
+                    </div>
+                    ${lang.code === currentLang ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                `;
+                div.addEventListener('click', () => {
+                    currentLang = lang.code;
+                    currentDict = lang.dict;
+                    langMenu.classList.remove('open');
+                    renderLangMenu();
+                    applyI18n();
+                });
+                langMenu.appendChild(div);
+            });
+
+            const currentConfig = languageConfigs.find(c => c.code === currentLang);
+            if (currentConfig) {
+                currentLangFlag.textContent = currentConfig.flag;
+                currentLangText.textContent = currentConfig.name;
+            }
+        }
+
+        langTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            langMenu.classList.toggle('open');
+        });
+
+        document.addEventListener('click', () => {
+            langMenu.classList.remove('open');
+        });
+
+        // =========================================
+        // 4. 应用国际化
         // =========================================
         function applyI18n() {
-            if (!translations[currentLang]) currentLang = 'zh-CN';
-            const dict = translations[currentLang];
-
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
-                if (dict[key]) el.textContent = dict[key];
+                if (currentDict[key]) el.textContent = currentDict[key];
             });
-
             document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
                 const key = el.getAttribute('data-i18n-placeholder');
-                if (dict[key]) el.placeholder = dict[key];
+                if (currentDict[key]) el.placeholder = currentDict[key];
             });
-
             document.querySelectorAll('[data-i18n-title]').forEach(el => {
                 const key = el.getAttribute('data-i18n-title');
-                if (dict[key]) el.title = dict[key];
+                if (currentDict[key]) el.title = currentDict[key];
             });
-
             updateOutputLabel();
         }
 
         // =========================================
-        // 4. 业务逻辑 (不变)
+        // 5. 业务逻辑
         // =========================================
         function initCustomSelect(containerId) {
             const container = document.getElementById(containerId);
@@ -807,7 +666,7 @@
 
         inputText.addEventListener('input', () => { currentDataObj = null; });
         outputText.addEventListener('input', () => {
-            if (outputText.value.trim() === '' || outputText.value === translations[currentLang].outputPlaceholder) {
+            if (outputText.value.trim() === '' || outputText.value === currentDict.outputPlaceholder) {
                 currentDataObj = null;
             }
         });
@@ -837,7 +696,7 @@
                 try {
                     inputText.value = serializeData(currentDataObj, sourceFormat.value);
                 } catch (err) {
-                    outputText.value = translations[currentLang].outputPlaceholder;
+                    outputText.value = currentDict.outputPlaceholder;
                 }
             }
             doConvertSilent();
@@ -858,7 +717,7 @@
             targetSelect.setValue(targetFormat.value);
 
             const currentOutput = outputText.value;
-            if (currentOutput && currentOutput !== translations[currentLang].outputPlaceholder && currentOutput !== translations[currentLang].toastSameFormat) {
+            if (currentOutput && currentOutput !== currentDict.outputPlaceholder && currentOutput !== currentDict.toastSameFormat) {
                 inputText.value = currentOutput;
                 currentDataObj = null;
             }
@@ -878,7 +737,7 @@
             updateOutputLabel();
 
             const raw = inputText.value.trim();
-            if (raw && raw !== translations[currentLang].outputPlaceholder) {
+            if (raw && raw !== currentDict.outputPlaceholder) {
                 try {
                     try {
                         currentDataObj = parseData(raw, newSrc);
@@ -893,8 +752,8 @@
 
         function doConvertSilent() {
             const raw = inputText.value.trim();
-            if (!raw || raw === translations[currentLang].outputPlaceholder) {
-                outputText.value = translations[currentLang].outputPlaceholder;
+            if (!raw || raw === currentDict.outputPlaceholder) {
+                outputText.value = currentDict.outputPlaceholder;
                 return;
             }
 
@@ -910,7 +769,7 @@
                 if (src === tgt) {
                     outputText.value = raw;
                 } else {
-                    outputText.value = translations[currentLang].toastConvertSilentError;
+                    outputText.value = currentDict.toastConvertError;
                     currentDataObj = null;
                 }
             }
@@ -938,9 +797,9 @@
             try {
                 inputText.value = serializeData(currentDataObj, src);
                 outputText.value = serializeData(currentDataObj, tgt);
-                showToast(translations[currentLang].toastMockSuccess);
+                showToast(currentDict.toastMockSuccess);
             } catch (err) {
-                showToast(translations[currentLang].toastMockError, 'error');
+                showToast(currentDict.toastFormatError, 'error');
             }
         });
 
@@ -955,15 +814,15 @@
                     inputText.value = serializeData(obj, sourceFormat.value);
                     currentDataObj = obj;
                 }
-                showToast(translations[currentLang].toastFormatInput);
+                showToast(currentDict.toastFormatInput);
             } catch (err) {
-                showToast(translations[currentLang].toastFormatError, 'error');
+                showToast(currentDict.toastFormatError, 'error');
             }
         });
 
         formatOutputBtn.addEventListener('click', () => {
             const raw = outputText.value.trim();
-            if (raw === translations[currentLang].outputPlaceholder || !raw) return;
+            if (raw === currentDict.outputPlaceholder || !raw) return;
             try {
                 if (targetFormat.value === 'xml') {
                     outputText.value = formatXmlString(raw);
@@ -971,27 +830,27 @@
                     const obj = parseData(raw, targetFormat.value);
                     outputText.value = serializeData(obj, targetFormat.value);
                 }
-                showToast(translations[currentLang].toastFormatOutput);
+                showToast(currentDict.toastFormatOutput);
             } catch (err) {
-                showToast(translations[currentLang].toastFormatError, 'error');
+                showToast(currentDict.toastFormatError, 'error');
             }
         });
 
         function doConvert() {
             const raw = inputText.value.trim();
             if (!raw) {
-                showToast(translations[currentLang].toastEmptyInput, 'error');
+                showToast(currentDict.toastEmptyInput, 'error');
                 return;
             }
             const src = sourceFormat.value, tgt = targetFormat.value;
             try {
                 currentDataObj = parseData(raw, src);
                 outputText.value = serializeData(currentDataObj, tgt);
-                showToast(translations[currentLang].toastConvertSuccess);
+                showToast(currentDict.toastConvertSuccess);
             } catch (err) {
-                outputText.value = `转换出错: ${err.message}`;
+                outputText.value = `Error: ${err.message}`;
                 currentDataObj = null;
-                showToast(translations[currentLang].toastConvertError, 'error');
+                showToast(currentDict.toastConvertError, 'error');
             }
         }
 
@@ -1002,7 +861,7 @@
             if (format === 'yaml') return jsyaml.load(text);
             if (format === 'xml') return xmlToObj(text);
             if (format === 'properties') return propertiesToObj(text);
-            throw new Error("未知格式");
+            throw new Error("Unknown format");
         }
 
         function serializeData(obj, format) {
@@ -1016,7 +875,7 @@
             if (format === 'yaml') return jsyaml.dump(obj);
             if (format === 'xml') return objToXml(obj);
             if (format === 'properties') return objToProperties(obj);
-            throw new Error("未知格式");
+            throw new Error("Unknown format");
         }
 
         function formatXmlString(xml) {
@@ -1053,7 +912,7 @@
                 const wrapped = `<root>${cleanXml}</root>`;
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(wrapped, "text/xml");
-                if (doc.querySelector('parsererror')) throw new Error("XML 格式错误");
+                if (doc.querySelector('parsererror')) throw new Error("XML Parse Error");
                 const root = doc.documentElement;
                 const obj = {};
                 for (let child of root.children) {
@@ -1066,7 +925,7 @@
             }
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(cleanXml, "text/xml");
-            if (xmlDoc.querySelector('parsererror')) throw new Error("XML 格式错误");
+            if (xmlDoc.querySelector('parsererror')) throw new Error("XML Parse Error");
             const root = xmlDoc.documentElement;
             return { [root.nodeName]: nodeToObjInner(root) };
 
@@ -1163,28 +1022,29 @@
 
         clearInputBtn.addEventListener('click', () => {
             inputText.value = '';
-            outputText.value = translations[currentLang].outputPlaceholder;
+            outputText.value = currentDict.outputPlaceholder;
             currentDataObj = null;
         });
 
         copyBtn.addEventListener('click', async () => {
             const text = outputText.value;
-            if (text === translations[currentLang].outputPlaceholder || !text) return;
+            if (text === currentDict.outputPlaceholder || !text) return;
             try {
                 if (window.dbxPlugin && window.dbxPlugin.clipboard) {
                     await window.dbxPlugin.clipboard.writeText(text);
                 } else {
                     await navigator.clipboard.writeText(text);
                 }
-                showToast(translations[currentLang].toastCopySuccess);
+                showToast(currentDict.toastCopySuccess);
             } catch (e) {
-                showToast(translations[currentLang].toastCopyError, 'error');
+                showToast(currentDict.toastCopyError, 'error');
             }
         });
 
-        // 初始化页面文本
+        // 初始化
+        renderLangMenu();
         applyI18n();
-        outputText.value = translations[currentLang].outputPlaceholder;
+        outputText.value = currentDict.outputPlaceholder;
     });
 </script>
 </body>
