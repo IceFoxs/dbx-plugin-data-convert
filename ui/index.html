@@ -10,7 +10,6 @@
     <!-- 引入 JSON 格式化神器 (容错加载) -->
     <script src="json/index.js"></script>
     <script>
-        // 如果加载失败，提供简单的保底实现
         if (typeof stringify !== 'function') {
             window.stringify = function(obj, options) {
                 return JSON.stringify(obj, null, options && options.indent ? options.indent : 2);
@@ -92,7 +91,6 @@
             flex-shrink: 0;
         }
 
-        /* 居中导航链接 */
         .nav-links {
             display: flex;
             gap: 0.5rem;
@@ -123,7 +121,6 @@
             background-color: var(--accent);
         }
 
-        /* 右侧占位 (保持导航居中) */
         .topbar-right {
             flex-shrink: 0;
             width: 4rem;
@@ -246,12 +243,10 @@
         <a data-src="yaml" data-tgt="xml">yaml转xml</a>
     </nav>
 
-    <!-- 占位符，用于让导航完美居中 -->
     <div class="topbar-right"></div>
 </header>
 
 <main class="main-container">
-    <!-- 工具栏 -->
     <div class="toolbar">
         <div class="select-group">
             <span style="font-size:0.875rem; color:var(--muted-foreground);">从</span>
@@ -276,9 +271,7 @@
         </div>
     </div>
 
-    <!-- 左右布局 -->
     <div class="workspace-grid">
-        <!-- 左侧：输入区 -->
         <div class="pane">
             <div class="pane-header">
                 <div class="pane-title">
@@ -313,7 +306,6 @@
             </div>
         </div>
 
-        <!-- 右侧：输出区 -->
         <div class="pane">
             <div class="pane-header">
                 <div class="pane-title">
@@ -346,7 +338,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // DOM 元素
         const navLinks = document.querySelectorAll('#navLinks a');
         const sourceFormat = document.getElementById('sourceFormat');
         const targetFormat = document.getElementById('targetFormat');
@@ -364,12 +355,10 @@
 
         let currentDataObj = null;
 
-        // 监听手动输入，清空缓存状态
         inputText.addEventListener('input', () => {
             currentDataObj = null;
         });
 
-        // 监听输出框的手动修改
         outputText.addEventListener('input', () => {
             if (outputText.value.trim() === '' || outputText.value === '等待操作...') {
                 currentDataObj = null;
@@ -387,7 +376,6 @@
             }, 3000);
         }
 
-        // --- 导航栏与下拉框联动 ---
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -395,7 +383,6 @@
             });
         });
 
-        // 左侧切换：尝试自动解析并更新输入框
         sourceFormat.addEventListener('change', () => {
             const newSrc = sourceFormat.value;
             updateOutputLabel();
@@ -410,19 +397,16 @@
             doConvertSilent();
         });
 
-        // 右侧切换：直接触发右侧转换
         targetFormat.addEventListener('change', () => {
             updateOutputLabel();
             doConvertSilent();
         });
 
-        // 互换格式及内容
         swapBtn.addEventListener('click', () => {
             const temp = sourceFormat.value;
             sourceFormat.value = targetFormat.value;
             targetFormat.value = temp;
 
-            // 将右侧结果移动到左侧输入
             const currentOutput = outputText.value;
             if (currentOutput && currentOutput !== '等待操作...' && currentOutput !== '源格式与目标格式相同。') {
                 inputText.value = currentOutput;
@@ -437,7 +421,6 @@
             outputLabel.textContent = `Result Output (${targetFormat.value.toUpperCase()})`;
         }
 
-        // 统一处理导航栏点击
         function handleFormatChange(newSrc, newTgt) {
             sourceFormat.value = newSrc;
             targetFormat.value = newTgt;
@@ -457,7 +440,6 @@
             doConvertSilent();
         }
 
-        // 静默执行转换
         function doConvertSilent() {
             const raw = inputText.value.trim();
             if (!raw || raw === '等待操作...') {
@@ -468,7 +450,6 @@
             const src = sourceFormat.value;
             const tgt = targetFormat.value;
 
-            // 即使源格式和目标格式相同，也强制格式化
             try {
                 if (!currentDataObj) {
                     currentDataObj = parseData(raw, src);
@@ -476,7 +457,6 @@
                 outputText.value = serializeData(currentDataObj, tgt);
             } catch (err) {
                 if (src === tgt) {
-                    // 如果相同且解析失败，可能是因为中间态不合法，回退到原文本
                     outputText.value = raw;
                 } else {
                     outputText.value = `转换出错: 请检查源格式是否正确`;
@@ -485,7 +465,6 @@
             }
         }
 
-        // --- 模拟数据生成 (同时自动转换) ---
         genMockBtn.addEventListener('click', () => {
             const src = sourceFormat.value;
             const tgt = targetFormat.value;
@@ -507,17 +486,13 @@
 
             try {
                 inputText.value = serializeData(currentDataObj, src);
-
-                // 无论是否同格式，均触发格式化输出
                 outputText.value = serializeData(currentDataObj, tgt);
-
                 showToast('已生成模拟数据并完成转换');
             } catch (err) {
                 showToast('生成失败', 'error');
             }
         });
 
-        // --- 格式化 ---
         formatInputBtn.addEventListener('click', () => {
             const raw = inputText.value.trim();
             if (!raw) return;
@@ -551,7 +526,6 @@
             }
         });
 
-        // --- 手动执行转换（带 Toast 提示） ---
         function doConvert() {
             const raw = inputText.value.trim();
             if (!raw) {
@@ -572,7 +546,6 @@
 
         convertBtn.addEventListener('click', doConvert);
 
-        // --- 数据解析与序列化 ---
         function parseData(text, format) {
             if (format === 'json') return JSON.parse(text);
             if (format === 'yaml') return jsyaml.load(text);
@@ -584,7 +557,6 @@
         function serializeData(obj, format) {
             if (format === 'json') {
                 try {
-                    // 引入的 stringify 保证极致的缩进美化
                     return window.stringify(obj, { indent: 2, maxLength: 80 });
                 } catch (e) {
                     return JSON.stringify(obj, null, 2);
@@ -596,7 +568,6 @@
             throw new Error("未知格式");
         }
 
-        // XML 美化工具
         function formatXmlString(xml) {
             let formatted = '';
             xml = xml.replace(/>\s*</g, '><').trim();
@@ -695,6 +666,7 @@
             return result.join('\n');
         }
 
+        // 核心：重构后的完美 XML 序列化器
         function objToXml(obj, rootName = 'root') {
             let xml = '';
             function build(obj, name, depth = 0) {
@@ -703,30 +675,45 @@
                     obj.forEach(item => build(item, name || 'item', depth));
                 } else if (typeof obj === 'object' && obj !== null) {
                     if (rootName === 'root' && depth === 0) {
-                        Object.keys(obj).forEach(key => build(obj[key], key, 1));
+                        Object.keys(obj).forEach(key => build(obj[key], key, 0));
                     } else {
-                        xml += `${indent}<${name}>\n`;
-                        Object.keys(obj).forEach(key => build(obj[key], key, depth + 1));
-                        xml += `${indent}</${name}>\n`;
+                        const keys = Object.keys(obj);
+                        if (keys.length === 0) {
+                            xml += `${indent}<${name}/>\n`;
+                            return;
+                        }
+
+                        // 智能单行折叠
+                        const isFlat = keys.every(k => typeof obj[k] !== 'object' || obj[k] === null);
+                        if (isFlat) {
+                            let innerXml = keys.map(k => {
+                                const safeValue = String(obj[k]).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                return `<${k}>${safeValue}</${k}>`;
+                            }).join('');
+                            xml += `${indent}<${name}>${innerXml}</${name}>\n`;
+                        } else {
+                            xml += `${indent}<${name}>\n`;
+                            keys.forEach(key => build(obj[key], key, depth + 1));
+                            xml += `${indent}</${name}>\n`;
+                        }
                     }
                 } else {
                     const safeValue = String(obj).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                     xml += `${indent}<${name}>${safeValue}</${name}>\n`;
                 }
             }
-            const isFlat = Object.keys(obj).every(k => typeof obj[k] !== 'object');
-            if (isFlat) {
-                Object.keys(obj).forEach(key => {
-                    const safeValue = String(obj[key]).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    xml += `<${key}>${safeValue}</${key}>\n`;
-                });
-            } else {
+
+            if (Array.isArray(obj)) {
+                obj.forEach((item, index) => build(item, `item${index}`, 0));
+            } else if (typeof obj === 'object' && obj !== null) {
                 Object.keys(obj).forEach(key => build(obj[key], key, 0));
+            } else {
+                xml += `<value>${obj}</value>\n`;
             }
+
             return `<?xml version="1.0" encoding="UTF-8"?>\n${xml.trim()}`;
         }
 
-        // 其他交互
         clearInputBtn.addEventListener('click', () => {
             inputText.value = '';
             outputText.value = '等待操作...';
@@ -744,7 +731,6 @@
             }
         });
 
-        // 初始化
         updateOutputLabel();
     });
 </script>
