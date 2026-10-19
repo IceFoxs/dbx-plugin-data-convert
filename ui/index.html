@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全能数据格式互转工具 · 纯净版</title>
+    <title>全能数据格式互转工具 · 专业版</title>
 
     <!-- 引入核心依赖 -->
     <script src="js-yaml.min.js"></script>
-    <!-- 引入 JSON 格式化神器 (容错加载) -->
     <script src="json/index.js"></script>
     <script>
         if (typeof stringify !== 'function') {
@@ -19,41 +18,53 @@
 
     <style>
         /* =========================================
-           shadcn 风格基础样式
+           全局主题变量 (Dark Mode First 风格)
            ========================================= */
         :root {
-            --background: #ffffff;
-            --foreground: #09090b;
-            --card: #ffffff;
-            --card-foreground: #09090b;
-            --muted: #f4f4f5;
-            --muted-foreground: #71717a;
-            --border: #e4e4e7;
-            --input: #e4e4e7;
-            --primary: #18181b;
-            --primary-foreground: #fafafa;
-            --accent: #f4f4f5;
-            --accent-foreground: #18181b;
-            --destructive: #ef4444;
-            --ring: #18181b;
-            --radius: 0.5rem;
+            --bg-base: #f8fafc;
+            --bg-card: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-light: #e2e8f0;
+
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-text: #ffffff;
+
+            --accent-bg: #f1f5f9;
+            --accent-hover: #e2e8f0;
+
+            --code-bg: #ffffff;
+            --code-text: #334155;
+
+            --radius-lg: 12px;
+            --radius-md: 8px;
+            --radius-sm: 6px;
+
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-pop: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
         }
 
         @media (prefers-color-scheme: dark) {
             :root {
-                --background: #09090b;
-                --foreground: #fafafa;
-                --card: #09090b;
-                --card-foreground: #fafafa;
-                --muted: #27272a;
-                --muted-foreground: #a1a1aa;
-                --border: #27272a;
-                --input: #27272a;
-                --primary: #fafafa;
-                --primary-foreground: #18181b;
-                --accent: #27272a;
-                --accent-foreground: #fafafa;
-                --ring: #d4d4d8;
+                --bg-base: #09090b;
+                --bg-card: #121214;
+                --text-main: #f4f4f5;
+                --text-muted: #a1a1aa;
+                --border-light: #27272a;
+
+                --primary: #3b82f6;
+                --primary-hover: #2563eb;
+
+                --accent-bg: #18181b;
+                --accent-hover: #27272a;
+
+                --code-bg: #0c0c0e;
+                --code-text: #e4e4e7;
+
+                --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+                --shadow-pop: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
             }
         }
 
@@ -61,23 +72,25 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--background);
-            color: var(--foreground);
+            background-color: var(--bg-base);
+            color: var(--text-main);
             height: 100vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
 
-        /* 顶部导航栏 */
+        /* =========================================
+           顶部导航栏
+           ========================================= */
         .topbar {
             display: flex;
             align-items: center;
-            gap: 2rem;
+            gap: 1.5rem;
             padding: 0 1.5rem;
             height: 3.5rem;
-            border-bottom: 1px solid var(--border);
-            background-color: var(--background);
+            border-bottom: 1px solid var(--border-light);
+            background-color: var(--bg-base);
             flex-shrink: 0;
         }
 
@@ -86,16 +99,18 @@
             align-items: center;
             gap: 0.5rem;
             font-weight: 600;
-            font-size: 1rem;
+            font-size: 1.05rem;
+            letter-spacing: -0.02em;
             white-space: nowrap;
-            flex-shrink: 0;
         }
+
+        .brand svg { color: var(--primary); }
 
         .nav-links {
             display: flex;
-            gap: 0.5rem;
+            gap: 0.25rem;
             font-size: 0.875rem;
-            color: var(--muted-foreground);
+            color: var(--text-muted);
             white-space: nowrap;
             flex: 1;
             justify-content: center;
@@ -105,123 +120,361 @@
             text-decoration: none;
             color: inherit;
             cursor: pointer;
-            padding: 0.4rem 0.75rem;
-            border-radius: calc(var(--radius) - 2px);
-            transition: all 0.2s;
+            padding: 0.4rem 0.8rem;
+            border-radius: var(--radius-sm);
+            transition: all 0.15s ease;
+            font-weight: 500;
         }
 
         .nav-links a:hover {
-            color: var(--foreground);
-            background-color: var(--muted);
+            color: var(--text-main);
+            background-color: var(--accent-bg);
         }
 
         .nav-links a.active {
-            color: var(--foreground);
-            font-weight: 500;
-            background-color: var(--accent);
+            color: var(--primary);
+            background-color: var(--accent-bg);
         }
 
-        .topbar-right {
-            flex-shrink: 0;
-            width: 4rem;
+        .topbar-right { flex-shrink: 0; width: 4rem; }
+
+        /* =========================================
+           主工作区
+           ========================================= */
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem;
+            overflow: hidden;
+            gap: 1.5rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
         }
 
-        /* 主工作区 */
-        .main-container { flex: 1; display: flex; flex-direction: column; padding: 1.5rem; overflow: hidden; gap: 1rem; }
-
-        /* 工具栏 */
+        /* =========================================
+           顶部控制台 (胶囊风格)
+           ========================================= */
         .toolbar {
-            display: flex; align-items: center; justify-content: center; gap: 1rem;
-            background-color: var(--muted); padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+            background-color: var(--bg-card);
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+            align-self: center;
         }
-        .select-group { display: flex; align-items: center; gap: 0.5rem; }
-        select {
-            appearance: none; background-color: var(--background); border: 1px solid var(--input);
-            padding: 0.4rem 2rem 0.4rem 0.75rem; font-size: 0.875rem; border-radius: calc(var(--radius) - 2px);
-            color: var(--foreground); cursor: pointer; outline: none;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
-            background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1em; font-weight: 500;
+
+        .select-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            position: relative; /* 为下拉菜单定位 */
         }
-        select:focus { border-color: var(--ring); box-shadow: 0 0 0 1px var(--ring); }
+
+        /* --- 自定义下拉菜单样式 --- */
+        .custom-select-trigger {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-width: 100px;
+            background-color: var(--accent-bg);
+            border: 1px solid transparent;
+            padding: 0.4rem 0.75rem;
+            font-size: 0.85rem;
+            border-radius: var(--radius-md);
+            color: var(--text-main);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+
+        .custom-select-trigger:hover { background-color: var(--accent-hover); }
+        .custom-select-trigger.active { border-color: var(--primary); outline: none; }
+
+        .custom-select-trigger svg {
+            width: 0.9rem;
+            height: 0.9rem;
+            color: var(--text-muted);
+            transition: transform 0.2s ease;
+        }
+
+        .custom-select-trigger.active svg { transform: rotate(180deg); }
+
+        .custom-select-options {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%) scaleY(0.95);
+            min-width: 130px;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-pop);
+            padding: 0.35rem;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transform-origin: top center;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .custom-select-options.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) scaleY(1);
+        }
+
+        .custom-option {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            color: var(--text-main);
+            transition: background-color 0.1s ease;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .custom-option:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .custom-option.selected {
+            background-color: var(--accent-bg);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .custom-option.selected::after {
+            content: '✓';
+            font-size: 0.9rem;
+        }
 
         /* 反向切换按钮 */
         .swap-btn {
-            display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem;
-            border-radius: 50%; background-color: var(--background); border: 1px solid var(--border);
-            color: var(--muted-foreground); cursor: pointer; transition: all 0.2s; padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.25rem;
+            height: 2.25rem;
+            border-radius: 50%;
+            background-color: var(--primary);
+            border: none;
+            color: var(--primary-text);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 0;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
         }
-        .swap-btn:hover { background-color: var(--accent); color: var(--foreground); transform: scale(1.05); }
-        .swap-btn:active { transform: scale(0.95); }
-        .swap-btn svg { width: 1rem; height: 1rem; }
 
-        /* 网格布局 */
-        .workspace-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; min-height: 0; }
-        .pane { display: flex; flex-direction: column; gap: 0.75rem; min-height: 0; }
-        .pane-header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-        .pane-title { font-size: 0.875rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
-        .pane-actions { display: flex; align-items: center; gap: 0.5rem; }
+        .swap-btn:hover {
+            background-color: var(--primary-hover);
+            transform: rotate(180deg) scale(1.05);
+        }
 
-        /* 编辑器容器 */
+        .swap-btn svg { width: 1.1rem; height: 1.1rem; }
+
+        /* =========================================
+           左右编辑区网格
+           ========================================= */
+        .workspace-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            min-height: 0;
+        }
+
+        .pane {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            min-height: 0;
+        }
+
+        .pane-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            padding: 0 0.25rem;
+        }
+
+        .pane-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-main);
+        }
+
+        .pane-title svg { color: var(--text-muted); }
+
+        .pane-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* 编辑器容器卡片化 */
         .editor-container {
-            flex: 1; border: 1px solid var(--input); border-radius: var(--radius);
-            overflow: hidden; display: flex; flex-direction: column; background-color: var(--card);
+            flex: 1;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-card);
+            box-shadow: var(--shadow-sm);
             transition: border-color 0.2s, box-shadow 0.2s;
         }
-        .editor-container:focus-within { border-color: var(--ring); box-shadow: 0 0 0 1px var(--ring); }
 
-        /* 原生 Textarea */
+        .editor-container:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        /* 原生 Textarea 增强代码感 */
         .textarea {
-            width: 100%; height: 100%; padding: 1rem;
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-            font-size: 0.85rem; line-height: 1.6;
-            color: var(--foreground); background-color: transparent; border: none; outline: none; resize: none;
+            width: 100%;
+            height: 100%;
+            padding: 1.25rem;
+            font-family: "JetBrains Mono", "Fira Code", "SFMono-Regular", Consolas, monospace;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            color: var(--code-text);
+            background-color: var(--bg-card);
+            border: none;
+            outline: none;
+            resize: none;
+            tab-size: 2;
         }
 
-        /* 按钮 */
+        /* =========================================
+           按钮样式
+           ========================================= */
         .btn {
-            display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
-            padding: 0.5rem 1rem; font-size: 0.875rem; font-weight: 500;
-            border-radius: var(--radius); border: 1px solid transparent;
-            cursor: pointer; transition: all 0.15s; white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.75rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border-radius: var(--radius-md);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
         }
-        .btn svg { width: 1rem; height: 1rem; flex-shrink: 0; }
-        .btn-primary { background-color: var(--primary); color: var(--primary-foreground); flex: 1; }
-        .btn-primary:hover { opacity: 0.9; }
-        .btn-outline { background-color: transparent; border-color: var(--border); color: var(--foreground); }
-        .btn-outline:hover { background-color: var(--accent); color: var(--accent-foreground); }
-        .btn-sm { padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: calc(var(--radius) - 2px); }
+
+        .btn svg { width: 0.9rem; height: 0.9rem; flex-shrink: 0; }
+
+        .btn-primary {
+            background-color: var(--text-main);
+            color: var(--bg-card);
+            flex: 1;
+            padding: 0.6rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary:hover {
+            opacity: 0.85;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border-color: var(--border-light);
+            color: var(--text-muted);
+        }
+
+        .btn-outline:hover {
+            background-color: var(--accent-bg);
+            color: var(--text-main);
+            border-color: var(--border-light);
+        }
 
         /* 结果展示区头 */
         .result-header {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border);
-            background-color: var(--muted); flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border-light);
+            background-color: var(--accent-bg);
+            flex-shrink: 0;
         }
-        .result-header-label { font-size: 0.75rem; font-weight: 500; color: var(--muted-foreground); text-transform: uppercase; }
 
-        /* Toast 提示框 */
+        .result-header-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* =========================================
+           Toast 提示框
+           ========================================= */
         .toast-container {
-            position: fixed; bottom: 2rem; right: 2rem; z-index: 9999;
-            display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none;
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            pointer-events: none;
         }
-        .toast {
-            background-color: var(--foreground); color: var(--background);
-            padding: 0.75rem 1rem; border-radius: var(--radius);
-            font-size: 0.875rem; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            display: flex; align-items: center; gap: 0.5rem;
-            animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            pointer-events: auto; transition: opacity 0.3s, transform 0.3s;
-        }
-        .toast.error { background-color: var(--destructive); color: #fff; }
-        .toast.hide { opacity: 0; transform: translateX(100%); }
-        @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
 
-        @media (max-width: 768px) {
+        .toast {
+            background-color: var(--text-main);
+            color: var(--bg-card);
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 500;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: auto;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        .toast.error { background-color: #ef4444; color: #fff; }
+        .toast.hide { opacity: 0; transform: translateX(100%); }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(100%); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* 响应式 */
+        @media (max-width: 900px) {
             .workspace-grid { grid-template-columns: 1fr; }
             .topbar { flex-direction: column; height: auto; padding: 1rem; gap: 1rem; }
             .topbar-right { display: none; }
             .nav-links { flex-wrap: wrap; justify-content: center; }
-            .toolbar { flex-direction: row; flex-wrap: wrap; gap: 0.5rem; }
+            .toolbar { flex-direction: row; flex-wrap: wrap; border-radius: var(--radius-lg); padding: 1rem; width: 100%;}
+            .main-container { padding: 1rem; }
         }
     </style>
 </head>
@@ -229,7 +482,7 @@
 
 <header class="topbar">
     <div class="brand">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
         <span>工具</span>
     </div>
 
@@ -247,31 +500,50 @@
 </header>
 
 <main class="main-container">
+    <!-- 顶部控制台 -->
     <div class="toolbar">
         <div class="select-group">
-            <span style="font-size:0.875rem; color:var(--muted-foreground);">从</span>
-            <select id="sourceFormat">
-                <option value="json">JSON</option>
-                <option value="yaml">YAML</option>
-                <option value="xml">XML</option>
-                <option value="properties">Properties</option>
-            </select>
+            <span>从</span>
+            <!-- 自定义下拉组件 -->
+            <div class="custom-select" id="sourceSelect">
+                <div class="custom-select-trigger">
+                    <span class="label">JSON</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="custom-select-options">
+                    <div class="custom-option selected" data-value="json">JSON</div>
+                    <div class="custom-option" data-value="yaml">YAML</div>
+                    <div class="custom-option" data-value="xml">XML</div>
+                    <div class="custom-option" data-value="properties">Properties</div>
+                </div>
+            </div>
         </div>
+
         <button class="swap-btn" id="swapBtn" title="互换格式并将结果作为输入">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
         </button>
+
         <div class="select-group">
-            <span style="font-size:0.875rem; color:var(--muted-foreground);">转为</span>
-            <select id="targetFormat">
-                <option value="yaml">YAML</option>
-                <option value="json">JSON</option>
-                <option value="xml">XML</option>
-                <option value="properties">Properties</option>
-            </select>
+            <span>转为</span>
+            <!-- 自定义下拉组件 -->
+            <div class="custom-select" id="targetSelect">
+                <div class="custom-select-trigger">
+                    <span class="label">YAML</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="custom-select-options">
+                    <div class="custom-option" data-value="json">JSON</div>
+                    <div class="custom-option selected" data-value="yaml">YAML</div>
+                    <div class="custom-option" data-value="xml">XML</div>
+                    <div class="custom-option" data-value="properties">Properties</div>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- 左右编辑区 -->
     <div class="workspace-grid">
+        <!-- 左侧：输入区 -->
         <div class="pane">
             <div class="pane-header">
                 <div class="pane-title">
@@ -279,23 +551,22 @@
                     <span>输入内容</span>
                 </div>
                 <div class="pane-actions">
-                    <button class="btn btn-outline btn-sm" id="formatInputBtn" title="格式化当前输入内容">
+                    <button class="btn btn-outline" id="formatInputBtn" title="格式化当前输入内容">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/></svg>
                         格式化
                     </button>
-                    <button class="btn btn-outline btn-sm" id="genMockBtn" title="生成模拟数据并自动转换">
+                    <button class="btn btn-outline" id="genMockBtn" title="生成模拟数据并自动转换">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                         模拟数据
                     </button>
-                    <button class="btn btn-outline btn-sm" id="clearInputBtn">
+                    <button class="btn btn-outline" id="clearInputBtn" title="清空输入">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                        清空
                     </button>
                 </div>
             </div>
 
             <div class="editor-container">
-                <textarea id="inputText" class="textarea" placeholder="在此输入或粘贴源数据..."></textarea>
+                <textarea id="inputText" class="textarea" placeholder="// 在此输入或粘贴源数据..."></textarea>
             </div>
 
             <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
@@ -306,6 +577,7 @@
             </div>
         </div>
 
+        <!-- 右侧：输出区 -->
         <div class="pane">
             <div class="pane-header">
                 <div class="pane-title">
@@ -313,22 +585,22 @@
                     <span>输出结果</span>
                 </div>
                 <div class="pane-actions">
-                    <button class="btn btn-outline btn-sm" id="formatOutputBtn" title="格式化输出结果">
+                    <button class="btn btn-outline" id="formatOutputBtn" title="格式化输出结果">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/></svg>
                         格式化
                     </button>
-                    <button class="btn btn-outline btn-sm" id="copyBtn">
+                    <button class="btn btn-outline" id="copyBtn" title="复制结果">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                         复制
                     </button>
                 </div>
             </div>
 
-            <div class="editor-container" style="background-color: var(--card);">
+            <div class="editor-container">
                 <div class="result-header">
                     <span class="result-header-label" id="outputLabel">Result Output (YAML)</span>
                 </div>
-                <textarea id="outputText" class="textarea" placeholder="等待操作..."></textarea>
+                <textarea id="outputText" class="textarea" placeholder="等待操作..." style="background-color: var(--accent-bg);"></textarea>
             </div>
         </div>
     </div>
@@ -338,12 +610,78 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // ========== 自定义下拉逻辑开始 ==========
+        function initCustomSelect(containerId) {
+            const container = document.getElementById(containerId);
+            const trigger = container.querySelector('.custom-select-trigger');
+            const options = container.querySelector('.custom-select-options');
+            const label = trigger.querySelector('.label');
+            let currentValue = container.querySelector('.custom-option.selected').dataset.value;
+
+            // 切换展开/收起
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // 关闭其他下拉
+                document.querySelectorAll('.custom-select-options').forEach(opt => {
+                    if(opt !== options) opt.classList.remove('open');
+                });
+                document.querySelectorAll('.custom-select-trigger').forEach(tr => {
+                    if(tr !== trigger) tr.classList.remove('active');
+                });
+
+                options.classList.toggle('open');
+                trigger.classList.toggle('active');
+            });
+
+            // 选择选项
+            container.querySelectorAll('.custom-option').forEach(opt => {
+                opt.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // 更新 UI
+                    container.querySelectorAll('.custom-option').forEach(o => o.classList.remove('selected'));
+                    opt.classList.add('selected');
+                    label.textContent = opt.textContent.trim();
+                    options.classList.remove('open');
+                    trigger.classList.remove('active');
+
+                    // 如果值发生了改变，触发自定义 change 事件
+                    const newVal = opt.dataset.value;
+                    if (newVal !== currentValue) {
+                        currentValue = newVal;
+                        container.dispatchEvent(new CustomEvent('change', { detail: newVal }));
+                    }
+                });
+            });
+
+            // 返回用于外部读取和设置值的接口
+            return {
+                getValue: () => currentValue,
+                setValue: (val) => {
+                    const targetOpt = container.querySelector(`.custom-option[data-value="${val}"]`);
+                    if (targetOpt) {
+                        container.querySelectorAll('.custom-option').forEach(o => o.classList.remove('selected'));
+                        targetOpt.classList.add('selected');
+                        label.textContent = targetOpt.textContent.trim();
+                        currentValue = val;
+                    }
+                }
+            };
+        }
+
+        const sourceSelect = initCustomSelect('sourceSelect');
+        const targetSelect = initCustomSelect('targetSelect');
+
+        // 点击页面其他区域关闭所有下拉
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.custom-select-options').forEach(opt => opt.classList.remove('open'));
+            document.querySelectorAll('.custom-select-trigger').forEach(tr => tr.classList.remove('active'));
+        });
+        // ========== 自定义下拉逻辑结束 ==========
+
         const navLinks = document.querySelectorAll('#navLinks a');
-        const sourceFormat = document.getElementById('sourceFormat');
-        const targetFormat = document.getElementById('targetFormat');
-        const swapBtn = document.getElementById('swapBtn');
         const inputText = document.getElementById('inputText');
         const outputText = document.getElementById('outputText');
+        const swapBtn = document.getElementById('swapBtn');
         const convertBtn = document.getElementById('convertBtn');
         const clearInputBtn = document.getElementById('clearInputBtn');
         const genMockBtn = document.getElementById('genMockBtn');
@@ -352,6 +690,10 @@
         const formatInputBtn = document.getElementById('formatInputBtn');
         const formatOutputBtn = document.getElementById('formatOutputBtn');
         const toastContainer = document.getElementById('toastContainer');
+
+        // 适配外部的源格式和目标格式读取
+        let sourceFormat = { value: sourceSelect.getValue() };
+        let targetFormat = { value: targetSelect.getValue() };
 
         let currentDataObj = null;
 
@@ -376,6 +718,7 @@
             }, 3000);
         }
 
+        // --- 导航栏与自定义下拉框联动 ---
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -383,21 +726,23 @@
             });
         });
 
-        sourceFormat.addEventListener('change', () => {
-            const newSrc = sourceFormat.value;
+        // 监听自定义下拉的改变
+        document.getElementById('sourceSelect').addEventListener('change', (e) => {
+            sourceFormat.value = e.detail;
             updateOutputLabel();
 
             if (currentDataObj) {
                 try {
-                    inputText.value = serializeData(currentDataObj, newSrc);
-                } catch (e) {
+                    inputText.value = serializeData(currentDataObj, sourceFormat.value);
+                } catch (err) {
                     outputText.value = '等待操作...';
                 }
             }
             doConvertSilent();
         });
 
-        targetFormat.addEventListener('change', () => {
+        document.getElementById('targetSelect').addEventListener('change', (e) => {
+            targetFormat.value = e.detail;
             updateOutputLabel();
             doConvertSilent();
         });
@@ -406,6 +751,9 @@
             const temp = sourceFormat.value;
             sourceFormat.value = targetFormat.value;
             targetFormat.value = temp;
+
+            sourceSelect.setValue(sourceFormat.value);
+            targetSelect.setValue(targetFormat.value);
 
             const currentOutput = outputText.value;
             if (currentOutput && currentOutput !== '等待操作...' && currentOutput !== '源格式与目标格式相同。') {
@@ -424,6 +772,8 @@
         function handleFormatChange(newSrc, newTgt) {
             sourceFormat.value = newSrc;
             targetFormat.value = newTgt;
+            sourceSelect.setValue(newSrc);
+            targetSelect.setValue(newTgt);
             updateOutputLabel();
 
             const raw = inputText.value.trim();
@@ -666,7 +1016,6 @@
             return result.join('\n');
         }
 
-        // 核心：重构后的完美 XML 序列化器
         function objToXml(obj, rootName = 'root') {
             let xml = '';
             function build(obj, name, depth = 0) {
@@ -683,7 +1032,6 @@
                             return;
                         }
 
-                        // 智能单行折叠
                         const isFlat = keys.every(k => typeof obj[k] !== 'object' || obj[k] === null);
                         if (isFlat) {
                             let innerXml = keys.map(k => {
