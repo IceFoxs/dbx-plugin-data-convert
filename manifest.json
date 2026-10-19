@@ -1,0 +1,41 @@
+{
+  "$schema": "https://raw.githubusercontent.com/t8y2/dbx/plugin-sdk-v1/plugins/manifest.schema.json",
+  "manifest_version": 1,
+  "id": "io.github.icefoxs.data-convert",
+  "name": "数据转换",
+  "version": "0.1.0",
+  "publisher": "icefoxs",
+  "description": "数据转换工具",
+  "icon": "assets/plugin.svg",
+  "engines": {
+    "dbx": ">=0.5.68",
+    "host_api": "1"
+  },
+  "entrypoints": {
+    "ui": {
+      "root": "ui",
+      "entry": "ui/index.html"
+    }
+  },
+  "contributions": [
+    {
+      "type": "workbench",
+      "id": "io.github.icefoxs.data-convert.workbench",
+      "label": "数据转换",
+      "description": "Sandboxed frontend workbench contributed by 数据转换.",
+      "icon": "assets/plugin.svg"
+    }
+  ],
+  "localizations": {
+    "zh-CN": {
+      "name": "数据转换",
+      "description": "数据转换工具",
+      "contributions": {
+        "io.github.icefoxs.data-convert.workbench": {
+          "label": "数据转换",
+          "description": "由插件提供的沙箱前端工作台。"
+        }
+      }
+    }
+  }
+}
