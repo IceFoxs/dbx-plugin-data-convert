@@ -21,7 +21,9 @@
     </script>
 
     <style>
-        /* ... 保持原样不变 ... */
+        /* =========================================
+           基于 DBX 设计令牌的主题样式
+           ========================================= */
         :root { --bg-base: var(--color-background, #ffffff); --bg-card: var(--color-card, #ffffff); --text-main: var(--color-foreground, #09090b); --text-muted: var(--color-muted-foreground, #71717a); --border-light: var(--color-border, #e4e4e7); --primary: var(--color-primary, #18181b); --primary-text: var(--color-primary-foreground, #fafafa); --accent-bg: var(--color-muted, #f4f4f5); --accent-hover: var(--color-border, #e4e4e7); --radius-md: var(--radius-md, 0.5rem); --radius-lg: var(--radius-lg, 0.75rem); --font-sans: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif); --font-mono: var(--font-mono, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace); }
         [data-dbx-theme="dark"] { --bg-base: #09090b; --bg-card: #121214; --text-main: #f4f4f5; --text-muted: #a1a1aa; --border-light: #27272a; --accent-bg: #18181b; --accent-hover: #27272a; --primary: #3b82f6; --primary-text: #ffffff; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -447,6 +449,12 @@
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
+                // 清空输入和输出内容
+                inputText.value = '';
+                outputText.value = currentDict.outputPlaceholder;
+                currentDataObj = null;
+
+                // 更新格式选择
                 handleFormatChange(link.dataset.src, link.dataset.tgt);
             });
         });
@@ -491,26 +499,41 @@
             outputLabel.textContent = `Result Output (${targetFormat.value.toUpperCase()})`;
         }
 
+        // 优化后的点击事件逻辑
         function handleFormatChange(newSrc, newTgt) {
+            // 1. 更新界面状态
             sourceFormat.value = newSrc;
             targetFormat.value = newTgt;
             sourceSelect.setValue(newSrc);
             targetSelect.setValue(newTgt);
             updateOutputLabel();
 
+            // 2. 强制读取当前输入框的最新内容
             const raw = inputText.value.trim();
             if (raw && raw !== currentDict.outputPlaceholder) {
                 try {
+                    let obj;
                     try {
-                        currentDataObj = parseData(raw, newSrc);
-                        inputText.value = serializeData(currentDataObj, newSrc);
+                        obj = parseData(raw, newSrc);
                     } catch (e) {
                         currentDataObj = null;
+                        outputText.value = currentDict.outputPlaceholder;
+                        return;
                     }
+
+                    currentDataObj = obj;
+                    inputText.value = serializeData(currentDataObj, newSrc);
+                    outputText.value = serializeData(currentDataObj, newTgt);
+
                 } catch (err) {
+                    console.error('Format change conversion failed:', err);
+                    outputText.value = currentDict.toastConvertError;
+                    currentDataObj = null;
                 }
+            } else {
+                outputText.value = currentDict.outputPlaceholder;
+                currentDataObj = null;
             }
-            doConvertSilent();
         }
 
         function doConvertSilent() {
@@ -671,7 +694,6 @@
             } catch (e) {
             }
 
-            // 保底美化
             let formatted = '';
             xml = xml.replace(/>\s*</g, '><').trim();
             let xmlDecl = '';
@@ -705,26 +727,21 @@
                 let cleanXml = xmlStr.trim();
                 if (cleanXml.startsWith('<?xml')) cleanXml = cleanXml.replace(/<\?xml.*?\?>/, '').trim();
 
-                // 如果没有根节点包裹，XML 解析器会报错，我们手动包装一下
                 if (!cleanXml.startsWith('<root>')) {
                     cleanXml = `<root>${cleanXml}</root>`;
                 }
 
-                // 使用专业库解析，保留重复标签为数组
                 const result = xml2js(cleanXml, {compact: true, trim: true});
 
-                // 递归清除 xml-js 带来的 _text 包装，直接提取真实文本值
                 function cleanNode(node) {
                     if (typeof node !== 'object' || node === null) return node;
                     if (Array.isArray(node)) {
                         return node.map(item => cleanNode(item));
                     }
-                    // 如果对象只有一个键且是 _text，直接返回文本值
                     const keys = Object.keys(node);
                     if (keys.length === 1 && keys[0] === '_text') {
                         return node._text;
                     }
-                    // 否则遍历子属性
                     const cleaned = {};
                     for (let key in node) {
                         cleaned[key] = cleanNode(node[key]);
@@ -732,14 +749,12 @@
                     return cleaned;
                 }
 
-                // 如果是包装过的，需要把外面的一层 root 去掉
                 if (result.root) {
                     return cleanNode(result.root);
                 }
                 return cleanNode(result);
             } catch (e) {
                 console.warn('xml-js 解析失败，使用基础兜底逻辑:', e);
-                // 基础兜底逻辑
                 let cleanXml = xmlStr.trim();
                 if (cleanXml.startsWith('<?xml')) cleanXml = cleanXml.replace(/<\?xml.*?\?>/, '').trim();
                 if (!cleanXml.startsWith('<root>')) cleanXml = `<root>${cleanXml}</root>`;
@@ -802,21 +817,17 @@
             try {
                 if (typeof js2xml === 'undefined') throw new Error("xml-js library not loaded");
 
-                // 使用 xml-js 专业库序列化
                 const options = {compact: true, ignoreComment: true, spaces: 2};
                 let xml = js2xml({root: obj}, options);
 
-                // 如果用户期望没有外层根节点（跟原始输入一样），这里可以把外层根节点去掉
                 if (xml.startsWith('<root>') && xml.endsWith('</root>')) {
                     xml = xml.replace(/<\/?root>/g, '').trim();
-                    // 尝试恢复被误删的缩进
                     xml = formatXmlString(xml);
                 }
 
                 return xml;
             } catch (e) {
                 console.warn('xml-js 序列化失败，使用基础兜底逻辑:', e);
-                // 基础兜底逻辑
                 let xml = '';
 
                 function build(obj, name, depth = 0) {
