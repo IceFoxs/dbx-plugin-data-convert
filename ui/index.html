@@ -7,6 +7,16 @@
 
     <!-- 引入核心依赖 -->
     <script src="js-yaml.min.js"></script>
+    <!-- 引入 JSON 格式化神器 (容错加载) -->
+    <script src="json/index.js"></script>
+    <script>
+        // 如果加载失败，提供简单的保底实现
+        if (typeof stringify !== 'function') {
+            window.stringify = function(obj, options) {
+                return JSON.stringify(obj, null, options && options.indent ? options.indent : 2);
+            };
+        }
+    </script>
 
     <style>
         /* =========================================
@@ -416,7 +426,7 @@
             const currentOutput = outputText.value;
             if (currentOutput && currentOutput !== '等待操作...' && currentOutput !== '源格式与目标格式相同。') {
                 inputText.value = currentOutput;
-                currentDataObj = null; // 重置对象，让系统重新解析新的输入
+                currentDataObj = null;
             }
 
             updateOutputLabel();
@@ -447,7 +457,7 @@
             doConvertSilent();
         }
 
-        // 静默执行转换（仅在左侧有内容时执行）
+        // 静默执行转换
         function doConvertSilent() {
             const raw = inputText.value.trim();
             if (!raw || raw === '等待操作...') {
@@ -458,19 +468,20 @@
             const src = sourceFormat.value;
             const tgt = targetFormat.value;
 
-            if (src === tgt) {
-                outputText.value = raw;
-                return;
-            }
-
+            // 即使源格式和目标格式相同，也强制格式化
             try {
                 if (!currentDataObj) {
                     currentDataObj = parseData(raw, src);
                 }
                 outputText.value = serializeData(currentDataObj, tgt);
             } catch (err) {
-                outputText.value = `转换出错: 请检查源格式是否正确`;
-                currentDataObj = null;
+                if (src === tgt) {
+                    // 如果相同且解析失败，可能是因为中间态不合法，回退到原文本
+                    outputText.value = raw;
+                } else {
+                    outputText.value = `转换出错: 请检查源格式是否正确`;
+                    currentDataObj = null;
+                }
             }
         }
 
@@ -497,11 +508,8 @@
             try {
                 inputText.value = serializeData(currentDataObj, src);
 
-                if (src !== tgt) {
-                    outputText.value = serializeData(currentDataObj, tgt);
-                } else {
-                    outputText.value = inputText.value;
-                }
+                // 无论是否同格式，均触发格式化输出
+                outputText.value = serializeData(currentDataObj, tgt);
 
                 showToast('已生成模拟数据并完成转换');
             } catch (err) {
@@ -551,14 +559,10 @@
                 return;
             }
             const src = sourceFormat.value, tgt = targetFormat.value;
-            if (src === tgt) {
-                outputText.value = '源格式与目标格式相同。';
-                return;
-            }
             try {
                 currentDataObj = parseData(raw, src);
                 outputText.value = serializeData(currentDataObj, tgt);
-                showToast('转换成功');
+                showToast('转换并格式化成功');
             } catch (err) {
                 outputText.value = `转换出错: ${err.message}`;
                 currentDataObj = null;
@@ -578,7 +582,14 @@
         }
 
         function serializeData(obj, format) {
-            if (format === 'json') return JSON.stringify(obj, null, 2);
+            if (format === 'json') {
+                try {
+                    // 引入的 stringify 保证极致的缩进美化
+                    return window.stringify(obj, { indent: 2, maxLength: 80 });
+                } catch (e) {
+                    return JSON.stringify(obj, null, 2);
+                }
+            }
             if (format === 'yaml') return jsyaml.dump(obj);
             if (format === 'xml') return objToXml(obj);
             if (format === 'properties') return objToProperties(obj);
