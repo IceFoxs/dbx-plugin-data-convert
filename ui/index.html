@@ -64,30 +64,60 @@
         .topbar {
             display: flex;
             align-items: center;
-            gap: 1.5rem;
-            padding: 0.75rem 1.5rem;
+            gap: 2rem;
+            padding: 0 1.5rem;
+            height: 3.5rem;
             border-bottom: 1px solid var(--border);
             background-color: var(--background);
             flex-shrink: 0;
-            overflow-x: auto;
         }
 
-        .brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 1rem; white-space: nowrap; }
-        .nav-links { display: flex; gap: 1.25rem; font-size: 0.875rem; color: var(--muted-foreground); white-space: nowrap; }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            font-size: 1rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        /* 居中导航链接 */
+        .nav-links {
+            display: flex;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+            white-space: nowrap;
+            flex: 1;
+            justify-content: center;
+        }
+
         .nav-links a {
-            text-decoration: none; color: inherit; cursor: pointer;
-            padding: 0.25rem 0.5rem; border-radius: calc(var(--radius) - 2px); transition: all 0.2s;
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
+            padding: 0.4rem 0.75rem;
+            border-radius: calc(var(--radius) - 2px);
+            transition: all 0.2s;
         }
-        .nav-links a:hover { color: var(--foreground); background-color: var(--muted); }
-        .nav-links a.active { color: var(--foreground); font-weight: 500; background-color: var(--accent); }
 
-        .search-box { margin-left: auto; position: relative; flex-shrink: 0; }
-        .search-box input {
-            padding: 0.4rem 0.75rem 0.4rem 2rem; border: 1px solid var(--border);
-            border-radius: 9999px; font-size: 0.8rem; background-color: transparent; color: var(--foreground);
-            outline: none; width: 200px; transition: border-color 0.2s;
+        .nav-links a:hover {
+            color: var(--foreground);
+            background-color: var(--muted);
         }
-        .search-box svg { position: absolute; left: 0.6rem; top: 50%; transform: translateY(-50%); width: 0.9rem; height: 0.9rem; color: var(--muted-foreground); }
+
+        .nav-links a.active {
+            color: var(--foreground);
+            font-weight: 500;
+            background-color: var(--accent);
+        }
+
+        /* 右侧占位 (保持导航居中) */
+        .topbar-right {
+            flex-shrink: 0;
+            width: 4rem;
+        }
 
         /* 主工作区 */
         .main-container { flex: 1; display: flex; flex-direction: column; padding: 1.5rem; overflow: hidden; gap: 1rem; }
@@ -181,7 +211,9 @@
 
         @media (max-width: 768px) {
             .workspace-grid { grid-template-columns: 1fr; }
-            .search-box { display: none; }
+            .topbar { flex-direction: column; height: auto; padding: 1rem; gap: 1rem; }
+            .topbar-right { display: none; }
+            .nav-links { flex-wrap: wrap; justify-content: center; }
             .toolbar { flex-direction: row; flex-wrap: wrap; gap: 0.5rem; }
         }
     </style>
@@ -193,6 +225,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
         <span>工具</span>
     </div>
+
     <nav class="nav-links" id="navLinks">
         <a data-src="yaml" data-tgt="json">yaml转json</a>
         <a data-src="yaml" data-tgt="properties">yaml转properties</a>
@@ -202,10 +235,9 @@
         <a data-src="json" data-tgt="yaml">json转yaml</a>
         <a data-src="yaml" data-tgt="xml">yaml转xml</a>
     </nav>
-    <div class="search-box">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" placeholder="搜索工具" />
-    </div>
+
+    <!-- 占位符，用于让导航完美居中 -->
+    <div class="topbar-right"></div>
 </header>
 
 <main class="main-container">
@@ -220,7 +252,7 @@
                 <option value="properties">Properties</option>
             </select>
         </div>
-        <button class="swap-btn" id="swapBtn" title="点击互换源格式和目标格式">
+        <button class="swap-btn" id="swapBtn" title="互换格式并将结果作为输入">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
         </button>
         <div class="select-group">
@@ -321,19 +353,16 @@
         const toastContainer = document.getElementById('toastContainer');
 
         let currentDataObj = null;
-        let hasValidInput = false;
 
         // 监听手动输入，清空缓存状态
         inputText.addEventListener('input', () => {
             currentDataObj = null;
-            hasValidInput = false;
         });
 
-        // 监听输出框的手动修改（防止误覆盖）
+        // 监听输出框的手动修改
         outputText.addEventListener('input', () => {
             if (outputText.value.trim() === '' || outputText.value === '等待操作...') {
                 currentDataObj = null;
-                hasValidInput = false;
             }
         });
 
@@ -352,51 +381,96 @@
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-                handleSourceChange(link.dataset.src, link.dataset.tgt);
+                handleFormatChange(link.dataset.src, link.dataset.tgt);
             });
         });
 
-        sourceFormat.addEventListener('change', () => handleSourceChange(sourceFormat.value, targetFormat.value));
-
-        targetFormat.addEventListener('change', () => {
+        // 左侧切换：尝试自动解析并更新输入框
+        sourceFormat.addEventListener('change', () => {
+            const newSrc = sourceFormat.value;
             updateOutputLabel();
-            if (hasValidInput && currentDataObj !== null) autoConvert();
-            else {
-                outputText.value = '等待操作...';
+
+            if (currentDataObj) {
+                try {
+                    inputText.value = serializeData(currentDataObj, newSrc);
+                } catch (e) {
+                    outputText.value = '等待操作...';
+                }
             }
+            doConvertSilent();
         });
 
+        // 右侧切换：直接触发右侧转换
+        targetFormat.addEventListener('change', () => {
+            updateOutputLabel();
+            doConvertSilent();
+        });
+
+        // 互换格式及内容
         swapBtn.addEventListener('click', () => {
             const temp = sourceFormat.value;
             sourceFormat.value = targetFormat.value;
             targetFormat.value = temp;
-            handleSourceChange(sourceFormat.value, targetFormat.value);
-            if (hasValidInput && currentDataObj !== null) autoConvert();
+
+            // 将右侧结果移动到左侧输入
+            const currentOutput = outputText.value;
+            if (currentOutput && currentOutput !== '等待操作...' && currentOutput !== '源格式与目标格式相同。') {
+                inputText.value = currentOutput;
+                currentDataObj = null; // 重置对象，让系统重新解析新的输入
+            }
+
+            updateOutputLabel();
+            doConvertSilent();
         });
 
         function updateOutputLabel() {
             outputLabel.textContent = `Result Output (${targetFormat.value.toUpperCase()})`;
         }
 
-        function handleSourceChange(newSrc, newTgt) {
+        // 统一处理导航栏点击
+        function handleFormatChange(newSrc, newTgt) {
             sourceFormat.value = newSrc;
             targetFormat.value = newTgt;
             updateOutputLabel();
 
-            if (inputText.value.trim() !== '' && currentDataObj !== null) {
+            const raw = inputText.value.trim();
+            if (raw && raw !== '等待操作...') {
                 try {
-                    inputText.value = serializeData(currentDataObj, newSrc);
+                    try {
+                        currentDataObj = parseData(raw, newSrc);
+                        inputText.value = serializeData(currentDataObj, newSrc);
+                    } catch (e) {
+                        currentDataObj = null;
+                    }
                 } catch (err) {}
             }
-            outputText.value = '等待操作...';
+            doConvertSilent();
         }
 
-        function autoConvert() {
+        // 静默执行转换（仅在左侧有内容时执行）
+        function doConvertSilent() {
+            const raw = inputText.value.trim();
+            if (!raw || raw === '等待操作...') {
+                outputText.value = '等待操作...';
+                return;
+            }
+
+            const src = sourceFormat.value;
+            const tgt = targetFormat.value;
+
+            if (src === tgt) {
+                outputText.value = raw;
+                return;
+            }
+
             try {
-                outputText.value = serializeData(currentDataObj, targetFormat.value);
+                if (!currentDataObj) {
+                    currentDataObj = parseData(raw, src);
+                }
+                outputText.value = serializeData(currentDataObj, tgt);
             } catch (err) {
-                outputText.value = `自动转换出错: ${err.message}`;
-                hasValidInput = false;
+                outputText.value = `转换出错: 请检查源格式是否正确`;
+                currentDataObj = null;
             }
         }
 
@@ -405,7 +479,6 @@
             const src = sourceFormat.value;
             const tgt = targetFormat.value;
 
-            // 生成一个嵌套结构的模拟数据
             currentDataObj = {
                 id: 1001,
                 title: "测试数据",
@@ -422,11 +495,8 @@
             };
 
             try {
-                // 1. 填充左侧输入框
                 inputText.value = serializeData(currentDataObj, src);
-                hasValidInput = true;
 
-                // 2. 直接执行转换并填入右侧
                 if (src !== tgt) {
                     outputText.value = serializeData(currentDataObj, tgt);
                 } else {
@@ -450,7 +520,6 @@
                     const obj = parseData(raw, sourceFormat.value);
                     inputText.value = serializeData(obj, sourceFormat.value);
                     currentDataObj = obj;
-                    hasValidInput = true;
                 }
                 showToast('输入格式化成功');
             } catch (err) {
@@ -474,7 +543,7 @@
             }
         });
 
-        // --- 手动转换 ---
+        // --- 手动执行转换（带 Toast 提示） ---
         function doConvert() {
             const raw = inputText.value.trim();
             if (!raw) {
@@ -484,18 +553,15 @@
             const src = sourceFormat.value, tgt = targetFormat.value;
             if (src === tgt) {
                 outputText.value = '源格式与目标格式相同。';
-                hasValidInput = true;
                 return;
             }
             try {
                 currentDataObj = parseData(raw, src);
-                hasValidInput = true;
                 outputText.value = serializeData(currentDataObj, tgt);
                 showToast('转换成功');
             } catch (err) {
                 outputText.value = `转换出错: ${err.message}`;
                 currentDataObj = null;
-                hasValidInput = false;
                 showToast('转换失败', 'error');
             }
         }
@@ -654,7 +720,6 @@
             inputText.value = '';
             outputText.value = '等待操作...';
             currentDataObj = null;
-            hasValidInput = false;
         });
 
         copyBtn.addEventListener('click', async () => {
