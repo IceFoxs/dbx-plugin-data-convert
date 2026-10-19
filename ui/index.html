@@ -878,8 +878,30 @@
         convertBtn.addEventListener('click', doConvert);
 
         function parseData(text, format) {
-            if (format === 'json') return JSON.parse(text);
-            if (format === 'yaml') return jsyaml.load(text);
+            if (format === 'json') {
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    // 如果 JSON 解析失败，尝试 YAML 解析
+                    try {
+                        return jsyaml.load(text);
+                    } catch (yamlErr) {
+                        throw new Error("Invalid JSON or YAML format");
+                    }
+                }
+            }
+            if (format === 'yaml') {
+                try {
+                    return jsyaml.load(text);
+                } catch (e) {
+                    // 如果 YAML 解析失败，尝试 JSON 解析
+                    try {
+                        return JSON.parse(text);
+                    } catch (jsonErr) {
+                        throw new Error("Invalid YAML or JSON format");
+                    }
+                }
+            }
             if (format === 'xml') return xmlToObj(text);
             if (format === 'properties') return propertiesToObj(text);
             throw new Error("Unknown format");
