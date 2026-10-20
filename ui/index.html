@@ -689,8 +689,8 @@
             </div>
         </div>
 
-        <!-- 新增：对比功能按钮 -->
-        <button class="btn btn-outline" id="toggleDiffBtn" style="margin-left: 0.5rem; border-radius: 9999px;">
+        <!-- 对比功能按钮 -->
+        <button class="btn btn-outline" id="toggleDiffBtn" data-i18n="diffBtn" style="margin-left: 0.5rem; border-radius: 9999px;">
             对比差异
         </button>
     </div>
@@ -758,13 +758,13 @@
         </div>
     </div>
 
-    <!-- 新增：对比结果视图 -->
+    <!-- 对比结果视图 -->
     <div class="diff-container" id="diffWorkspace">
         <div class="pane">
             <div class="pane-header">
                 <div class="pane-title">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
-                    <span>原始版本 (输入)</span>
+                    <span data-i18n="diffLeftTitle">原始版本 (输入)</span>
                 </div>
             </div>
             <div class="editor-container">
@@ -775,7 +775,7 @@
             <div class="pane-header">
                 <div class="pane-title">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
-                    <span>修改版本 (输出)</span>
+                    <span data-i18n="diffRightTitle">修改版本 (输出)</span>
                 </div>
             </div>
             <div class="editor-container">
@@ -790,12 +790,12 @@
 <script>
     document.addEventListener('DOMContentLoaded', async () => {
         // =========================================
-        // 1. 国际化 (I18n) 字典配置 (包含全量语言)
+        // 1. 国际化 (I18n) 字典配置
         // =========================================
         const languageConfigs = [
-            { code: 'zh-CN', name: '简体中文', flag: '🇨🇳', dict: { brand: '转换工具', navYamlJson: 'yaml转json', navYamlProps: 'yaml转properties', navJsonProps: 'json转properties', navJsonXml: 'json转xml', navXmlYaml: 'xml转yaml', navJsonYaml: 'json转yaml', navYamlXml: 'yaml转xml', fromLabel: '从', toLabel: '转为', swapTitle: '互换格式', inputLabel: '输入内容', outputLabel: '输出结果', formatBtn: '格式化', mockBtn: '模拟数据', clearBtn: '清空', convertBtn: '执行转换', copyBtn: '复制', pasteBtn: '粘贴', inputPlaceholder: '// 在此输入或粘贴源数据...', outputPlaceholder: '等待操作...', toastMockSuccess: '已生成模拟数据', toastFormatInput: '输入格式化成功', toastFormatOutput: '输出格式化成功', toastFormatError: '格式化失败', toastConvertSuccess: '转换成功', toastConvertError: '转换失败', toastCopySuccess: '已复制', toastCopyError: '复制失败', toastPasteSuccess: '已粘贴', toastPasteError: '读取剪贴板失败', toastPasteUnsupported: '当前环境不支持读取剪贴板，请手动粘贴', toastEmptyInput: '请输入内容', toastSameFormat: '格式相同' } },
-            { code: 'zh-TW', name: '繁體中文', flag: '繁', dict: { brand: '轉換工具', navYamlJson: 'yaml轉json', navYamlProps: 'yaml轉properties', navJsonProps: 'json轉properties', navJsonXml: 'json轉xml', navXmlYaml: 'xml轉yaml', navJsonYaml: 'json轉yaml', navYamlXml: 'yaml轉xml', fromLabel: '從', toLabel: '轉為', swapTitle: '互換格式', inputLabel: '輸入內容', outputLabel: '輸出結果', formatBtn: '格式化', mockBtn: '模擬數據', clearBtn: '清空', convertBtn: '執行轉換', copyBtn: '複製', pasteBtn: '粘貼', inputPlaceholder: '// 在此輸入或粘貼源數據...', outputPlaceholder: '等待操作...', toastMockSuccess: '已生成模擬數據', toastFormatInput: '輸入格式化成功', toastFormatOutput: '輸出格式化成功', toastFormatError: '格式化失敗', toastConvertSuccess: '轉換成功', toastConvertError: '轉換失敗', toastCopySuccess: '已複製', toastCopyError: '複製失敗', toastPasteSuccess: '已粘貼', toastPasteError: '讀取剪貼板失敗', toastPasteUnsupported: '當前環境不支持讀取剪貼板，請手動粘貼', toastEmptyInput: '請輸入內容', toastSameFormat: '格式相同' } },
-            { code: 'en', name: 'English', flag: '🇺🇸', dict: { brand: 'Converter', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock Data', clearBtn: 'Clear', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '// Enter data...', outputPlaceholder: 'Waiting...', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here, please paste manually', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format' } }
+            { code: 'zh-CN', name: '简体中文', flag: '🇨🇳', dict: { brand: '转换工具', navYamlJson: 'yaml转json', navYamlProps: 'yaml转properties', navJsonProps: 'json转properties', navJsonXml: 'json转xml', navXmlYaml: 'xml转yaml', navJsonYaml: 'json转yaml', navYamlXml: 'yaml转xml', fromLabel: '从', toLabel: '转为', swapTitle: '互换格式', inputLabel: '输入内容', outputLabel: '输出结果', formatBtn: '格式化', mockBtn: '模拟数据', clearBtn: '清空', convertBtn: '执行转换', copyBtn: '复制', pasteBtn: '粘贴', inputPlaceholder: '// 在此输入或粘贴源数据...', outputPlaceholder: '等待操作...', toastMockSuccess: '已生成模拟数据', toastFormatInput: '输入格式化成功', toastFormatOutput: '输出格式化成功', toastFormatError: '格式化失败', toastConvertSuccess: '转换成功', toastConvertError: '转换失败', toastCopySuccess: '已复制', toastCopyError: '复制失败', toastPasteSuccess: '已粘贴', toastPasteError: '读取剪贴板失败', toastPasteUnsupported: '当前环境不支持读取剪贴板，请手动粘贴', toastEmptyInput: '请输入内容', toastSameFormat: '格式相同', diffBtn: '对比差异', diffExitBtn: '退出对比', diffLeftTitle: '原始版本 (输入)', diffRightTitle: '修改版本 (输出)' } },
+            { code: 'zh-TW', name: '繁體中文', flag: '繁', dict: { brand: '轉換工具', navYamlJson: 'yaml轉json', navYamlProps: 'yaml轉properties', navJsonProps: 'json轉properties', navJsonXml: 'json轉xml', navXmlYaml: 'xml轉yaml', navJsonYaml: 'json轉yaml', navYamlXml: 'yaml轉xml', fromLabel: '從', toLabel: '轉為', swapTitle: '互換格式', inputLabel: '輸入內容', outputLabel: '輸出結果', formatBtn: '格式化', mockBtn: '模擬數據', clearBtn: '清空', convertBtn: '執行轉換', copyBtn: '複製', pasteBtn: '粘貼', inputPlaceholder: '// 在此輸入或粘貼源數據...', outputPlaceholder: '等待操作...', toastMockSuccess: '已生成模擬數據', toastFormatInput: '輸入格式化成功', toastFormatOutput: '輸出格式化成功', toastFormatError: '格式化失敗', toastConvertSuccess: '轉換成功', toastConvertError: '轉換失敗', toastCopySuccess: '已複製', toastCopyError: '複製失敗', toastPasteSuccess: '已粘貼', toastPasteError: '讀取剪貼板失敗', toastPasteUnsupported: '當前環境不支持讀取剪貼板，請手動粘貼', toastEmptyInput: '請輸入內容', toastSameFormat: '格式相同', diffBtn: '對比差異', diffExitBtn: '退出對比', diffLeftTitle: '原始版本 (輸入)', diffRightTitle: '修改版本 (輸出)' } },
+            { code: 'en', name: 'English', flag: '🇺🇸', dict: { brand: 'Converter', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock Data', clearBtn: 'Clear', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '// Enter data...', outputPlaceholder: 'Waiting...', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here, please paste manually', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)' } }
         ];
 
         const displayLangCodes = ['zh-CN', 'zh-TW', 'en'];
@@ -902,6 +902,17 @@
                 const key = el.getAttribute('data-i18n-title');
                 if (currentDict[key]) el.title = currentDict[key];
             });
+
+            // 同步更新对比按钮的文案
+            const diffBtn = document.getElementById('toggleDiffBtn');
+            if (diffBtn) {
+                if (diffBtn.classList.contains('btn-diff')) {
+                    diffBtn.textContent = currentDict.diffExitBtn || 'Exit Compare';
+                } else {
+                    diffBtn.textContent = currentDict.diffBtn || 'Compare';
+                }
+            }
+
             updateOutputLabel();
         }
 
@@ -1640,7 +1651,7 @@
             if (isDiffMode) {
                 mainWorkspace.classList.add('hidden');
                 diffWorkspace.classList.add('active');
-                toggleDiffBtn.textContent = '退出对比';
+                toggleDiffBtn.textContent = currentDict.diffExitBtn || '退出对比';
                 toggleDiffBtn.classList.add('btn-diff');
 
                 // 初始化对比编辑器
@@ -1701,7 +1712,7 @@
             } else {
                 diffWorkspace.classList.remove('active');
                 mainWorkspace.classList.remove('hidden');
-                toggleDiffBtn.textContent = '对比差异';
+                toggleDiffBtn.textContent = currentDict.diffBtn || '对比差异';
                 toggleDiffBtn.classList.remove('btn-diff');
                 requestAnimationFrame(() => {
                     inputEditor.refresh();
