@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dev dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Converter regression tests
+        run: node tests/converters.test.js
+
+      - name: Diff algorithm tests
+        run: node tests/diff.test.js
+
+      - name: Structured diff tests
+        run: node tests/objdiff.test.js
+
+      - name: UI smoke test
+        run: node tests/ui.smoke.js
+
+      - name: Validate manifest
+        run: node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8')); console.log('manifest.json ok')"
+
+      - name: Check inline script syntax
+        run: |
+          node -e "
+            const fs = require('fs');
+            const html = fs.readFileSync('ui/index.html', 'utf8');
+            const blocks = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+            blocks.forEach((code) => new Function(code));
+            console.log('inline scripts ok:', blocks.length);
+          "
+
+      - name: Check UI assets are classic scripts
+        run: |
+          node -e "
+            const fs = require('fs');
+            ['ui/js/converters.js', 'ui/js/diff.js', 'ui/js/objdiff.js'].forEach((f) => {
+              const src = fs.readFileSync(f, 'utf8');
+              if (/^\s*export\s/m.test(src)) {
+                throw new Error(f + ' 使用了 ES module 语法，但页面用 <script> 加载');
+              }
+            });
+            console.log('classic scripts ok');
+          "

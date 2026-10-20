@@ -3,18 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Format Converter · 导航栏滚动条优化 & JSON对比</title>
+    <title>数据转换 · Data Converter</title>
 
     <!-- 引入核心转换依赖 (本地离线) -->
     <script src="js-yaml.min.js"></script>
-    <script src="json/index.js"></script>
     <script src="xml-js.min.js"></script>
+    <script src="js/converters.js"></script>
+    <script src="js/diff.js"></script>
+    <script src="js/objdiff.js"></script>
     <script>
-        if (typeof stringify !== 'function') {
-            window.stringify = function (obj, options) {
-                return JSON.stringify(obj, null, options && options.indent ? options.indent : 2);
-            };
-        }
         if (typeof xml2js === 'undefined' || typeof js2xml === 'undefined') {
             console.warn('xml-js 加载失败，将退回基础解析逻辑');
         }
@@ -127,6 +124,8 @@
             background-color: var(--bg-base);
             color: var(--text-main);
             height: 100vh;
+            height: 100dvh;
+            min-height: 0;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -277,12 +276,13 @@
         .lang-option-left span.flag { font-size: 1.1rem; }
 
         .main-container {
-            flex: 1;
+            flex: 1 1 0;
+            min-height: 0;
             display: flex;
             flex-direction: column;
             padding: 1.5rem;
             overflow: hidden;
-            gap: 1.5rem;
+            gap: 1rem;
             max-width: 1600px;
             margin: 0 auto;
             width: 100%;
@@ -291,13 +291,24 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 1.5rem;
+            gap: 1rem;
             background-color: var(--bg-card);
-            padding: 0.75rem 1.5rem;
+            padding: 0.6rem 1.25rem;
             border-radius: 9999px;
             border: 1px solid var(--border-light);
             align-self: center;
+            flex-shrink: 0;
+            max-width: 100%;
+            flex-wrap: nowrap;
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        /* 工具栏里的主按钮：不参与拉伸，保持胶囊造型 */
+        .toolbar .btn-primary {
+            flex: 0 0 auto;
+            width: auto;
+            padding: 0.45rem 1rem;
+            border-radius: 9999px;
+            gap: 0.4rem;
         }
         .select-group {
             display: flex;
@@ -383,18 +394,23 @@
         .swap-btn:hover { opacity: 0.9; transform: rotate(180deg) scale(1.05); }
         .swap-btn svg { width: 1.1rem; height: 1.1rem; }
 
+        /* 左右两栏严格等高：桌面端一行两列，窄屏两行两列，行高都锁在可用空间内 */
         .workspace-grid {
-            flex: 1;
+            flex: 1 1 0;
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-rows: minmax(0, 1fr);
+            gap: 1.25rem;
             min-height: 0;
+            overflow: hidden;
         }
         .pane {
             display: flex;
             flex-direction: column;
-            gap: 0.75rem;
+            gap: 0.5rem;
             min-height: 0;
+            min-width: 0;
+            overflow: hidden;
         }
         .pane-header {
             display: flex;
@@ -402,6 +418,9 @@
             justify-content: space-between;
             flex-shrink: 0;
             padding: 0 0.25rem;
+            min-height: 1.75rem;
+            gap: 0.5rem;
+            overflow: hidden;
         }
         .pane-title {
             font-size: 0.9rem;
@@ -410,11 +429,27 @@
             align-items: center;
             gap: 0.5rem;
             color: var(--text-main);
+            white-space: nowrap;
+            min-width: 0;
+            overflow: hidden;
         }
+        .pane-title > span[data-i18n] { overflow: hidden; text-overflow: ellipsis; }
         .pane-title svg { color: var(--text-muted); }
-        .pane-actions { display: flex; align-items: center; gap: 0.5rem; }
+        .pane-badge {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            padding: 0.1rem 0.4rem;
+            border-radius: 9999px;
+            background-color: var(--accent-bg);
+            color: var(--text-muted);
+        }
+        .pane-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
         .editor-container {
-            flex: 1;
+            flex: 1 1 0;
+            min-height: 0;
+            position: relative;
             border: 1px solid var(--border-light);
             border-radius: var(--radius-lg);
             overflow: hidden;
@@ -429,7 +464,8 @@
         }
         .textarea {
             width: 100%;
-            height: 100%;
+            flex: 1 1 0;
+            min-height: 0;
             padding: 1.25rem;
             font-family: var(--font-mono);
             font-size: 0.85rem;
@@ -462,7 +498,10 @@
            CodeMirror 5 适配样式
            ========================================= */
         .editor-container .CodeMirror {
+            /* 容器是定高 flex 列，编辑器只占剩余空间，绝不能按内容撑高 */
             height: 100%;
+            flex: 1 1 0;
+            min-height: 0;
             font-family: var(--font-mono);
             font-size: 0.85rem;
             line-height: 1.7;
@@ -540,22 +579,36 @@
             color: var(--text-main);
             border-color: var(--accent-hover);
         }
-        .result-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.6rem 1rem;
-            border-bottom: 1px solid var(--border-light);
-            background-color: var(--accent-bg);
-            flex-shrink: 0;
+        /* 输出格式徽标已并入 pane-header，原来的 result-header 行已移除，
+           左右两栏因此行数对称，编辑器高度严格相等 */
+        /* 解析错误提示：绝对定位浮在编辑器底部，出现/消失都不改变两栏高度 */
+        .error-bar {
+            position: absolute;
+            left: 0.75rem;
+            right: 0.75rem;
+            bottom: 0.75rem;
+            z-index: 5;
+            display: none;
+            align-items: baseline;
+            gap: 0.5rem;
+            padding: 0.45rem 0.7rem;
+            border: 1px solid rgba(239, 68, 68, 0.45);
+            border-radius: var(--radius-md);
+            background-color: var(--bg-card);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+            color: #b91c1c;
+            font-size: 0.78rem;
+            line-height: 1.45;
         }
-        .result-header-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+        .error-bar.show { display: flex; }
+        .error-bar .loc { font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+        .error-bar .msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        [data-dbx-theme="dark"] .error-bar {
+            color: #fca5a5;
+            border-color: rgba(239, 68, 68, 0.55);
         }
+        .CodeMirror .cm-error-line { background-color: rgba(239, 68, 68, 0.14); }
+
         .toast-container {
             position: fixed;
             bottom: 2rem;
@@ -588,19 +641,147 @@
         /* ================= 对比模式相关样式 ================= */
         .diff-container {
             display: none;
-            flex: 1;
-            gap: 1.5rem;
+            flex: 1 1 0;
+            gap: 1.25rem;
             min-height: 0;
+            position: relative;
         }
         .diff-container.active {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-rows: minmax(0, 1fr);
         }
         .workspace-grid.hidden {
             display: none;
         }
-        .CodeMirror .cm-inserted { background-color: rgba(34, 197, 94, 0.2); }
-        .CodeMirror .cm-deleted { background-color: rgba(239, 68, 68, 0.2); text-decoration: line-through; opacity: 0.7; }
+        .CodeMirror .cm-inserted { background-color: rgba(34, 197, 94, 0.14); }
+        .CodeMirror .cm-deleted { background-color: rgba(239, 68, 68, 0.14); }
+        /* 结构化差异：只把「真正变了的那个值」标出来，不再整行划掉 */
+        .CodeMirror .cm-value-changed { background-color: rgba(245, 158, 11, 0.12); }
+        .CodeMirror .cm-diff-old {
+            background-color: rgba(239, 68, 68, 0.22);
+            border-radius: 3px;
+            box-shadow: inset 0 -1px 0 rgba(239, 68, 68, 0.55);
+        }
+        .CodeMirror .cm-diff-new {
+            background-color: rgba(34, 197, 94, 0.22);
+            border-radius: 3px;
+            box-shadow: inset 0 -1px 0 rgba(34, 197, 94, 0.55);
+        }
+        [data-dbx-theme="dark"] .CodeMirror .cm-inserted { background-color: rgba(34, 197, 94, 0.16); }
+        [data-dbx-theme="dark"] .CodeMirror .cm-deleted { background-color: rgba(239, 68, 68, 0.18); }
+        [data-dbx-theme="dark"] .CodeMirror .cm-value-changed { background-color: rgba(245, 158, 11, 0.14); }
+        [data-dbx-theme="dark"] .CodeMirror .cm-diff-old { background-color: rgba(239, 68, 68, 0.3); }
+        [data-dbx-theme="dark"] .CodeMirror .cm-diff-new { background-color: rgba(34, 197, 94, 0.28); }
+
+        /* ================= 结构化差异面板 ================= */
+        .diff-report {
+            position: absolute;
+            right: 0.75rem;
+            bottom: 0.75rem;
+            width: 340px;
+            max-width: calc(100% - 1.5rem);
+            max-height: 58%;
+            display: none;
+            flex-direction: column;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.28);
+            overflow: hidden;
+            z-index: 6;
+        }
+        .diff-report.show { display: flex; }
+        .diff-report-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            padding: 0.55rem 0.75rem;
+            border-bottom: 1px solid var(--border-light);
+            background-color: var(--accent-bg);
+            flex-shrink: 0;
+        }
+        .diff-report-title {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-main);
+            white-space: nowrap;
+        }
+        .diff-report-title b { color: var(--primary); font-variant-numeric: tabular-nums; }
+        .diff-report-close {
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 1rem;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0.1rem 0.25rem;
+            border-radius: var(--radius-sm);
+        }
+        .diff-report-close:hover { background-color: var(--bg-hover, rgba(0,0,0,0.06)); color: var(--text-main); }
+        .diff-report-list {
+            overflow-y: auto;
+            padding: 0.35rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+        .diff-row {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.35rem 0.4rem;
+            border: none;
+            background: transparent;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            text-align: left;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--text-main);
+        }
+        .diff-row:hover { background-color: var(--accent-bg); }
+        .diff-row.no-jump { cursor: default; }
+        .diff-row.no-jump:hover { background-color: transparent; }
+        .diff-tag {
+            font-family: var(--font-sans);
+            font-size: 0.66rem;
+            font-weight: 600;
+            padding: 0.1rem 0.35rem;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+        .diff-tag.tag-change { background-color: rgba(245, 158, 11, 0.16); color: #b45309; }
+        .diff-tag.tag-add { background-color: rgba(34, 197, 94, 0.16); color: #15803d; }
+        .diff-tag.tag-remove { background-color: rgba(239, 68, 68, 0.16); color: #b91c1c; }
+        [data-dbx-theme="dark"] .diff-tag.tag-change { color: #fbbf24; }
+        [data-dbx-theme="dark"] .diff-tag.tag-add { color: #4ade80; }
+        [data-dbx-theme="dark"] .diff-tag.tag-remove { color: #fca5a5; }
+        .diff-path {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #b45309;
+        }
+        [data-dbx-theme="dark"] .diff-path { color: #fbbf24; }
+        .diff-val {
+            color: var(--text-muted);
+            max-width: 96px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+        .diff-report-empty {
+            padding: 0.6rem 0.75rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        @media (max-width: 768px) {
+            .diff-report { width: auto; left: 0.75rem; max-height: 45%; }
+        }
 
         /* 差异对比按钮高亮 */
         .btn-diff {
@@ -613,10 +794,21 @@
             color: white;
         }
 
-        @media (max-width: 900px) {
-            .workspace-grid, .diff-container.active { grid-template-columns: 1fr; }
+        /* 宽度不足时面板操作按钮只留图标（title 提示仍在），避免挤出面板 */
+        @media (max-width: 1100px) {
+            .pane-actions .btn span { display: none; }
+            .pane-actions .btn { padding: 0.4rem; }
+        }
+
+        /* 只有真正窄到放不下两列时才上下堆叠，避免半宽面板里编辑器被压扁 */
+        @media (max-width: 768px) {
+            .workspace-grid,
+            .diff-container.active {
+                grid-template-columns: minmax(0, 1fr);
+                grid-template-rows: repeat(2, minmax(0, 1fr));
+            }
             .toolbar { flex-direction: row; flex-wrap: wrap; border-radius: var(--radius-lg); padding: 1rem; width: 100%;}
-            .main-container { padding: 1rem; }
+            .main-container { padding: 1rem; gap: 0.75rem; }
             .nav-links::-webkit-scrollbar {
                 height: 4px;
             }
@@ -689,8 +881,13 @@
             </div>
         </div>
 
-        <!-- 对比功能按钮 -->
-        <button class="btn btn-outline" id="toggleDiffBtn" data-i18n="diffBtn" style="margin-left: 0.5rem; border-radius: 9999px;">
+        <!-- 主操作：转换 / 对比 -->
+        <button class="btn btn-primary" id="convertBtn" data-i18n-title="convertShortcut">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            <span data-i18n="convertBtn">执行转换</span>
+        </button>
+
+        <button class="btn btn-outline" id="toggleDiffBtn" data-i18n="diffBtn" style="border-radius: 9999px;">
             对比差异
         </button>
     </div>
@@ -723,12 +920,10 @@
             </div>
             <div class="editor-container">
                 <textarea id="inputText" class="textarea" placeholder=""></textarea>
-            </div>
-            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                <button class="btn btn-primary" id="convertBtn">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-                    <span data-i18n="convertBtn">执行转换</span>
-                </button>
+                <div class="error-bar" id="errorBar">
+                    <span class="loc" id="errorLoc"></span>
+                    <span class="msg" id="errorMsg"></span>
+                </div>
             </div>
         </div>
 
@@ -737,6 +932,7 @@
                 <div class="pane-title">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                     <span data-i18n="outputLabel">输出结果</span>
+                    <span class="pane-badge" id="outputResultLabel">YAML</span>
                 </div>
                 <div class="pane-actions">
                     <button class="btn btn-outline" id="formatOutputBtn" data-i18n-title="formatBtn">
@@ -750,9 +946,6 @@
                 </div>
             </div>
             <div class="editor-container" id="outputEditorWrap">
-                <div class="result-header">
-                    <span class="result-header-label" id="outputLabel">Result Output</span>
-                </div>
                 <textarea id="outputText" class="textarea" placeholder="" style="background-color: var(--accent-bg);"></textarea>
             </div>
         </div>
@@ -765,6 +958,7 @@
                 <div class="pane-title">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
                     <span data-i18n="diffLeftTitle">原始版本 (输入)</span>
+                    <span class="pane-badge" id="diffLeftStat"></span>
                 </div>
             </div>
             <div class="editor-container">
@@ -776,11 +970,21 @@
                 <div class="pane-title">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
                     <span data-i18n="diffRightTitle">修改版本 (输出)</span>
+                    <span class="pane-badge" id="diffRightStat"></span>
                 </div>
             </div>
             <div class="editor-container">
                 <textarea id="diffRightText" class="textarea"></textarea>
             </div>
+        </div>
+
+        <!-- 结构化差异：按 JSON Pointer 列出每一处真正变化的值 -->
+        <div class="diff-report" id="diffReport">
+            <div class="diff-report-head">
+                <span class="diff-report-title" id="diffReportTitle"></span>
+                <button class="diff-report-close" id="diffReportClose" type="button" aria-label="close">&times;</button>
+            </div>
+            <div class="diff-report-list" id="diffReportList"></div>
         </div>
     </div>
 </main>
@@ -793,20 +997,20 @@
         // 1. 国际化 (I18n) 字典配置 (全量语言)
         // =========================================
         const languageConfigs = [
-            { code: 'zh-CN', name: '简体中文', flag: '🇨🇳', dict: { brand: '转换工具', navYamlJson: 'yaml转json', navYamlProps: 'yaml转properties', navJsonProps: 'json转properties', navJsonXml: 'json转xml', navXmlYaml: 'xml转yaml', navJsonYaml: 'json转yaml', navYamlXml: 'yaml转xml', fromLabel: '从', toLabel: '转为', swapTitle: '互换格式', inputLabel: '输入内容', outputLabel: '输出结果', formatBtn: '格式化', mockBtn: '模拟数据', clearBtn: '清空', convertBtn: '执行转换', copyBtn: '复制', pasteBtn: '粘贴', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '已生成模拟数据', toastFormatInput: '输入格式化成功', toastFormatOutput: '输出格式化成功', toastFormatError: '格式化失败', toastConvertSuccess: '转换成功', toastConvertError: '转换失败', toastCopySuccess: '已复制', toastCopyError: '复制失败', toastPasteSuccess: '已粘贴', toastPasteError: '读取剪贴板失败', toastPasteUnsupported: '当前环境不支持读取剪贴板，请手动粘贴', toastEmptyInput: '请输入内容', toastSameFormat: '格式相同', diffBtn: '对比差异', diffExitBtn: '退出对比', diffLeftTitle: '原始版本 (输入)', diffRightTitle: '修改版本 (输出)' } },
-            { code: 'zh-TW', name: '繁體中文', flag: '繁', dict: { brand: '轉換工具', navYamlJson: 'yaml轉json', navYamlProps: 'yaml轉properties', navJsonProps: 'json轉properties', navJsonXml: 'json轉xml', navXmlYaml: 'xml轉yaml', navJsonYaml: 'json轉yaml', navYamlXml: 'yaml轉xml', fromLabel: '從', toLabel: '轉為', swapTitle: '互換格式', inputLabel: '輸入內容', outputLabel: '輸出結果', formatBtn: '格式化', mockBtn: '模擬數據', clearBtn: '清空', convertBtn: '執行轉換', copyBtn: '複製', pasteBtn: '粘貼', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '已生成模擬數據', toastFormatInput: '輸入格式化成功', toastFormatOutput: '輸出格式化成功', toastFormatError: '格式化失敗', toastConvertSuccess: '轉換成功', toastConvertError: '轉換失敗', toastCopySuccess: '已複製', toastCopyError: '複製失敗', toastPasteSuccess: '已粘貼', toastPasteError: '讀取剪貼板失敗', toastPasteUnsupported: '當前環境不支持讀取剪貼板，請手動粘貼', toastEmptyInput: '請輸入內容', toastSameFormat: '格式相同', diffBtn: '對比差異', diffExitBtn: '退出對比', diffLeftTitle: '原始版本 (輸入)', diffRightTitle: '修改版本 (輸出)' } },
-            { code: 'en', name: 'English', flag: '🇺🇸', dict: { brand: 'Converter', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock Data', clearBtn: 'Clear', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here, please paste manually', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)' } },
-            { code: 'az', name: 'Azərbaycan', flag: '🇦🇿', dict: { brand: 'Alətlər', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock', clearBtn: 'Clear', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)' } },
-            { code: 'es', name: 'Español', flag: '🇪🇸', dict: { brand: 'Herramientas', navYamlJson: 'YAML a JSON', navYamlProps: 'YAML a Props', navJsonProps: 'JSON a Props', navJsonXml: 'JSON a XML', navXmlYaml: 'XML a YAML', navJsonYaml: 'JSON a YAML', navYamlXml: 'YAML a XML', fromLabel: 'De', toLabel: 'A', swapTitle: 'Intercambiar', inputLabel: 'Entrada', outputLabel: 'Salida', formatBtn: 'Formatear', mockBtn: 'Simular', clearBtn: 'Limpiar', convertBtn: 'Convertir', copyBtn: 'Copiar', pasteBtn: 'Pegar', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulado generado', toastFormatInput: 'Entrada formateada', toastFormatOutput: 'Salida formateada', toastFormatError: 'Error de formato', toastConvertSuccess: 'Convertido', toastConvertError: 'Error de conversión', toastCopySuccess: 'Copiado', toastCopyError: 'Error al copiar', toastPasteSuccess: 'Pegado', toastPasteError: 'Error al leer el portapapeles', toastPasteUnsupported: 'Lectura del portapapeles no soportada', toastEmptyInput: 'Entrada vacía', toastSameFormat: 'Mismo formato', diffBtn: 'Comparar', diffExitBtn: 'Salir', diffLeftTitle: 'Original (Entrada)', diffRightTitle: 'Modificado (Salida)' } },
-            { code: 'id', name: 'Bahasa Indonesia', flag: '🇮🇩', dict: { brand: 'Alat', navYamlJson: 'YAML ke JSON', navYamlProps: 'YAML ke Props', navJsonProps: 'JSON ke Props', navJsonXml: 'JSON ke XML', navXmlYaml: 'XML ke YAML', navJsonYaml: 'JSON ke YAML', navYamlXml: 'YAML ke XML', fromLabel: 'Dari', toLabel: 'Ke', swapTitle: 'Tukar', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock', clearBtn: 'Hapus', convertBtn: 'Konversi', copyBtn: 'Salin', pasteBtn: 'Tempel', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock dibuat', toastFormatInput: 'Input diformat', toastFormatOutput: 'Output diformat', toastFormatError: 'Format gagal', toastConvertSuccess: 'Dikonversi', toastConvertError: 'Konversi gagal', toastCopySuccess: 'Disalin', toastCopyError: 'Gagal menyalin', toastPasteSuccess: 'Ditempel', toastPasteError: 'Gagal membaca clipboard', toastPasteUnsupported: 'Baca clipboard tidak didukung', toastEmptyInput: 'Input kosong', toastSameFormat: 'Format sama', diffBtn: 'Bandingkan', diffExitBtn: 'Keluar', diffLeftTitle: 'Asli (Input)', diffRightTitle: 'Diubah (Output)' } },
-            { code: 'it', name: 'Italiano', flag: '🇮🇹', dict: { brand: 'Strumenti', navYamlJson: 'YAML in JSON', navYamlProps: 'YAML in Props', navJsonProps: 'JSON in Props', navJsonXml: 'JSON in XML', navXmlYaml: 'XML in YAML', navJsonYaml: 'JSON in YAML', navYamlXml: 'YAML in XML', fromLabel: 'Da', toLabel: 'A', swapTitle: 'Scambia', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Formatta', mockBtn: 'Simula', clearBtn: 'Pulisci', convertBtn: 'Converti', copyBtn: 'Copia', pasteBtn: 'Incolla', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulazione creata', toastFormatInput: 'Input formattato', toastFormatOutput: 'Output formattato', toastFormatError: 'Formato fallito', toastConvertSuccess: 'Convertito', toastConvertError: 'Conversione fallita', toastCopySuccess: 'Copiato', toastCopyError: 'Copia fallita', toastPasteSuccess: 'Incollato', toastPasteError: 'Lettura appunti fallita', toastPasteUnsupported: 'Lettura appunti non supportata', toastEmptyInput: 'Input vuoto', toastSameFormat: 'Stesso formato', diffBtn: 'Confronta', diffExitBtn: 'Esci', diffLeftTitle: 'Originale (Input)', diffRightTitle: 'Modificato (Output)' } },
-            { code: 'ja', name: '日本語', flag: '🇯🇵', dict: { brand: '変換ツール', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '変換元', toLabel: '変換先', swapTitle: '入れ替え', inputLabel: '入力', outputLabel: '出力', formatBtn: '整形', mockBtn: 'モック', clearBtn: 'クリア', convertBtn: '変換', copyBtn: 'コピー', pasteBtn: '貼り付け', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'モック生成完了', toastFormatInput: '入力整形完了', toastFormatOutput: '出力整形完了', toastFormatError: '整形失敗', toastConvertSuccess: '変換完了', toastConvertError: '変換失敗', toastCopySuccess: 'コピーしました', toastCopyError: 'コピー失敗', toastPasteSuccess: '貼り付けました', toastPasteError: 'クリップボードの読み取りに失敗', toastPasteUnsupported: 'クリップボードの読み取り非対応', toastEmptyInput: '入力が空です', toastSameFormat: '同じ形式です', diffBtn: '比較', diffExitBtn: '終了', diffLeftTitle: '元のバージョン (入力)', diffRightTitle: '変更後 (出力)' } },
-            { code: 'ko', name: '한국어', flag: '🇰🇷', dict: { brand: '변환 도구', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '변환 전', toLabel: '변환 후', swapTitle: '교체', inputLabel: '입력', outputLabel: '출력', formatBtn: '포맷', mockBtn: '모의', clearBtn: '지우기', convertBtn: '변환', copyBtn: '복사', pasteBtn: '붙여넣기', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '모의 생성됨', toastFormatInput: '입력 포맷됨', toastFormatOutput: '출력 포맷됨', toastFormatError: '포맷 실패', toastConvertSuccess: '변환됨', toastConvertError: '변환 실패', toastCopySuccess: '복사됨', toastCopyError: '복사 실패', toastPasteSuccess: '붙여넣음', toastPasteError: '클립보드 읽기 실패', toastPasteUnsupported: '클립보드 읽기 미지원', toastEmptyInput: '입력이 비어있음', toastSameFormat: '같은 형식', diffBtn: '비교', diffExitBtn: '종료', diffLeftTitle: '원본 (입력)', diffRightTitle: '수정됨 (출력)' } },
-            { code: 'pt', name: 'Português', flag: '🇧🇷', dict: { brand: 'Ferramentas', navYamlJson: 'YAML para JSON', navYamlProps: 'YAML para Props', navJsonProps: 'JSON para Props', navJsonXml: 'JSON para XML', navXmlYaml: 'XML para YAML', navJsonYaml: 'JSON para YAML', navYamlXml: 'YAML para XML', fromLabel: 'De', toLabel: 'Para', swapTitle: 'Trocar', inputLabel: 'Entrada', outputLabel: 'Saída', formatBtn: 'Formatar', mockBtn: 'Simular', clearBtn: 'Limpar', convertBtn: 'Converter', copyBtn: 'Copiar', pasteBtn: 'Colar', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulação criada', toastFormatInput: 'Entrada formatada', toastFormatOutput: 'Saída formatada', toastFormatError: 'Falha na formatação', toastConvertSuccess: 'Convertido', toastConvertError: 'Falha na conversão', toastCopySuccess: 'Copiado', toastCopyError: 'Falha ao copiar', toastPasteSuccess: 'Colado', toastPasteError: 'Falha ao ler a área de transferência', toastPasteUnsupported: 'Leitura da área de transferência não suportada', toastEmptyInput: 'Entrada vazia', toastSameFormat: 'Mesmo formato', diffBtn: 'Comparar', diffExitBtn: 'Sair', diffLeftTitle: 'Original (Entrada)', diffRightTitle: 'Modificado (Saída)' } },
-            { code: 'pl', name: 'Polski', flag: '🇵🇱', dict: { brand: 'Narzędzia', navYamlJson: 'YAML na JSON', navYamlProps: 'YAML na Props', navJsonProps: 'JSON na Props', navJsonXml: 'JSON na XML', navXmlYaml: 'XML na YAML', navJsonYaml: 'JSON na YAML', navYamlXml: 'YAML na XML', fromLabel: 'Z', toLabel: 'Na', swapTitle: 'Zamień', inputLabel: 'Wejście', outputLabel: 'Wyjście', formatBtn: 'Formatuj', mockBtn: 'Mock', clearBtn: 'Wyczyść', convertBtn: 'Konwertuj', copyBtn: 'Kopiuj', pasteBtn: 'Wklej', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock utworzony', toastFormatInput: 'Wejście sformatowane', toastFormatOutput: 'Wyjście sformatowane', toastFormatError: 'Błąd formatowania', toastConvertSuccess: 'Przekonwertowano', toastConvertError: 'Błąd konwersji', toastCopySuccess: 'Skopiowano', toastCopyError: 'Błąd kopiowania', toastPasteSuccess: 'Wklejono', toastPasteError: 'Błąd odczytu schowka', toastPasteUnsupported: 'Odczyt schowka nieobsługiwany', toastEmptyInput: 'Brak danych', toastSameFormat: 'Ten sam format', diffBtn: 'Porównaj', diffExitBtn: 'Wyjdź', diffLeftTitle: 'Oryginał (Wejście)', diffRightTitle: 'Zmodyfikowany (Wyjście)' } },
-            { code: 'ru', name: 'Русский', flag: '🇷🇺', dict: { brand: 'Инструменты', navYamlJson: 'YAML в JSON', navYamlProps: 'YAML в Props', navJsonProps: 'JSON в Props', navJsonXml: 'JSON в XML', navXmlYaml: 'XML в YAML', navJsonYaml: 'JSON в YAML', navYamlXml: 'YAML в XML', fromLabel: 'Из', toLabel: 'В', swapTitle: 'Поменять', inputLabel: 'Вход', outputLabel: 'Выход', formatBtn: 'Формат', mockBtn: 'Мок', clearBtn: 'Очистить', convertBtn: 'Конверт', copyBtn: 'Копия', pasteBtn: 'Вставить', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Мок создан', toastFormatInput: 'Вход отформатирован', toastFormatOutput: 'Выход отформатирован', toastFormatError: 'Ошибка формата', toastConvertSuccess: 'Конвертировано', toastConvertError: 'Ошибка конвертации', toastCopySuccess: 'Скопировано', toastCopyError: 'Ошибка копии', toastPasteSuccess: 'Вставлено', toastPasteError: 'Ошибка чтения буфера обмена', toastPasteUnsupported: 'Чтение буфера обмена не поддерживается', toastEmptyInput: 'Пустой ввод', toastSameFormat: 'Тот же формат', diffBtn: 'Сравнить', diffExitBtn: 'Выйти', diffLeftTitle: 'Оригинал (Вход)', diffRightTitle: 'Изменено (Выход)' } },
-            { code: 'th', name: 'ภาษาไทย', flag: '🇹🇭', dict: { brand: 'เครื่องมือ', navYamlJson: 'YAML เป็น JSON', navYamlProps: 'YAML เป็น Props', navJsonProps: 'JSON เป็น Props', navJsonXml: 'JSON เป็น XML', navXmlYaml: 'XML เป็น YAML', navJsonYaml: 'JSON เป็น YAML', navYamlXml: 'YAML เป็น XML', fromLabel: 'จาก', toLabel: 'เป็น', swapTitle: 'สลับ', inputLabel: 'อินพุต', outputLabel: 'เอาต์พุต', formatBtn: 'จัดรูปแบบ', mockBtn: 'จำลอง', clearBtn: 'ล้าง', convertBtn: 'แปลง', copyBtn: 'คัดลอก', pasteBtn: 'วาง', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'สร้างจำลองแล้ว', toastFormatInput: 'จัดรูปแบบอินพุตแล้ว', toastFormatOutput: 'จัดรูปแบบเอาต์พุตแล้ว', toastFormatError: 'จัดรูปแบบล้มเหลว', toastConvertSuccess: 'แปลงแล้ว', toastConvertError: 'แปลงล้มเหลว', toastCopySuccess: 'คัดลอกแล้ว', toastCopyError: 'คัดลอกล้มเหลว', toastPasteSuccess: 'วางแล้ว', toastPasteError: 'อ่านคลิปบอร์ดล้มเหลว', toastPasteUnsupported: 'ไม่รองรับการอ่านคลิปบอร์ด', toastEmptyInput: 'ไม่มีข้อมูล', toastSameFormat: 'รูปแบบเดียวกัน', diffBtn: 'เปรียบเทียบ', diffExitBtn: 'ออก', diffLeftTitle: 'ต้นฉบับ (อินพุต)', diffRightTitle: 'แก้ไขแล้ว (เอาต์พุต)' } },
-            { code: 'tr', name: 'Türkçe', flag: '🇹🇷', dict: { brand: 'Araçlar', navYamlJson: 'YAML -> JSON', navYamlProps: 'YAML -> Props', navJsonProps: 'JSON -> Props', navJsonXml: 'JSON -> XML', navXmlYaml: 'XML -> YAML', navJsonYaml: 'JSON -> YAML', navYamlXml: 'YAML -> XML', fromLabel: 'Kimden', toLabel: 'Kime', swapTitle: 'Değiştir', inputLabel: 'Giriş', outputLabel: 'Çıkış', formatBtn: 'Biçimlendir', mockBtn: 'Mock', clearBtn: 'Temizle', convertBtn: 'Dönüştür', copyBtn: 'Kopyala', pasteBtn: 'Yapıştır', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock oluşturuldu', toastFormatInput: 'Giriş biçimlendirildi', toastFormatOutput: 'Çıkış biçimlendirildi', toastFormatError: 'Biçimlendirme hatası', toastConvertSuccess: 'Dönüştürüldü', toastConvertError: 'Dönüştürme hatası', toastCopySuccess: 'Kopyalandı', toastCopyError: 'Kopyalama hatası', toastPasteSuccess: 'Yapıştırıldı', toastPasteError: 'Pano okunamadı', toastPasteUnsupported: 'Pano okuma desteklenmiyor', toastEmptyInput: 'Giriş boş', toastSameFormat: 'Aynı format', diffBtn: 'Karşılaştır', diffExitBtn: 'Çıkış', diffLeftTitle: 'Orijinal (Giriş)', diffRightTitle: 'Değiştirilmiş (Çıkış)' } }
+            { code: 'zh-CN', name: '简体中文', flag: '🇨🇳', dict: { brand: '转换工具', navYamlJson: 'yaml转json', navYamlProps: 'yaml转properties', navJsonProps: 'json转properties', navJsonXml: 'json转xml', navXmlYaml: 'xml转yaml', navJsonYaml: 'json转yaml', navYamlXml: 'yaml转xml', fromLabel: '从', toLabel: '转为', swapTitle: '互换格式', inputLabel: '输入内容', outputLabel: '输出结果', formatBtn: '格式化', mockBtn: '模拟数据', clearBtn: '清空', convertBtn: '执行转换', copyBtn: '复制', pasteBtn: '粘贴', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '已生成模拟数据', toastFormatInput: '输入格式化成功', toastFormatOutput: '输出格式化成功', toastFormatError: '格式化失败', toastConvertSuccess: '转换成功', toastConvertError: '转换失败', toastCopySuccess: '已复制', toastCopyError: '复制失败', toastPasteSuccess: '已粘贴', toastPasteError: '读取剪贴板失败', toastPasteUnsupported: '当前环境不支持读取剪贴板，请手动粘贴', toastEmptyInput: '请输入内容', toastSameFormat: '格式相同', diffBtn: '对比差异', diffExitBtn: '退出对比', diffLeftTitle: '原始版本 (输入)', diffRightTitle: '修改版本 (输出)', diffLarge: '文件较大，已切换为快速对比（行级高亮可能不够精确）', diffReportTitle: '结构化差异 {n} 处', diffChange: '修改', diffAdd: '新增', diffRemove: '删除', diffSame: '两版内容一致', diffSameHint: '未发现字段级差异' } },
+            { code: 'zh-TW', name: '繁體中文', flag: '繁', dict: { brand: '轉換工具', navYamlJson: 'yaml轉json', navYamlProps: 'yaml轉properties', navJsonProps: 'json轉properties', navJsonXml: 'json轉xml', navXmlYaml: 'xml轉yaml', navJsonYaml: 'json轉yaml', navYamlXml: 'yaml轉xml', fromLabel: '從', toLabel: '轉為', swapTitle: '互換格式', inputLabel: '輸入內容', outputLabel: '輸出結果', formatBtn: '格式化', mockBtn: '模擬數據', clearBtn: '清空', convertBtn: '執行轉換', copyBtn: '複製', pasteBtn: '粘貼', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '已生成模擬數據', toastFormatInput: '輸入格式化成功', toastFormatOutput: '輸出格式化成功', toastFormatError: '格式化失敗', toastConvertSuccess: '轉換成功', toastConvertError: '轉換失敗', toastCopySuccess: '已複製', toastCopyError: '複製失敗', toastPasteSuccess: '已粘貼', toastPasteError: '讀取剪貼板失敗', toastPasteUnsupported: '當前環境不支持讀取剪貼板，請手動粘貼', toastEmptyInput: '請輸入內容', toastSameFormat: '格式相同', diffBtn: '對比差異', diffExitBtn: '退出對比', diffLeftTitle: '原始版本 (輸入)', diffRightTitle: '修改版本 (輸出)', diffLarge: '檔案較大，已切換為快速對比（行級標記可能不夠精確）', diffReportTitle: '結構化差異 {n} 處', diffChange: '修改', diffAdd: '新增', diffRemove: '刪除', diffSame: '兩版內容一致', diffSameHint: '未發現欄位級差異' } },
+            { code: 'en', name: 'English', flag: '🇺🇸', dict: { brand: 'Converter', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock Data', clearBtn: 'Clear', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here, please paste manually', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)', diffLarge: 'Large input — switched to fast diff, highlights may be less precise', diffReportTitle: 'Structured changes: {n}', diffChange: 'Modified', diffAdd: 'Added', diffRemove: 'Deleted', diffSame: 'No differences', diffSameHint: 'No field-level changes found' } },
+            { code: 'az', name: 'Azərbaycan', flag: '🇦🇿', dict: { brand: 'Alətlər', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock', clearBtn: 'Clear', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)', diffLarge: 'Giriş böyükdür — sürətli müqayisəyə keçildi', diffReportTitle: 'Struktur fərqlər: {n}', diffChange: 'Dəyişdi', diffAdd: 'Əlavə', diffRemove: 'Silindi', diffSame: 'Fərq yoxdur', diffSameHint: 'Sahə səviyyəsində fərq tapılmadı' } },
+            { code: 'es', name: 'Español', flag: '🇪🇸', dict: { brand: 'Herramientas', navYamlJson: 'YAML a JSON', navYamlProps: 'YAML a Props', navJsonProps: 'JSON a Props', navJsonXml: 'JSON a XML', navXmlYaml: 'XML a YAML', navJsonYaml: 'JSON a YAML', navYamlXml: 'YAML a XML', fromLabel: 'De', toLabel: 'A', swapTitle: 'Intercambiar', inputLabel: 'Entrada', outputLabel: 'Salida', formatBtn: 'Formatear', mockBtn: 'Simular', clearBtn: 'Limpiar', convertBtn: 'Convertir', copyBtn: 'Copiar', pasteBtn: 'Pegar', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulado generado', toastFormatInput: 'Entrada formateada', toastFormatOutput: 'Salida formateada', toastFormatError: 'Error de formato', toastConvertSuccess: 'Convertido', toastConvertError: 'Error de conversión', toastCopySuccess: 'Copiado', toastCopyError: 'Error al copiar', toastPasteSuccess: 'Pegado', toastPasteError: 'Error al leer el portapapeles', toastPasteUnsupported: 'Lectura del portapapeles no soportada', toastEmptyInput: 'Entrada vacía', toastSameFormat: 'Mismo formato', diffBtn: 'Comparar', diffExitBtn: 'Salir', diffLeftTitle: 'Original (Entrada)', diffRightTitle: 'Modificado (Salida)', diffLarge: 'Entrada grande: se cambió a comparación rápida', diffReportTitle: 'Cambios estructurados: {n}', diffChange: 'Modificado', diffAdd: 'Añadido', diffRemove: 'Eliminado', diffSame: 'Sin diferencias', diffSameHint: 'No se encontraron cambios' } },
+            { code: 'id', name: 'Bahasa Indonesia', flag: '🇮🇩', dict: { brand: 'Alat', navYamlJson: 'YAML ke JSON', navYamlProps: 'YAML ke Props', navJsonProps: 'JSON ke Props', navJsonXml: 'JSON ke XML', navXmlYaml: 'XML ke YAML', navJsonYaml: 'JSON ke YAML', navYamlXml: 'YAML ke XML', fromLabel: 'Dari', toLabel: 'Ke', swapTitle: 'Tukar', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock', clearBtn: 'Hapus', convertBtn: 'Konversi', copyBtn: 'Salin', pasteBtn: 'Tempel', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock dibuat', toastFormatInput: 'Input diformat', toastFormatOutput: 'Output diformat', toastFormatError: 'Format gagal', toastConvertSuccess: 'Dikonversi', toastConvertError: 'Konversi gagal', toastCopySuccess: 'Disalin', toastCopyError: 'Gagal menyalin', toastPasteSuccess: 'Ditempel', toastPasteError: 'Gagal membaca clipboard', toastPasteUnsupported: 'Baca clipboard tidak didukung', toastEmptyInput: 'Input kosong', toastSameFormat: 'Format sama', diffBtn: 'Bandingkan', diffExitBtn: 'Keluar', diffLeftTitle: 'Asli (Input)', diffRightTitle: 'Diubah (Output)', diffLarge: 'Input besar — beralih ke perbandingan cepat', diffReportTitle: 'Perubahan terstruktur: {n}', diffChange: 'Diubah', diffAdd: 'Ditambah', diffRemove: 'Dihapus', diffSame: 'Tidak ada perbedaan', diffSameHint: 'Tidak ada perubahan pada field' } },
+            { code: 'it', name: 'Italiano', flag: '🇮🇹', dict: { brand: 'Strumenti', navYamlJson: 'YAML in JSON', navYamlProps: 'YAML in Props', navJsonProps: 'JSON in Props', navJsonXml: 'JSON in XML', navXmlYaml: 'XML in YAML', navJsonYaml: 'JSON in YAML', navYamlXml: 'YAML in XML', fromLabel: 'Da', toLabel: 'A', swapTitle: 'Scambia', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Formatta', mockBtn: 'Simula', clearBtn: 'Pulisci', convertBtn: 'Converti', copyBtn: 'Copia', pasteBtn: 'Incolla', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulazione creata', toastFormatInput: 'Input formattato', toastFormatOutput: 'Output formattato', toastFormatError: 'Formato fallito', toastConvertSuccess: 'Convertito', toastConvertError: 'Conversione fallita', toastCopySuccess: 'Copiato', toastCopyError: 'Copia fallita', toastPasteSuccess: 'Incollato', toastPasteError: 'Lettura appunti fallita', toastPasteUnsupported: 'Lettura appunti non supportata', toastEmptyInput: 'Input vuoto', toastSameFormat: 'Stesso formato', diffBtn: 'Confronta', diffExitBtn: 'Esci', diffLeftTitle: 'Originale (Input)', diffRightTitle: 'Modificato (Output)', diffLarge: 'Input grande: confronto rapido attivato', diffReportTitle: 'Modifiche strutturate: {n}', diffChange: 'Modificato', diffAdd: 'Aggiunto', diffRemove: 'Rimosso', diffSame: 'Nessuna differenza', diffSameHint: 'Nessuna modifica a livello di campo' } },
+            { code: 'ja', name: '日本語', flag: '🇯🇵', dict: { brand: '変換ツール', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '変換元', toLabel: '変換先', swapTitle: '入れ替え', inputLabel: '入力', outputLabel: '出力', formatBtn: '整形', mockBtn: 'モック', clearBtn: 'クリア', convertBtn: '変換', copyBtn: 'コピー', pasteBtn: '貼り付け', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'モック生成完了', toastFormatInput: '入力整形完了', toastFormatOutput: '出力整形完了', toastFormatError: '整形失敗', toastConvertSuccess: '変換完了', toastConvertError: '変換失敗', toastCopySuccess: 'コピーしました', toastCopyError: 'コピー失敗', toastPasteSuccess: '貼り付けました', toastPasteError: 'クリップボードの読み取りに失敗', toastPasteUnsupported: 'クリップボードの読み取り非対応', toastEmptyInput: '入力が空です', toastSameFormat: '同じ形式です', diffBtn: '比較', diffExitBtn: '終了', diffLeftTitle: '元のバージョン (入力)', diffRightTitle: '変更後 (出力)', diffLarge: '入力が大きいため高速比較に切り替えました', diffReportTitle: '構造化差分 {n} 件', diffChange: '変更', diffAdd: '追加', diffRemove: '削除', diffSame: '差分なし', diffSameHint: 'フィールド単位の差分はありません' } },
+            { code: 'ko', name: '한국어', flag: '🇰🇷', dict: { brand: '변환 도구', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '변환 전', toLabel: '변환 후', swapTitle: '교체', inputLabel: '입력', outputLabel: '출력', formatBtn: '포맷', mockBtn: '모의', clearBtn: '지우기', convertBtn: '변환', copyBtn: '복사', pasteBtn: '붙여넣기', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '모의 생성됨', toastFormatInput: '입력 포맷됨', toastFormatOutput: '출력 포맷됨', toastFormatError: '포맷 실패', toastConvertSuccess: '변환됨', toastConvertError: '변환 실패', toastCopySuccess: '복사됨', toastCopyError: '복사 실패', toastPasteSuccess: '붙여넣음', toastPasteError: '클립보드 읽기 실패', toastPasteUnsupported: '클립보드 읽기 미지원', toastEmptyInput: '입력이 비어있음', toastSameFormat: '같은 형식', diffBtn: '비교', diffExitBtn: '종료', diffLeftTitle: '원본 (입력)', diffRightTitle: '수정됨 (출력)', diffLarge: '입력이 커서 빠른 비교로 전환했습니다', diffReportTitle: '구조화 차이 {n}건', diffChange: '수정', diffAdd: '추가', diffRemove: '삭제', diffSame: '차이 없음', diffSameHint: '필드 단위 차이가 없습니다' } },
+            { code: 'pt', name: 'Português', flag: '🇧🇷', dict: { brand: 'Ferramentas', navYamlJson: 'YAML para JSON', navYamlProps: 'YAML para Props', navJsonProps: 'JSON para Props', navJsonXml: 'JSON para XML', navXmlYaml: 'XML para YAML', navJsonYaml: 'JSON para YAML', navYamlXml: 'YAML para XML', fromLabel: 'De', toLabel: 'Para', swapTitle: 'Trocar', inputLabel: 'Entrada', outputLabel: 'Saída', formatBtn: 'Formatar', mockBtn: 'Simular', clearBtn: 'Limpar', convertBtn: 'Converter', copyBtn: 'Copiar', pasteBtn: 'Colar', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulação criada', toastFormatInput: 'Entrada formatada', toastFormatOutput: 'Saída formatada', toastFormatError: 'Falha na formatação', toastConvertSuccess: 'Convertido', toastConvertError: 'Falha na conversão', toastCopySuccess: 'Copiado', toastCopyError: 'Falha ao copiar', toastPasteSuccess: 'Colado', toastPasteError: 'Falha ao ler a área de transferência', toastPasteUnsupported: 'Leitura da área de transferência não suportada', toastEmptyInput: 'Entrada vazia', toastSameFormat: 'Mesmo formato', diffBtn: 'Comparar', diffExitBtn: 'Sair', diffLeftTitle: 'Original (Entrada)', diffRightTitle: 'Modificado (Saída)', diffLarge: 'Entrada grande — comparação rápida ativada', diffReportTitle: 'Alterações estruturadas: {n}', diffChange: 'Modificado', diffAdd: 'Adicionado', diffRemove: 'Removido', diffSame: 'Sem diferenças', diffSameHint: 'Nenhuma alteração em campos' } },
+            { code: 'pl', name: 'Polski', flag: '🇵🇱', dict: { brand: 'Narzędzia', navYamlJson: 'YAML na JSON', navYamlProps: 'YAML na Props', navJsonProps: 'JSON na Props', navJsonXml: 'JSON na XML', navXmlYaml: 'XML na YAML', navJsonYaml: 'JSON na YAML', navYamlXml: 'YAML na XML', fromLabel: 'Z', toLabel: 'Na', swapTitle: 'Zamień', inputLabel: 'Wejście', outputLabel: 'Wyjście', formatBtn: 'Formatuj', mockBtn: 'Mock', clearBtn: 'Wyczyść', convertBtn: 'Konwertuj', copyBtn: 'Kopiuj', pasteBtn: 'Wklej', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock utworzony', toastFormatInput: 'Wejście sformatowane', toastFormatOutput: 'Wyjście sformatowane', toastFormatError: 'Błąd formatowania', toastConvertSuccess: 'Przekonwertowano', toastConvertError: 'Błąd konwersji', toastCopySuccess: 'Skopiowano', toastCopyError: 'Błąd kopiowania', toastPasteSuccess: 'Wklejono', toastPasteError: 'Błąd odczytu schowka', toastPasteUnsupported: 'Odczyt schowka nieobsługiwany', toastEmptyInput: 'Brak danych', toastSameFormat: 'Ten sam format', diffBtn: 'Porównaj', diffExitBtn: 'Wyjdź', diffLeftTitle: 'Oryginał (Wejście)', diffRightTitle: 'Zmodyfikowany (Wyjście)', diffLarge: 'Duży plik — włączono szybkie porównanie', diffReportTitle: 'Zmiany strukturalne: {n}', diffChange: 'Zmieniono', diffAdd: 'Dodano', diffRemove: 'Usunięto', diffSame: 'Brak różnic', diffSameHint: 'Brak zmian na poziomie pól' } },
+            { code: 'ru', name: 'Русский', flag: '🇷🇺', dict: { brand: 'Инструменты', navYamlJson: 'YAML в JSON', navYamlProps: 'YAML в Props', navJsonProps: 'JSON в Props', navJsonXml: 'JSON в XML', navXmlYaml: 'XML в YAML', navJsonYaml: 'JSON в YAML', navYamlXml: 'YAML в XML', fromLabel: 'Из', toLabel: 'В', swapTitle: 'Поменять', inputLabel: 'Вход', outputLabel: 'Выход', formatBtn: 'Формат', mockBtn: 'Мок', clearBtn: 'Очистить', convertBtn: 'Конверт', copyBtn: 'Копия', pasteBtn: 'Вставить', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Мок создан', toastFormatInput: 'Вход отформатирован', toastFormatOutput: 'Выход отформатирован', toastFormatError: 'Ошибка формата', toastConvertSuccess: 'Конвертировано', toastConvertError: 'Ошибка конвертации', toastCopySuccess: 'Скопировано', toastCopyError: 'Ошибка копии', toastPasteSuccess: 'Вставлено', toastPasteError: 'Ошибка чтения буфера обмена', toastPasteUnsupported: 'Чтение буфера обмена не поддерживается', toastEmptyInput: 'Пустой ввод', toastSameFormat: 'Тот же формат', diffBtn: 'Сравнить', diffExitBtn: 'Выйти', diffLeftTitle: 'Оригинал (Вход)', diffRightTitle: 'Изменено (Выход)', diffLarge: 'Большой файл — включено быстрое сравнение', diffReportTitle: 'Структурные изменения: {n}', diffChange: 'Изменено', diffAdd: 'Добавлено', diffRemove: 'Удалено', diffSame: 'Различий нет', diffSameHint: 'Изменений на уровне полей нет' } },
+            { code: 'th', name: 'ภาษาไทย', flag: '🇹🇭', dict: { brand: 'เครื่องมือ', navYamlJson: 'YAML เป็น JSON', navYamlProps: 'YAML เป็น Props', navJsonProps: 'JSON เป็น Props', navJsonXml: 'JSON เป็น XML', navXmlYaml: 'XML เป็น YAML', navJsonYaml: 'JSON เป็น YAML', navYamlXml: 'YAML เป็น XML', fromLabel: 'จาก', toLabel: 'เป็น', swapTitle: 'สลับ', inputLabel: 'อินพุต', outputLabel: 'เอาต์พุต', formatBtn: 'จัดรูปแบบ', mockBtn: 'จำลอง', clearBtn: 'ล้าง', convertBtn: 'แปลง', copyBtn: 'คัดลอก', pasteBtn: 'วาง', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'สร้างจำลองแล้ว', toastFormatInput: 'จัดรูปแบบอินพุตแล้ว', toastFormatOutput: 'จัดรูปแบบเอาต์พุตแล้ว', toastFormatError: 'จัดรูปแบบล้มเหลว', toastConvertSuccess: 'แปลงแล้ว', toastConvertError: 'แปลงล้มเหลว', toastCopySuccess: 'คัดลอกแล้ว', toastCopyError: 'คัดลอกล้มเหลว', toastPasteSuccess: 'วางแล้ว', toastPasteError: 'อ่านคลิปบอร์ดล้มเหลว', toastPasteUnsupported: 'ไม่รองรับการอ่านคลิปบอร์ด', toastEmptyInput: 'ไม่มีข้อมูล', toastSameFormat: 'รูปแบบเดียวกัน', diffBtn: 'เปรียบเทียบ', diffExitBtn: 'ออก', diffLeftTitle: 'ต้นฉบับ (อินพุต)', diffRightTitle: 'แก้ไขแล้ว (เอาต์พุต)', diffLarge: 'ข้อมูลขนาดใหญ่ เปลี่ยนไปใช้การเปรียบเทียบแบบเร็ว', diffReportTitle: 'ความแตกต่างเชิงโครงสร้าง {n} จุด', diffChange: 'แก้ไข', diffAdd: 'เพิ่ม', diffRemove: 'ลบ', diffSame: 'ไม่พบความแตกต่าง', diffSameHint: 'ไม่พบการเปลี่ยนแปลงระดับฟิลด์' } },
+            { code: 'tr', name: 'Türkçe', flag: '🇹🇷', dict: { brand: 'Araçlar', navYamlJson: 'YAML -> JSON', navYamlProps: 'YAML -> Props', navJsonProps: 'JSON -> Props', navJsonXml: 'JSON -> XML', navXmlYaml: 'XML -> YAML', navJsonYaml: 'JSON -> YAML', navYamlXml: 'YAML -> XML', fromLabel: 'Kimden', toLabel: 'Kime', swapTitle: 'Değiştir', inputLabel: 'Giriş', outputLabel: 'Çıkış', formatBtn: 'Biçimlendir', mockBtn: 'Mock', clearBtn: 'Temizle', convertBtn: 'Dönüştür', copyBtn: 'Kopyala', pasteBtn: 'Yapıştır', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock oluşturuldu', toastFormatInput: 'Giriş biçimlendirildi', toastFormatOutput: 'Çıkış biçimlendirildi', toastFormatError: 'Biçimlendirme hatası', toastConvertSuccess: 'Dönüştürüldü', toastConvertError: 'Dönüştürme hatası', toastCopySuccess: 'Kopyalandı', toastCopyError: 'Kopyalama hatası', toastPasteSuccess: 'Yapıştırıldı', toastPasteError: 'Pano okunamadı', toastPasteUnsupported: 'Pano okuma desteklenmiyor', toastEmptyInput: 'Giriş boş', toastSameFormat: 'Aynı format', diffBtn: 'Karşılaştır', diffExitBtn: 'Çıkış', diffLeftTitle: 'Orijinal (Giriş)', diffRightTitle: 'Değiştirilmiş (Çıkış)', diffLarge: 'Girdi büyük — hızlı karşılaştırmaya geçildi', diffReportTitle: 'Yapısal değişiklikler: {n}', diffChange: 'Değişti', diffAdd: 'Eklendi', diffRemove: 'Silindi', diffSame: 'Fark yok', diffSameHint: 'Alan düzeyinde değişiklik yok' } },
         ];
 
         const displayLangCodes = ['zh-CN', 'zh-TW', 'en'];
@@ -995,7 +1199,10 @@
         const clearInputBtn = document.getElementById('clearInputBtn');
         const genMockBtn = document.getElementById('genMockBtn');
         const copyBtn = document.getElementById('copyBtn');
-        const outputLabel = document.getElementById('outputLabel');
+        const outputResultLabel = document.getElementById('outputResultLabel');
+        const errorBar = document.getElementById('errorBar');
+        const errorLoc = document.getElementById('errorLoc');
+        const errorMsg = document.getElementById('errorMsg');
         const formatInputBtn = document.getElementById('formatInputBtn');
         const formatOutputBtn = document.getElementById('formatOutputBtn');
         const toastContainer = document.getElementById('toastContainer');
@@ -1026,6 +1233,8 @@
             matchTags: { bothTags: true },
             extraKeys: {
                 "Ctrl-Q": function(cm) { cm.foldCode(cm.getCursor()); },
+                "Cmd-Enter": function() { doConvert(); },
+                "Ctrl-Enter": function() { doConvert(); },
                 "Ctrl-F": "findPersistent",
                 "Cmd-F": "findPersistent",
                 "Alt-F": "findPersistent",
@@ -1044,7 +1253,13 @@
         }));
 
         inputEditor.on('change', () => {
-            inputText.value = inputEditor.getValue();
+            const next = inputEditor.getValue();
+            if (inputText.value !== next) inputText.value = next;
+            // 程序化写入（模拟数据、格式化、切换格式、swap）不能当成用户编辑，
+            // 否则会清掉刚算好的 currentDataObj，后续序列化就变成 null
+            if (suppressAutoConvert) return;
+            currentDataObj = null;
+            scheduleAutoConvert();
         });
         outputEditor.on('change', () => {
             outputText.value = outputEditor.getValue();
@@ -1091,6 +1306,58 @@
         let targetFormat = {value: targetSelect.getValue()};
 
         let currentDataObj = null;
+        let autoTimer = null;
+        let suppressAutoConvert = false;
+
+        /* ----------------------------------------------------------------
+         * 转换核心已抽离到 ui/js/converters.js（纯函数，无 DOM 依赖）
+         * 回归用例：node tests/converters.test.js
+         * ---------------------------------------------------------------- */
+        if (!window.DBXConvert) throw new Error('ui/js/converters.js 未加载');
+        const { parseData, serializeData, convert, locateError } = window.DBXConvert;
+
+        /* ----------------------------------------------------------------
+         * 转换调度
+         * ---------------------------------------------------------------- */
+
+        // 只在内容真正变化时写回，避免覆盖 CodeMirror 光标
+        function setOutput(text) {
+            if (outputText.value === text) return;
+            outputText.value = text;
+        }
+
+        // 单次解析 + 单次序列化；同格式 XML 走格式化路径以保住根元素
+        function computeConversion(raw, src, tgt) {
+            if (src === tgt && tgt === 'xml') {
+                return { text: convert(raw, src, tgt), obj: null };
+            }
+            const obj = parseData(raw, src);
+            return { text: serializeData(obj, tgt), obj: obj };
+        }
+
+        // 输入即转换：400ms 静默执行，失败时保留上一次结果并提示位置
+        function scheduleAutoConvert() {
+            if (suppressAutoConvert) return;
+            clearTimeout(autoTimer);
+            autoTimer = setTimeout(() => {
+                const raw = inputText.value.trim();
+                if (!raw) {
+                    setOutput('');
+                    clearError();
+                    currentDataObj = null;
+                    return;
+                }
+                try {
+                    const result = computeConversion(raw, sourceFormat.value, targetFormat.value);
+                    currentDataObj = result.obj;
+                    setOutput(result.text);
+                    clearError();
+                } catch (err) {
+                    currentDataObj = null;
+                    showParseError(err, raw);
+                }
+            }, 400);
+        }
 
         inputText.addEventListener('input', () => {
             currentDataObj = null;
@@ -1148,9 +1415,13 @@
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
+                clearTimeout(autoTimer);
+                suppressAutoConvert = true;
                 inputText.value = '';
-                outputText.value = '';
+                setOutput('');
+                suppressAutoConvert = false;
                 currentDataObj = null;
+                clearError();
                 handleFormatChange(link.dataset.src, link.dataset.tgt);
             });
         });
@@ -1161,9 +1432,11 @@
             syncEditorModes();
             if (currentDataObj) {
                 try {
+                    suppressAutoConvert = true;
                     inputText.value = serializeData(currentDataObj, sourceFormat.value);
+                    suppressAutoConvert = false;
                 } catch (err) {
-                    outputText.value = '';
+                    setOutput('');
                 }
             }
             doConvertSilent();
@@ -1185,9 +1458,11 @@
             targetSelect.setValue(targetFormat.value);
             syncEditorModes();
 
-            const currentOutput = outputText.value;
-            if (currentOutput && currentOutput !== currentDict.toastSameFormat) {
+            const currentOutput = outputText.value.trim();
+            if (currentOutput) {
+                suppressAutoConvert = true;
                 inputText.value = currentOutput;
+                suppressAutoConvert = false;
                 currentDataObj = null;
             }
             updateOutputLabel();
@@ -1195,7 +1470,39 @@
         });
 
         function updateOutputLabel() {
-            outputLabel.textContent = `Result Output (${targetFormat.value.toUpperCase()})`;
+            outputResultLabel.textContent = targetFormat.value.toUpperCase();
+            outputResultLabel.title = `Result Output (${targetFormat.value.toUpperCase()})`;
+        }
+
+        // 错误提示条：失败时保留上一次成功的结果，只在这里提示位置
+        let errorLineHandle = null;
+
+        function clearError() {
+            errorBar.classList.remove('show');
+            errorLoc.textContent = '';
+            errorMsg.textContent = '';
+            if (errorLineHandle) {
+                inputEditor.removeLineClass(errorLineHandle, 'background', 'cm-error-line');
+                errorLineHandle = null;
+            }
+        }
+
+        function showParseError(err, text) {
+            const loc = locateError(err, text || inputText.value);
+            const where = loc.line ? `第 ${loc.line} 行${loc.column ? ' 第 ' + loc.column + ' 列' : ''}` : '';
+            errorLoc.textContent = where;
+            errorMsg.textContent = loc.message;
+            errorMsg.title = loc.message;
+            errorBar.classList.add('show');
+
+            if (errorLineHandle) {
+                inputEditor.removeLineClass(errorLineHandle, 'background', 'cm-error-line');
+                errorLineHandle = null;
+            }
+            if (loc.line && loc.line <= inputEditor.lineCount()) {
+                errorLineHandle = inputEditor.addLineClass(loc.line - 1, 'background', 'cm-error-line');
+                inputEditor.scrollIntoView({ line: loc.line - 1, ch: 0 }, 120);
+            }
         }
 
         function handleFormatChange(newSrc, newTgt) {
@@ -1207,54 +1514,45 @@
             syncEditorModes();
 
             const raw = inputText.value.trim();
-            if (raw) {
-                try {
-                    let obj;
-                    try {
-                        obj = parseData(raw, newSrc);
-                    } catch (e) {
-                        currentDataObj = null;
-                        outputText.value = '';
-                        return;
-                    }
-
-                    currentDataObj = obj;
-                    inputText.value = serializeData(currentDataObj, newSrc);
-                    outputText.value = serializeData(currentDataObj, newTgt);
-
-                } catch (err) {
-                    console.error('Format change conversion failed:', err);
-                    outputText.value = currentDict.toastConvertError;
-                    currentDataObj = null;
-                }
-            } else {
-                outputText.value = '';
+            if (!raw) {
+                setOutput('');
                 currentDataObj = null;
+                clearError();
+                return;
+            }
+            try {
+                const srcText = convert(raw, newSrc, newSrc);
+                suppressAutoConvert = true;
+                inputText.value = srcText;
+                suppressAutoConvert = false;
+                const result = computeConversion(srcText, newSrc, newTgt);
+                currentDataObj = result.obj;
+                setOutput(result.text);
+                clearError();
+            } catch (err) {
+                console.error('Format change conversion failed:', err);
+                currentDataObj = null;
+                setOutput('');
+                showParseError(err, raw);
             }
         }
 
         function doConvertSilent() {
             const raw = inputText.value.trim();
             if (!raw) {
-                outputText.value = '';
+                setOutput('');
+                clearError();
                 return;
             }
 
-            const src = sourceFormat.value;
-            const tgt = targetFormat.value;
-
             try {
-                if (!currentDataObj) {
-                    currentDataObj = parseData(raw, src);
-                }
-                outputText.value = serializeData(currentDataObj, tgt);
+                const result = computeConversion(raw, sourceFormat.value, targetFormat.value);
+                currentDataObj = result.obj;
+                clearError();
+                setOutput(result.text);
             } catch (err) {
-                if (src === tgt) {
-                    outputText.value = raw;
-                } else {
-                    outputText.value = currentDict.toastConvertError;
-                    currentDataObj = null;
-                }
+                currentDataObj = null;
+                showParseError(err, raw);
             }
         }
 
@@ -1278,10 +1576,17 @@
             };
 
             try {
-                inputText.value = serializeData(currentDataObj, src);
-                outputText.value = serializeData(currentDataObj, tgt);
+                // 先算出两份文本再写入，避免写入触发的 change 影响序列化结果
+                const inputStr = serializeData(currentDataObj, src);
+                const outputStr = serializeData(currentDataObj, tgt);
+                suppressAutoConvert = true;
+                inputText.value = inputStr;
+                setOutput(outputStr);
+                suppressAutoConvert = false;
+                clearError();
                 showToast(currentDict.toastMockSuccess);
             } catch (err) {
+                suppressAutoConvert = false;
                 showToast(currentDict.toastFormatError, 'error');
             }
         });
@@ -1290,15 +1595,15 @@
             const raw = inputText.value.trim();
             if (!raw) return;
             try {
-                if (sourceFormat.value === 'xml') {
-                    inputText.value = formatXmlString(raw);
-                } else {
-                    const obj = parseData(raw, sourceFormat.value);
-                    inputText.value = serializeData(obj, sourceFormat.value);
-                    currentDataObj = obj;
-                }
+                suppressAutoConvert = true;
+                inputText.value = convert(raw, sourceFormat.value, sourceFormat.value);
+                suppressAutoConvert = false;
+                if (sourceFormat.value !== 'xml') currentDataObj = parseData(raw, sourceFormat.value);
+                clearError();
                 showToast(currentDict.toastFormatInput);
             } catch (err) {
+                suppressAutoConvert = false;
+                showParseError(err, raw);
                 showToast(currentDict.toastFormatError, 'error');
             }
         });
@@ -1307,14 +1612,10 @@
             const raw = outputText.value.trim();
             if (!raw) return;
             try {
-                if (targetFormat.value === 'xml') {
-                    outputText.value = formatXmlString(raw);
-                } else {
-                    const obj = parseData(raw, targetFormat.value);
-                    outputText.value = serializeData(obj, targetFormat.value);
-                }
+                setOutput(convert(raw, targetFormat.value, targetFormat.value));
                 showToast(currentDict.toastFormatOutput);
             } catch (err) {
+                showParseError(err, raw);
                 showToast(currentDict.toastFormatError, 'error');
             }
         });
@@ -1325,261 +1626,30 @@
                 showToast(currentDict.toastEmptyInput, 'error');
                 return;
             }
-            const src = sourceFormat.value, tgt = targetFormat.value;
             try {
-                currentDataObj = parseData(raw, src);
-                outputText.value = serializeData(currentDataObj, tgt);
+                const result = computeConversion(raw, sourceFormat.value, targetFormat.value);
+                currentDataObj = result.obj;
+                setOutput(result.text);
+                clearError();
                 showToast(currentDict.toastConvertSuccess);
             } catch (err) {
-                outputText.value = `Error: ${err.message}`;
+                // 保留上一次成功的结果，仅提示错误位置
                 currentDataObj = null;
+                showParseError(err, raw);
                 showToast(currentDict.toastConvertError, 'error');
             }
         }
 
         convertBtn.addEventListener('click', doConvert);
 
-        function parseData(text, format) {
-            if (format === 'json') {
-                try {
-                    return JSON.parse(text);
-                } catch (e) {
-                    try {
-                        return jsyaml.load(text);
-                    } catch (yamlErr) {
-                        throw new Error("Invalid JSON or YAML format");
-                    }
-                }
-            }
-            if (format === 'yaml') {
-                try {
-                    return jsyaml.load(text);
-                } catch (e) {
-                    try {
-                        return JSON.parse(text);
-                    } catch (jsonErr) {
-                        throw new Error("Invalid YAML or JSON format");
-                    }
-                }
-            }
-            if (format === 'xml') return xmlToObj(text);
-            if (format === 'properties') return propertiesToObj(text);
-            throw new Error("Unknown format");
-        }
-
-        function serializeData(obj, format) {
-            if (format === 'json') {
-                try {
-                    return window.stringify(obj, {indent: 2, maxLength: 80});
-                } catch (e) {
-                    return JSON.stringify(obj, null, 2);
-                }
-            }
-            if (format === 'yaml') return jsyaml.dump(obj);
-            if (format === 'xml') return objToXml(obj);
-            if (format === 'properties') return objToProperties(obj);
-            throw new Error("Unknown format");
-        }
-
-        function formatXmlString(xml) {
-            try {
-                if (typeof xml2js !== 'undefined') {
-                    const result = xml2js(xml, {compact: false, spaces: 2});
-                    const opts = {compact: false, spaces: 2};
-                    return js2xml(result, opts);
-                }
-            } catch (e) {
-            }
-
-            let formatted = '';
-            xml = xml.replace(/>\s*</g, '><').trim();
-            let xmlDecl = '';
-            const declMatch = xml.match(/^<\?xml.*?\?>/);
-            if (declMatch) {
-                xmlDecl = declMatch[0];
-                xml = xml.replace(declMatch[0], '').trim();
-            }
-            const reg = /(>)(<)(\/*)/g;
-            xml = xml.replace(reg, '$1\n$2$3');
-            let pad = 0;
-            xml.split('\n').forEach(node => {
-                let indent = 0;
-                if (node.match(/.+<\/\w[^>]*>$/)) indent = 0;
-                else if (node.match(/^<\/\w/)) {
-                    if (pad != 0) pad -= 1;
-                } else if (node.match(/^<\w[^>]*[^\/]>.*$/)) indent = 1;
-                let padding = '';
-                for (let i = 0; i < pad; i++) padding += '  ';
-                formatted += padding + node + '\n';
-                pad += indent;
-            });
-            formatted = formatted.replace(/<\s+(\/?[^>]+)>/g, '<$1>');
-            return (xmlDecl ? xmlDecl + '\n' : '') + formatted.trim();
-        }
-
-        function xmlToObj(xmlStr) {
-            try {
-                if (typeof xml2js === 'undefined') throw new Error("xml-js library not loaded");
-
-                let cleanXml = xmlStr.trim();
-                if (cleanXml.startsWith('<?xml')) cleanXml = cleanXml.replace(/<\?xml.*?\?>/, '').trim();
-
-                if (!cleanXml.startsWith('<root>')) {
-                    cleanXml = `<root>${cleanXml}</root>`;
-                }
-
-                const result = xml2js(cleanXml, {compact: true, trim: true});
-
-                function cleanNode(node) {
-                    if (typeof node !== 'object' || node === null) return node;
-                    if (Array.isArray(node)) {
-                        return node.map(item => cleanNode(item));
-                    }
-                    const keys = Object.keys(node);
-                    if (keys.length === 1 && keys[0] === '_text') {
-                        return node._text;
-                    }
-                    const cleaned = {};
-                    for (let key in node) {
-                        cleaned[key] = cleanNode(node[key]);
-                    }
-                    return cleaned;
-                }
-
-                if (result.root) {
-                    return cleanNode(result.root);
-                }
-                return cleanNode(result);
-            } catch (e) {
-                console.warn('xml-js 解析失败，使用基础兜底逻辑:', e);
-                let cleanXml = xmlStr.trim();
-                if (cleanXml.startsWith('<?xml')) cleanXml = cleanXml.replace(/<\?xml.*?\?>/, '').trim();
-                if (!cleanXml.startsWith('<root>')) cleanXml = `<root>${cleanXml}</root>`;
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(cleanXml, "text/xml");
-                if (doc.querySelector('parsererror')) throw new Error("XML 格式错误");
-                const root = doc.documentElement;
-
-                function nodeToObjInner(node) {
-                    const obj = {};
-                    if (node.children.length === 0) return node.textContent;
-                    for (let child of node.children) {
-                        if (obj[child.nodeName] !== undefined) {
-                            if (!Array.isArray(obj[child.nodeName])) obj[child.nodeName] = [obj[child.nodeName]];
-                            obj[child.nodeName].push(nodeToObjInner(child));
-                        } else obj[child.nodeName] = nodeToObjInner(child);
-                    }
-                    return obj;
-                }
-
-                return nodeToObjInner(root);
-            }
-        }
-
-        function propertiesToObj(str) {
-            const lines = str.split('\n');
-            const result = {};
-            lines.forEach(line => {
-                line = line.trim();
-                if (!line || line.startsWith('#')) return;
-                const index = line.indexOf('=');
-                if (index > 0) {
-                    const key = line.substring(0, index).trim();
-                    const value = line.substring(index + 1).trim();
-
-                    const parts = key.split(/\.|\[|\]/).filter(p => p !== '');
-                    let current = result;
-
-                    for (let i = 0; i < parts.length; i++) {
-                        const part = parts[i];
-                        const isLast = i === parts.length - 1;
-                        const nextPart = parts[i + 1];
-
-                        const isPartArray = !isNaN(part) || (nextPart !== undefined && !isNaN(nextPart));
-
-                        if (isLast) {
-                            if (isPartArray && !isNaN(part)) {
-                                if (!Array.isArray(current)) current = [];
-                                current[Number(part)] = value;
-                            } else {
-                                current[part] = value;
-                            }
-                        } else {
-                            if (isPartArray && !isNaN(part)) {
-                                if (!Array.isArray(current)) current = [];
-                                if (!current[Number(part)]) current[Number(part)] = (!isNaN(nextPart) ? [] : {});
-                                current = current[Number(part)];
-                            } else {
-                                if (!current[part]) current[part] = (!isNaN(nextPart) ? [] : {});
-                                current = current[part];
-                            }
-                        }
-                    }
-                }
-            });
-            return result;
-        }
-
-        function objToProperties(obj, prefix = '') {
-            let result = [];
-            for (let key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    let fullKey = prefix ? (Array.isArray(obj) ? `${prefix}[${key}]` : `${prefix}.${key}`) : key;
-                    if (typeof obj[key] === 'object' && obj[key] !== null) {
-                        result.push(objToProperties(obj[key], fullKey));
-                    } else {
-                        result.push(`${fullKey}=${obj[key]}`);
-                    }
-                }
-            }
-            return result.join('\n');
-        }
-
-        function objToXml(obj) {
-            try {
-                if (typeof js2xml === 'undefined') throw new Error("xml-js library not loaded");
-
-                const options = {compact: true, ignoreComment: true, spaces: 2};
-                let xml = js2xml({root: obj}, options);
-
-                if (xml.startsWith('<root>') && xml.endsWith('</root>')) {
-                    xml = xml.replace(/<\/?root>/g, '').trim();
-                    xml = formatXmlString(xml);
-                }
-
-                return xml;
-            } catch (e) {
-                console.warn('xml-js 序列化失败，使用基础兜底逻辑:', e);
-                let xml = '';
-
-                function build(obj, name, depth = 0) {
-                    const indent = '  '.repeat(depth);
-                    if (Array.isArray(obj)) {
-                        obj.forEach(item => build(item, name || 'item', depth));
-                    } else if (typeof obj === 'object' && obj !== null) {
-                        const keys = Object.keys(obj);
-                        if (keys.length === 0) {
-                            xml += `${indent}<${name}/>\n`;
-                            return;
-                        }
-                        xml += `${indent}<${name}>\n`;
-                        keys.forEach(key => build(obj[key], key, depth + 1));
-                        xml += `${indent}</${name}>\n`;
-                    } else {
-                        const safeValue = String(obj).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                        xml += `${indent}<${name}>${safeValue}</${name}>\n`;
-                    }
-                }
-
-                Object.keys(obj).forEach(key => build(obj[key], key, 0));
-                return `<?xml version="1.0" encoding="UTF-8"?>\n${xml.trim()}`;
-            }
-        }
-
         clearInputBtn.addEventListener('click', () => {
+            clearTimeout(autoTimer);
+            suppressAutoConvert = true;
             inputText.value = '';
-            outputText.value = '';
+            setOutput('');
+            suppressAutoConvert = false;
             currentDataObj = null;
+            clearError();
         });
 
         document.getElementById('pasteInputBtn').addEventListener('click', async () => {
@@ -1618,102 +1688,264 @@
         const diffRightText = document.getElementById('diffRightText');
         let isDiffMode = false;
 
-        function diffLines(oldStr, newStr) {
-            const oldLines = oldStr.split('\n');
-            const newLines = newStr.split('\n');
-            const N = oldLines.length;
-            const M = newLines.length;
-            const lcs = Array(N + 1).fill(0).map(() => Array(M + 1).fill(0));
+        const diffLeftStat = document.getElementById('diffLeftStat');
+        const diffRightStat = document.getElementById('diffRightStat');
 
-            for (let i = 1; i <= N; i++) {
-                for (let j = 1; j <= M; j++) {
-                    if (oldLines[i - 1] === newLines[j - 1]) {
-                        lcs[i][j] = lcs[i - 1][j - 1] + 1;
-                    } else {
-                        lcs[i][j] = Math.max(lcs[i - 1][j], lcs[i][j - 1]);
+        /* 差异算法分两层：
+           - ui/js/diff.js    行级对比（解析不了对象时的兜底）
+           - ui/js/objdiff.js 结构化对比（按 JSON Pointer 逐节点比较）
+           用例：node tests/diff.test.js / node tests/objdiff.test.js */
+        if (!window.DBXDiff || !window.DBXObjDiff) throw new Error('ui/js/diff.js 或 ui/js/objdiff.js 未加载');
+        const { diffLines, sides } = window.DBXDiff;
+        const { diffObjects, serializeTracked, displayValue } = window.DBXObjDiff;
+
+        const diffReport = document.getElementById('diffReport');
+        const diffReportTitle = document.getElementById('diffReportTitle');
+        const diffReportList = document.getElementById('diffReportList');
+        document.getElementById('diffReportClose').addEventListener('click', () => {
+            diffReport.classList.remove('show');
+        });
+
+        let diffMarks = [];
+        let diffRows = [];
+
+        // JSON 先规范化再比较，否则压缩过的单行 JSON 会和格式化文本错位
+        function textForDiff(text, format) {
+            if (!text) return text;
+            if (format !== 'json') return text;
+            try {
+                return JSON.stringify(JSON.parse(text), null, 2);
+            } catch (e) {
+                return text;
+            }
+        }
+
+        function parseSide(text, format) {
+            if (!text || !text.trim()) return { ok: false, value: null };
+            try {
+                return { ok: true, value: parseData(text, format) };
+            } catch (e) {
+                return { ok: false, value: null };
+            }
+        }
+
+        function clearDiffDecorations() {
+            diffMarks.forEach((mark) => {
+                try { mark.clear(); } catch (e) { /* 编辑器重建过 */ }
+            });
+            diffMarks = [];
+            [diffLeftEditor, diffRightEditor].forEach((cm) => {
+                if (!cm) return;
+                const doc = cm.getDoc();
+                for (let i = 0; i < doc.lineCount(); i++) {
+                    doc.removeLineClass(i, 'background', 'cm-deleted');
+                    doc.removeLineClass(i, 'background', 'cm-inserted');
+                    doc.removeLineClass(i, 'background', 'cm-value-changed');
+                }
+            });
+        }
+
+        function markSpan(cm, span, className) {
+            if (!cm || !span) return;
+            diffMarks.push(cm.getDoc().markText(
+                { line: span.line, ch: span.col },
+                { line: span.line, ch: span.endCol },
+                { className: className }
+            ));
+        }
+
+        // 没有对象树时的兜底：整行标红/标绿
+        function applyLineDiff(leftView, rightView, leftDoc, rightDoc) {
+            const diff = diffLines(leftView, rightView);
+            const parts = sides(diff.ops);
+            parts.left.forEach((p) => {
+                if (p.type === 'delete') leftDoc.addLineClass(p.line, 'background', 'cm-deleted');
+            });
+            parts.right.forEach((p) => {
+                if (p.type === 'insert') rightDoc.addLineClass(p.line, 'background', 'cm-inserted');
+            });
+            if (diffLeftStat) diffLeftStat.textContent = '−' + diff.stats.removed;
+            if (diffRightStat) diffRightStat.textContent = '+' + diff.stats.added;
+            return diff;
+        }
+
+        function renderReport(changes, leftMap, rightMap) {
+            diffReportList.textContent = '';
+            diffRows = [];
+
+            if (!changes.length) {
+                diffReportTitle.textContent = currentDict.diffSame || 'No differences';
+                const empty = document.createElement('div');
+                empty.className = 'diff-report-empty';
+                empty.textContent = currentDict.diffSameHint || '';
+                diffReportList.appendChild(empty);
+                diffReport.classList.add('show');
+                return;
+            }
+
+            diffReportTitle.textContent = (currentDict.diffReportTitle || 'Structured changes: {n}')
+                .replace('{n}', changes.length);
+
+            changes.forEach((change, index) => {
+                const row = document.createElement('button');
+                row.type = 'button';
+                row.className = 'diff-row';
+
+                const tag = document.createElement('span');
+                tag.className = 'diff-tag ' + (change.type === 'add' ? 'tag-add' : change.type === 'remove' ? 'tag-remove' : 'tag-change');
+                tag.textContent = change.type === 'add'
+                    ? (currentDict.diffAdd || 'Added')
+                    : change.type === 'remove'
+                        ? (currentDict.diffRemove || 'Deleted')
+                        : (currentDict.diffChange || 'Modified');
+
+                const pathEl = document.createElement('code');
+                pathEl.className = 'diff-path';
+                pathEl.textContent = change.pointer;
+                pathEl.title = change.pointer;
+
+                const valueEl = document.createElement('span');
+                valueEl.className = 'diff-val';
+                valueEl.textContent = displayValue(change.type === 'remove' ? change.from : change.to);
+                valueEl.title = valueEl.textContent;
+
+                row.appendChild(tag);
+                row.appendChild(pathEl);
+                row.appendChild(valueEl);
+
+                const leftLine = leftMap && leftMap[change.pointer] ? leftMap[change.pointer].line : null;
+                const rightLine = rightMap && rightMap[change.pointer] ? rightMap[change.pointer].line : null;
+                diffRows.push({ leftLine: leftLine, rightLine: rightLine });
+
+                if (leftLine == null && rightLine == null) row.classList.add('no-jump');
+
+                row.addEventListener('click', () => {
+                    const target = diffRows[index];
+                    if (!target || (target.leftLine == null && target.rightLine == null)) return;
+                    if (target.leftLine != null && diffLeftEditor) {
+                        diffLeftEditor.scrollIntoView({ line: target.leftLine, ch: 0 }, 160);
                     }
-                }
+                    if (target.rightLine != null && diffRightEditor) {
+                        diffRightEditor.scrollIntoView({ line: target.rightLine, ch: 0 }, 160);
+                    }
+                });
+
+                diffReportList.appendChild(row);
+            });
+
+            diffReport.classList.add('show');
+        }
+
+        function openDiff() {
+            mainWorkspace.classList.add('hidden');
+            diffWorkspace.classList.add('active');
+            toggleDiffBtn.textContent = currentDict.diffExitBtn || '退出对比';
+            toggleDiffBtn.classList.add('btn-diff');
+
+            if (!diffLeftEditor) {
+                diffLeftEditor = CodeMirror.fromTextArea(diffLeftText, Object.assign({}, commonConfig, {
+                    readOnly: 'nocursor',
+                    mode: MODE_MAP.json
+                }));
+                diffRightEditor = CodeMirror.fromTextArea(diffRightText, Object.assign({}, commonConfig, {
+                    readOnly: 'nocursor',
+                    mode: MODE_MAP.json
+                }));
             }
 
-            let i = N, j = M;
-            const result = [];
-            while (i > 0 || j > 0) {
-                if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
-                    result.unshift({ type: 'same', text: oldLines[i - 1] });
-                    i--; j--;
-                } else if (j > 0 && (i === 0 || lcs[i][j - 1] >= lcs[i - 1][j])) {
-                    result.unshift({ type: 'insert', text: newLines[j - 1] });
-                    j--;
-                } else if (i > 0 && (j === 0 || lcs[i][j - 1] < lcs[i - 1][j])) {
-                    result.unshift({ type: 'delete', text: oldLines[i - 1] });
-                    i--;
-                }
+            clearDiffDecorations();
+            diffReport.classList.remove('show');
+
+            const srcFmt = sourceFormat.value;
+            const tgtFmt = targetFormat.value;
+            const left = parseSide(inputText.value, srcFmt);
+            const right = parseSide(outputText.value, tgtFmt);
+            const bothJson = srcFmt === 'json' && tgtFmt === 'json' && left.ok && right.ok;
+
+            let leftView = textForDiff(inputText.value, srcFmt);
+            let rightView = textForDiff(outputText.value, tgtFmt);
+            let leftMap = null;
+            let rightMap = null;
+
+            // 两侧都是 JSON 时用带位置映射的打印结果，页面才能只标「变了的那个值」
+            if (bothJson) {
+                const trackedLeft = serializeTracked(left.value);
+                const trackedRight = serializeTracked(right.value);
+                leftView = trackedLeft.text;
+                rightView = trackedRight.text;
+                leftMap = trackedLeft.map;
+                rightMap = trackedRight.map;
             }
-            return result;
+
+            const leftDoc = diffLeftEditor.getDoc();
+            const rightDoc = diffRightEditor.getDoc();
+            leftDoc.setValue(leftView);
+            leftDoc.clearHistory();
+            rightDoc.setValue(rightView);
+            rightDoc.clearHistory();
+
+            if (left.ok && right.ok) {
+                const result = diffObjects(left.value, right.value);
+                const changes = result.changes;
+                const stats = result.stats;
+
+                if (bothJson) {
+                    changes.forEach((change) => {
+                        const ls = leftMap[change.pointer];
+                        const rs = rightMap[change.pointer];
+                        if (change.type === 'change') {
+                            if (ls) {
+                                leftDoc.addLineClass(ls.line, 'background', 'cm-value-changed');
+                                markSpan(diffLeftEditor, ls, 'cm-diff-old');
+                            }
+                            if (rs) {
+                                rightDoc.addLineClass(rs.line, 'background', 'cm-value-changed');
+                                markSpan(diffRightEditor, rs, 'cm-diff-new');
+                            }
+                        } else if (change.type === 'remove') {
+                            if (ls) {
+                                leftDoc.addLineClass(ls.line, 'background', 'cm-deleted');
+                                markSpan(diffLeftEditor, ls, 'cm-diff-old');
+                            }
+                        } else if (rs) {
+                            rightDoc.addLineClass(rs.line, 'background', 'cm-inserted');
+                            markSpan(diffRightEditor, rs, 'cm-diff-new');
+                        }
+                    });
+                    if (diffLeftStat) diffLeftStat.textContent = '−' + (stats.changed + stats.removed);
+                    if (diffRightStat) diffRightStat.textContent = '+' + (stats.changed + stats.added);
+                    renderReport(changes, leftMap, rightMap);
+                } else if (srcFmt === tgtFmt) {
+                    // 同格式但不是 JSON（yaml→yaml 等）：逐行标记仍然有意义
+                    applyLineDiff(leftView, rightView, leftDoc, rightDoc);
+                    renderReport(changes, null, null);
+                } else {
+                    // 跨格式（json ↔ yaml）：两份文本本来就没有行对应关系，
+                    // 整块涂红只会误导，这里只给结构化清单
+                    if (diffLeftStat) diffLeftStat.textContent = '−' + (stats.changed + stats.removed);
+                    if (diffRightStat) diffRightStat.textContent = '+' + (stats.changed + stats.added);
+                    renderReport(changes, null, null);
+                }
+            } else {
+                applyLineDiff(leftView, rightView, leftDoc, rightDoc);
+            }
+
+            diffLeftEditor.setOption('mode', MODE_MAP[srcFmt] || 'text/plain');
+            diffRightEditor.setOption('mode', MODE_MAP[tgtFmt] || 'text/plain');
+            syncEditorTheme();
+
+            requestAnimationFrame(() => {
+                diffLeftEditor.refresh();
+                diffRightEditor.refresh();
+            });
         }
 
         toggleDiffBtn.addEventListener('click', () => {
             isDiffMode = !isDiffMode;
             if (isDiffMode) {
-                mainWorkspace.classList.add('hidden');
-                diffWorkspace.classList.add('active');
-                toggleDiffBtn.textContent = currentDict.diffExitBtn || '退出对比';
-                toggleDiffBtn.classList.add('btn-diff');
-
-                if (!diffLeftEditor) {
-                    diffLeftEditor = CodeMirror.fromTextArea(diffLeftText, Object.assign({}, commonConfig, {
-                        readOnly: 'nocursor',
-                        mode: MODE_MAP.json
-                    }));
-                    diffRightEditor = CodeMirror.fromTextArea(diffRightText, Object.assign({}, commonConfig, {
-                        readOnly: 'nocursor',
-                        mode: MODE_MAP.json
-                    }));
-                }
-
-                const oldText = inputText.value;
-                const newText = outputText.value;
-
-                let oldCompare = oldText;
-                let newCompare = newText;
-                try {
-                    if (sourceFormat.value === 'json') oldCompare = JSON.stringify(JSON.parse(oldText), null, 2);
-                    if (targetFormat.value === 'json') newCompare = JSON.stringify(JSON.parse(newText), null, 2);
-                } catch(e) {}
-
-                const diffs = diffLines(oldCompare, newCompare);
-
-                const leftDoc = diffLeftEditor.getDoc();
-                leftDoc.setValue(oldText);
-                leftDoc.clearHistory();
-
-                const rightDoc = diffRightEditor.getDoc();
-                rightDoc.setValue(newText);
-                rightDoc.clearHistory();
-
-                let oIdx = 0, nIdx = 0;
-                diffs.forEach(d => {
-                    if (d.type === 'same') {
-                        oIdx++; nIdx++;
-                    } else if (d.type === 'insert') {
-                        rightDoc.addLineClass(nIdx, 'background', 'cm-inserted');
-                        nIdx++;
-                    } else if (d.type === 'delete') {
-                        leftDoc.addLineClass(oIdx, 'background', 'cm-deleted');
-                        oIdx++;
-                    }
-                });
-
-                diffLeftEditor.setOption('mode', MODE_MAP[sourceFormat.value] || 'text/plain');
-                diffRightEditor.setOption('mode', MODE_MAP[targetFormat.value] || 'text/plain');
-                syncEditorTheme();
-
-                requestAnimationFrame(() => {
-                    diffLeftEditor.refresh();
-                    diffRightEditor.refresh();
-                });
-
+                openDiff();
             } else {
+                diffReport.classList.remove('show');
                 diffWorkspace.classList.remove('active');
                 mainWorkspace.classList.remove('hidden');
                 toggleDiffBtn.textContent = currentDict.diffBtn || '对比差异';
@@ -1727,7 +1959,8 @@
 
         renderLangMenu();
         applyI18n();
-        outputText.value = '';
+        updateOutputLabel();
+        clearError();
         syncEditorModes();
         syncEditorTheme();
         requestAnimationFrame(() => {

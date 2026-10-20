@@ -1,27 +1,51 @@
 #!/usr/bin/env bash
-# Build the plugin frontend and package a .dbxp for the current platform.
-# Requires: node + pnpm on PATH, cargo for the Rust sidecar.
-# The dbx-plugin CLI bundles its own packaging SDK; the Rust sidecar SDK used
-# by this repository is vendored under shared/sdk/.
+# 数据转换插件构建脚本（纯前端 universal 包）。
+#
+#   ./scripts/build.sh            跑回归用例后打包 dist/*.dbxp
+#   ./scripts/build.sh dev        启动本地工作台调试（PORT 可覆盖端口，默认 5190）
+#   ./scripts/build.sh test       只跑转换核心回归用例
+#
+# 本插件没有 Rust/Go sidecar，因此不需要 CARGO_TARGET_DIR / DBX_PLUGIN_SDK_ROOT
+# 之类的 SDK 垫片；早先从带后端模板复制过来的那段逻辑已移除。
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/../" && pwd)"
-echo  "$ROOT"
-# dbx-plugin package runs its own `cargo build` for the Rust backend; without
-# CARGO_TARGET_DIR it builds into a throwaway dist/.build-rust-<triple> staging
-# dir (wiped afterwards) = full dep-tree rebuild on every release. Redirect it
-# to the warm backend/target — verified the CLI reuses and keeps it. Do NOT pin
-# RUSTUP_TOOLCHAIN here (docker builds via rust:1 + cargo-zigbuild lack 1.97.1);
-# the release pipeline pins it itself.
-export CARGO_TARGET_DIR="$PWD/backend/target"
 
-echo "==> package .dbxp"
-# CLI 打包的内部 cargo build 会把 Rust SDK patch 覆盖到 DBX_PLUGIN_SDK_ROOT；
-# 未设置时 npm 包装器注入 CLI 自带 sdk-root，vendored SDK（shared/sdk/）的本地
-# 修复进不了产物——用垫片把 SDK 根指回 vendored 副本，打完做字节级反例断言。
-export DBX_PLUGIN_SDK_ROOT="$(bash $ROOT/scripts/sdk_root_shim.sh)"
-if ! command -v dbx-plugin >/dev/null 2>&1; then
-  echo "dbx-plugin CLI not found; install @dbx-app/plugin-cli or set PATH before packaging" >&2
-  exit 1
-fi
-dbx-plugin package .
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+MODE="${1:-package}"
 
+run_tests() {
+  if command -v node >/dev/null 2>&1; then
+    node "$ROOT/tests/converters.test.js"
+    node "$ROOT/tests/diff.test.js"
+    node "$ROOT/tests/objdiff.test.js"
+  else
+    echo "==> node not found, skip unit tests" >&2
+  fi
+}
+
+case "$MODE" in
+  dev)
+    if ! command -v dbx-plugin >/dev/null 2>&1; then
+      echo "dbx-plugin CLI not found; install @dbx-app/plugin-cli or set PATH" >&2
+      exit 1
+    fi
+    exec dbx-plugin dev --path "$ROOT" --port "${PORT:-5190}"
+    ;;
+  test)
+    run_tests
+    ;;
+  package)
+    if ! command -v dbx-plugin >/dev/null 2>&1; then
+      echo "dbx-plugin CLI not found; install @dbx-app/plugin-cli or set PATH" >&2
+      exit 1
+    fi
+    run_tests
+    # .dbxp 会把整个 ui/ 拷进包，先清掉系统垃圾文件
+    find "$ROOT/ui" "$ROOT/assets" \( -name '.DS_Store' -o -name 'Thumbs.db' \) -delete >/dev/null 2>&1 || true
+    cd "$ROOT"
+    dbx-plugin package .
+    ;;
+  *)
+    echo "usage: $0 [package|dev|test]" >&2
+    exit 2
+    ;;
+esac

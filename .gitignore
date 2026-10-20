@@ -1,7 +1,9 @@
 /dist/
 /.dbx-dev/
+.dbx-dev
 .dbx-repository-signing-key.env
 .DS_Store
+Thumbs.db
 *.log
 .idea
-.dbx-dev
+node_modules/

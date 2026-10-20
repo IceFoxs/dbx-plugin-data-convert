@@ -1,0 +1,17 @@
+{
+  "name": "dbx-plugin-data-convert",
+  "version": "0.1.2",
+  "private": true,
+  "type": "commonjs",
+  "description": "DBX 数据格式互转插件（纯前端 universal 包）",
+  "scripts": {
+    "test": "node tests/converters.test.js && node tests/diff.test.js && node tests/objdiff.test.js",
+    "test:ui": "node tests/ui.smoke.js",
+    "test:all": "npm test && node tests/ui.smoke.js",
+    "dev": "./scripts/build.sh dev",
+    "package": "./scripts/build.sh"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.3"
+  }
+}
