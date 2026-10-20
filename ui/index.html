@@ -789,13 +789,36 @@
                 if (index > 0) {
                     const key = line.substring(0, index).trim();
                     const value = line.substring(index + 1).trim();
-                    const parts = key.split('.');
+
+                    const parts = key.split(/\.|\[|\]/).filter(p => p !== '');
                     let current = result;
-                    for (let i = 0; i < parts.length - 1; i++) {
-                        if (!current[parts[i]] || typeof current[parts[i]] !== 'object') current[parts[i]] = {};
-                        current = current[parts[i]];
+
+                    for (let i = 0; i < parts.length; i++) {
+                        const part = parts[i];
+                        const isLast = i === parts.length - 1;
+                        const nextPart = parts[i + 1];
+
+                        const isPartArray = !isNaN(part) || (nextPart !== undefined && !isNaN(nextPart));
+
+                        if (isLast) {
+                            if (isPartArray && !isNaN(part)) {
+                                if (!Array.isArray(current)) current = [];
+                                current[Number(part)] = value;
+                            } else {
+                                current[part] = value;
+                            }
+                        } else {
+                            if (isPartArray && !isNaN(part)) {
+                                // 数组逻辑稍微复杂，由于当前节点是数组的子项
+                                if (!Array.isArray(current)) current = [];
+                                if (!current[Number(part)]) current[Number(part)] = (!isNaN(nextPart) ? [] : {});
+                                current = current[Number(part)];
+                            } else {
+                                if (!current[part]) current[part] = (!isNaN(nextPart) ? [] : {});
+                                current = current[part];
+                            }
+                        }
                     }
-                    current[parts[parts.length - 1]] = value;
                 }
             });
             return result;
@@ -805,9 +828,12 @@
             let result = [];
             for (let key in obj) {
                 if (obj.hasOwnProperty(key)) {
-                    let fullKey = prefix ? `${prefix}.${key}` : key;
-                    if (typeof obj[key] === 'object' && obj[key] !== null) result.push(objToProperties(obj[key], fullKey));
-                    else result.push(`${fullKey}=${obj[key]}`);
+                    let fullKey = prefix ? (Array.isArray(obj) ? `${prefix}[${key}]` : `${prefix}.${key}`) : key;
+                    if (typeof obj[key] === 'object' && obj[key] !== null) {
+                        result.push(objToProperties(obj[key], fullKey));
+                    } else {
+                        result.push(`${fullKey}=${obj[key]}`);
+                    }
                 }
             }
             return result.join('\n');
