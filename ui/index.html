@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Format Converter · 导航栏滚动条优化</title>
 
-    <!-- 引入核心依赖 (保持原有CDN路径) -->
+    <!-- 引入核心转换依赖 (本地离线) -->
     <script src="js-yaml.min.js"></script>
     <script src="json/index.js"></script>
     <script src="xml-js.min.js"></script>
@@ -16,9 +16,44 @@
             };
         }
         if (typeof xml2js === 'undefined' || typeof js2xml === 'undefined') {
-            console.warn('xml-js CDN 加载失败，将退回基础解析逻辑');
+            console.warn('xml-js 加载失败，将退回基础解析逻辑');
         }
     </script>
+
+    <!-- CodeMirror 5 核心 (本地离线) -->
+    <link rel="stylesheet" href="vendor/codemirror/codemirror.min.css">
+    <link rel="stylesheet" href="vendor/codemirror/theme/material-darker.min.css">
+    <script src="vendor/codemirror/codemirror.min.js"></script>
+
+    <!-- 语法模式 -->
+    <script src="vendor/codemirror/mode/javascript.min.js"></script>
+    <script src="vendor/codemirror/mode/yaml.min.js"></script>
+    <script src="vendor/codemirror/mode/xml.min.js"></script>
+
+    <!-- 基础辅助功能 -->
+    <script src="vendor/codemirror/addon/edit/matchbrackets.min.js"></script>
+    <script src="vendor/codemirror/addon/edit/closebrackets.min.js"></script>
+
+    <!-- ================= 新增优化插件 ================= -->
+    <!-- 当前行高亮 -->
+    <script src="vendor/codemirror/addon/selection/active-line.min.js"></script>
+    <!-- XML 标签匹配高亮 -->
+    <script src="vendor/codemirror/addon/edit/matchtags.min.js"></script>
+    <!-- 列表自动延续 -->
+    <script src="vendor/codemirror/addon/edit/continuelist.min.js"></script>
+    <!-- 代码折叠 -->
+    <link rel="stylesheet" href="vendor/codemirror/addon/fold/foldgutter.min.css">
+    <script src="vendor/codemirror/addon/fold/foldcode.min.js"></script>
+    <script src="vendor/codemirror/addon/fold/foldgutter.min.js"></script>
+    <script src="vendor/codemirror/addon/fold/brace-fold.min.js"></script>
+    <script src="vendor/codemirror/addon/fold/xml-fold.min.js"></script>
+    <script src="vendor/codemirror/addon/fold/comment-fold.min.js"></script>
+    <!-- 搜索与替换 -->
+    <link rel="stylesheet" href="vendor/codemirror/addon/dialog/dialog.min.css">
+    <script src="vendor/codemirror/addon/dialog/dialog.min.js"></script>
+    <script src="vendor/codemirror/addon/search/searchcursor.min.js"></script>
+    <script src="vendor/codemirror/addon/search/search.min.js"></script>
+    <!-- ============================================== -->
 
     <style>
         /* =========================================
@@ -38,7 +73,6 @@
             --radius-lg: var(--radius-lg, 0.75rem);
             --font-sans: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif);
             --font-mono: var(--font-mono, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace);
-            /* 滚动条专属变量，大幅提高可见性 */
             --scrollbar-track: rgba(0, 0, 0, 0.06);
             --scrollbar-thumb: rgba(100, 100, 100, 0.5);
             --scrollbar-thumb-hover: rgba(100, 100, 100, 0.8);
@@ -59,12 +93,10 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        /* 全局滚动条美化 - 适用于所有可滚动区域 */
         * {
             scrollbar-width: thin;
             scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
         }
-        /* Webkit 滚动条定制 */
         ::-webkit-scrollbar {
             width: 10px;
             height: 10px;
@@ -86,7 +118,6 @@
             border: 2px solid var(--scrollbar-track);
             background-clip: content-box;
         }
-        /* 横向下拉条也做适配 */
         ::-webkit-scrollbar-corner {
             background: var(--scrollbar-track);
         }
@@ -102,7 +133,6 @@
             transition: background-color 0.3s, color 0.3s;
         }
 
-        /* 顶部导航栏优化：支持横向滚动，滚动条显著增强，文字垂直居中 */
         .topbar {
             display: flex;
             align-items: center;
@@ -127,10 +157,9 @@
         }
         .brand svg { color: var(--primary); }
 
-        /* --- 核心修改：导航链接容器 & 垂直居中修复 --- */
         .nav-links {
             display: flex;
-            align-items: center; /* 内部项目垂直居中 */
+            align-items: center;
             gap: 0.25rem;
             font-size: 0.875rem;
             color: var(--text-muted);
@@ -142,7 +171,6 @@
             height: 100%;
             scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
         }
-        /* 专门为导航栏定制更明显的横向滚动条，覆盖在内容下方 */
         .nav-links::-webkit-scrollbar {
             height: 8px;
             background: var(--scrollbar-track);
@@ -165,7 +193,6 @@
             border: 2px solid var(--scrollbar-track);
             background-clip: content-box;
         }
-        /* 确保链接垂直居中 */
         .nav-links a {
             text-decoration: none;
             color: inherit;
@@ -407,7 +434,6 @@
             resize: none;
             tab-size: 2;
         }
-        /* 针对 textarea 单独强化滚动条可见性 */
         .textarea::-webkit-scrollbar {
             width: 12px;
             height: 12px;
@@ -424,6 +450,51 @@
             border: 3px solid var(--scrollbar-track);
             background-clip: content-box;
         }
+
+        /* =========================================
+           CodeMirror 5 适配样式
+           ========================================= */
+        .editor-container .CodeMirror {
+            height: 100%;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            line-height: 1.7;
+            background-color: var(--bg-card);
+            color: var(--text-main);
+        }
+        .editor-container .CodeMirror-scroll {
+            overflow: auto;
+        }
+        .editor-container .CodeMirror-gutters {
+            background-color: var(--accent-bg);
+            border-right: 1px solid var(--border-light);
+        }
+        .editor-container .CodeMirror-linenumber {
+            color: var(--text-muted);
+        }
+        #outputEditorWrap .CodeMirror {
+            background-color: var(--accent-bg);
+        }
+        .editor-container textarea.textarea {
+            display: none;
+        }
+        .CodeMirror-scroll::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+        .CodeMirror-scroll::-webkit-scrollbar-thumb {
+            background: var(--scrollbar-thumb);
+            border-radius: 12px;
+            border: 3px solid var(--scrollbar-track);
+            background-clip: content-box;
+        }
+        .CodeMirror-scroll::-webkit-scrollbar-thumb:hover {
+            background: var(--scrollbar-thumb-hover);
+        }
+        /* CodeMirror 辅助插件样式微调 */
+        .CodeMirror-activeline-background { background: rgba(59, 130, 246, 0.05) !important; }
+        .CodeMirror-matchingtag { background: rgba(59, 130, 246, 0.2) !important; }
+        .CodeMirror-foldmarker { color: var(--primary); text-shadow: none; font-family: inherit; margin: 0 4px; cursor: pointer; }
 
         .btn {
             display: inline-flex;
@@ -504,7 +575,6 @@
         .toast.hide { opacity: 0; transform: translateX(100%); }
         @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
 
-        /* 响应式 */
         @media (max-width: 900px) {
             .workspace-grid { grid-template-columns: 1fr; }
             .toolbar { flex-direction: row; flex-wrap: wrap; border-radius: var(--radius-lg); padding: 1rem; width: 100%;}
@@ -635,7 +705,7 @@
                     </button>
                 </div>
             </div>
-            <div class="editor-container">
+            <div class="editor-container" id="outputEditorWrap">
                 <div class="result-header">
                     <span class="result-header-label" id="outputLabel">Result Output</span>
                 </div>
@@ -669,7 +739,6 @@
             { code: 'tr', name: 'Türkçe', flag: '🇹🇷', dict: { brand: 'Araçlar', navYamlJson: 'YAML -> JSON', navYamlProps: 'YAML -> Props', navJsonProps: 'JSON -> Props', navJsonXml: 'JSON -> XML', navXmlYaml: 'XML -> YAML', navJsonYaml: 'JSON -> YAML', navYamlXml: 'YAML -> XML', fromLabel: 'Kimden', toLabel: 'Kime', swapTitle: 'Değiştir', inputLabel: 'Giriş', outputLabel: 'Çıkış', formatBtn: 'Biçimlendir', mockBtn: 'Mock', clearBtn: 'Temizle', convertBtn: 'Dönüştür', copyBtn: 'Kopyala', pasteBtn: 'Yapıştır', inputPlaceholder: '// Veri girin...', outputPlaceholder: 'Bekliyor...', toastMockSuccess: 'Mock oluşturuldu', toastFormatInput: 'Giriş biçimlendirildi', toastFormatOutput: 'Çıkış biçimlendirildi', toastFormatError: 'Biçimlendirme hatası', toastConvertSuccess: 'Dönüştürüldü', toastConvertError: 'Dönüştürme hatası', toastCopySuccess: 'Kopyalandı', toastCopyError: 'Kopyalama hatası', toastPasteSuccess: 'Yapıştırıldı', toastPasteError: 'Pano okunamadı', toastPasteUnsupported: 'Pano okuma desteklenmiyor', toastEmptyInput: 'Giriş boş', toastSameFormat: 'Aynı format' } }
         ];
 
-        // 仅在菜单中展示的语言代码
         const displayLangCodes = ['zh-CN', 'zh-TW', 'en'];
 
         let currentLang = 'zh-CN';
@@ -694,13 +763,13 @@
                     }
                     if (env.theme && env.theme.appearance) {
                         document.documentElement.setAttribute('data-dbx-theme', env.theme.appearance);
+                        syncEditorTheme();
                     }
                 });
             } catch (err) {
                 console.warn('DBX init error:', err);
             }
         } else {
-            // 浏览器兜底
             const userLang = navigator.language || 'zh-CN';
             if (languageConfigs.find(c => c.code === userLang)) currentLang = userLang;
             else if (userLang.startsWith('zh')) currentLang = userLang === 'zh-TW' ? 'zh-TW' : 'zh-CN';
@@ -710,7 +779,6 @@
             }
         }
 
-        // 强制同步当前语言字典
         currentDict = languageConfigs.find(c => c.code === currentLang).dict;
 
         // =========================================
@@ -852,6 +920,88 @@
         const formatOutputBtn = document.getElementById('formatOutputBtn');
         const toastContainer = document.getElementById('toastContainer');
 
+        // =========================================
+        // CodeMirror 5 初始化 (本地离线 - 增强版)
+        // =========================================
+        const MODE_MAP = {
+            json: 'application/json',
+            yaml: 'text/x-yaml',
+            xml: 'application/xml',
+            properties: 'text/plain'
+        };
+
+        const commonConfig = {
+            lineNumbers: true,
+            lineWrapping: true,
+            matchBrackets: true,
+            autoCloseBrackets: true,
+            indentUnit: 2,
+            tabSize: 2,
+            styleActiveLine: true,          // 高亮当前行
+            foldGutter: true,               // 开启折叠栏
+            gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"], // 行号 + 折叠图标
+            matchTags: { bothTags: true },  // XML 标签双向高亮
+            extraKeys: {
+                "Ctrl-Q": function(cm) { cm.foldCode(cm.getCursor()); }, // 快捷键折叠
+                "Ctrl-F": "findPersistent",                          // 内部搜索
+                "Cmd-F": "findPersistent",
+                "Alt-F": "findPersistent",
+                "Ctrl-Alt-F": "replace",                             // 内部替换
+                "Cmd-Alt-F": "replace",
+                "Enter": "newlineAndIndentContinueMarkdownList"      // YAML 等列表回车自动延续
+            }
+        };
+
+        const inputEditor = CodeMirror.fromTextArea(inputText, Object.assign({}, commonConfig, {
+            mode: MODE_MAP.json
+        }));
+
+        const outputEditor = CodeMirror.fromTextArea(outputText, Object.assign({}, commonConfig, {
+            mode: MODE_MAP.yaml
+        }));
+
+        inputEditor.on('change', () => {
+            inputText.value = inputEditor.getValue();
+        });
+        outputEditor.on('change', () => {
+            outputText.value = outputEditor.getValue();
+        });
+
+        function linkTextareaToEditor(textarea, editor) {
+            const proto = Object.getPrototypeOf(textarea);
+            const desc = Object.getOwnPropertyDescriptor(proto, 'value');
+            Object.defineProperty(textarea, 'value', {
+                configurable: true,
+                get() { return desc.get.call(this); },
+                set(v) {
+                    desc.set.call(this, v);
+                    if (editor.getValue() !== v) {
+                        editor.setValue(v);
+                    }
+                }
+            });
+        }
+        linkTextareaToEditor(inputText, inputEditor);
+        linkTextareaToEditor(outputText, outputEditor);
+
+        function syncEditorModes() {
+            inputEditor.setOption('mode', MODE_MAP[sourceFormat.value] || 'text/plain');
+            outputEditor.setOption('mode', MODE_MAP[targetFormat.value] || 'text/plain');
+        }
+
+        function syncEditorTheme() {
+            const isDark = document.documentElement.getAttribute('data-dbx-theme') === 'dark';
+            const theme = isDark ? 'material-darker' : 'default';
+            inputEditor.setOption('theme', theme);
+            outputEditor.setOption('theme', theme);
+            inputEditor.refresh();
+            outputEditor.refresh();
+        }
+        syncEditorTheme();
+
+        // =========================================
+        // 业务变量与事件（保持原逻辑）
+        // =========================================
         let sourceFormat = {value: sourceSelect.getValue()};
         let targetFormat = {value: targetSelect.getValue()};
 
@@ -877,14 +1027,8 @@
             }, 3000);
         }
 
-        // =========================================
-        // 剪贴板桥接（DBX 沙箱内 navigator.clipboard 不可用）
-        // =========================================
-        // 读取系统剪贴板：需要 manifest 权限 host.clipboard:read，且 Host API >= 1.3。
-        // 旧宿主 capabilities.clipboardRead 缺失即为 falsy，应优雅降级而不是试调用。
         async function readClipboardText() {
             if (!window.dbxPlugin) {
-                // 非 DBX 宿主（浏览器调试）
                 if (navigator.clipboard && navigator.clipboard.readText) {
                     return await navigator.clipboard.readText();
                 }
@@ -897,7 +1041,6 @@
             return await window.dbxPlugin.clipboard.readText();
         }
 
-        // 写入系统剪贴板：无需权限，优先 dbxPlugin.copy，其次 clipboard.writeText。
         async function writeClipboardText(text) {
             if (window.dbxPlugin && (typeof window.dbxPlugin.copy === 'function' || (window.dbxPlugin.clipboard && window.dbxPlugin.clipboard.writeText))) {
                 const caps = window.dbxPlugin.capabilities || {};
@@ -920,12 +1063,9 @@
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-                // 清空输入和输出内容
                 inputText.value = '';
                 outputText.value = currentDict.outputPlaceholder;
                 currentDataObj = null;
-
-                // 更新格式选择
                 handleFormatChange(link.dataset.src, link.dataset.tgt);
             });
         });
@@ -933,6 +1073,7 @@
         document.getElementById('sourceSelect').addEventListener('change', (e) => {
             sourceFormat.value = e.detail;
             updateOutputLabel();
+            syncEditorModes();
             if (currentDataObj) {
                 try {
                     inputText.value = serializeData(currentDataObj, sourceFormat.value);
@@ -946,6 +1087,7 @@
         document.getElementById('targetSelect').addEventListener('change', (e) => {
             targetFormat.value = e.detail;
             updateOutputLabel();
+            syncEditorModes();
             doConvertSilent();
         });
 
@@ -956,6 +1098,7 @@
 
             sourceSelect.setValue(sourceFormat.value);
             targetSelect.setValue(targetFormat.value);
+            syncEditorModes();
 
             const currentOutput = outputText.value;
             if (currentOutput && currentOutput !== currentDict.outputPlaceholder && currentOutput !== currentDict.toastSameFormat) {
@@ -970,16 +1113,14 @@
             outputLabel.textContent = `Result Output (${targetFormat.value.toUpperCase()})`;
         }
 
-        // 优化后的点击事件逻辑
         function handleFormatChange(newSrc, newTgt) {
-            // 1. 更新界面状态
             sourceFormat.value = newSrc;
             targetFormat.value = newTgt;
             sourceSelect.setValue(newSrc);
             targetSelect.setValue(newTgt);
             updateOutputLabel();
+            syncEditorModes();
 
-            // 2. 强制读取当前输入框的最新内容
             const raw = inputText.value.trim();
             if (raw && raw !== currentDict.outputPlaceholder) {
                 try {
@@ -1356,7 +1497,6 @@
             currentDataObj = null;
         });
 
-        // 粘贴按钮：读取系统剪贴板写入输入框
         document.getElementById('pasteInputBtn').addEventListener('click', async () => {
             try {
                 const text = await readClipboardText();
@@ -1383,10 +1523,15 @@
             }
         });
 
-        // 初始化
         renderLangMenu();
         applyI18n();
         outputText.value = currentDict.outputPlaceholder;
+        syncEditorModes();
+        syncEditorTheme();
+        requestAnimationFrame(() => {
+            inputEditor.refresh();
+            outputEditor.refresh();
+        });
     });
 </script>
 </body>
