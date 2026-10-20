@@ -2,10 +2,10 @@
   "$schema": "https://raw.githubusercontent.com/t8y2/dbx/plugin-sdk-v1/plugins/manifest.schema.json",
   "manifest_version": 1,
   "id": "io.github.icefoxs.data-convert",
-  "name": "数据转换",
+  "name": "数据转换工具",
   "version": "0.1.0",
   "publisher": "icefoxs",
-  "description": "数据转换工具",
+  "description": "🛠️ 全能数据格式互转工具：支持 JSON、YAML、XML、Properties 之间的无缝互转。纯前端实现，支持零网络依赖离线运行，内置智能容错与代码格式化。",
   "source": "https://github.com/IceFoxs/dbx-plugin-data-convert",
   "homepage": "https://github.com/IceFoxs/dbx-plugin-data-convert",
   "icon": "assets/plugin.svg",
@@ -24,18 +24,148 @@
       "type": "workbench",
       "id": "io.github.icefoxs.data-convert.workbench",
       "label": "数据转换",
-      "description": "Sandboxed frontend workbench contributed by 数据转换.",
+      "description": "全能数据格式互转",
       "icon": "assets/plugin.svg"
     }
   ],
   "localizations": {
     "zh-CN": {
       "name": "数据转换",
-      "description": "数据转换工具",
+      "description": "🛠️ 全能数据格式互转工具：支持 JSON、YAML、XML、Properties 之间的无缝互转。纯前端实现，支持零网络依赖离线运行，内置智能容错与代码格式化。",
       "contributions": {
         "io.github.icefoxs.data-convert.workbench": {
           "label": "数据转换",
-          "description": "由插件提供的沙箱前端工作台。"
+          "description": "全能数据格式互转"
+        }
+      }
+    },
+    "zh-TW": {
+      "name": "資料轉換",
+      "description": "🛠️ 全能資料格式互轉工具：支援 JSON、YAML、XML、Properties 之間的無縫互轉。純前端實現，支援零網路依賴離線運行，內建智慧容錯與程式碼格式化。",
+      "contributions": {
+        "io.github.icefoxs.data-convert.workbench": {
+          "label": "資料轉換",
+          "description": "全能資料格式互轉"
+        }
+      }
+    },
+    "en": {
+      "name": "Data Converter",
+      "description": "🛠️ All-in-one data format converter: Seamlessly convert between JSON, YAML, XML, and Properties. Pure frontend, zero network dependency, with smart fault tolerance and code formatting.",
+      "contributions": {
+        "io.github.icefoxs.data-convert.workbench": {
+          "label": "Data Converter",
+          "description": "All-in-one data format converter"
+        }
+      }
+    },
+    "az": {
+      "name": "Məlumat Çeviricisi",
+      "description": "🛠️ Hər şeyi əhatə edən məlumat formatı çeviricisi: JSON, YAML, XML və Properties arasında problemsiz çevirmə. Təmiz frontend, şəbəkədən asılı olmayaraq oflayn işləyir.",
+      "contributions": {
+        "io.github.icefoxs.data-convert.workbench": {
+          "label": "Məlumat Çeviricisi",
+          "description": "Hər şeyi əhatə edən məlumat formatı çeviricisi"
+        }
+      }
+    },
+    "es": {
+      "name": "Convertidor de Datos",
+      "description": "🛠️ Convertidor de formatos de datos todo en uno: Convierte sin problemas entre JSON, YAML, XML y Properties. Frontend puro, sin dependencia de red, con tolerancia a fallos y formateo de código.",
+      "contributions": {
+        "io.github.icefoxs.data-convert.workbench": {
+          "label": "Convertidor de Datos",
+          "description": "Convertidor de formatos de datos todo en uno"
+        }
+      }
+    },
+    "id": {
+      "name": "Konverter Data",
+      "description": "🛠️ Konverter format data serba guna: Konversi mulus antara JSON, YAML, XML, dan Properties. Frontend murni, tanpa ketergantungan jaringan, dengan toleransi kesalahan cerdas dan pemformatan kode.",
+      "contributions": {
+        "io.github.icefoxs.data-convert.workbench": {
+          "label": "Konverter Data",
+          "description": "Konverter format data serba guna"
+        }
+      }
+    },
+    "it": {
+      "name": "Convertitore di Dati",
+      "description": "🛠️ Convertitore di formati dati tutto in uno: Converti senza problemi tra JSON, YAML, XML e Properties. Frontend puro, senza dipendenze di rete, con tolleranza agli errori e formattazione del codice.",
+      "contributions": {
+        "io.github.icefoxs.data-convert.workbench": {
+          "label": "Convertitore di Dati",
+          "description": "Convertitore di formati dati tutto in uno"
+        }
+      }
+    },
+    "ja": {
+      "name": "データコンバーター",
+      "description": "🛠️ オールインワンデータフォーマットコンバーター：JSON、YAML、XML、Properties間のシームレスな変換。ピュアフロントエンド、ネットワーク依存なしでオフライン動作、スマートなフォールトトレランスとコードフォーマットを内蔵。",
+      "contributions": {
+        "io.github.icefoxs.data-convert.workbench": {
+          "label": "データコンバーター",
+          "description": "オールインワンデータフォーマットコンバーター"
+        }
+      }
+    },
+    "ko": {
+      "name": "데이터 변환기",
+      "description": "🛠️ 올인원 데이터 형식 변환기: JSON, YAML, XML, Properties 간의 원활한 변환. 순수 프론트엔드, 네트워크 의존성 없이 오프라인 작동, 스마트 오류 허용 및 코드 포맷팅 내장.",
+      "contributions": {
+        "io.github.icefoxs.data-convert.workbench": {
+          "label": "데이터 변환기",
+          "description": "올인원 데이터 형식 변환기"
+        }
+      }
+    },
+    "pt": {
+      "name": "Conversor de Dados",
+      "description": "🛠️ Conversor de formatos de dados tudo-em-um: Converta perfeitamente entre JSON, YAML, XML e Properties. Frontend puro, sem dependência de rede, com tolerância a falhas inteligente e formatação de código.",
+      "contributions": {
+        "io.github.icefoxs.data-convert.workbench": {
+          "label": "Conversor de Dados",
+          "description": "Conversor de formatos de dados tudo-em-um"
+        }
+      }
+    },
+    "pl": {
+      "name": "Konwerter Danych",
+      "description": "🛠️ Wszechstronny konwerter formatów danych: Bezproblemowa konwersja między JSON, YAML, XML i Properties. Czysty frontend, niezależny od sieci, z inteligentną tolerancją błędów i formatowaniem kodu.",
+      "contributions": {
+        "io.github.icefoxs.data-convert.workbench": {
+          "label": "Konwerter Danych",
+          "description": "Wszechstronny konwerter formatów danych"
+        }
+      }
+    },
+    "ru": {
+      "name": "Конвертер Данных",
+      "description": "🛠️ Универсальный конвертер форматов данных: Плавная конвертация между JSON, YAML, XML и Properties. Чистый фронтенд, работа без сети, с умной обработкой ошибок и форматированием кода.",
+      "contributions": {
+        "io.github.icefoxs.data-convert.workbench": {
+          "label": "Конвертер Данных",
+          "description": "Универсальный конвертер форматов данных"
+        }
+      }
+    },
+    "th": {
+      "name": "ตัวแปลงข้อมูล",
+      "description": "🛠️ ตัวแปลงรูปแบบข้อมูลแบบครบวงจร: แปลงข้อมูลระหว่าง JSON, YAML, XML และ Properties ได้อย่างราบรื่น เป็นฟรอนต์เอนด์ล้วน ไม่ต้องพึ่งพาเครือข่าย พร้อมระบบจัดการข้อผิดพลาดอัจฉริยะและจัดรูปแบบโค้ด",
+      "contributions": {
+        "io.github.icefoxs.data-convert.workbench": {
+          "label": "ตัวแปลงข้อมูล",
+          "description": "ตัวแปลงรูปแบบข้อมูลแบบครบวงจร"
+        }
+      }
+    },
+    "tr": {
+      "name": "Veri Dönüştürücü",
+      "description": "🛠️ Hepsi bir arada veri formatı dönüştürücü: JSON, YAML, XML ve Properties arasında sorunsuz dönüşüm. Saf ön uç, ağ bağımlılığı olmadan çevrimdışı çalışır, akıllı hata toleransı ve kod biçimlendirme içerir.",
+      "contributions": {
+        "io.github.icefoxs.data-convert.workbench": {
+          "label": "Veri Dönüştürücü",
+          "description": "Hepsi bir arada veri formatı dönüştürücü"
         }
       }
     }
