@@ -1,95 +1,61 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none">
   <defs>
-    <!-- 背景微渐变：白 -> 极浅冷灰 -->
-    <linearGradient id="bgLight" x1="0" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#eef2f8"/>
+    <!-- 深邃蓝黑渐变底 -->
+    <linearGradient id="darkBg" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1e3a8a"/>
+      <stop offset="1" stop-color="#0f172a"/>
     </linearGradient>
 
-    <!-- 主色渐变：科技蓝 -> 紫 -->
-    <linearGradient id="accent" x1="40" y1="40" x2="216" y2="216" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#2563eb"/>
-      <stop offset="0.55" stop-color="#4f46e5"/>
-      <stop offset="1" stop-color="#7c3aed"/>
-    </linearGradient>
-
-    <!-- 网格图案 -->
-    <pattern id="grid" width="16" height="16" patternUnits="userSpaceOnUse">
-      <path d="M16 0H0V16" fill="none" stroke="#2563eb" stroke-opacity="0.08" stroke-width="1"/>
-    </pattern>
-
-    <!-- 光晕 -->
-    <radialGradient id="glow" cx="0.5" cy="0.42" r="0.55">
-      <stop offset="0" stop-color="#6366f1" stop-opacity="0.22"/>
-      <stop offset="1" stop-color="#6366f1" stop-opacity="0"/>
-    </radialGradient>
-
-    <!-- 文档填充 -->
-    <linearGradient id="docFill" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#f1f5ff"/>
+    <!-- 高亮青蓝渐变 -->
+    <linearGradient id="cyanGrad" x1="20" y1="16" x2="108" y2="72" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#00f2fe"/>
+      <stop offset="1" stop-color="#4facfe"/>
     </linearGradient>
   </defs>
 
-  <!-- 白色圆角底板 -->
-  <rect x="8" y="8" width="240" height="240" rx="54" fill="url(#bgLight)"/>
-  <rect x="8" y="8" width="240" height="240" rx="54" fill="url(#grid)"/>
-  <rect x="8" y="8" width="240" height="240" rx="54" fill="url(#glow)"/>
-  <rect x="8.75" y="8.75" width="238.5" height="238.5" rx="53.25" stroke="url(#accent)" stroke-opacity="0.18" stroke-width="1.5"/>
+  <!-- 1. 深色渐变底板 -->
+  <rect x="2" y="2" width="124" height="124" rx="28" fill="url(#darkBg)"/>
+  <!-- 边缘微光描边 -->
+  <rect x="2.5" y="2.5" width="123" height="123" rx="27.5" stroke="#3b82f6" stroke-opacity="0.4" stroke-width="1.5"/>
 
-  <!-- 图形区 -->
-  <g transform="translate(0,-12)">
+  <!-- 2. 上半部图形 -->
+  <g transform="translate(0, -4)">
     <!-- 左侧文档 -->
-    <g>
-      <path d="M56 56a10 10 0 0 1 10-10h30l18 18v60a10 10 0 0 1-10 10H66a10 10 0 0 1-10-10V56z"
-            fill="url(#docFill)" stroke="url(#accent)" stroke-width="4"/>
-      <path d="M96 46v18h18" stroke="url(#accent)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <line x1="72" y1="86" x2="98" y2="86" stroke="url(#accent)" stroke-width="4" stroke-linecap="round" stroke-opacity="0.85"/>
-      <line x1="72" y1="102" x2="104" y2="102" stroke="url(#accent)" stroke-width="4" stroke-linecap="round" stroke-opacity="0.6"/>
-      <line x1="72" y1="118" x2="90" y2="118" stroke="url(#accent)" stroke-width="4" stroke-linecap="round" stroke-opacity="0.4"/>
-    </g>
+    <path d="M28 28a6 6 0 0 1 6-6h16l10 10v36a6 6 0 0 1-6 6H34a6 6 0 0 1-6-6V28z"
+          fill="#ffffff" fill-opacity="0.05" stroke="url(#cyanGrad)" stroke-width="4.5" stroke-linejoin="round"/>
+    <path d="M50 22v10h10" stroke="url(#cyanGrad)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M38 44h14M38 54h20" stroke="url(#cyanGrad)" stroke-width="4.5" stroke-linecap="round"/>
 
     <!-- 右侧文档 -->
-    <g>
-      <path d="M144 56a10 10 0 0 1 10-10h30l18 18v60a10 10 0 0 1-10 10h-38a10 10 0 0 1-10-10V56z"
-            fill="url(#docFill)" stroke="url(#accent)" stroke-width="4"/>
-      <path d="M184 46v18h18" stroke="url(#accent)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <line x1="160" y1="86" x2="186" y2="86" stroke="url(#accent)" stroke-width="4" stroke-linecap="round" stroke-opacity="0.85"/>
-      <line x1="160" y1="102" x2="192" y2="102" stroke="url(#accent)" stroke-width="4" stroke-linecap="round" stroke-opacity="0.6"/>
-      <line x1="160" y1="118" x2="178" y2="118" stroke="url(#accent)" stroke-width="4" stroke-linecap="round" stroke-opacity="0.4"/>
-    </g>
+    <path d="M74 28a6 6 0 0 1 6-6h16l10 10v36a6 6 0 0 1-6 6H80a6 6 0 0 1-6-6V28z"
+          fill="#ffffff" fill-opacity="0.05" stroke="url(#cyanGrad)" stroke-width="4.5" stroke-linejoin="round"/>
+    <path d="M96 22v10h10" stroke="url(#cyanGrad)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M84 44h14M84 54h20" stroke="url(#cyanGrad)" stroke-width="4.5" stroke-linecap="round"/>
 
-    <!-- 中间双向数据流箭头 -->
-    <g stroke="url(#accent)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none">
-      <!-- 上：右 -> 左 -->
-      <path d="M152 74h-30"/>
-      <path d="M132 64l-10 10 10 10"/>
-      <!-- 下：左 -> 右 -->
-      <path d="M104 146h30"/>
-      <path d="M124 136l10 10-10 10"/>
-    </g>
+    <!-- 中间数据流 -->
+    <g stroke="url(#cyanGrad)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <path d="M68 74H52"/>
+      <path d="M58 68l-6 6 6 6"/>
 
-    <!-- 数据流光点 -->
-    <circle cx="120" cy="74" r="3.5" fill="#2563eb"/>
-    <circle cx="136" cy="146" r="3.5" fill="#7c3aed"/>
-    <circle cx="112" cy="74" r="2" fill="#60a5fa" opacity="0.8"/>
-    <circle cx="144" cy="146" r="2" fill="#a78bfa" opacity="0.8"/>
+      <path d="M60 38h16"/>
+      <path d="M70 32l6 6-6 6"/>
+    </g>
   </g>
 
-  <!-- 文字 -->
-  <text x="128" y="198"
+  <!-- 3. 下半部纯白文字 -->
+  <text x="64" y="100"
         text-anchor="middle"
         font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif"
-        font-size="28"
-        font-weight="700"
-        fill="#1e293b"
-        letter-spacing="3">转换工具</text>
+        font-size="20"
+        font-weight="900"
+        fill="#ffffff"
+        letter-spacing="2">转换工具</text>
 
-  <text x="128" y="224"
+  <text x="64" y="114"
         text-anchor="middle"
-        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
-        font-size="12"
-        font-weight="600"
-        fill="#6366f1"
-        letter-spacing="3.5">DATA CONVERTER</text>
+        font-family="Arial, sans-serif"
+        font-size="8"
+        font-weight="800"
+        fill="#00f2fe"
+        letter-spacing="2">CONVERTER</text>
 </svg>
