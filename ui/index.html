@@ -133,16 +133,15 @@
             transition: background-color 0.3s, color 0.3s;
         }
 
+        /* 顶部导航栏布局修复 */
         .topbar {
             display: flex;
             align-items: center;
-            justify-content: space-between;
             padding: 0 1rem;
             height: 3.5rem;
             border-bottom: 1px solid var(--border-light);
             background-color: var(--bg-base);
             flex-shrink: 0;
-            overflow: hidden;
         }
         .brand {
             display: flex;
@@ -157,6 +156,7 @@
         }
         .brand svg { color: var(--primary); }
 
+        /* 中间导航链接 */
         .nav-links {
             display: flex;
             align-items: center;
@@ -164,6 +164,7 @@
             font-size: 0.875rem;
             color: var(--text-muted);
             flex: 1;
+            min-width: 0; /* 核心修复：允许 flex 子项收缩，防止把右侧按钮挤出屏幕 */
             overflow-x: auto;
             white-space: nowrap;
             scrollbar-width: thin;
@@ -171,19 +172,20 @@
             height: 100%;
             scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
         }
+        /* 导航栏横向滚动条美化 */
         .nav-links::-webkit-scrollbar {
-            height: 8px;
+            height: 6px;
             background: var(--scrollbar-track);
-            border-radius: 8px;
+            border-radius: 6px;
         }
         .nav-links::-webkit-scrollbar-track {
             background: var(--scrollbar-track);
-            border-radius: 8px;
+            border-radius: 6px;
             margin: 0 2px;
         }
         .nav-links::-webkit-scrollbar-thumb {
             background: var(--scrollbar-thumb);
-            border-radius: 8px;
+            border-radius: 6px;
             border: 2px solid var(--scrollbar-track);
             background-clip: content-box;
             transition: background 0.2s ease;
@@ -209,7 +211,12 @@
             background-color: var(--accent-bg);
         }
 
-        .lang-switcher { position: relative; flex-shrink: 0; margin-left: 1rem; }
+        /* 右侧语言切换器 */
+        .lang-switcher {
+            position: relative;
+            flex-shrink: 0; /* 核心修复：绝对不允许被挤压 */
+            margin-left: 1rem;
+        }
         .lang-trigger {
             display: flex;
             align-items: center;
@@ -493,6 +500,10 @@
         }
         /* CodeMirror 辅助插件样式微调 */
         .CodeMirror-activeline-background { background: rgba(59, 130, 246, 0.05) !important; }
+        /* 仅在聚焦时高亮当前行 */
+        .editor-container .CodeMirror:not(.CodeMirror-focused) .CodeMirror-activeline-background {
+            background: transparent !important;
+        }
         .CodeMirror-matchingtag { background: rgba(59, 130, 246, 0.2) !important; }
         .CodeMirror-foldmarker { color: var(--primary); text-shadow: none; font-family: inherit; margin: 0 4px; cursor: pointer; }
 
@@ -580,7 +591,7 @@
             .toolbar { flex-direction: row; flex-wrap: wrap; border-radius: var(--radius-lg); padding: 1rem; width: 100%;}
             .main-container { padding: 1rem; }
             .nav-links::-webkit-scrollbar {
-                height: 7px;
+                height: 4px;
             }
         }
     </style>
