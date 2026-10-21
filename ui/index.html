@@ -35,6 +35,7 @@
     <script src="js/converters.js"></script>
     <script src="js/diff.js"></script>
     <script src="js/objdiff.js"></script>
+    <script src="js/sqlgen.js"></script>
     <script>
         if (typeof xml2js === 'undefined' || typeof js2xml === 'undefined') {
             console.warn('xml-js 加载失败，将退回基础解析逻辑');
@@ -50,6 +51,7 @@
     <script src="vendor/codemirror/mode/javascript.min.js"></script>
     <script src="vendor/codemirror/mode/yaml.min.js"></script>
     <script src="vendor/codemirror/mode/xml.min.js"></script>
+    <script src="vendor/codemirror/mode/sql.min.js"></script>
 
     <!-- 基础辅助功能 -->
     <script src="vendor/codemirror/addon/edit/matchbrackets.min.js"></script>
@@ -259,6 +261,20 @@
         /* 一项都放不下时不要让空容器继续占位 */
         .nav-links.is-empty { flex: 0 0 0; }
 
+        /* 「格式转换」下拉：7 个格式互转入口收在这里 */
+        .nav-convert {
+            position: relative;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .nav-convert-menu { left: 0; right: auto; min-width: 11.5rem; }
+        /* 停在转换页时，触发器跟着高亮（和导航条上其他选中项一致） */
+        .nav-convert.active .nav-convert-trigger {
+            color: var(--primary);
+            background-color: var(--accent-bg);
+        }
+
         /* 导航「更多」下拉：只在真的装不下时出现 */
         .nav-more {
             position: relative;
@@ -268,7 +284,8 @@
             margin-left: 0.25rem;
         }
         .nav-more.show { display: flex; }
-        .nav-more-trigger {
+        .nav-more-trigger,
+        .nav-convert-trigger {
             display: inline-flex;
             align-items: center;
             gap: 0.25rem;
@@ -286,18 +303,23 @@
             transition: all 0.15s ease;
         }
         .nav-more-trigger:hover,
-        .nav-more.open .nav-more-trigger {
+        .nav-more.open .nav-more-trigger,
+        .nav-convert-trigger:hover,
+        .nav-convert.open .nav-convert-trigger {
             color: var(--text-main);
             background-color: var(--accent-bg);
         }
-        .nav-more-trigger svg {
+        .nav-more-trigger svg,
+        .nav-convert-trigger svg {
             width: 0.85rem;
             height: 0.85rem;
             color: var(--text-muted);
             transition: transform 0.15s ease;
         }
-        .nav-more.open .nav-more-trigger svg { transform: rotate(180deg); }
-        .nav-more-menu {
+        .nav-more.open .nav-more-trigger svg,
+        .nav-convert.open .nav-convert-trigger svg { transform: rotate(180deg); }
+        .nav-more-menu,
+        .nav-convert-menu {
             position: absolute;
             top: calc(100% + 8px);
             right: 0;
@@ -316,12 +338,14 @@
             transform: translateY(-10px);
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .nav-more.open .nav-more-menu {
+        .nav-more.open .nav-more-menu,
+        .nav-convert.open .nav-convert-menu {
             opacity: 1;
             visibility: visible;
             transform: translateY(0);
         }
-        .nav-more-menu a {
+        .nav-more-menu a,
+        .nav-convert-menu a {
             display: block;
             padding: 0.5rem 0.75rem;
             border-radius: var(--radius-md);
@@ -335,8 +359,10 @@
             text-overflow: ellipsis;
             transition: background-color 0.1s;
         }
-        .nav-more-menu a:hover { background-color: var(--accent-bg); }
-        .nav-more-menu a.active {
+        .nav-more-menu a:hover,
+        .nav-convert-menu a:hover { background-color: var(--accent-bg); }
+        .nav-more-menu a.active,
+        .nav-convert-menu a.active {
             color: var(--primary);
             background-color: var(--accent-bg);
         }
@@ -1060,6 +1086,70 @@
         }
         .compare-pane .editor-container { flex: 1 1 0; min-height: 0; }
 
+        /* ================= SQL 生成页 ================= */
+        .sql-workspace {
+            display: none;
+            flex: 1 1 0;
+            flex-direction: column;
+            gap: 0.75rem;
+            min-height: 0;
+        }
+        .sql-workspace.active { display: flex; }
+        /* 选项行：引号、去重、每行一项、数字不加引号 */
+        .sql-options {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            flex-wrap: wrap;
+        }
+        .sql-options .compare-samples-label { font-size: 0.72rem; }
+        .sql-seg { padding: 2px; }
+        .sql-seg .compare-tab {
+            padding: 0.16rem 0.45rem;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            min-width: 26px;
+            text-align: center;
+        }
+        .sql-check {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .sql-check:hover { color: var(--text-main); }
+        .sql-check input {
+            width: 13px;
+            height: 13px;
+            margin: 0;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+        .sql-extra { display: none; align-items: center; gap: 0.4rem; }
+        .sql-extra.show { display: flex; }
+        .sql-input {
+            width: 116px;
+            height: 26px;
+            padding: 0 0.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--text-main);
+            background-color: var(--bg-base);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            transition: border-color 0.15s;
+        }
+        .sql-input::placeholder { color: var(--text-muted); }
+        .sql-input:focus { outline: none; border-color: var(--primary); }
+        @media (max-width: 900px) {
+            .sql-options { order: 5; }
+            .sql-extra { order: 6; }
+        }
+
         .nav-links a.active {
             color: var(--primary);
             background-color: var(--accent-bg);
@@ -1086,10 +1176,10 @@
             color: white;
         }
 
-        /* 宽度不足时面板操作按钮只留图标（title 提示仍在），避免挤出面板 */
+        /* 宽度不足时收紧面板操作按钮，避免挤出面板。
+           注意：这些按钮只有文字、没有图标，把 span 藏掉会剩下一个空按钮框。 */
         @media (max-width: 1100px) {
-            .pane-actions .btn span { display: none; }
-            .pane-actions .btn { padding: 0.4rem; }
+            .pane-actions .btn { padding: 0.3rem 0.55rem; font-size: 0.72rem; }
         }
 
         /* 只有真正窄到放不下两列时才上下堆叠，避免半宽面板里编辑器被压扁 */
@@ -1114,14 +1204,24 @@
         <span data-i18n="brand">转换工具</span>
     </div>
 
+    <!-- 7 个格式互转入口合成一个下拉，导航条上只留一个「格式转换」 -->
+    <div class="nav-convert" id="navConvert">
+        <button type="button" class="nav-convert-trigger" id="navConvertTrigger" aria-haspopup="true" aria-expanded="false">
+            <span data-i18n="navConvert">格式转换</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="nav-convert-menu" id="navConvertMenu">
+            <a data-src="yaml" data-tgt="json" data-i18n="navYamlJson">yaml转json</a>
+            <a data-src="yaml" data-tgt="properties" data-i18n="navYamlProps">yaml转properties</a>
+            <a data-src="json" data-tgt="properties" data-i18n="navJsonProps">json转properties</a>
+            <a data-src="json" data-tgt="xml" data-i18n="navJsonXml">json转xml</a>
+            <a data-src="xml" data-tgt="yaml" data-i18n="navXmlYaml">xml转yaml</a>
+            <a data-src="json" data-tgt="yaml" data-i18n="navJsonYaml">json转yaml</a>
+            <a data-src="yaml" data-tgt="xml" data-i18n="navYamlXml">yaml转xml</a>
+        </div>
+    </div>
     <nav class="nav-links" id="navLinks">
-        <a data-src="yaml" data-tgt="json" data-i18n="navYamlJson">yaml转json</a>
-        <a data-src="yaml" data-tgt="properties" data-i18n="navYamlProps">yaml转properties</a>
-        <a data-src="json" data-tgt="properties" data-i18n="navJsonProps">json转properties</a>
-        <a data-src="json" data-tgt="xml" data-i18n="navJsonXml">json转xml</a>
-        <a data-src="xml" data-tgt="yaml" data-i18n="navXmlYaml">xml转yaml</a>
-        <a data-src="json" data-tgt="yaml" data-i18n="navJsonYaml">json转yaml</a>
-        <a data-src="yaml" data-tgt="xml" data-i18n="navYamlXml">yaml转xml</a>
+        <a id="navSql" class="nav-sql" data-i18n="navSql">SQL 转换</a>
         <a id="navCompare" class="nav-compare" data-i18n="navCompare">JSON 对比</a>
     </nav>
 
@@ -1331,6 +1431,78 @@
             <div class="compare-pane">
                 <div class="editor-container">
                     <textarea id="cmpRightText" class="textarea" spellcheck="false"></textarea>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SQL 生成：批量文本 → IN / NOT IN / 值列表 / INSERT（独立页，从导航栏进入） -->
+    <section class="sql-workspace" id="sqlWorkspace">
+        <div class="compare-bar">
+            <div class="compare-tabs" id="sqlTemplates">
+                <button type="button" class="compare-tab active" data-template="in">IN</button>
+                <button type="button" class="compare-tab" data-template="notin">NOT IN</button>
+                <button type="button" class="compare-tab" data-template="list" data-i18n="sqlTplList">值列表</button>
+                <button type="button" class="compare-tab" data-template="insert">INSERT</button>
+            </div>
+
+            <div class="sql-options">
+                <span class="compare-samples-label" data-i18n="sqlQuoteLabel">引号</span>
+                <div class="compare-tabs sql-seg" id="sqlQuotes">
+                    <button type="button" class="compare-tab active" data-quote="single" title="'...'">'</button>
+                    <button type="button" class="compare-tab" data-quote="double" title="&quot;...&quot;">&quot;</button>
+                    <button type="button" class="compare-tab" data-quote="none" data-i18n="sqlQuoteNone">不加</button>
+                </div>
+                <label class="sql-check"><input type="checkbox" id="sqlDedup" checked><span data-i18n="sqlDedup">去重</span></label>
+                <label class="sql-check"><input type="checkbox" id="sqlMultiline" checked><span data-i18n="sqlMultiline">每行一项</span></label>
+                <label class="sql-check"><input type="checkbox" id="sqlNumeric"><span data-i18n="sqlNumbers">数字不加引号</span></label>
+            </div>
+
+            <!-- INSERT 模板才需要表名 / 列名 -->
+            <div class="sql-extra" id="sqlExtra">
+                <input type="text" class="sql-input" id="sqlTable" placeholder="表名" data-i18n-placeholder="sqlTable" spellcheck="false">
+                <input type="text" class="sql-input" id="sqlColumn" placeholder="列名" data-i18n-placeholder="sqlColumn" spellcheck="false">
+            </div>
+
+            <div class="compare-actions">
+                <button type="button" class="btn btn-outline" id="sqlClear" data-i18n="clearBtn">清空</button>
+                <button type="button" class="btn btn-primary" id="sqlGenerate" data-i18n="sqlGenerate">生成</button>
+            </div>
+
+            <div class="compare-tip" id="sqlTip"></div>
+        </div>
+
+        <div class="compare-grid">
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="sqlInputLabel">批量文本</span>
+                        <span class="pane-badge" id="sqlInCount">0</span>
+                    </div>
+                    <div class="pane-actions">
+                        <button class="btn btn-outline" id="sqlPaste" data-i18n-title="pasteBtn">
+                            <span data-i18n="pasteBtn">粘贴</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="editor-container">
+                    <textarea id="sqlInputText" class="textarea" spellcheck="false"></textarea>
+                </div>
+            </div>
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="sqlOutputLabel">SQL 输出</span>
+                        <span class="pane-badge" id="sqlOutCount">0</span>
+                    </div>
+                    <div class="pane-actions">
+                        <button class="btn btn-outline" id="sqlCopy" data-i18n-title="copyBtn">
+                            <span data-i18n="copyBtn">复制</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="editor-container">
+                    <textarea id="sqlOutputText" class="textarea" spellcheck="false"></textarea>
                 </div>
             </div>
         </div>
@@ -1594,16 +1766,21 @@
         const navMoreTrigger = document.getElementById('navMoreTrigger');
         const navMoreMenu = document.getElementById('navMoreMenu');
         const navLinksEl = document.getElementById('navLinks');
+        const navConvertEl = document.getElementById('navConvert');
+        const navConvertTrigger = document.getElementById('navConvertTrigger');
+        const navConvertMenu = document.getElementById('navConvertMenu');
         // 「JSON 对比」是主入口，优先留在导航条上，实在放不下才收起来
-        const NAV_PIN_SELECTOR = '.nav-compare';
+        const NAV_PIN_SELECTOR = '.nav-compare, .nav-sql';
 
         function navOverflow() {
             return navLinksEl.scrollWidth - navLinksEl.clientWidth > 1;
         }
 
+        // 只取导航条上的直属项；「格式转换」下拉里的 7 个入口固定待在下拉里，
+        // 交给 layoutNav 搬来搬去会把下拉结构拆掉
         function navLinkList() {
             return Array.prototype.slice.call(
-                document.querySelectorAll('#navLinks a, #navMoreMenu a')
+                document.querySelectorAll('#navLinks > a, #navMoreMenu > a')
             );
         }
 
@@ -1654,6 +1831,29 @@
 
         captureNavOrder();
 
+        function closeNavConvert() {
+            navConvertEl.classList.remove('open');
+            navConvertTrigger.setAttribute('aria-expanded', 'false');
+        }
+
+        function toggleNavConvert() {
+            const open = navConvertEl.classList.toggle('open');
+            navConvertTrigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        // 按当前「从 / 转为」两个下拉，捞出对应的那一条
+        function syncConvertActive() {
+            const sel = 'a[data-src="' + sourceFormat.value + '"][data-tgt="' + targetFormat.value + '"]';
+            markConvertActive(navConvertMenu.querySelector(sel));
+        }
+
+        function markConvertActive(link) {
+            navConvertMenu.querySelectorAll('a').forEach((el) => {
+                el.classList.toggle('active', el === link);
+            });
+            navConvertEl.classList.toggle('active', !!link);
+        }
+
         let navResizeTimer = null;
         window.addEventListener('resize', () => {
             clearTimeout(navResizeTimer);
@@ -1671,29 +1871,64 @@
             navMoreTrigger.setAttribute('aria-expanded', open ? 'true' : 'false');
         });
 
+        navConvertTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleNavConvert();
+        });
+
         document.addEventListener('click', (e) => {
             if (!navMoreEl.contains(e.target)) closeNavMore();
+            if (!navConvertEl.contains(e.target)) closeNavConvert();
         });
 
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeNavMore();
+            if (e.key === 'Escape') {
+                closeNavMore();
+                closeNavConvert();
+            }
         });
 
         // =========================================
         // 4. 应用国际化
         // =========================================
+        // 导航「格式转换」下拉的标题：14 种语言的小表，同样由 applyI18n 合并查询
+        const NAV_I18N = {
+            'zh-CN': { navConvert: '格式转换' },
+            'zh-TW': { navConvert: '格式轉換' },
+            en: { navConvert: 'Convert' },
+            az: { navConvert: 'Format' },
+            es: { navConvert: 'Formato' },
+            id: { navConvert: 'Format' },
+            it: { navConvert: 'Formato' },
+            ja: { navConvert: '形式変換' },
+            ko: { navConvert: '형식 변환' },
+            pt: { navConvert: 'Formato' },
+            pl: { navConvert: 'Format' },
+            ru: { navConvert: 'Формат' },
+            th: { navConvert: 'รูปแบบ' },
+            tr: { navConvert: 'Format' }
+        };
+
         function applyI18n() {
+            // SQL 页与导航下拉的文案各放一张小表（见第 8 节 / 上面），这里合并进来查，
+            // 免得把 14 套大字典再撑一圈
+            const dict = Object.assign(
+                {},
+                currentDict,
+                NAV_I18N[currentLang] || NAV_I18N.en || {},
+                SQL_I18N[currentLang] || SQL_I18N.en || {}
+            );
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
-                if (currentDict[key]) el.textContent = currentDict[key];
+                if (dict[key]) el.textContent = dict[key];
             });
             document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
                 const key = el.getAttribute('data-i18n-placeholder');
-                if (currentDict[key]) el.placeholder = currentDict[key];
+                if (dict[key]) el.placeholder = dict[key];
             });
             document.querySelectorAll('[data-i18n-title]').forEach(el => {
                 const key = el.getAttribute('data-i18n-title');
-                if (currentDict[key]) el.title = currentDict[key];
+                if (dict[key]) el.title = dict[key];
             });
 
             const diffBtn = document.getElementById('toggleDiffBtn');
@@ -1708,6 +1943,8 @@
             updateOutputLabel();
             // 文案长度随语言变化，重新决定收哪几项进「更多」
             if (typeof layoutNav === 'function') layoutNav();
+            // SQL 页的提示语是按当前语言拼出来的，切语言后重算一次
+            if (typeof refreshSqlI18n === 'function') refreshSqlI18n();
         }
 
         // =========================================
@@ -1788,9 +2025,11 @@
 
         let diffLeftEditor = null;
         let diffRightEditor = null;
-        // 对比页编辑器是懒创建的，声明提前，避免 syncEditorTheme() 首次调用时踩到 TDZ
+        // 对比页 / SQL 页编辑器都是懒创建的，声明提前，避免 syncEditorTheme() 首次调用时踩到 TDZ
         let cmpLeftEditor = null;
         let cmpRightEditor = null;
+        let sqlInputEditor = null;
+        let sqlOutputEditor = null;
 
         // =========================================
         // CodeMirror 5 初始化 (本地离线 - 增强版)
@@ -1872,7 +2111,7 @@
         function syncEditorTheme() {
             const isDark = document.documentElement.getAttribute('data-dbx-theme') === 'dark';
             const theme = isDark ? 'material-darker' : 'default';
-            [inputEditor, outputEditor, diffLeftEditor, diffRightEditor, cmpLeftEditor, cmpRightEditor].forEach((cm) => {
+            [inputEditor, outputEditor, diffLeftEditor, diffRightEditor, cmpLeftEditor, cmpRightEditor, sqlInputEditor, sqlOutputEditor].forEach((cm) => {
                 if (!cm) return;
                 const switching = cm.getOption('theme') !== theme;
                 cm.setOption('theme', theme);
@@ -2009,12 +2248,19 @@
 
         // 导航项会被「更多」下拉搬来搬去，所以用事件委托而不是逐个绑定
         function handleNavClick(link) {
+            // 导航里的「SQL 转换」进入批量文本生成 SQL 的独立页
+            if (link.id === 'navSql') {
+                enterSqlMode();
+                return;
+            }
             // 导航里的「JSON 对比」进入独立对比页，其余仍是格式转换入口
             if (link.id === 'navCompare') {
                 enterCompareMode();
                 return;
             }
             if (compareMode) exitCompareMode();
+            if (sqlModeActive) exitSqlMode();
+            markConvertActive(link);
             clearTimeout(autoTimer);
             suppressAutoConvert = true;
             inputText.value = '';
@@ -2026,11 +2272,12 @@
         }
 
         document.querySelector('.topbar').addEventListener('click', (e) => {
-            const link = e.target.closest('#navLinks a, #navMoreMenu a');
+            const link = e.target.closest('#navLinks a, #navMoreMenu a, #navConvertMenu a');
             if (!link) return;
             e.preventDefault();
             handleNavClick(link);
             closeNavMore();
+            closeNavConvert();
         });
 
         document.getElementById('sourceSelect').addEventListener('change', (e) => {
@@ -2077,6 +2324,8 @@
         });
 
         function updateOutputLabel() {
+            // 下拉里也有一份「当前格式对」的高亮，改格式时顺手同步
+            if (typeof syncConvertActive === 'function') syncConvertActive();
             outputResultLabel.textContent = targetFormat.value.toUpperCase();
             outputResultLabel.title = `Result Output (${targetFormat.value.toUpperCase()})`;
         }
@@ -3011,6 +3260,7 @@
         }
 
         function enterCompareMode() {
+            if (sqlModeActive) exitSqlMode();
             if (isDiffMode) {
                 isDiffMode = false;
                 diffReport.classList.remove('show');
@@ -3019,6 +3269,7 @@
                 toggleDiffBtn.classList.remove('btn-diff');
             }
             compareMode = true;
+            markConvertActive(null);
             mainWorkspace.classList.add('hidden');
             toolbarEl.classList.add('hidden');
             compareWorkspace.classList.add('active');
@@ -3075,9 +3326,245 @@
         document.getElementById('cmpBeautify').addEventListener('click', beautifyCompare);
         document.getElementById('cmpClear').addEventListener('click', clearCompare);
 
+        // =========================================
+        // 8. SQL 生成页（批量文本 → IN / NOT IN / 值列表 / INSERT）
+        // =========================================
+        // 只给这一页用的文案单独放一张小表：不用把 14 套大字典再改一遍，
+        // 缺哪个语言就回退到 en（applyI18n 会把它合并进字典里一起查）。
+        const SQL_I18N = {
+            'zh-CN': { navSql: 'SQL 转换', sqlInputLabel: '批量文本', sqlOutputLabel: 'SQL 输出', sqlTplList: '值列表', sqlQuoteLabel: '引号', sqlQuoteNone: '不加', sqlDedup: '去重', sqlMultiline: '每行一项', sqlNumbers: '数字不加引号', sqlTable: '表名', sqlColumn: '列名', sqlGenerate: '生成', sqlTipIdle: '一行一个值，粘贴后自动生成', sqlTipDone: '已生成 {t}，共 {n} 个值', sqlTipEmpty: '先输入或粘贴要转换的值', sqlDupNote: '，已去掉 {n} 个重复' },
+            'zh-TW': { navSql: 'SQL 轉換', sqlInputLabel: '批次文字', sqlOutputLabel: 'SQL 輸出', sqlTplList: '值清單', sqlQuoteLabel: '引號', sqlQuoteNone: '不加', sqlDedup: '去重', sqlMultiline: '每行一項', sqlNumbers: '數字不加引號', sqlTable: '表名', sqlColumn: '欄名', sqlGenerate: '產生', sqlTipIdle: '一行一個值，貼上後自動產生', sqlTipDone: '已產生 {t}，共 {n} 個值', sqlTipEmpty: '先輸入或貼上要轉換的值', sqlDupNote: '，已移除 {n} 個重複' },
+            en: { navSql: 'SQL Builder', sqlInputLabel: 'Values', sqlOutputLabel: 'SQL', sqlTplList: 'Value list', sqlQuoteLabel: 'Quote', sqlQuoteNone: 'None', sqlDedup: 'Dedupe', sqlMultiline: 'One per line', sqlNumbers: 'No quotes for numbers', sqlTable: 'Table', sqlColumn: 'Column', sqlGenerate: 'Generate', sqlTipIdle: 'One value per line — generated as you type', sqlTipDone: 'Generated {t} with {n} value(s)', sqlTipEmpty: 'Paste or type the values to convert', sqlDupNote: ', {n} duplicate(s) removed' },
+            az: { navSql: 'SQL', sqlInputLabel: 'Dəyərlər', sqlOutputLabel: 'SQL', sqlTplList: 'Dəyər siyahısı', sqlQuoteLabel: 'Dırnaq', sqlQuoteNone: 'Yox', sqlDedup: 'Təkrarları sil', sqlMultiline: 'Hər sətirdə bir', sqlNumbers: 'Rəqəmlər dırnaqsız', sqlTable: 'Cədvəl', sqlColumn: 'Sütun', sqlGenerate: 'Yarat', sqlTipIdle: 'Hər sətirdə bir dəyər — yazdıqca yaradılır', sqlTipDone: '{t} yaradıldı, {n} dəyər', sqlTipEmpty: 'Çevirmək üçün dəyərləri yazın və ya yapışdırın', sqlDupNote: ', {n} təkrar silindi' },
+            es: { navSql: 'SQL', sqlInputLabel: 'Valores', sqlOutputLabel: 'SQL', sqlTplList: 'Lista de valores', sqlQuoteLabel: 'Comillas', sqlQuoteNone: 'Ninguna', sqlDedup: 'Sin duplicados', sqlMultiline: 'Uno por línea', sqlNumbers: 'Números sin comillas', sqlTable: 'Tabla', sqlColumn: 'Columna', sqlGenerate: 'Generar', sqlTipIdle: 'Un valor por línea: se genera al escribir', sqlTipDone: 'Generado {t} con {n} valor(es)', sqlTipEmpty: 'Pega o escribe los valores a convertir', sqlDupNote: ', {n} duplicado(s) eliminado(s)' },
+            id: { navSql: 'SQL', sqlInputLabel: 'Nilai', sqlOutputLabel: 'SQL', sqlTplList: 'Daftar nilai', sqlQuoteLabel: 'Kutip', sqlQuoteNone: 'Tanpa', sqlDedup: 'Hapus duplikat', sqlMultiline: 'Satu per baris', sqlNumbers: 'Angka tanpa kutip', sqlTable: 'Tabel', sqlColumn: 'Kolom', sqlGenerate: 'Buat', sqlTipIdle: 'Satu nilai per baris — dibuat saat mengetik', sqlTipDone: '{t} dibuat dengan {n} nilai', sqlTipEmpty: 'Tempel atau ketik nilai yang akan dikonversi', sqlDupNote: ', {n} duplikat dihapus' },
+            it: { navSql: 'SQL', sqlInputLabel: 'Valori', sqlOutputLabel: 'SQL', sqlTplList: 'Elenco valori', sqlQuoteLabel: 'Virgolette', sqlQuoteNone: 'Nessuna', sqlDedup: 'Rimuovi duplicati', sqlMultiline: 'Uno per riga', sqlNumbers: 'Numeri senza virgolette', sqlTable: 'Tabella', sqlColumn: 'Colonna', sqlGenerate: 'Genera', sqlTipIdle: 'Un valore per riga: genera mentre scrivi', sqlTipDone: 'Generato {t} con {n} valori', sqlTipEmpty: 'Incolla o digita i valori da convertire', sqlDupNote: ', {n} duplicati rimossi' },
+            ja: { navSql: 'SQL 変換', sqlInputLabel: '一括テキスト', sqlOutputLabel: 'SQL 出力', sqlTplList: '値リスト', sqlQuoteLabel: '引用符', sqlQuoteNone: 'なし', sqlDedup: '重複を削除', sqlMultiline: '1行1項目', sqlNumbers: '数値は引用符なし', sqlTable: 'テーブル名', sqlColumn: 'カラム名', sqlGenerate: '生成', sqlTipIdle: '1行1値 — 入力すると自動生成', sqlTipDone: '{t} を生成しました（{n} 件）', sqlTipEmpty: '変換する値を入力または貼り付けてください', sqlDupNote: '、重複 {n} 件を削除' },
+            ko: { navSql: 'SQL 변환', sqlInputLabel: '일괄 텍스트', sqlOutputLabel: 'SQL 출력', sqlTplList: '값 목록', sqlQuoteLabel: '따옴표', sqlQuoteNone: '없음', sqlDedup: '중복 제거', sqlMultiline: '한 줄에 하나', sqlNumbers: '숫자는 따옴표 없이', sqlTable: '테이블', sqlColumn: '컬럼', sqlGenerate: '생성', sqlTipIdle: '한 줄에 하나 — 입력하면 자동 생성', sqlTipDone: '{t} 생성됨, 값 {n}개', sqlTipEmpty: '변환할 값을 입력하거나 붙여넣으세요', sqlDupNote: ', 중복 {n}개 제거됨' },
+            pt: { navSql: 'SQL', sqlInputLabel: 'Valores', sqlOutputLabel: 'SQL', sqlTplList: 'Lista de valores', sqlQuoteLabel: 'Aspas', sqlQuoteNone: 'Nenhuma', sqlDedup: 'Remover duplicados', sqlMultiline: 'Um por linha', sqlNumbers: 'Números sem aspas', sqlTable: 'Tabela', sqlColumn: 'Coluna', sqlGenerate: 'Gerar', sqlTipIdle: 'Um valor por linha — gera enquanto digita', sqlTipDone: '{t} gerado com {n} valor(es)', sqlTipEmpty: 'Cole ou digite os valores a converter', sqlDupNote: ', {n} duplicado(s) removido(s)' },
+            pl: { navSql: 'SQL', sqlInputLabel: 'Wartości', sqlOutputLabel: 'SQL', sqlTplList: 'Lista wartości', sqlQuoteLabel: 'Cudzysłowy', sqlQuoteNone: 'Brak', sqlDedup: 'Usuń duplikaty', sqlMultiline: 'Jedna na linię', sqlNumbers: 'Liczby bez cudzysłowów', sqlTable: 'Tabela', sqlColumn: 'Kolumna', sqlGenerate: 'Generuj', sqlTipIdle: 'Jedna wartość w linii — generuje w trakcie pisania', sqlTipDone: 'Wygenerowano {t} z {n} wartościami', sqlTipEmpty: 'Wklej lub wpisz wartości do konwersji', sqlDupNote: ', usunięto duplikaty: {n}' },
+            ru: { navSql: 'SQL', sqlInputLabel: 'Значения', sqlOutputLabel: 'SQL', sqlTplList: 'Список значений', sqlQuoteLabel: 'Кавычки', sqlQuoteNone: 'Без', sqlDedup: 'Убрать дубли', sqlMultiline: 'По одному в строке', sqlNumbers: 'Числа без кавычек', sqlTable: 'Таблица', sqlColumn: 'Колонка', sqlGenerate: 'Создать', sqlTipIdle: 'Одно значение в строке — генерируется по мере ввода', sqlTipDone: 'Создано {t}, значений: {n}', sqlTipEmpty: 'Вставьте или введите значения для преобразования', sqlDupNote: ', удалено дублей: {n}' },
+            th: { navSql: 'แปลง SQL', sqlInputLabel: 'ข้อความชุด', sqlOutputLabel: 'ผลลัพธ์ SQL', sqlTplList: 'รายการค่า', sqlQuoteLabel: 'เครื่องหมายคำพูด', sqlQuoteNone: 'ไม่ใส่', sqlDedup: 'ตัดค่าซ้ำ', sqlMultiline: 'บรรทัดละหนึ่งค่า', sqlNumbers: 'ตัวเลขไม่ใส่เครื่องหมายคำพูด', sqlTable: 'ตาราง', sqlColumn: 'คอลัมน์', sqlGenerate: 'สร้าง', sqlTipIdle: 'บรรทัดละหนึ่งค่า — สร้างอัตโนมัติเมื่อพิมพ์', sqlTipDone: 'สร้าง {t} แล้ว จำนวน {n} ค่า', sqlTipEmpty: 'วางหรือพิมพ์ค่าที่ต้องการแปลง', sqlDupNote: ' ตัดค่าซ้ำ {n} รายการ' },
+            tr: { navSql: 'SQL', sqlInputLabel: 'Değerler', sqlOutputLabel: 'SQL', sqlTplList: 'Değer listesi', sqlQuoteLabel: 'Tırnak', sqlQuoteNone: 'Yok', sqlDedup: 'Tekrarları sil', sqlMultiline: 'Satırda bir', sqlNumbers: 'Sayılar tırnaksız', sqlTable: 'Tablo', sqlColumn: 'Sütun', sqlGenerate: 'Oluştur', sqlTipIdle: 'Satırda bir değer — yazdıkça oluşturulur', sqlTipDone: '{t} oluşturuldu, {n} değer', sqlTipEmpty: 'Dönüştürmek için değerleri yapıştırın veya yazın', sqlDupNote: ', {n} tekrar kaldırıldı' }
+        };
+
+        if (!window.DBXSql) throw new Error('ui/js/sqlgen.js 未加载');
+        const DBXSql = window.DBXSql;
+
+        const sqlWorkspace = document.getElementById('sqlWorkspace');
+        const sqlInputText = document.getElementById('sqlInputText');
+        const sqlOutputText = document.getElementById('sqlOutputText');
+        const sqlTip = document.getElementById('sqlTip');
+        const sqlInCount = document.getElementById('sqlInCount');
+        const sqlOutCount = document.getElementById('sqlOutCount');
+        const sqlTemplates = document.getElementById('sqlTemplates');
+        const sqlQuotes = document.getElementById('sqlQuotes');
+        const sqlExtra = document.getElementById('sqlExtra');
+        const sqlTableInput = document.getElementById('sqlTable');
+        const sqlColumnInput = document.getElementById('sqlColumn');
+        const navSqlLink = document.getElementById('navSql');
+
+        let sqlModeActive = false;
+        let sqlAutoTimer = null;
+        const sqlState = { template: 'in', quote: 'single' };
+
+        function sqlT(key, fallback) {
+            const table = SQL_I18N[currentLang] || SQL_I18N.en || {};
+            return table[key] || currentDict[key] || fallback;
+        }
+
+        function ensureSqlEditors() {
+            if (sqlInputEditor) return;
+            const config = Object.assign({}, commonConfig, {
+                mode: 'text/x-sql',
+                extraKeys: Object.assign({}, commonConfig.extraKeys, {
+                    'Cmd-Enter': () => runSql(),
+                    'Ctrl-Enter': () => runSql()
+                })
+            });
+            sqlInputEditor = CodeMirror.fromTextArea(sqlInputText, Object.assign({}, config));
+            // 输出栏只读：这段是用来复制走的，避免手滑改掉生成好的格式
+            sqlOutputEditor = CodeMirror.fromTextArea(sqlOutputText, Object.assign({}, config, { readOnly: true }));
+            sqlInputEditor.on('change', () => scheduleSql());
+            // 懒创建时主题可能已经切过，补一次，避免新编辑器停在亮色主题
+            syncEditorTheme();
+        }
+
+        function readSqlOptions() {
+            return {
+                template: sqlState.template,
+                quote: sqlState.quote,
+                multiline: document.getElementById('sqlMultiline').checked,
+                dedupe: document.getElementById('sqlDedup').checked,
+                numeric: document.getElementById('sqlNumeric').checked,
+                table: sqlTableInput.value.trim(),
+                column: sqlColumnInput.value.trim()
+            };
+        }
+
+        function sqlTemplateLabel(template) {
+            if (template === 'list') return sqlT('sqlTplList', '值列表');
+            if (template === 'insert') return 'INSERT';
+            if (template === 'notin') return 'NOT IN';
+            return 'IN';
+        }
+
+        function setSqlTip(text, tone) {
+            sqlTip.textContent = text;
+            sqlTip.className = 'compare-tip' + (tone ? ' ' + tone : '');
+        }
+
+        function idleSqlTip() {
+            setSqlTip(sqlT('sqlTipIdle', '一行一个值，粘贴后自动生成'));
+        }
+
+        function runSql() {
+            ensureSqlEditors();
+            const options = readSqlOptions();
+            const result = DBXSql.analyze(sqlInputEditor.getValue(), options);
+            if (sqlOutputEditor.getValue() !== result.sql) sqlOutputEditor.setValue(result.sql);
+            sqlInCount.textContent = String(result.values.length);
+            sqlOutCount.textContent = String(result.count);
+
+            if (!result.values.length) {
+                setSqlTip(sqlT('sqlTipEmpty', '先输入或粘贴要转换的值'));
+                return;
+            }
+            let tip = sqlT('sqlTipDone', '已生成 {t}，共 {n} 个值')
+                .replace('{t}', sqlTemplateLabel(options.template))
+                .replace('{n}', String(result.count));
+            if (result.duplicates) {
+                tip += sqlT('sqlDupNote', '，已去掉 {n} 个重复').replace('{n}', String(result.duplicates));
+            }
+            setSqlTip(tip, 'ok');
+        }
+
+        function scheduleSql() {
+            clearTimeout(sqlAutoTimer);
+            sqlAutoTimer = setTimeout(runSql, 160);
+        }
+
+        function setSqlTemplate(template) {
+            sqlState.template = template;
+            sqlTemplates.querySelectorAll('.compare-tab').forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.template === template);
+            });
+            // 表名 / 列名只有 INSERT 用得上
+            sqlExtra.classList.toggle('show', template === 'insert');
+            if (sqlInputEditor) runSql();
+        }
+
+        function setSqlQuote(quote) {
+            sqlState.quote = quote;
+            sqlQuotes.querySelectorAll('.compare-tab').forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.quote === quote);
+            });
+            if (sqlInputEditor) runSql();
+        }
+
+        function refreshSqlI18n() {
+            // 页面还没创建过编辑器就不用动；进过页面的话按新语言重算提示语
+            if (!sqlInputEditor) return;
+            runSql();
+        }
+
+        function enterSqlMode() {
+            if (isDiffMode) {
+                isDiffMode = false;
+                diffReport.classList.remove('show');
+                diffWorkspace.classList.remove('active');
+                toggleDiffBtn.textContent = currentDict.diffBtn || '对比差异';
+                toggleDiffBtn.classList.remove('btn-diff');
+            }
+            if (compareMode) exitCompareMode();
+            sqlModeActive = true;
+            markConvertActive(null);
+            mainWorkspace.classList.add('hidden');
+            toolbarEl.classList.add('hidden');
+            sqlWorkspace.classList.add('active');
+            navSqlLink.classList.add('active');
+
+            ensureSqlEditors();
+            if (sqlInputEditor.getValue().trim()) {
+                runSql();
+            } else {
+                idleSqlTip();
+            }
+            requestAnimationFrame(() => {
+                sqlInputEditor.refresh();
+                sqlOutputEditor.refresh();
+            });
+        }
+
+        function exitSqlMode() {
+            if (!sqlModeActive) return;
+            sqlModeActive = false;
+            sqlWorkspace.classList.remove('active');
+            navSqlLink.classList.remove('active');
+            toolbarEl.classList.remove('hidden');
+            mainWorkspace.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                inputEditor.refresh();
+                outputEditor.refresh();
+            });
+        }
+
+        sqlTemplates.addEventListener('click', (e) => {
+            const tab = e.target.closest('.compare-tab');
+            if (tab) setSqlTemplate(tab.dataset.template);
+        });
+        sqlQuotes.addEventListener('click', (e) => {
+            const tab = e.target.closest('.compare-tab');
+            if (tab) setSqlQuote(tab.dataset.quote);
+        });
+        [sqlTableInput, sqlColumnInput].forEach((el) => el.addEventListener('input', scheduleSql));
+        // 三个开关（去重 / 每行一项 / 数字不加引号）改动后要立刻重算，
+        // 否则要等下一次输入才生效，看起来像「勾了没反应」
+        ['sqlDedup', 'sqlMultiline', 'sqlNumeric'].forEach((id) => {
+            document.getElementById(id).addEventListener('change', () => {
+                if (sqlInputEditor) runSql();
+            });
+        });
+        document.getElementById('sqlGenerate').addEventListener('click', runSql);
+        document.getElementById('sqlClear').addEventListener('click', () => {
+            ensureSqlEditors();
+            sqlInputEditor.setValue('');
+            sqlOutputEditor.setValue('');
+            sqlInCount.textContent = '0';
+            sqlOutCount.textContent = '0';
+            idleSqlTip();
+            sqlInputEditor.focus();
+        });
+        document.getElementById('sqlCopy').addEventListener('click', async () => {
+            ensureSqlEditors();
+            if (!sqlOutputEditor.getValue().trim()) {
+                showToast(currentDict.toastEmptyInput || '请输入内容', 'error');
+                return;
+            }
+            try {
+                await writeClipboardText(sqlOutputEditor.getValue());
+                showToast(currentDict.toastCopySuccess || '已复制');
+            } catch (err) {
+                showToast(currentDict.toastCopyError || '复制失败', 'error');
+            }
+        });
+        document.getElementById('sqlPaste').addEventListener('click', async () => {
+            ensureSqlEditors();
+            try {
+                sqlInputEditor.setValue(await readClipboardText());
+                runSql();
+                showToast(currentDict.toastPasteSuccess || '已粘贴');
+            } catch (err) {
+                showToast(err && err.message === 'clipboardRead unsupported'
+                    ? (currentDict.toastPasteUnsupported || '当前环境不支持读取剪贴板，请手动粘贴')
+                    : (currentDict.toastPasteError || '读取剪贴板失败'), 'error');
+            }
+        });
+
         renderLangMenu();
         applyI18n();
         updateOutputLabel();
+        syncConvertActive();
         clearError();
         syncEditorModes();
         syncEditorTheme();

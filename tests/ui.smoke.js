@@ -408,51 +408,227 @@ function check(name, fn) {
     });
 
     check('回到转换页后入口状态复原', function () {
-        doc.querySelector('#navLinks a[data-src="json"][data-tgt="yaml"]').click();
+        doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
         if (doc.getElementById('compareWorkspace').classList.contains('active')) throw new Error('对比页仍在显示');
         if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('工具栏仍隐藏');
         if (doc.getElementById('navCompare').classList.contains('active')) throw new Error('导航仍高亮');
     });
 
 
-    // 导航溢出 → 「更多」：jsdom 没有布局，宽高靠 stub
+    // 导航栏新增的「SQL 转换」独立页面：批量文本 → IN / NOT IN / 值列表 / INSERT
+    doc.getElementById('navSql').click();
+    await wait(250);
+
+    check('导航可进入 SQL 生成页', function () {
+        if (!doc.getElementById('sqlWorkspace').classList.contains('active')) throw new Error('未进入 SQL 页');
+        if (!doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('工具栏未隐藏');
+        if (!doc.getElementById('navSql').classList.contains('active')) throw new Error('导航未高亮');
+        if (doc.querySelectorAll('#sqlWorkspace .CodeMirror').length !== 2) throw new Error('编辑器数量不对');
+    });
+
+    var sqlCms = doc.querySelectorAll('#sqlWorkspace .CodeMirror');
+    sqlCms[0].CodeMirror.setValue('a\nb\na\n123');
+    await wait(350);
+
+    check('批量文本生成 IN 列表（去重 + 数字默认也加引号）', function () {
+        var out = sqlCms[1].CodeMirror.getValue();
+        var want = "IN (\n  'a',\n  'b',\n  '123'\n)";
+        if (out !== want) throw new Error('实际输出:\n' + out);
+    });
+
+    // 勾上「数字不加引号」要立刻生效，不能等下一次输入
+    var numericBox = doc.getElementById('sqlNumeric');
+    numericBox.checked = true;
+    numericBox.dispatchEvent(new win.Event('change', { bubbles: true }));
+    await wait(120);
+    check('勾上「数字不加引号」后立刻输出裸数字', function () {
+        var out = sqlCms[1].CodeMirror.getValue();
+        if (out.indexOf('123') === -1 || out.indexOf("'123'") !== -1) throw new Error('实际输出:\n' + out);
+    });
+
+    numericBox.checked = false;
+    numericBox.dispatchEvent(new win.Event('change', { bubbles: true }));
+    await wait(120);
+    check('取消勾选后数字又带上引号', function () {
+        var out = sqlCms[1].CodeMirror.getValue();
+        if (out.indexOf("'123'") === -1) throw new Error('实际输出:\n' + out);
+    });
+
+    check('输入/输出徽标分别显示原始个数与去重后个数', function () {
+        var inBadge = doc.getElementById('sqlInCount').textContent;
+        var outBadge = doc.getElementById('sqlOutCount').textContent;
+        if (inBadge !== '4' || outBadge !== '3') throw new Error('输入 ' + inBadge + ' 输出 ' + outBadge);
+        var tip = doc.getElementById('sqlTip').textContent;
+        if (tip.indexOf('3') === -1) throw new Error('提示文案: ' + tip);
+    });
+
+    doc.querySelector('#sqlTemplates .compare-tab[data-template="notin"]').click();
+    await wait(150);
+
+    check('切到 NOT IN 模板', function () {
+        var out = sqlCms[1].CodeMirror.getValue();
+        if (out.indexOf('NOT IN (') !== 0) throw new Error('实际输出:\n' + out);
+        if (!doc.querySelector('#sqlTemplates .compare-tab[data-template="notin"]').classList.contains('active')) {
+            throw new Error('模板按钮未高亮');
+        }
+    });
+
+    doc.querySelector('#sqlQuotes .compare-tab[data-quote="double"]').click();
+    await wait(150);
+
+    check('切到双引号后字面量跟着变', function () {
+        var out = sqlCms[1].CodeMirror.getValue();
+        if (out.indexOf('"a"') === -1) throw new Error('实际输出:\n' + out);
+    });
+
+    doc.querySelector('#sqlTemplates .compare-tab[data-template="insert"]').click();
+    doc.getElementById('sqlTable').value = 'user';
+    doc.getElementById('sqlColumn').value = 'status';
+    doc.getElementById('sqlGenerate').click();
+    await wait(150);
+
+    check('INSERT 模板才显示表名/列名输入框', function () {
+        if (!doc.getElementById('sqlExtra').classList.contains('show')) throw new Error('输入框未显示');
+    });
+
+    check('INSERT 语句带表名与列名', function () {
+        var out = sqlCms[1].CodeMirror.getValue();
+        var want = 'INSERT INTO user (status) VALUES\n  ("a"),\n  ("b"),\n  ("123");';
+        if (out !== want) throw new Error('实际输出:\n' + out);
+    });
+
+    doc.querySelector('#sqlTemplates .compare-tab[data-template="in"]').click();
+    doc.querySelector('#sqlQuotes .compare-tab[data-quote="single"]').click();
+    sqlCms[0].CodeMirror.setValue("WHERE id IN ('p-1', 'p-2')");
+    await wait(350);
+
+    check('粘贴 IN (...) 片段反过来能拆出干净的值', function () {
+        var out = sqlCms[1].CodeMirror.getValue();
+        var want = "IN (\n  'p-1',\n  'p-2'\n)";
+        if (out !== want) throw new Error('实际输出:\n' + out);
+    });
+
+    // 真实场景：整段 SQL 粘回来，括号后面还挂着 and service_name='iss-sts';
+    sqlCms[0].CodeMirror.setValue("WHERE code IN (\n'p-1', 'p-2'\n) and service_name='iss-sts';");
+    await wait(350);
+    check('括号后面的 and / 分号不会被当成最后一个值', function () {
+        var out = sqlCms[1].CodeMirror.getValue();
+        if (out.indexOf('service_name') !== -1) throw new Error('尾句子句被当成值:\n' + out);
+        var badge = doc.getElementById('sqlOutCount').textContent;
+        if (badge !== '2') throw new Error('值个数 ' + badge);
+    });
+
+    check('输出栏是只读的（防止改坏生成结果）', function () {
+        var ro = sqlCms[1].CodeMirror.getOption('readOnly');
+        if (!ro) throw new Error('输出栏未设只读');
+    });
+
+    check('切换语言后 SQL 页文案跟着变', function () {
+        function pick(name) {
+            return [].slice.call(doc.querySelectorAll('#langMenu > *')).filter(function (el) {
+                return el.textContent.indexOf(name) !== -1;
+            })[0];
+        }
+        var en = pick('English');
+        if (!en) throw new Error('找不到 English 菜单项');
+        en.click();
+        var label = doc.querySelector('#sqlWorkspace [data-i18n="sqlInputLabel"]');
+        if (label.textContent !== 'Values') throw new Error('输入栏标题: ' + label.textContent);
+        var gen = doc.querySelector('#sqlGenerate');
+        if (gen.textContent.trim() !== 'Generate') throw new Error('生成按钮: ' + gen.textContent);
+        var zh = pick('简体中文');
+        if (!zh) throw new Error('找不到中文菜单项');
+        zh.click();
+        if (doc.querySelector('#sqlWorkspace [data-i18n="sqlInputLabel"]').textContent !== '批量文本') {
+            throw new Error('切回中文失败');
+        }
+    });
+
+    check('SQL 页清空后回到待输入提示', function () {
+        doc.getElementById('sqlClear').click();
+        if (sqlCms[0].CodeMirror.getValue() !== '') throw new Error('输入未清空');
+        if (sqlCms[1].CodeMirror.getValue() !== '') throw new Error('输出未清空');
+        if (doc.getElementById('sqlOutCount').textContent !== '0') throw new Error('计数未归零');
+    });
+
+    check('离开 SQL 页后入口状态复原', function () {
+        doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
+        if (doc.getElementById('sqlWorkspace').classList.contains('active')) throw new Error('SQL 页仍在显示');
+        if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('工具栏仍隐藏');
+        if (doc.getElementById('navSql').classList.contains('active')) throw new Error('导航仍高亮');
+    });
+
+
+    // 导航：7 个格式互转收进「格式转换」下拉，导航条上只剩 3 个单元
     var navEl = doc.getElementById('navLinks');
     var moreEl = doc.getElementById('navMore');
     var moreMenu = doc.getElementById('navMoreMenu');
+    var convertEl = doc.getElementById('navConvert');
+    var convertMenu = doc.getElementById('navConvertMenu');
+
+    function inlineNavLinks() {
+        return [].slice.call(navEl.querySelectorAll('a')).filter(function (a) {
+            return a.parentNode === navEl;
+        });
+    }
+
+    check('7 个格式入口收在「格式转换」下拉里', function () {
+        if (convertMenu.querySelectorAll('a').length !== 7) {
+            throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
+        }
+        if (inlineNavLinks().length !== 2) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
+        if (!doc.getElementById('navConvertTrigger')) throw new Error('缺少「格式转换」触发器');
+        if (doc.querySelector('#navConvertTrigger [data-i18n="navConvert"]').textContent !== '格式转换') {
+            throw new Error('触发器文案不对');
+        }
+    });
 
     check('宽度足够时不显示「更多」', function () {
         if (moreEl.classList.contains('show')) throw new Error('「更多」不该出现');
-        if (navEl.querySelectorAll('a').length !== 8) throw new Error('导航项数 ' + navEl.querySelectorAll('a').length);
         if (doc.getElementById('navMoreTrigger').textContent.indexOf('更多') === -1) throw new Error('「更多」文案缺失');
     });
 
-    Object.defineProperty(navEl, 'clientWidth', { configurable: true, get: function () { return 260; } });
+    check('「格式转换」下拉点开、点空白收起', function () {
+        doc.getElementById('navConvertTrigger').click();
+        if (!convertEl.classList.contains('open')) throw new Error('未展开');
+        if (doc.getElementById('navConvertTrigger').getAttribute('aria-expanded') !== 'true') throw new Error('aria-expanded 未同步');
+        doc.body.click();
+        if (convertEl.classList.contains('open')) throw new Error('未收起');
+        doc.getElementById('navConvertTrigger').click();
+        doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        if (convertEl.classList.contains('open')) throw new Error('Escape 未收起');
+    });
+
+    check('下拉里的格式入口能切换格式、选中项高亮', function () {
+        var item = convertMenu.querySelector('a[data-src="json"][data-tgt="xml"]');
+        item.click();
+        var srcLabel = doc.querySelector('#sourceSelect .custom-select-trigger .label').textContent.trim();
+        var tgtLabel = doc.querySelector('#targetSelect .custom-select-trigger .label').textContent.trim();
+        if (srcLabel.toLowerCase() !== 'json' || tgtLabel.toLowerCase() !== 'xml') {
+            throw new Error('变成了 ' + srcLabel + '→' + tgtLabel);
+        }
+        if (!item.classList.contains('active')) throw new Error('选中项未高亮');
+        if (convertEl.classList.contains('open')) throw new Error('选完未收起');
+    });
+
+    // 导航溢出 → 「更多」：jsdom 没有布局，宽高靠 stub
+    Object.defineProperty(navEl, 'clientWidth', { configurable: true, get: function () { return 120; } });
     Object.defineProperty(navEl, 'scrollWidth', { configurable: true, get: function () { return navEl.children.length * 90; } });
     dom.window.dispatchEvent(new dom.window.Event('resize'));
     await wait(250);
 
-    check('导航装不下时把末尾项收进「更多」', function () {
+    check('导航装不下时把固定项也收进「更多」', function () {
         if (!moreEl.classList.contains('show')) throw new Error('「更多」未出现');
-        var inline = navEl.querySelectorAll('a').length;
-        var inMenu = moreMenu.querySelectorAll('a').length;
-        if (inline + inMenu !== 8) throw new Error('项数不守恒 ' + inline + '+' + inMenu);
-        if (inMenu === 0) throw new Error('菜单为空');
-        // 留在导航条上的应当是从头开始的连续几项，收进去的是剩下的后缀，顺序不变
-        var ORDER = ['yaml转json', 'yaml转properties', 'json转properties', 'json转xml',
-                     'xml转yaml', 'json转yaml', 'yaml转xml'];
-        var kept = [].map.call(navEl.querySelectorAll('a'), function (a) {
-            return a.id === 'navCompare' ? 'JSON 对比' : a.textContent.trim();
-        });
-        var moved = [].map.call(moreMenu.querySelectorAll('a'), function (a) { return a.textContent.trim(); });
-        var keptConv = kept.filter(function (t) { return t !== 'JSON 对比'; });
-        var expectKept = ORDER.slice(0, keptConv.length);
-        var expectMoved = ORDER.slice(keptConv.length);
-        if (keptConv.join('|') !== expectKept.join('|')) throw new Error('保留项不是前缀: ' + keptConv.join(','));
-        if (moved.join('|') !== expectMoved.join('|')) throw new Error('菜单项顺序不对: ' + moved.join(','));
+        var names = [].map.call(moreMenu.querySelectorAll('a'), function (a) { return a.textContent.trim(); });
+        if (names.join('|') !== 'SQL 转换|JSON 对比') throw new Error('菜单项: ' + names.join(','));
+        if (inlineNavLinks().length !== 0) throw new Error('导航条上还剩 ' + inlineNavLinks().length + ' 项');
     });
 
-    check('「JSON 对比」优先留在导航条上', function () {
-        if (!navEl.querySelector('#navCompare')) throw new Error('主入口被收进「更多」了');
+    check('「格式转换」下拉不会被搬进「更多」', function () {
+        if (!convertEl.isConnected) throw new Error('下拉被搬走了');
+        if (convertEl.parentNode !== doc.querySelector('.topbar')) throw new Error('下拉不在顶栏里了');
+        if (moreMenu.querySelector('#navConvertTrigger')) throw new Error('触发器进了「更多」');
+        if (navEl.querySelector('#navConvert')) throw new Error('下拉又被塞回 nav-links，菜单会被 overflow 裁掉');
     });
 
     check('点「更多」可展开、再点页面空白可收起', function () {
@@ -463,17 +639,21 @@ function check(name, fn) {
         if (moreEl.classList.contains('open')) throw new Error('未收起');
     });
 
-    check('菜单里的导航项照样能切换格式', function () {
+    check('「更多」里的页面入口照样能进对应页面', function () {
         var item = moreMenu.querySelector('a');
-        var src = item.dataset.src;
-        var tgt = item.dataset.tgt;
+        var label = item.textContent.trim();
         item.click();
-        var srcLabel = doc.querySelector('#sourceSelect .custom-select-trigger .label').textContent.trim();
-        var tgtLabel = doc.querySelector('#targetSelect .custom-select-trigger .label').textContent.trim();
-        if (srcLabel.toLowerCase() !== src || tgtLabel.toLowerCase() !== tgt) {
-            throw new Error('变成了 ' + srcLabel + '→' + tgtLabel + '，期望 ' + src + '→' + tgt);
+        if (label === 'SQL 转换') {
+            if (!doc.getElementById('sqlWorkspace').classList.contains('active')) throw new Error('未进入 SQL 页');
+        } else if (label === 'JSON 对比') {
+            if (!doc.getElementById('compareWorkspace').classList.contains('active')) throw new Error('未进入对比页');
+        } else {
+            throw new Error('菜单项不是页面入口: ' + label);
         }
         if (moreEl.classList.contains('open')) throw new Error('选完未收起');
+        // 回到转换页，后面的用例还要接着用
+        doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
+        if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('没回到转换页');
     });
 
     Object.defineProperty(navEl, 'clientWidth', { configurable: true, get: function () { return 4000; } });
@@ -483,7 +663,8 @@ function check(name, fn) {
     check('宽度恢复后导航项全部回到导航条', function () {
         if (moreEl.classList.contains('show')) throw new Error('「更多」仍显示');
         if (moreMenu.querySelectorAll('a').length !== 0) throw new Error('菜单仍有残留');
-        if (navEl.querySelectorAll('a').length !== 8) throw new Error('导航项数 ' + navEl.querySelectorAll('a').length);
+        if (inlineNavLinks().length !== 2) throw new Error('导航项数 ' + inlineNavLinks().length);
+        if (convertMenu.querySelectorAll('a').length !== 7) throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
     });
 
 
