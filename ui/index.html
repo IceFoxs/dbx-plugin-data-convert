@@ -75,19 +75,24 @@
             --scrollbar-thumb-hover: rgba(100, 100, 100, 0.8);
         }
         [data-dbx-theme="dark"] {
-            --bg-base: #09090b;
-            --bg-card: #121214;
-            --text-main: #f4f4f5;
-            --text-muted: #a1a1aa;
-            --border-light: #27272a;
-            --accent-bg: #18181b;
-            --accent-hover: #27272a;
-            --primary: #3b82f6;
-            --primary-text: #ffffff;
+            /* 暗色下同样优先消费 DBX 注入的 --color-* 令牌，
+               这样插件的深色和 DBX 当前皮肤（含暖色/自定义配色）保持一致，
+               只有在宿主没注入令牌时才退回内置的冷灰暗色 */
+            --bg-base: var(--color-background, #09090b);
+            --bg-card: var(--color-card, #121214);
+            --text-main: var(--color-foreground, #f4f4f5);
+            --text-muted: var(--color-muted-foreground, #a1a1aa);
+            --border-light: var(--color-border, #27272a);
+            --accent-bg: var(--color-muted, #18181b);
+            --accent-hover: var(--color-border, #27272a);
+            --primary: var(--color-primary, #3b82f6);
+            --primary-text: var(--color-primary-foreground, #ffffff);
             --scrollbar-track: rgba(255, 255, 255, 0.08);
             --scrollbar-thumb: rgba(200, 200, 200, 0.45);
             --scrollbar-thumb-hover: rgba(200, 200, 200, 0.75);
+            color-scheme: dark;
         }
+        [data-dbx-theme="light"] { color-scheme: light; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         * {
@@ -1290,35 +1295,95 @@
         // =========================================
         // 2. DBX 环境与 API 桥接
         // =========================================
+        // 主题不能只依赖宿主替我们设置 data-dbx-theme（旧版本宿主 / 独立预览下拿不到），
+        // 这里做三级兜底：dbxPlugin.theme -> 宿主注入的 --color-background 亮度 -> 系统偏好。
+        function colorLuminance(value) {
+            if (!value) return null;
+            const probe = document.createElement('span');
+            probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none';
+            probe.style.color = value;
+            if (!probe.style.color) return null;
+            document.body.appendChild(probe);
+            const resolved = getComputedStyle(probe).color;
+            probe.remove();
+            const parts = resolved.match(/[\d.]+/g);
+            if (!parts || parts.length < 3) return null;
+            const [r, g, b] = parts.slice(0, 3).map((n) => {
+                const v = parseFloat(n) / 255;
+                return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+            });
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        }
+
+        function detectAppearance() {
+            const root = document.documentElement;
+            // 有些宿主用别的方式标记明暗，先认这些线索
+            const attrTheme = root.getAttribute('data-theme') || root.getAttribute('data-color-scheme');
+            if (attrTheme === 'dark' || attrTheme === 'light') return attrTheme;
+            const cs = getComputedStyle(root);
+            for (const name of ['--color-background', '--background', '--bg-background']) {
+                const lum = colorLuminance(cs.getPropertyValue(name).trim());
+                if (lum !== null) return lum < 0.45 ? 'dark' : 'light';
+            }
+            if (root.classList.contains('dark') || root.classList.contains('theme-dark')) return 'dark';
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+            return 'light';
+        }
+
+        function applyHostTheme(theme) {
+            const root = document.documentElement;
+            const tokens = (theme && theme.tokens) || {};
+            Object.keys(tokens).forEach((name) => {
+                // 只接 DBX 约定的根级令牌，避免把无关变量塞进插件
+                if (/^--(color|radius|font)-/.test(name) && typeof tokens[name] === 'string') {
+                    root.style.setProperty(name, tokens[name]);
+                }
+            });
+            const existing = root.getAttribute('data-dbx-theme');
+            const appearance = (theme && theme.appearance)
+                || (existing === 'dark' || existing === 'light' ? existing : detectAppearance());
+            if (existing !== appearance) root.setAttribute('data-dbx-theme', appearance);
+            root.style.colorScheme = appearance;
+            // 编辑器可能尚未创建，那种情况下由 syncEditorTheme() 在创建后读取属性
+            if (document.querySelector('.CodeMirror')) syncEditorTheme();
+            return appearance;
+        }
+
         if (window.dbxPlugin) {
             try {
                 await window.dbxPlugin.ready;
                 if (window.dbxPlugin.locale && languageConfigs.find(c => c.code === window.dbxPlugin.locale)) {
                     currentLang = window.dbxPlugin.locale;
                 }
+                applyHostTheme(window.dbxPlugin.theme);
+                window.addEventListener('dbx-plugin-init', (event) => {
+                    applyHostTheme(event.detail && event.detail.theme);
+                });
                 window.addEventListener('dbx-plugin-env', (event) => {
-                    const env = event.detail;
+                    const env = event.detail || {};
                     if (env.locale && languageConfigs.find(c => c.code === env.locale)) {
                         currentLang = env.locale;
                         currentDict = languageConfigs.find(c => c.code === currentLang).dict;
                         renderLangMenu();
                         applyI18n();
                     }
-                    if (env.theme && env.theme.appearance) {
-                        document.documentElement.setAttribute('data-dbx-theme', env.theme.appearance);
-                        syncEditorTheme();
-                    }
+                    if (env.theme) applyHostTheme(env.theme);
                 });
             } catch (err) {
                 console.warn('DBX init error:', err);
+                applyHostTheme(null);
             }
         } else {
             const userLang = navigator.language || 'zh-CN';
             if (languageConfigs.find(c => c.code === userLang)) currentLang = userLang;
             else if (userLang.startsWith('zh')) currentLang = userLang === 'zh-TW' ? 'zh-TW' : 'zh-CN';
             currentDict = languageConfigs.find(c => c.code === currentLang).dict;
-            if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                document.documentElement.setAttribute('data-dbx-theme', 'dark');
+            applyHostTheme(null);
+            const darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+            if (darkQuery && darkQuery.addEventListener) {
+                darkQuery.addEventListener('change', () => {
+                    if (!window.dbxPlugin) applyHostTheme(null);
+                });
             }
         }
 
@@ -1571,6 +1636,9 @@
 
         let diffLeftEditor = null;
         let diffRightEditor = null;
+        // 对比页编辑器是懒创建的，声明提前，避免 syncEditorTheme() 首次调用时踩到 TDZ
+        let cmpLeftEditor = null;
+        let cmpRightEditor = null;
 
         // =========================================
         // CodeMirror 5 初始化 (本地离线 - 增强版)
@@ -1656,8 +1724,11 @@
             outputEditor.setOption('theme', theme);
             inputEditor.refresh();
             outputEditor.refresh();
-            if (diffLeftEditor) diffLeftEditor.setOption('theme', theme);
-            if (diffRightEditor) diffRightEditor.setOption('theme', theme);
+            [diffLeftEditor, diffRightEditor, cmpLeftEditor, cmpRightEditor].forEach((cm) => {
+                if (!cm) return;
+                cm.setOption('theme', theme);
+                cm.refresh();
+            });
         }
         syncEditorTheme();
 
@@ -2344,8 +2415,6 @@
         const navCompareLink = document.getElementById('navCompare');
         const toolbarEl = document.querySelector('.toolbar');
 
-        let cmpLeftEditor = null;
-        let cmpRightEditor = null;
         let cmpMode = 'json';
         let compareMode = false;
         let cmpMarks = [];
@@ -2566,6 +2635,8 @@
             });
             cmpLeftEditor = CodeMirror.fromTextArea(cmpLeftText, Object.assign({}, config));
             cmpRightEditor = CodeMirror.fromTextArea(cmpRightText, Object.assign({}, config));
+            // 懒创建时主题可能已经切过，这里补一次，避免新编辑器停在亮色主题
+            syncEditorTheme();
         }
 
         function clearCompareMarks() {

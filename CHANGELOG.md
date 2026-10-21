@@ -9,13 +9,14 @@
 
 ### 🔧 修复 (Fixes)
 
+*   **暗色模式没有跟随 DBX 主题**：原来主题只依赖宿主替页面写 `data-dbx-theme`（旧版宿主与独立预览都不会写），插件又只在 `dbx-plugin-env` 事件里处理，初始化时既不读 `dbxPlugin.theme`、也没有兜底。结果是 DBX 切到暗色后，背景被宿主令牌染暗，文字、边框、CodeMirror 语法主题却还是亮色——导航几乎读不出、编辑器里深字压深底。现在初始化即读 `dbxPlugin.theme`，按「`theme.appearance` → 宿主 `--color-background` 亮度推断 → 系统偏好」三级兜底自行设置 `data-dbx-theme`，并同时监听 `dbx-plugin-init` / `dbx-plugin-env` 实时跟随切换；对比页懒创建的编辑器也会补一次主题同步。暗色变量改为优先消费宿主的 `--color-*` 令牌（取不到时才回退内置冷灰），自定义皮肤（例如暖棕主题）也能与 DBX 保持一致。
 *   **深色主题下差异标记不可读**：内联标记的生命周期里文字色继承了 `.cm-string` 的 `#a11`，在深色底上几乎看不见。现在标记自带文字色（浅色 `#b91c1c`/`#15803d`，深色 `#fecaca`/`#bbf7d0`），两种主题都清晰。
 
 ### 🛠 工程化 (Internal)
 
 *   新增 `ui/js/objdiff.js`（纯函数）：`diffObjects()` 按 JSON Pointer 比较对象树，`serializeTracked()` 打印并记录行列，`scanJson()` 直接在原始文本上定位。
 *   新增 `tests/objdiff.test.js`（22 条用例：字段增删改、数组长度变化、类型变化、Pointer 转义、缩进/单行文本定位、非法 JSON 报错）。
-*   `tests/ui.smoke.js` 增至 41 项，覆盖对比视图的变更清单与「JSON 对比」页的入口、示例、清空、错误提示、任意文本模式的示例区切换与整行标记、文本模式遇到 JSON 内容的切换建议，以及导航溢出收进「更多」时项数守恒、顺序不变、菜单项可正常切换。
+*   `tests/ui.smoke.js` 增至 43 项，覆盖对比视图的变更清单与「JSON 对比」页的入口、示例、清空、错误提示、任意文本模式的示例区切换与整行标记、文本模式遇到 JSON 内容的切换建议，导航溢出收进「更多」时项数守恒、顺序不变、菜单项可正常切换，以及宿主只下发 `dbxPlugin.theme`、不写 `data-dbx-theme` 时仍能进入暗色并同步编辑器主题。
 
 ## [0.1.2]
 ### 🔧 修复 (Fixes)

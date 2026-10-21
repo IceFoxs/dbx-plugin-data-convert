@@ -487,6 +487,56 @@ function check(name, fn) {
     });
 
 
+    // 宿主主题：模拟 DBX 只通过 dbxPlugin.theme 下发、自己没写 data-dbx-theme 的情况
+    await (async function () {
+        var hostDom = new JSDOM(html, {
+            url: 'file://' + path.join(ROOT, 'ui/index.html'),
+            runScripts: 'dangerously',
+            resources: 'usable',
+            pretendToBeVisual: true,
+            virtualConsole: new (require('jsdom').VirtualConsole)(),
+            beforeParse: function (window) {
+                window.matchMedia = function () {
+                    return { matches: false, addEventListener: function () {}, removeEventListener: function () {} };
+                };
+                var zeroRect = function () {
+                    return { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0 };
+                };
+                var emptyRects = function () {
+                    return { length: 0, item: function () { return null; }, [Symbol.iterator]: function* () {} };
+                };
+                window.Range.prototype.getBoundingClientRect = zeroRect;
+                window.Range.prototype.getClientRects = emptyRects;
+                window.Element.prototype.getBoundingClientRect = zeroRect;
+                window.Element.prototype.getClientRects = emptyRects;
+                window.dbxPlugin = {
+                    ready: Promise.resolve({}),
+                    locale: 'zh-CN',
+                    theme: { appearance: 'dark', tokens: { '--color-background': '#302b21' } },
+                    capabilities: {}
+                };
+            }
+        });
+        await new Promise(function (resolve) {
+            hostDom.window.addEventListener('load', resolve, { once: true });
+        });
+        await wait(250);
+        var hdoc = hostDom.window.document;
+
+        check('宿主给暗色主题时自动进入暗色（不依赖宿主写 data 属性）', function () {
+            var actual = hdoc.documentElement.getAttribute('data-dbx-theme');
+            if (actual !== 'dark') throw new Error('data-dbx-theme=' + actual);
+        });
+
+        check('暗色下编辑器切成 material-darker', function () {
+            var cm = hdoc.querySelector('.CodeMirror');
+            if (!cm) throw new Error('没找到编辑器');
+            if (cm.className.indexOf('cm-s-material-darker') === -1) throw new Error('编辑器主题: ' + cm.className);
+        });
+
+        hostDom.window.close();
+    })();
+
     results.forEach(function (r) {
         console.log('  ' + r[0] + ' ' + r[1]);
     });
