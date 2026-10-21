@@ -1,0 +1,36 @@
+{
+  "name": "Data Converter",
+  "description": "Convert between JSON, YAML, XML, and Properties in one DBX workbench panel: instant conversion, mock data, validation and formatting, field-level JSON diff, a standalone JSON compare page, and line-level text compare. Pure frontend, no backend, works offline.",
+  "icon": "assets/plugin.svg",
+  "tags": [
+    "data-convert",
+    "json",
+    "yaml",
+    "xml",
+    "properties",
+    "formatter",
+    "diff"
+  ],
+  "permissions": [
+    "host.clipboard:read",
+    "host.workbench"
+  ],
+  "source": "https://github.com/IceFoxs/dbx-plugin-data-convert",
+  "homepage": "https://github.com/IceFoxs/dbx-plugin-data-convert",
+  "license": "MIT",
+  "releaseNotes": "0.1.3: field-level structured JSON diff (only the changed values are highlighted), a standalone JSON compare page with a text mode, navigation overflow collapsed into a \"More\" menu, and a 300ms cross-fade when switching themes. Dark mode now follows the DBX host theme even when the host only reports theme metadata.",
+  "localizations": {
+    "zh-CN": {
+      "name": "数据转换",
+      "description": "在 DBX 工作台里完成 JSON / YAML / XML / Properties 互转：即时转换、模拟数据、校验与格式化，支持按字段对比 JSON、独立的 JSON 对比页和逐行文本对比。纯前端、无后端、可离线运行。"
+    },
+    "zh-TW": {
+      "name": "資料轉換",
+      "description": "在 DBX 工作台裡完成 JSON / YAML / XML / Properties 互轉：即時轉換、模擬資料、校驗與格式化，支援按欄位比對 JSON、獨立的 JSON 對比頁和逐行文字對比。純前端、無後端、可離線執行。"
+    },
+    "en": {
+      "name": "Data Converter",
+      "description": "Convert between JSON, YAML, XML, and Properties in one DBX workbench panel: instant conversion, mock data, validation and formatting, field-level JSON diff, a standalone JSON compare page, and line-level text compare. Pure frontend, no backend, works offline."
+    }
+  }
+}
