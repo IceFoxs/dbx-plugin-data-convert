@@ -386,6 +386,17 @@ function check(name, fn) {
         if (left.indexOf('# 订单创建接口') !== 0) throw new Error('左侧不是 Markdown 示例: ' + left.slice(0, 24));
     });
 
+    // 文本模式下贴的是 JSON：仍然逐行标，但要提示可以换成字段级对比
+    check('文本模式遇到 JSON 内容会建议切回 JSON 对比', function () {
+        var cms = doc.querySelectorAll('#compareWorkspace .CodeMirror');
+        cms[0].CodeMirror.setValue('{\n  "a": 1,\n  "b": 2\n}');
+        cms[1].CodeMirror.setValue('{\n  "a": 9,\n  "b": 2\n}');
+        doc.getElementById('cmpRun').click();
+        var tip = doc.getElementById('compareTip').textContent;
+        if (tip.indexOf('行不同') === -1) throw new Error('缺少行数统计: ' + tip);
+        if (tip.indexOf('JSON') === -1) throw new Error('缺少切换建议: ' + tip);
+    });
+
     doc.querySelector('.compare-tab[data-mode="json"]').click();
     await wait(250);
 

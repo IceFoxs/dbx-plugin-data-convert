@@ -15,7 +15,7 @@ A [DBX](https://dbxio.com) plugin providing seamless conversion among JSON, YAML
 - **Format Validation & Formatting**: Auto-formatting for JSON, YAML, and XML strings.
 - **Structured diff**: compares two versions field by field (JSON Pointer), highlights only the values that actually changed, and lists every change in a floating report.
 - **JSON compare page**: a dedicated entry in the nav bar — paste one JSON per side, click Compare, and every differing value is highlighted with a "N differences" summary. Ships with four samples and a free-text mode.
-- **Free-text compare**: in text mode the samples switch to Markdown, config file, HTML snippet and log output. Lines are compared row by row — removed lines get a full-width red band plus strikethrough, added lines a green band, and the tip reports "N different lines".
+- **Free-text compare**: in text mode the samples switch to Markdown, config file, HTML snippet and log output. Lines are compared row by row — removed lines get a red band plus a red edge bar, added lines a green band plus a green edge bar, with no strikethrough so code stays readable. The tip reports "N different lines", and suggests JSON compare when both sides are valid JSON.
 - **Nav overflow collapses into "More"**: when the nav bar runs out of room there is no horizontal scrollbar — the trailing items fold into a "More" dropdown, and they come back automatically when the window widens or a shorter language is picked. The compare page entry is pinned to the bar whenever it fits.
 - **Internationalization (i18n)**: Multi-language UI support including zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az.
 - **Theme Adaptability**: Dark mode support, automatically following the DBX host theme and shadcn/ui design tokens.
@@ -49,7 +49,7 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
 npm test                        # converter core + diff algorithm (no dependencies)
-npm install && npm run test:ui  # jsdom smoke test of the UI wiring (40 checks)
+npm install && npm run test:ui  # jsdom smoke test of the UI wiring (41 checks)
 ```
 
 On Windows use `scripts\build.cmd` instead (requires Git Bash).
