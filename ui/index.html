@@ -5,6 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>数据转换 · Data Converter</title>
 
+    <script>
+        // 首屏兜底：DBX 还没下发主题时先按宿主已注入的 theme（没有就看系统偏好）定暗/亮，
+        // 免得暗色环境里先闪一帧白底。真正主题以宿主后续下发的为准。
+        (function () {
+            var root = document.documentElement;
+            var hostTheme = window.dbxPlugin && window.dbxPlugin.theme;
+            var dark;
+            if (hostTheme && (hostTheme.appearance === 'dark' || hostTheme.appearance === 'light')) {
+                dark = hostTheme.appearance === 'dark';
+            } else {
+                try { dark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { dark = false; }
+            }
+            // 宿主令牌先落一份，首帧就是最终配色，不会先画默认白底再换肤
+            if (hostTheme && hostTheme.tokens) {
+                Object.keys(hostTheme.tokens).forEach(function (name) {
+                    if (/^--(color|radius|font)-/.test(name) && typeof hostTheme.tokens[name] === 'string') {
+                        root.style.setProperty(name, hostTheme.tokens[name]);
+                    }
+                });
+            }
+            root.setAttribute('data-dbx-theme', dark ? 'dark' : 'light');
+        })();
+    </script>
+
     <!-- 引入核心转换依赖 (本地离线) -->
     <script src="js-yaml.min.js"></script>
     <script src="xml-js.min.js"></script>
@@ -93,6 +117,51 @@
             color-scheme: dark;
         }
         [data-dbx-theme="light"] { color-scheme: light; }
+
+        /* =========================================
+           主题切换过渡
+           把派生出来的颜色变量注册成 <color>，切换时让这些「变量本身」做动画。
+           这样背景、正文、次要文字、边框、按钮都走同一根时间轴，
+           不需要给每个元素挂 transition —— 给元素挂 color 过渡时，
+           子元素会继承父元素正在动画的颜色、每帧重启自己的过渡，
+           文字色会明显追不上（实测 300ms 只走了四分之一）。
+           ========================================= */
+        @property --bg-base { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
+        @property --bg-card { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
+        @property --text-main { syntax: '<color>'; inherits: true; initial-value: #09090b; }
+        @property --text-muted { syntax: '<color>'; inherits: true; initial-value: #71717a; }
+        @property --border-light { syntax: '<color>'; inherits: true; initial-value: #e4e4e7; }
+        @property --accent-bg { syntax: '<color>'; inherits: true; initial-value: #f4f4f5; }
+        @property --accent-hover { syntax: '<color>'; inherits: true; initial-value: #e4e4e7; }
+        @property --primary { syntax: '<color>'; inherits: true; initial-value: #18181b; }
+        @property --primary-text { syntax: '<color>'; inherits: true; initial-value: #fafafa; }
+
+        :root {
+            --theme-anim-dur: 300ms;
+            --theme-anim-ease: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        /* 只在切换的这 300ms 里挂动画，平时不挂，免得影响 hover 与首屏 */
+        html.theme-anim {
+            transition:
+                --bg-base var(--theme-anim-dur) var(--theme-anim-ease),
+                --bg-card var(--theme-anim-dur) var(--theme-anim-ease),
+                --text-main var(--theme-anim-dur) var(--theme-anim-ease),
+                --text-muted var(--theme-anim-dur) var(--theme-anim-ease),
+                --border-light var(--theme-anim-dur) var(--theme-anim-ease),
+                --accent-bg var(--theme-anim-dur) var(--theme-anim-ease),
+                --accent-hover var(--theme-anim-dur) var(--theme-anim-ease),
+                --primary var(--theme-anim-dur) var(--theme-anim-ease),
+                --primary-text var(--theme-anim-dur) var(--theme-anim-ease);
+        }
+        /* 旧内核不认识 @property，变量就不会插值，等于没有动画，不会出现半套效果 */
+
+        /* 切换期间把元素自身的 transition（很多是 all .15s 的 hover 动效）关掉：
+           颜色已经由上面的变量动画驱动，再让元素自己追一次只会慢半拍。 */
+        html.theme-anim *,
+        html.theme-anim *::before,
+        html.theme-anim *::after {
+            transition: none !important;
+        }
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         * {
@@ -134,7 +203,6 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            transition: background-color 0.3s, color 0.3s;
         }
 
         /* 顶部导航栏布局修复 */
@@ -583,6 +651,12 @@
         }
         #outputEditorWrap .CodeMirror {
             background-color: var(--accent-bg);
+        }
+        /* 行号/折叠槽不要再单独吃主题里的硬编码底色（#f7f7f7 / #212121），
+           否则换主题时编辑器底色在渐变、左边这条槽却硬切，会闪出一条缝 */
+        .editor-container .CodeMirror .CodeMirror-gutters {
+            background-color: transparent;
+            border-right: 1px solid var(--border-light);
         }
         .editor-container textarea.textarea {
             display: none;
@@ -1330,22 +1404,100 @@
             return 'light';
         }
 
+        // -----------------------------------------
+        // 主题切换过渡
+        // 只在颜色真的变化时给 <html> 挂 300ms 的 theme-anim，
+        // 让导航、工具栏、编辑器底色、边框、文字一起渐变，而不是硬切。
+        // -----------------------------------------
+        const THEME_ANIM_MS = 300;
+        let themeAnimTimer = null;
+        let editorThemeTimer = null;    // 延后切 CodeMirror 主题，等底色渐变到一半
+        let themeBooted = false;        // 首屏第一次应用完成后才允许做动画
+        let themeSource = 'auto';       // host：宿主明确下发；auto：我们自己按环境推断
+        let lastAppliedTheme = null;    // 我们写进 data-dbx-theme 的值，用来区分宿主直接写属性
+
+        function prefersReducedMotion() {
+            try {
+                return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function runThemeTransition(animate) {
+            const root = document.documentElement;
+            if (!animate || prefersReducedMotion()) {
+                clearTimeout(themeAnimTimer);
+                root.classList.remove('theme-anim');
+                return;
+            }
+            // 先挂过渡类再改颜色：同一帧里浏览器就会按「新值 + transition」插值
+            root.classList.add('theme-anim');
+            clearTimeout(themeAnimTimer);
+            themeAnimTimer = setTimeout(() => root.classList.remove('theme-anim'), THEME_ANIM_MS + 60);
+        }
+
+        // 宿主直接改 data-dbx-theme 时（不经过 dbxPlugin API），也要跟上：
+        // 否则样式变了、CodeMirror 还停在旧主题，就成了「一半亮一半暗」。
+        if (window.MutationObserver) {
+            new MutationObserver(() => {
+                const next = document.documentElement.getAttribute('data-dbx-theme');
+                if (next === lastAppliedTheme) return; // 是我们自己写的
+                if (next !== 'dark' && next !== 'light') return;
+                const animate = themeBooted && !prefersReducedMotion();
+                themeSource = 'host';
+                lastAppliedTheme = next;
+                runThemeTransition(animate);
+                document.documentElement.style.colorScheme = next;
+                if (document.querySelector('.CodeMirror')) {
+                    syncEditorThemeSoon(animate ? Math.round(THEME_ANIM_MS * 0.34) : 0);
+                }
+            }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-dbx-theme'] });
+        }
+
         function applyHostTheme(theme) {
             const root = document.documentElement;
             const tokens = (theme && theme.tokens) || {};
+            let tokensChanged = false;
             Object.keys(tokens).forEach((name) => {
                 // 只接 DBX 约定的根级令牌，避免把无关变量塞进插件
-                if (/^--(color|radius|font)-/.test(name) && typeof tokens[name] === 'string') {
-                    root.style.setProperty(name, tokens[name]);
-                }
+                if (!/^--(color|radius|font)-/.test(name) || typeof tokens[name] !== 'string') return;
+                if (root.style.getPropertyValue(name) !== tokens[name]) tokensChanged = true;
+                root.style.setProperty(name, tokens[name]);
             });
-            const existing = root.getAttribute('data-dbx-theme');
-            const appearance = (theme && theme.appearance)
-                || (existing === 'dark' || existing === 'light' ? existing : detectAppearance());
-            if (existing !== appearance) root.setAttribute('data-dbx-theme', appearance);
+
+            let appearance = theme && theme.appearance;
+            if (appearance !== 'dark' && appearance !== 'light') {
+                // 没有明确 appearance 时：宿主自己写过属性就听它的，否则按令牌亮度/系统偏好推断。
+                // 首屏兜底写进去的那个值不算宿主意见，所以只看 themeSource 是否已标记为 host。
+                const declared = root.getAttribute('data-dbx-theme');
+                appearance = themeSource === 'host' && (declared === 'dark' || declared === 'light')
+                    ? declared
+                    : detectAppearance();
+            } else {
+                themeSource = 'host';
+            }
+
+            const changed = root.getAttribute('data-dbx-theme') !== appearance;
+            // 首屏第一次应用不做动画（否则会看到白底淡入深色），之后换主题/换皮肤都走过渡
+            const animate = themeBooted && (changed || tokensChanged) && !prefersReducedMotion();
+            if (changed) {
+                runThemeTransition(animate);
+                root.setAttribute('data-dbx-theme', appearance);
+                lastAppliedTheme = appearance;
+            } else if (animate) {
+                runThemeTransition(true);
+            }
             root.style.colorScheme = appearance;
             // 编辑器可能尚未创建，那种情况下由 syncEditorTheme() 在创建后读取属性
-            if (document.querySelector('.CodeMirror')) syncEditorTheme();
+            if (document.querySelector('.CodeMirror')) {
+                syncEditorThemeSoon(changed && animate ? Math.round(THEME_ANIM_MS * 0.34) : 0);
+            }
+
+            if (!themeBooted) {
+                // 首屏这一次不做动画，落定后放开，之后任何切换都能平滑
+                themeBooted = true;
+            }
             return appearance;
         }
 
@@ -1720,15 +1872,25 @@
         function syncEditorTheme() {
             const isDark = document.documentElement.getAttribute('data-dbx-theme') === 'dark';
             const theme = isDark ? 'material-darker' : 'default';
-            inputEditor.setOption('theme', theme);
-            outputEditor.setOption('theme', theme);
-            inputEditor.refresh();
-            outputEditor.refresh();
-            [diffLeftEditor, diffRightEditor, cmpLeftEditor, cmpRightEditor].forEach((cm) => {
+            [inputEditor, outputEditor, diffLeftEditor, diffRightEditor, cmpLeftEditor, cmpRightEditor].forEach((cm) => {
                 if (!cm) return;
+                const switching = cm.getOption('theme') !== theme;
                 cm.setOption('theme', theme);
-                cm.refresh();
+                // setOption('theme') 内部已经 refresh 过一次，只有主题没变（仅换了皮肤令牌）时才需要手动刷新
+                if (!switching) cm.refresh();
             });
+        }
+
+        // CodeMirror 的语法配色是整块换 class 的，文字颜色没法跟着 CSS 过渡走。
+        // 所以在底色渐变到一半（约 135ms）时再换主题：那时底色是中间调，
+        // 新旧两种文字色都还看得清，切换点被整体渐变盖住。
+        function syncEditorThemeSoon(delay) {
+            clearTimeout(editorThemeTimer);
+            if (!delay) {
+                syncEditorTheme();
+                return;
+            }
+            editorThemeTimer = setTimeout(syncEditorTheme, delay);
         }
         syncEditorTheme();
 

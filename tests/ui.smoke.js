@@ -534,7 +534,89 @@ function check(name, fn) {
             if (cm.className.indexOf('cm-s-material-darker') === -1) throw new Error('编辑器主题: ' + cm.className);
         });
 
+        // ---- 主题切换过渡 ----
+        check('首屏应用主题时不挂过渡类（避免白底淡入）', function () {
+            if (hdoc.documentElement.classList.contains('theme-anim')) throw new Error('首屏就挂了 theme-anim');
+        });
+
+        function pushTheme(theme) {
+            hostDom.window.dispatchEvent(new hostDom.window.CustomEvent('dbx-plugin-env', { detail: { theme: theme } }));
+        }
+
+        pushTheme({ appearance: 'light', tokens: { '--color-background': '#fdfcf9' } });
+        check('切换主题时立即挂上过渡类', function () {
+            if (!hdoc.documentElement.classList.contains('theme-anim')) throw new Error('没挂 theme-anim');
+            if (hdoc.documentElement.getAttribute('data-dbx-theme') !== 'light') throw new Error('主题没切');
+        });
+
+        check('编辑器主题延后到过渡中点才换（避免暗底压深字）', function () {
+            var cm = hdoc.querySelector('.CodeMirror');
+            if (cm.className.indexOf('cm-s-material-darker') === -1) {
+                throw new Error('第 0ms 就换掉了: ' + cm.className);
+            }
+        });
+
+        await wait(180);
+        check('过渡中段编辑器已切成 default', function () {
+            var cm = hdoc.querySelector('.CodeMirror');
+            if (cm.className.indexOf('cm-s-default') === -1) throw new Error('还没换: ' + cm.className);
+        });
+
+        await wait(260);
+        check('过渡结束会摘掉过渡类', function () {
+            if (hdoc.documentElement.classList.contains('theme-anim')) throw new Error('theme-anim 没清掉');
+        });
+
+        pushTheme({ appearance: 'light', tokens: { '--color-background': '#ff0000' } });
+        check('只换皮肤（明暗不变）也走过渡', function () {
+            if (!hdoc.documentElement.classList.contains('theme-anim')) throw new Error('换皮肤没过渡');
+        });
+        await wait(420);
+
         hostDom.window.close();
+
+        // reduce-motion：不做过渡
+        var calmDom = new JSDOM(html, {
+            url: 'file://' + path.join(ROOT, 'ui/index.html'),
+            runScripts: 'dangerously',
+            resources: 'usable',
+            pretendToBeVisual: true,
+            virtualConsole: new (require('jsdom').VirtualConsole)(),
+            beforeParse: function (window) {
+                window.matchMedia = function (query) {
+                    return { matches: String(query).indexOf('prefers-reduced-motion') !== -1, addEventListener: function () {}, removeEventListener: function () {} };
+                };
+                var zeroRect = function () {
+                    return { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0 };
+                };
+                var emptyRects = function () {
+                    return { length: 0, item: function () { return null; }, [Symbol.iterator]: function* () {} };
+                };
+                window.Range.prototype.getBoundingClientRect = zeroRect;
+                window.Range.prototype.getClientRects = emptyRects;
+                window.Element.prototype.getBoundingClientRect = zeroRect;
+                window.Element.prototype.getClientRects = emptyRects;
+                window.dbxPlugin = {
+                    ready: Promise.resolve({}),
+                    locale: 'zh-CN',
+                    theme: { appearance: 'dark', tokens: { '--color-background': '#302b21' } },
+                    capabilities: {}
+                };
+            }
+        });
+        await new Promise(function (resolve) {
+            calmDom.window.addEventListener('load', resolve, { once: true });
+        });
+        await wait(250);
+        calmDom.window.dispatchEvent(new calmDom.window.CustomEvent('dbx-plugin-env', {
+            detail: { theme: { appearance: 'light', tokens: { '--color-background': '#ffffff' } } }
+        }));
+        check('reduce-motion 下不挂过渡类（直接切）', function () {
+            var doc = calmDom.window.document;
+            if (doc.documentElement.classList.contains('theme-anim')) throw new Error('仍然挂了 theme-anim');
+            if (doc.documentElement.getAttribute('data-dbx-theme') !== 'light') throw new Error('主题没切');
+        });
+        calmDom.window.close();
     })();
 
     results.forEach(function (r) {

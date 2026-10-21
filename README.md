@@ -18,7 +18,7 @@ A [DBX](https://dbxio.com) plugin providing seamless conversion among JSON, YAML
 - **Free-text compare**: in text mode the samples switch to Markdown, config file, HTML snippet and log output. Lines are compared row by row — removed lines get a red band plus a red edge bar, added lines a green band plus a green edge bar, with no strikethrough so code stays readable. The tip reports "N different lines", and suggests JSON compare when both sides are valid JSON.
 - **Nav overflow collapses into "More"**: when the nav bar runs out of room there is no horizontal scrollbar — the trailing items fold into a "More" dropdown, and they come back automatically when the window widens or a shorter language is picked. The compare page entry is pinned to the bar whenever it fits.
 - **Internationalization (i18n)**: Multi-language UI support including zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az.
-- **Theme Adaptability**: Dark mode support that follows the DBX host theme and shadcn/ui design tokens. It still works when the host only sends theme metadata without writing `data-dbx-theme` (the plugin infers light/dark and switches editor syntax themes itself), and custom palettes such as warm-toned skins are honoured too.
+- **Theme Adaptability**: Dark mode support that follows the DBX host theme and shadcn/ui design tokens. It still works when the host only sends theme metadata without writing `data-dbx-theme` (the plugin infers light/dark and switches editor syntax themes itself), and custom palettes such as warm-toned skins are honoured too. Switching themes cross-fades the whole page over 300ms (backgrounds, text and borders move together; the editor's syntax colours flip at the midpoint), paints in the host theme on first frame without a white flash, and respects `prefers-reduced-motion`.
 - **Clipboard Integration**: One-click copy for converted results via DBX Host API or browser fallback.
 
 ![Structured diff](docs/screen-diff.png)
@@ -49,7 +49,7 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
 npm test                        # converter core + diff algorithm (no dependencies)
-npm install && npm run test:ui  # jsdom smoke test of the UI wiring (43 checks)
+npm install && npm run test:ui  # jsdom smoke test of the UI wiring (50 checks)
 ```
 
 On Windows use `scripts\build.cmd` instead (requires Git Bash).

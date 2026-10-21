@@ -15,7 +15,7 @@
 - **任意文本对比**：切到该模式后示例换成 Markdown / 配置文件 / HTML 片段 / 日志输出四组真实文本，按行对比——删掉的行整行淡红底 + 行首红条，新增的行整行淡绿底 + 行首绿条（不划删除线，代码也读得清），底部提示「共 N 行不同」；两侧都是 JSON 时会提示改用「JSON 对比」。
 - **导航溢出收进「更多」**：导航项放不下时不再出现横向滚动条，末尾几项自动收进「更多」下拉；窗口拉宽、切换语言后自动复原，`JSON 对比` 优先留在导航条上。
 - **国际化 (i18n)**：支持多语言 UI，包括 zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。
-- **主题适配**：支持深色模式，自动跟随 DBX 宿主主题及 shadcn/ui 设计令牌——即使宿主只下发主题信息、没有写 `data-dbx-theme`，也会自行判定明暗并切换编辑器语法主题；自定义调色板（含暖色皮肤）同样生效。
+- **主题适配**：支持深色模式，自动跟随 DBX 宿主主题及 shadcn/ui 设计令牌——即使宿主只下发主题信息、没有写 `data-dbx-theme`，也会自行判定明暗并切换编辑器语法主题；自定义调色板（含暖色皮肤）同样生效。明暗切换有 300ms 的整页颜色过渡（背景、文字、边框一起渐变，编辑器语法色在过渡中点切换），首屏按宿主主题直接落定、不会先闪白底，`prefers-reduced-motion` 下自动关掉动画。
 - **剪贴板集成**：通过 DBX Host API 或浏览器降级方案，一键复制转换结果。
 
 ![结构化差异对比](docs/screen-diff.png)
@@ -46,7 +46,7 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ./scripts/run.sh                # 等价于 build.sh dev
 
 npm test                        # 只跑转换核心与差异算法，无第三方依赖
-npm install && npm run test:ui  # jsdom 页面接线冒烟（43 项）
+npm install && npm run test:ui  # jsdom 页面接线冒烟（50 项）
 ```
 
 Windows 下使用 `scripts\build.cmd`（需要 Git Bash）。
