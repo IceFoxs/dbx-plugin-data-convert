@@ -558,6 +558,337 @@ function check(name, fn) {
         if (doc.getElementById('navSql').classList.contains('active')) throw new Error('导航仍高亮');
     });
 
+    // ---- 表格转 JSON 页：Excel / CSV → JSON ----
+    doc.getElementById('navSheet').click();
+    await wait(200);
+
+    check('导航可进入表格转 JSON 页', function () {
+        if (!doc.getElementById('sheetWorkspace').classList.contains('active')) throw new Error('未进入表格页');
+        if (!doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('工具栏未隐藏');
+        if (!doc.getElementById('navSheet').classList.contains('active')) throw new Error('导航未高亮');
+        if (!doc.querySelector('#sheetWorkspace .CodeMirror')) throw new Error('输出编辑器未创建');
+    });
+
+    doc.querySelector('#sheetSamples .sample-chip[data-sample="simple"]').click();
+    await wait(400);
+
+    check('示例 CSV 转成 JSON（数字自动识别）', function () {
+        var cm = doc.querySelector('#sheetWorkspace .CodeMirror').CodeMirror;
+        var arr = JSON.parse(cm.getValue());
+        if (arr.length !== 2) throw new Error('记录数 ' + arr.length);
+        if (arr[0].姓名 !== '张三' || arr[0].年龄 !== 18) throw new Error('内容: ' + JSON.stringify(arr[0]));
+        if (doc.getElementById('sheetOutCount').textContent !== '2') throw new Error('计数徽标未更新');
+    });
+
+    check('预览表格显示表头与行列徽标', function () {
+        var heads = [].map.call(doc.querySelectorAll('#sheetTable th'), function (th) { return th.textContent; });
+        if (heads.join('|') !== '姓名|年龄|城市') throw new Error('表头: ' + heads.join(','));
+        if (doc.querySelectorAll('#sheetTable tbody tr').length !== 2) throw new Error('预览行数不对');
+        if (doc.getElementById('sheetInCount').textContent.indexOf('3') === -1) throw new Error('行列徽标: ' + doc.getElementById('sheetInCount').textContent);
+    });
+
+    // 关掉表头再打开：两条路径都跑一遍
+    var headerBox = doc.getElementById('sheetHeader');
+    headerBox.checked = false;
+    headerBox.dispatchEvent(new win.Event('change', { bubbles: true }));
+    await wait(350);
+
+    check('关掉「首行为表头」后改用 column_N', function () {
+        var arr = JSON.parse(doc.querySelector('#sheetWorkspace .CodeMirror').CodeMirror.getValue());
+        if (!arr[0].column_1) throw new Error('键名: ' + Object.keys(arr[0]).join(','));
+        if (arr.length !== 3) throw new Error('记录数 ' + arr.length);
+    });
+
+    headerBox.checked = true;
+    headerBox.dispatchEvent(new win.Event('change', { bubbles: true }));
+    await wait(350);
+
+    check('导出按钮生成 .json 下载', function () {
+        var blobs = [];
+        var clicked = null;
+        var origCreate = win.URL.createObjectURL;
+        var origRevoke = win.URL.revokeObjectURL;
+        var origClick = win.HTMLAnchorElement.prototype.click;
+        win.URL.createObjectURL = function (blob) { blobs.push(blob); return 'https://example.com/x.json'; };
+        win.URL.revokeObjectURL = function () {};
+        win.HTMLAnchorElement.prototype.click = function () { clicked = { href: this.getAttribute('href'), download: this.download }; };
+        try {
+            doc.getElementById('sheetExport').click();
+        } finally {
+            win.URL.createObjectURL = origCreate;
+            win.URL.revokeObjectURL = origRevoke;
+            win.HTMLAnchorElement.prototype.click = origClick;
+        }
+        if (!clicked) throw new Error('没有触发下载');
+        if (!/\.json$/.test(clicked.download)) throw new Error('文件名: ' + clicked.download);
+        if (!blobs.length) throw new Error('没有生成 Blob');
+    });
+
+    // 上一轮点击是异步收尾的（按钮 disabled 到 finally 才恢复），先等一拍再点
+    await wait(150);
+
+    // 宿主（DBX）里有 fileTransfer 时不能再走 <a download>，否则点了没反应
+    var hostSave = { name: '', chunks: [], finished: false, cancelled: false };
+    win.dbxPlugin = {
+        capabilities: { fileTransfer: {} },
+        fileTransfer: {
+            beginSave: function (opts) {
+                hostSave.name = opts.name;
+                return Promise.resolve({ handleId: 'h1', chunkBytes: 16 });
+            },
+            write: function (handleId, offset, base64) {
+                hostSave.chunks.push({ offset: offset, base64: base64 });
+                return Promise.resolve(true);
+            },
+            finish: function () { hostSave.finished = true; return Promise.resolve(true); },
+            cancel: function () { hostSave.cancelled = true; return Promise.resolve(true); }
+        }
+    };
+
+    check('宿主可用时走 fileTransfer 保存', function () {
+        var anchorClicked = false;
+        var origClick = win.HTMLAnchorElement.prototype.click;
+        win.HTMLAnchorElement.prototype.click = function () { anchorClicked = true; };
+        try {
+            doc.getElementById('sheetExport').click();
+        } finally {
+            win.HTMLAnchorElement.prototype.click = origClick;
+        }
+        return new Promise(function (resolve) { setTimeout(resolve, 250); }).then(function () {
+            if (anchorClicked) throw new Error('仍然走了浏览器下载');
+            if (!hostSave.finished) throw new Error('没有调用 finish');
+            if (hostSave.cancelled) throw new Error('不应取消句柄');
+            if (!/\.json$/.test(hostSave.name)) throw new Error('文件名: ' + hostSave.name);
+            if (hostSave.chunks.length < 2) throw new Error('没有分块写入');
+            var bytes = Buffer.concat(hostSave.chunks.map(function (c) { return Buffer.from(c.base64, 'base64'); }));
+            var text = bytes.toString('utf8');
+            var arr = JSON.parse(text);
+            if (arr.length !== 2 || arr[0].姓名 !== '张三') throw new Error('内容: ' + text.slice(0, 60));
+            if (doc.getElementById('sheetExport').disabled) throw new Error('按钮没有恢复');
+        });
+    });
+
+    // ---- 条数限制：丢一个 150 行的 CSV 进来，再限制成 100 条 ----
+    var limitRows = ['id,name'];
+    for (var li = 1; li <= 150; li++) limitRows.push(li + ',用户' + li);
+    var limitFile = new win.File([limitRows.join('\n')], 'limit.csv');
+    var limitDrop = new win.Event('drop', { bubbles: true });
+    limitDrop.dataTransfer = { files: [limitFile] };
+    doc.getElementById('sheetTableWrap').dispatchEvent(limitDrop);
+    await wait(800);
+
+    // 「最多条数」是自绘下拉（跟顶栏 从/转为 同一套样式），点选项即生效
+    function pickSheetLimit(value) {
+        doc.querySelector('#sheetLimit .custom-option[data-value="' + value + '"]').click();
+    }
+
+    pickSheetLimit('100');
+    await wait(800);
+
+    check('「最多条数」限制转换与预览', function () {
+        var arr = JSON.parse(doc.querySelector('#sheetWorkspace .CodeMirror').CodeMirror.getValue());
+        if (arr.length !== 100) throw new Error('记录数 ' + arr.length);
+        if (doc.getElementById('sheetOutCount').textContent !== '100') throw new Error('徽标: ' + doc.getElementById('sheetOutCount').textContent);
+        if (doc.querySelectorAll('#sheetTable tbody tr').length !== 100) throw new Error('预览行数没跟着限制');
+        var tip = doc.getElementById('sheetTip').textContent;
+        if (tip.indexOf('150') === -1) throw new Error('提示没说明总数: ' + tip);
+    });
+
+    check('「最多条数」是自绘下拉，跟顶栏下拉一套样式', function () {
+        if (doc.querySelector('#sheetLimit select')) throw new Error('还在用原生 select');
+        var label = doc.querySelector('#sheetLimit .custom-select-trigger .label');
+        if (label.textContent.trim() !== '100') throw new Error('触发器没显示当前值: ' + label.textContent);
+        if (doc.querySelectorAll('#sheetLimit .custom-option').length !== 6) throw new Error('选项数不对');
+    });
+
+    check('下拉菜单贴在触发器下方（.custom-select 自己定位）', function () {
+        var css = Array.prototype.map.call(doc.querySelectorAll('style'), function (s) { return s.textContent; }).join('\n');
+        // 以前只有 .select-group 带 relative，表格页这个下拉没有定位祖先，
+        // 菜单被算到页面底部、再被 overflow: hidden 裁掉，点了只有箭头翻转
+        if (!/\.custom-select\s*\{[^}]*position:\s*relative/.test(css)) {
+            throw new Error('.custom-select 缺 position: relative');
+        }
+        var trig = doc.querySelector('#sheetLimit .custom-select-trigger');
+        var menu = doc.querySelector('#sheetLimit .custom-select-options');
+        trig.click();
+        if (!menu.classList.contains('open')) throw new Error('点开没加 open');
+        trig.click();
+        if (menu.classList.contains('open')) throw new Error('再点一下没关上');
+    });
+
+    pickSheetLimit('0');
+    await wait(800);
+
+    doc.querySelector('#sheetFormat .compare-tab[data-format="compact"]').click();
+    await wait(300);
+
+    check('输出可切成紧凑格式（无缩进）', function () {
+        var value = doc.querySelector('#sheetWorkspace .CodeMirror').CodeMirror.getValue();
+        if (value.indexOf('\n{') === -1) throw new Error('仍是缩进格式: ' + JSON.stringify(value.slice(0, 24)));
+        JSON.parse(value);
+    });
+
+    doc.querySelector('#sheetFormat .compare-tab[data-format="pretty"]').click();
+    await wait(300);
+
+    check('切回格式化后恢复 2 空格缩进', function () {
+        var value = doc.querySelector('#sheetWorkspace .CodeMirror').CodeMirror.getValue();
+        if (value.indexOf('\n  {') === -1) throw new Error('缩进没回来: ' + JSON.stringify(value.slice(0, 24)));
+        delete win.dbxPlugin;
+    });
+
+    // ---- 输出方式：JSON / SQL Insert ----
+    doc.querySelector('#sheetOutputMode .compare-tab[data-mode="sql"]').click();
+    await wait(300);
+
+    check('可切换到 SQL Insert 输出', function () {
+        var value = doc.querySelector('#sheetWorkspace .CodeMirror').CodeMirror.getValue();
+        if (value.indexOf('INSERT INTO your_table_name (id, name) VALUES') !== 0) {
+            throw new Error('SQL 头: ' + value.slice(0, 80));
+        }
+        if (value.indexOf("(1, '用户1')") === -1) throw new Error('元组: ' + value.slice(0, 120));
+        if (doc.getElementById('sheetTableNameWrap').hidden) throw new Error('表名输入框没显示');
+        if (doc.getElementById('sheetOutLabel').textContent.indexOf('SQL') === -1) {
+            throw new Error('标题没跟着变: ' + doc.getElementById('sheetOutLabel').textContent);
+        }
+        if (doc.getElementById('sheetExport').textContent.indexOf('SQL') === -1) throw new Error('导出按钮文案没变');
+        if (doc.getElementById('sheetFormat').style.display === 'none') throw new Error('SQL 模式下也要保留格式化开关');
+    });
+
+    doc.getElementById('sheetTableName').value = 'route_table';
+    doc.getElementById('sheetTableName').dispatchEvent(new win.Event('change', { bubbles: true }));
+    await wait(350);
+
+    check('改表名后 SQL 重新生成', function () {
+        var value = doc.querySelector('#sheetWorkspace .CodeMirror').CodeMirror.getValue();
+        if (value.indexOf('INSERT INTO route_table') !== 0) throw new Error(value.slice(0, 60));
+    });
+
+    doc.querySelector('#sheetFormat .compare-tab[data-format="compact"]').click();
+    await wait(350);
+
+    check('SQL 也能切紧凑（整句一行）', function () {
+        var value = doc.querySelector('#sheetWorkspace .CodeMirror').CodeMirror.getValue();
+        if (value.indexOf(' VALUES (') === -1) throw new Error('紧凑后应是 VALUES (' + value.slice(0, 80));
+        if (value.indexOf('\n(') !== -1) throw new Error('还有换行元组');
+        if (value.indexOf(';') === -1) throw new Error('缺少分号');
+    });
+
+    doc.querySelector('#sheetFormat .compare-tab[data-format="pretty"]').click();
+    await wait(350);
+
+    doc.querySelector('#sheetOutputMode .compare-tab[data-mode="json"]').click();
+    await wait(300);
+
+    check('切回 JSON 后标签与内容一起复原', function () {
+        var value = doc.querySelector('#sheetWorkspace .CodeMirror').CodeMirror.getValue();
+        if (value.charAt(0) !== '[') throw new Error('不是 JSON: ' + value.slice(0, 20));
+        if (!doc.getElementById('sheetTableNameWrap').hidden) throw new Error('表名输入框没藏起来');
+        if (doc.getElementById('sheetOutLabel').textContent.indexOf('JSON') === -1) throw new Error('标题没复原');
+    });
+
+    // ---- 第二行是注释（中英双表头）：只是「可能」，要用户点一下才跳过 ----
+    var noteCsv = 'id,method,path\n编号,请求方法,路径\n1,GET,/a\n2,POST,/b';
+    var noteDrop = new win.Event('drop', { bubbles: true });
+    noteDrop.dataTransfer = { files: [new win.File([noteCsv], 'note.csv')] };
+    doc.getElementById('sheetTableWrap').dispatchEvent(noteDrop);
+    await wait(800);
+
+    function sheetRecords() {
+        return JSON.parse(doc.querySelector('#sheetWorkspace .CodeMirror').CodeMirror.getValue());
+    }
+
+    check('第二行说明默认仍按数据处理（只提示，不擅自跳过）', function () {
+        if (sheetRecords().length !== 3) throw new Error('记录数 ' + sheetRecords().length);
+        if (doc.getElementById('sheetNoteHint').hidden) throw new Error('没给出「第二行像注释」的提示');
+    });
+
+    doc.getElementById('sheetNoteHint').click();
+    await wait(800);
+
+    check('点提示后跳过第二行', function () {
+        var arr = sheetRecords();
+        if (arr.length !== 2) throw new Error('记录数 ' + arr.length);
+        if (arr[0].id !== 1 || arr[0].method !== 'GET') throw new Error('首条: ' + JSON.stringify(arr[0]));
+        if (doc.getElementById('sheetTip').textContent.indexOf('跳过') === -1) throw new Error('提示没说明已跳过');
+        if (!doc.getElementById('sheetNoteHint').hidden) throw new Error('勾选后提示应消失');
+    });
+
+    doc.getElementById('sheetSkipNote').click();
+    await wait(800);
+
+    check('取消勾选后第二行恢复成数据', function () {
+        if (sheetRecords().length !== 3) throw new Error('记录数 ' + sheetRecords().length);
+    });
+
+    // ---- 预览表横向滚动 + 双击看详情 ----
+    check('预览表按内容撑开，带常驻的横向滚动条', function () {
+        var css = Array.prototype.map.call(doc.querySelectorAll('style'), function (s) { return s.textContent; }).join('\n');
+        if (css.indexOf('.sheet-hscroll-thumb') === -1) throw new Error('没有自绘横向滚动条样式');
+        if (!/\.sheet-table\s*\{[^}]*width:\s*max-content/.test(css)) throw new Error('表格没按内容撑开');
+        if (!doc.querySelector('#sheetTableWrap table')) throw new Error('预览表丢了');
+        if (!doc.getElementById('sheetHScroll')) throw new Error('缺横向滚动条节点');
+        if (!doc.getElementById('sheetHScroll').hidden) throw new Error('没有横向溢出时不该出现');
+    });
+
+    var firstCell = doc.querySelector('#sheetTable tbody tr td');
+    firstCell.dispatchEvent(new win.MouseEvent('dblclick', { bubbles: true }));
+
+    check('双击单元格弹出详情（列名 + 全文 + 整行）', function () {
+        var pop = doc.getElementById('sheetCellPop');
+        if (pop.hidden) throw new Error('弹层没打开');
+        var title = doc.getElementById('sheetCellPopTitle').textContent;
+        if (title.indexOf('id') !== 0) throw new Error('标题: ' + title);
+        if (!doc.getElementById('sheetCellPopValue').textContent) throw new Error('没显示单元格内容');
+        if (doc.querySelectorAll('#sheetCellPopRow tr').length !== 3) throw new Error('整行数据列数不对');
+    });
+
+    doc.getElementById('sheetCellPopClose').click();
+
+    check('详情弹层可关闭', function () {
+        if (!doc.getElementById('sheetCellPop').hidden) throw new Error('没关掉');
+    });
+
+    // 大文件：直接造一个 21 MB 的 File，走 drop 入口
+    var bigFile = new win.File(['x'], 'big.csv');
+    Object.defineProperty(bigFile, 'size', { value: 21 * 1024 * 1024 });
+    var dropEvent = new win.Event('drop', { bubbles: true });
+    dropEvent.dataTransfer = { files: [bigFile] };
+    doc.getElementById('sheetTableWrap').dispatchEvent(dropEvent);
+    await wait(150);
+
+    check('超过 20 MB 的文件被拦下', function () {
+        var tip = doc.getElementById('sheetTip').textContent;
+        if (tip.indexOf('20 MB') === -1) throw new Error('提示: ' + tip);
+    });
+
+    var oldFile = new win.File(['x'], 'legacy.xls');
+    var dropOld = new win.Event('drop', { bubbles: true });
+    dropOld.dataTransfer = { files: [oldFile] };
+    doc.getElementById('sheetTableWrap').dispatchEvent(dropOld);
+    await wait(150);
+
+    check('旧版 .xls 给出另存提示', function () {
+        var tip = doc.getElementById('sheetTip').textContent;
+        if (tip.indexOf('.xlsx') === -1) throw new Error('提示: ' + tip);
+    });
+
+    doc.getElementById('sheetClear').click();
+
+    check('清空后回到待开始状态', function () {
+        var cm = doc.querySelector('#sheetWorkspace .CodeMirror').CodeMirror;
+        if (cm.getValue() !== '') throw new Error('输出未清空');
+        if (doc.getElementById('sheetOutCount').textContent !== '0') throw new Error('计数未归零');
+        if (doc.getElementById('sheetEmpty').classList.contains('hidden')) throw new Error('空状态未恢复');
+    });
+
+    check('离开表格页后入口状态复原', function () {
+        doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
+        if (doc.getElementById('sheetWorkspace').classList.contains('active')) throw new Error('表格页仍在显示');
+        if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('工具栏仍隐藏');
+        if (doc.getElementById('navSheet').classList.contains('active')) throw new Error('导航仍高亮');
+    });
+
 
     // 导航：7 个格式互转收进「格式转换」下拉，导航条上只剩 3 个单元
     var navEl = doc.getElementById('navLinks');
@@ -576,11 +907,12 @@ function check(name, fn) {
         if (convertMenu.querySelectorAll('a').length !== 7) {
             throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
         }
-        if (inlineNavLinks().length !== 2) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 3) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
         if (!doc.getElementById('navConvertTrigger')) throw new Error('缺少「格式转换」触发器');
-        if (doc.querySelector('#navConvertTrigger [data-i18n="navConvert"]').textContent !== '格式转换') {
-            throw new Error('触发器文案不对');
-        }
+        // 触发器直接显示当前这一对格式，而不是固定的「格式转换」
+        var label = doc.getElementById('navConvertLabel').textContent.trim();
+        if (label !== 'json转yaml') throw new Error('触发器文案: ' + label);
+        if (doc.getElementById('navConvertTrigger').title !== 'json转yaml') throw new Error('触发器 title 未同步');
     });
 
     check('宽度足够时不显示「更多」', function () {
@@ -609,6 +941,9 @@ function check(name, fn) {
         }
         if (!item.classList.contains('active')) throw new Error('选中项未高亮');
         if (convertEl.classList.contains('open')) throw new Error('选完未收起');
+        if (doc.getElementById('navConvertLabel').textContent.trim() !== 'json转xml') {
+            throw new Error('触发器没跟着变: ' + doc.getElementById('navConvertLabel').textContent.trim());
+        }
     });
 
     // 导航溢出 → 「更多」：jsdom 没有布局，宽高靠 stub
@@ -620,7 +955,10 @@ function check(name, fn) {
     check('导航装不下时把固定项也收进「更多」', function () {
         if (!moreEl.classList.contains('show')) throw new Error('「更多」未出现');
         var names = [].map.call(moreMenu.querySelectorAll('a'), function (a) { return a.textContent.trim(); });
-        if (names.join('|') !== 'SQL 转换|JSON 对比') throw new Error('菜单项: ' + names.join(','));
+        // 收进「更多」的先后顺序取决于「非固定项先挪、固定项兜底」，这里只校验集合
+        if (names.slice().sort().join('|') !== ['SQL 转换', 'JSON 对比', '表格转 JSON'].sort().join('|')) {
+            throw new Error('菜单项: ' + names.join(','));
+        }
         if (inlineNavLinks().length !== 0) throw new Error('导航条上还剩 ' + inlineNavLinks().length + ' 项');
     });
 
@@ -647,6 +985,8 @@ function check(name, fn) {
             if (!doc.getElementById('sqlWorkspace').classList.contains('active')) throw new Error('未进入 SQL 页');
         } else if (label === 'JSON 对比') {
             if (!doc.getElementById('compareWorkspace').classList.contains('active')) throw new Error('未进入对比页');
+        } else if (label === '表格转 JSON') {
+            if (!doc.getElementById('sheetWorkspace').classList.contains('active')) throw new Error('未进入表格页');
         } else {
             throw new Error('菜单项不是页面入口: ' + label);
         }
@@ -663,7 +1003,7 @@ function check(name, fn) {
     check('宽度恢复后导航项全部回到导航条', function () {
         if (moreEl.classList.contains('show')) throw new Error('「更多」仍显示');
         if (moreMenu.querySelectorAll('a').length !== 0) throw new Error('菜单仍有残留');
-        if (inlineNavLinks().length !== 2) throw new Error('导航项数 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 3) throw new Error('导航项数 ' + inlineNavLinks().length);
         if (convertMenu.querySelectorAll('a').length !== 7) throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
     });
 
@@ -807,6 +1147,12 @@ function check(name, fn) {
         return r[0] === 'FAIL';
     }).length;
     console.log('\n==== ' + (results.length - failed) + ' passed, ' + failed + ' failed ====');
-    dom.window.close();
+    // 直接退出：主窗口里挂着 CodeMirror 的定时器，close() 反而可能卡在拆解阶段
     process.exit(failed ? 1 : 0);
-})();
+})().catch(function (err) {
+    results.forEach(function (r) {
+        console.log('  ' + r[0] + ' ' + r[1]);
+    });
+    console.error('smoke 运行时错误：' + ((err && err.stack) || err));
+    process.exit(1);
+});

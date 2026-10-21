@@ -36,6 +36,8 @@
     <script src="js/diff.js"></script>
     <script src="js/objdiff.js"></script>
     <script src="js/sqlgen.js"></script>
+    <script src="js/sheetconv.js"></script>
+    <script src="js/xlsxread.js"></script>
     <script>
         if (typeof xml2js === 'undefined' || typeof js2xml === 'undefined') {
             console.warn('xml-js 加载失败，将退回基础解析逻辑');
@@ -211,7 +213,9 @@
         .topbar {
             display: flex;
             align-items: center;
-            padding: 0 1rem;
+            /* 品牌、下拉、导航项之间留出呼吸感，避免按钮贴在一起 */
+            gap: 0.875rem;
+            padding: 0 1.25rem;
             height: 3.5rem;
             border-bottom: 1px solid var(--border-light);
             background-color: var(--bg-base);
@@ -226,7 +230,8 @@
             letter-spacing: -0.02em;
             white-space: nowrap;
             flex-shrink: 0;
-            margin-right: 1rem;
+            /* 与 .topbar 的 gap 合计约 1rem */
+            margin-right: 0.25rem;
         }
         .brand svg { color: var(--primary); }
 
@@ -234,7 +239,9 @@
         .nav-links {
             display: flex;
             align-items: center;
-            gap: 0.25rem;
+            gap: 0.5rem;
+            /* 和「格式转换」下拉之间再留一点，两个胶囊不会黏在一起 */
+            margin-left: 0.25rem;
             font-size: 0.875rem;
             color: var(--text-muted);
             flex: 1;
@@ -289,19 +296,30 @@
             display: inline-flex;
             align-items: center;
             gap: 0.25rem;
-            padding: 0.4rem 0.6rem;
+            /* 比链接少 1px 上下内边距，抵消边框，让两者高度对齐 */
+            padding: 0.35rem 0.65rem;
             border-radius: var(--radius-md);
             border: 1px solid var(--border-light);
             background-color: transparent;
             color: var(--text-muted);
             cursor: pointer;
             font-family: var(--font-sans);
-            font-size: 0.8125rem;
+            font-size: 0.875rem;
             font-weight: 500;
             line-height: 1.2;
             white-space: nowrap;
             transition: all 0.15s ease;
         }
+        /* 触发器里显示当前这一对格式（如 yaml转properties），过长时省略 */
+        #navConvertLabel {
+            display: inline-block;
+            max-width: 9.5rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: bottom;
+        }
+        /* 窄屏放不下「yaml转properties」这种长文案，退回通用的「格式转换」 */
+        .nav-convert-short { display: none; }
         .nav-more-trigger:hover,
         .nav-more.open .nav-more-trigger,
         .nav-convert-trigger:hover,
@@ -474,6 +492,13 @@
             font-size: 0.875rem;
             color: var(--text-muted);
             font-weight: 500;
+            position: relative;
+        }
+        /* 下拉菜单是 absolute + top:100%，必须相对「自己」定位。
+           以前只有顶栏的 .select-group 带了 position: relative，表格页的
+           「最多条数」下拉没有定位祖先，菜单被算到页面底部、又被
+           .main-container 的 overflow: hidden 裁掉，点了只有箭头翻转。 */
+        .custom-select {
             position: relative;
         }
         .custom-select-trigger {
@@ -1086,15 +1111,17 @@
         }
         .compare-pane .editor-container { flex: 1 1 0; min-height: 0; }
 
-        /* ================= SQL 生成页 ================= */
-        .sql-workspace {
+        /* ================= SQL 生成页 / 表格转 JSON 页 ================= */
+        .sql-workspace,
+        .sheet-workspace {
             display: none;
             flex: 1 1 0;
             flex-direction: column;
             gap: 0.75rem;
             min-height: 0;
         }
-        .sql-workspace.active { display: flex; }
+        .sql-workspace.active,
+        .sheet-workspace.active { display: flex; }
         /* 选项行：引号、去重、每行一项、数字不加引号 */
         .sql-options {
             display: flex;
@@ -1150,6 +1177,353 @@
             .sql-extra { order: 6; }
         }
 
+        /* ================= 表格转 JSON 页 ================= */
+        /* 选项行：表头、分隔符、数字/布尔识别、上限提示 */
+        .sheet-options {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+            padding: 0.4rem 0.75rem;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+        }
+        .sheet-options .compare-samples-label { font-size: 0.72rem; }
+        /* xlsx 已经解析成矩阵了，分隔符对它没意义，灰掉避免误点 */
+        .sql-seg.is-disabled { opacity: 0.45; pointer-events: none; }
+        .sheet-hint {
+            margin-left: auto;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+        /* 条数限制：大表先只看前 N 条，导出也跟着这个上限走 */
+        .sheet-limit {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+        /* 原生 select 的弹层由系统绘制（macOS 上是灰底蓝条），跟插件主题不搭；
+           这里复用顶栏的 .custom-select，只做紧凑化，跟其他下拉保持同一套观感 */
+        .sheet-limit .custom-select-trigger {
+            min-width: 74px;
+            padding: 0.16rem 0.4rem;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            font-weight: 500;
+            border-radius: var(--radius-sm);
+        }
+        .sheet-limit .custom-select-trigger svg { width: 0.7rem; height: 0.7rem; }
+        .sheet-limit .custom-select-options {
+            top: calc(100% + 4px);
+            min-width: 88px;
+            padding: 0.2rem;
+            border-radius: var(--radius-sm);
+        }
+        .sheet-limit .custom-option {
+            padding: 0.26rem 0.42rem;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            font-weight: 500;
+            border-radius: var(--radius-sm);
+        }
+        .sheet-limit .custom-option.selected { font-weight: 600; }
+        .sheet-limit .custom-option.selected::after { font-size: 0.7rem; }
+        /* 「第二行为注释」：没有表头时无从谈起，灰掉但保留位置，避免选项行跳动 */
+        .sheet-note-check.is-disabled {
+            opacity: 0.45;
+            pointer-events: none;
+        }
+        /* 只是「疑似」——做成可点的提示，点一下才真的跳过 */
+        .sheet-note-hint {
+            padding: 0.14rem 0.42rem;
+            font-family: inherit;
+            font-size: 0.7rem;
+            color: var(--primary);
+            background-color: transparent;
+            border: 1px dashed var(--primary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background-color 0.15s;
+        }
+        .sheet-note-hint:hover { background-color: var(--bg-base); }
+        .sheet-note-hint[hidden] { display: none; }
+        /* JSON 输出栏的「格式化 / 紧凑」 */
+        .sheet-format { padding: 2px; }
+        .sheet-format .compare-tab { padding: 0.16rem 0.5rem; font-size: 0.72rem; }
+        /* 输出方式：JSON / SQL Insert */
+        .sheet-mode { padding: 2px; }
+        .sheet-mode .compare-tab { padding: 0.16rem 0.5rem; font-size: 0.72rem; }
+        .sheet-table-name[hidden] { display: none; }
+        .sheet-table-name .sql-input { width: 128px; }
+        /* 面板窄的时候让标题与右侧控件换行，别把「SQL Insert 输出」挤成省略号 */
+        #sheetWorkspace .pane-header { flex-wrap: wrap; row-gap: 0.25rem; }
+        #sheetWorkspace .pane-actions { flex-wrap: wrap; row-gap: 0.25rem; justify-content: flex-end; }
+        .sheet-table-name .sql-input { min-width: 0; }
+        #sheetWorkspace .pane-actions { flex-wrap: wrap; row-gap: 0.25rem; justify-content: flex-end; }
+        .sheet-table-name .sql-input { min-width: 0; }
+        @media (max-width: 900px) {
+            .sheet-mode .compare-tab,
+            .sheet-format .compare-tab { padding: 0.16rem 0.38rem; font-size: 0.7rem; }
+            .sheet-table-name > span { display: none; }
+            .sheet-table-name .sql-input { width: 104px; }
+        }
+        /* 更窄时把体积数字让给表名输入框，不然表名只剩半截 */
+        @media (max-width: 640px) {
+            #sheetWorkspace .sheet-size { display: none; }
+            .sheet-table-name .sql-input { width: 122px; }
+        }
+        /* 更窄时把体积数字让给表名输入框，不然表名只剩半截 */
+        @media (max-width: 640px) {
+            #sheetWorkspace .sheet-size { display: none; }
+            .sheet-table-name .sql-input { width: 122px; }
+        }
+        .sheet-file {
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            max-width: 18rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .sheet-file.has-file { color: var(--text-main); font-weight: 500; }
+        .sheet-sheetname,
+        .sheet-size {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+        .sheet-progress {
+            height: 3px;
+            margin-top: -0.35rem;
+            border-radius: 9999px;
+            background-color: var(--border-light);
+            overflow: hidden;
+            display: none;
+            flex-shrink: 0;
+        }
+        .sheet-progress.show { display: block; }
+        .sheet-progress i {
+            display: block;
+            height: 100%;
+            width: 0;
+            background-color: var(--primary);
+            transition: width 0.12s linear;
+        }
+        /* 数据预览：表格自己滚，不吃面板高度 */
+        .sheet-table-wrap {
+            flex: 1 1 0;
+            min-height: 0;
+            overflow: auto;
+            position: relative;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            /* macOS 默认是悬浮滚动条，不滚动就看不见；显式声明细滚动条，横向才找得到 */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(128, 128, 128, 0.45) transparent;
+        }
+        /* 一旦自定义 ::-webkit-scrollbar，Chromium 就会常驻显示（不再是悬浮条）。
+           横向那条藏掉，改由下面自绘的 .sheet-hscroll 负责，避免出现两条 */
+        .sheet-table-wrap::-webkit-scrollbar { width: 10px; height: 0; }
+        .sheet-table-wrap::-webkit-scrollbar-track { background-color: transparent; }
+        .sheet-table-wrap::-webkit-scrollbar-thumb {
+            background-color: rgba(128, 128, 128, 0.4);
+            background-clip: content-box;
+            border: 2px solid transparent;
+            border-radius: 999px;
+        }
+        .sheet-table-wrap::-webkit-scrollbar-thumb:hover { background-color: rgba(128, 128, 128, 0.65); }
+        .sheet-table-wrap::-webkit-scrollbar-corner { background-color: transparent; }
+        /* 横向滚动条：始终可见 + 可拖动，不再依赖系统的悬浮滚动条 */
+        .sheet-hscroll {
+            flex: none;
+            height: 12px;
+            padding: 2px 1px 0;
+            background-color: var(--bg-card);
+        }
+        .sheet-hscroll[hidden] { display: none; }
+        .sheet-hscroll-track {
+            position: relative;
+            height: 100%;
+            border-radius: 999px;
+            background-color: var(--bg-base);
+            border: 1px solid var(--border-light);
+        }
+        .sheet-hscroll-thumb {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            min-width: 36px;
+            border-radius: 999px;
+            background-color: rgba(128, 128, 128, 0.45);
+            cursor: grab;
+            transition: background-color 0.12s;
+        }
+        .sheet-hscroll-thumb:hover { background-color: rgba(128, 128, 128, 0.7); }
+        .sheet-hscroll.dragging .sheet-hscroll-thumb { background-color: var(--primary); cursor: grabbing; }
+        .sheet-table-wrap.dragover { border-color: var(--primary); box-shadow: 0 0 0 2px var(--accent-bg); }
+        .sheet-table {
+            border-collapse: separate;
+            border-spacing: 0;
+            /* 列多时按内容铺开（不再挤在面板宽度里），超出的部分靠横向滚动看 */
+            width: max-content;
+            min-width: 100%;
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+        }
+        .sheet-table th,
+        .sheet-table td {
+            padding: 0.3rem 0.6rem;
+            border-bottom: 1px solid var(--border-light);
+            text-align: left;
+            white-space: nowrap;
+            max-width: 16rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sheet-table th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background-color: var(--bg-card);
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+        .sheet-table td { color: var(--text-main); }
+        .sheet-table tr:nth-child(even) td { background-color: rgba(0, 0, 0, 0.018); }
+        [data-dbx-theme="dark"] .sheet-table tr:nth-child(even) td { background-color: rgba(255, 255, 255, 0.03); }
+        .sheet-table td.is-num { text-align: right; color: #1d4ed8; }
+        [data-dbx-theme="dark"] .sheet-table td.is-num { color: #93c5fd; }
+        .sheet-empty {
+            padding: 2.5rem 1rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.82rem;
+        }
+        .sheet-empty.hidden { display: none; }
+        .sheet-more {
+            padding: 0.45rem 0.6rem;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            border-top: 1px dashed var(--border-light);
+        }
+        /* 双击单元格的详情弹层：内容按原样换行显示，不再被省略号吃掉 */
+        .sheet-cell-pop {
+            position: fixed;
+            inset: 0;
+            z-index: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            background-color: rgba(0, 0, 0, 0.38);
+        }
+        .sheet-cell-pop[hidden] { display: none; }
+        .sheet-cell-pop-box {
+            display: flex;
+            flex-direction: column;
+            width: min(620px, 100%);
+            max-height: min(70vh, 640px);
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+            overflow: hidden;
+        }
+        .sheet-cell-pop-head {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.7rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .sheet-cell-pop-title {
+            flex: 1;
+            min-width: 0;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-main);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .sheet-cell-pop-close {
+            width: 22px;
+            height: 22px;
+            font-size: 1rem;
+            line-height: 1;
+            color: var(--text-muted);
+            background: none;
+            border: 0;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+        }
+        .sheet-cell-pop-close:hover { color: var(--text-main); background-color: var(--accent-bg); }
+        .sheet-cell-pop-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+            padding: 0.7rem;
+        }
+        .sheet-cell-pop-value {
+            padding: 0.55rem 0.65rem;
+            font-family: var(--font-mono);
+            font-size: 0.76rem;
+            line-height: 1.5;
+            color: var(--text-main);
+            background-color: var(--bg-base);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 40vh;
+            overflow: auto;
+        }
+        .sheet-cell-pop-value.is-empty { color: var(--text-muted); font-style: italic; }
+        .sheet-cell-pop-sub {
+            margin: 0.6rem 0 0.3rem;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+        .sheet-cell-pop-row {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            table-layout: fixed;
+        }
+        .sheet-cell-pop-row td {
+            padding: 0.22rem 0.4rem;
+            border-bottom: 1px solid var(--border-light);
+            vertical-align: top;
+            word-break: break-word;
+        }
+        .sheet-cell-pop-row td:first-child {
+            width: 34%;
+            color: var(--text-muted);
+        }
+        .sheet-cell-pop-row tr.is-current td { background-color: var(--accent-bg); }
+        .sheet-cell-pop-foot {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            padding: 0.5rem 0.7rem;
+            border-top: 1px solid var(--border-light);
+        }
+        .sheet-cell-pop-hint { font-size: 0.7rem; color: var(--text-muted); }
+        .sheet-cell-pop-foot .btn { padding: 0.24rem 0.6rem; font-size: 0.72rem; }
+
         .nav-links a.active {
             color: var(--primary);
             background-color: var(--accent-bg);
@@ -1191,8 +1565,19 @@
             }
             .toolbar { flex-direction: row; flex-wrap: wrap; border-radius: var(--radius-lg); padding: 1rem; width: 100%;}
             .main-container { padding: 1rem; gap: 0.75rem; }
-            .topbar { gap: 0.25rem; }
-            .brand { margin-right: 0.25rem; }
+            .topbar { gap: 0.5rem; padding: 0 0.75rem; }
+            .brand { margin-right: 0; }
+            .nav-links { gap: 0.25rem; margin-left: 0; }
+        }
+
+        /* 窄屏：格式对文案换成「格式转换」，给导航条腾地方 */
+        @media (max-width: 640px) {
+            #navConvertLabel { display: none; }
+            .nav-convert-short { display: inline; }
+            /* 语言切换只留旗帜，不然顶栏会被挤出屏幕 */
+            #currentLangText { display: none; }
+            .lang-trigger { gap: 0.3rem; padding: 0.4rem 0.5rem; }
+            .lang-switcher { margin-left: 0; }
         }
     </style>
 </head>
@@ -1204,10 +1589,11 @@
         <span data-i18n="brand">转换工具</span>
     </div>
 
-    <!-- 7 个格式互转入口合成一个下拉，导航条上只留一个「格式转换」 -->
+    <!-- 7 个格式互转入口合成一个下拉；触发器直接显示当前这一对（如 yaml转properties） -->
     <div class="nav-convert" id="navConvert">
         <button type="button" class="nav-convert-trigger" id="navConvertTrigger" aria-haspopup="true" aria-expanded="false">
-            <span data-i18n="navConvert">格式转换</span>
+            <span id="navConvertLabel" data-i18n="navConvert">格式转换</span>
+            <span id="navConvertShort" class="nav-convert-short" data-i18n="navConvert">格式转换</span>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="nav-convert-menu" id="navConvertMenu">
@@ -1222,6 +1608,7 @@
     </div>
     <nav class="nav-links" id="navLinks">
         <a id="navSql" class="nav-sql" data-i18n="navSql">SQL 转换</a>
+        <a id="navSheet" class="nav-sheet" data-i18n="navSheet">表格转 JSON</a>
         <a id="navCompare" class="nav-compare" data-i18n="navCompare">JSON 对比</a>
     </nav>
 
@@ -1503,6 +1890,140 @@
                 </div>
                 <div class="editor-container">
                     <textarea id="sqlOutputText" class="textarea" spellcheck="false"></textarea>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 表格转 JSON：Excel / CSV 文件 → JSON（独立页，从导航栏进入） -->
+    <section class="sheet-workspace" id="sheetWorkspace">
+        <div class="compare-bar">
+            <input type="file" id="sheetFileInput" accept=".csv,.tsv,.txt,.xlsx,.xlsm" hidden>
+            <button type="button" class="btn btn-primary" id="sheetPick">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span data-i18n="sheetPick">选择 Excel / CSV 文件</span>
+            </button>
+            <span class="sheet-file" id="sheetFileInfo" data-i18n="sheetNoFile">未选择文件</span>
+
+            <span class="compare-samples-label" data-i18n="sheetSamples">示例</span>
+            <div class="compare-samples" id="sheetSamples">
+                <span class="sample-chip" data-sample="simple" data-i18n="sheetSampleSimple">简单表格</span>
+                <span class="sample-chip" data-sample="users" data-i18n="sheetSampleUsers">用户信息</span>
+                <span class="sample-chip" data-sample="scores" data-i18n="sheetSampleScores">成绩单</span>
+            </div>
+
+            <div class="compare-actions">
+                <button type="button" class="btn btn-outline" id="sheetCopy" data-i18n="copyBtn">复制</button>
+                <button type="button" class="btn btn-outline" id="sheetExport" data-i18n="sheetExport">导出 JSON</button>
+                <button type="button" class="btn btn-outline" id="sheetClear" data-i18n="clearBtn">清空</button>
+            </div>
+
+            <div class="compare-tip" id="sheetTip"></div>
+        </div>
+
+        <div class="sheet-options">
+            <label class="sql-check"><input type="checkbox" id="sheetHeader" checked><span data-i18n="sheetHeader">首行为表头</span></label>
+            <label class="sql-check sheet-note-check" id="sheetNoteWrap">
+                <input type="checkbox" id="sheetSkipNote">
+                <span data-i18n="sheetSkipNote">第二行为注释</span>
+            </label>
+            <button type="button" class="sheet-note-hint" id="sheetNoteHint" hidden data-i18n="sheetNoteHint">第二行疑似说明，跳过？</button>
+            <span class="compare-samples-label" data-i18n="sheetDelimLabel">分隔符</span>
+            <div class="compare-tabs sql-seg" id="sheetDelim">
+                <button type="button" class="compare-tab active" data-delim="auto" data-i18n="sheetDelimAuto">自动</button>
+                <button type="button" class="compare-tab" data-delim=",">,</button>
+                <button type="button" class="compare-tab" data-delim="&#9;">Tab</button>
+                <button type="button" class="compare-tab" data-delim=";">;</button>
+            </div>
+            <label class="sql-check"><input type="checkbox" id="sheetNumbers" checked><span data-i18n="sheetNumbers">数字识别</span></label>
+            <label class="sql-check"><input type="checkbox" id="sheetBools" checked><span data-i18n="sheetBools">布尔识别</span></label>
+            <div class="sheet-limit">
+                <span data-i18n="sheetLimitLabel">最多条数</span>
+                <div class="custom-select" id="sheetLimit">
+                    <div class="custom-select-trigger">
+                        <span class="label">全部</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="custom-select-options">
+                        <div class="custom-option selected" data-value="0" data-i18n="sheetLimitAll">全部</div>
+                        <div class="custom-option" data-value="100">100</div>
+                        <div class="custom-option" data-value="500">500</div>
+                        <div class="custom-option" data-value="1000">1,000</div>
+                        <div class="custom-option" data-value="5000">5,000</div>
+                        <div class="custom-option" data-value="10000">10,000</div>
+                    </div>
+                </div>
+            </div>
+            <span class="sheet-hint" id="sheetLimitHint" data-i18n="sheetLimitHint">单文件 ≤ 20 MB · 最多 10 万行</span>
+        </div>
+
+        <div class="sheet-progress" id="sheetProgress"><i id="sheetProgressFill"></i></div>
+
+        <div class="compare-grid">
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="sheetPreview">数据预览</span>
+                        <span class="pane-badge" id="sheetInCount">0 × 0</span>
+                    </div>
+                    <div class="pane-actions">
+                        <span class="sheet-sheetname" id="sheetSheetName"></span>
+                    </div>
+                </div>
+                <div class="sheet-table-wrap" id="sheetTableWrap">
+                    <div class="sheet-empty" id="sheetEmpty" data-i18n="sheetEmptyHint">选择文件，或把 CSV / Excel 拖到这里</div>
+                    <table class="sheet-table" id="sheetTable"></table>
+                </div>
+                <!-- 列多时横向滚动：macOS 的悬浮滚动条不滚就不出现，这里自绘一条常驻的 -->
+                <div class="sheet-hscroll" id="sheetHScroll" hidden>
+                    <div class="sheet-hscroll-track" id="sheetHScrollTrack">
+                        <div class="sheet-hscroll-thumb" id="sheetHScrollThumb"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span id="sheetOutLabel" data-i18n="sheetOutput">JSON 输出</span>
+                        <span class="pane-badge" id="sheetOutCount">0</span>
+                    </div>
+                    <div class="pane-actions">
+                        <div class="compare-tabs sql-seg sheet-mode" id="sheetOutputMode">
+                            <button type="button" class="compare-tab active" data-mode="json">JSON</button>
+                            <button type="button" class="compare-tab" data-mode="sql">SQL Insert</button>
+                        </div>
+                        <label class="sheet-limit sheet-table-name" id="sheetTableNameWrap" hidden>
+                            <span data-i18n="sheetTableName">表名</span>
+                            <input type="text" id="sheetTableName" class="sql-input" placeholder="your_table_name" value="your_table_name" spellcheck="false">
+                        </label>
+                        <div class="compare-tabs sql-seg sheet-format" id="sheetFormat">
+                            <button type="button" class="compare-tab active" data-format="pretty" data-i18n="sheetFormatPretty">格式化</button>
+                            <button type="button" class="compare-tab" data-format="compact" data-i18n="sheetFormatCompact">紧凑</button>
+                        </div>
+                        <span class="sheet-size" id="sheetOutSize"></span>
+                    </div>
+                </div>
+                <div class="editor-container">
+                    <textarea id="sheetOutputText" class="textarea" spellcheck="false"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- 双击单元格：内容被省略号截断时看全文，顺带看整行 -->
+        <div class="sheet-cell-pop" id="sheetCellPop" hidden>
+            <div class="sheet-cell-pop-box" role="dialog" aria-modal="true">
+                <div class="sheet-cell-pop-head">
+                    <span class="sheet-cell-pop-title" id="sheetCellPopTitle"></span>
+                    <button type="button" class="sheet-cell-pop-close" id="sheetCellPopClose" aria-label="close">×</button>
+                </div>
+                <div class="sheet-cell-pop-body">
+                    <div class="sheet-cell-pop-value" id="sheetCellPopValue"></div>
+                    <div class="sheet-cell-pop-sub" data-i18n="sheetCellRowData">整行数据</div>
+                    <table class="sheet-cell-pop-row"><tbody id="sheetCellPopRow"></tbody></table>
+                </div>
+                <div class="sheet-cell-pop-foot">
+                    <span class="sheet-cell-pop-hint" data-i18n="sheetCellHint">双击其他单元格可继续查看</span>
+                    <button type="button" class="btn btn-outline" id="sheetCellPopCopy" data-i18n="sheetCellCopy">复制</button>
                 </div>
             </div>
         </div>
@@ -1854,6 +2375,34 @@
             navConvertEl.classList.toggle('active', !!link);
         }
 
+        // 触发器上直接写当前这一对格式（yaml转properties），不用点开下拉才知道
+        const FORMAT_NAMES = { json: 'JSON', yaml: 'YAML', xml: 'XML', properties: 'Properties' };
+        // 窄屏那份用了缩写，长文案在 370px 的侧栏里放不下
+        const FORMAT_SHORT = { json: 'JSON', yaml: 'YAML', xml: 'XML', properties: 'Props' };
+        let navLabelTimer = null;
+        function updateConvertLabel() {
+            const label = document.getElementById('navConvertLabel');
+            const short = document.getElementById('navConvertShort');
+            if (!label || !navConvertMenu) return;
+            const src = sourceFormat.value;
+            const tgt = targetFormat.value;
+            const item = navConvertMenu.querySelector('a[data-src="' + src + '"][data-tgt="' + tgt + '"]');
+            const text = item
+                ? item.textContent.trim()
+                // 下拉里没有这一对（例如点互换后变成 properties→yaml）时，用格式名拼一个
+                : (FORMAT_NAMES[src] || src.toUpperCase()) + ' → ' + (FORMAT_NAMES[tgt] || tgt.toUpperCase());
+            // 窄屏那份也要跟着变，否则只剩一个永远不变的「格式转换」
+            const shortText = (FORMAT_SHORT[src] || src.toUpperCase()) + '→' + (FORMAT_SHORT[tgt] || tgt.toUpperCase());
+            const changed = label.textContent !== text || (short && short.textContent !== shortText);
+            label.textContent = text;
+            if (short) short.textContent = shortText;
+            navConvertTrigger.title = text;
+            if (!changed) return;
+            // 文字长短换了，导航条能塞下的项数也跟着变
+            clearTimeout(navLabelTimer);
+            navLabelTimer = setTimeout(layoutNav, 0);
+        }
+
         let navResizeTimer = null;
         window.addEventListener('resize', () => {
             clearTimeout(navResizeTimer);
@@ -1916,7 +2465,8 @@
                 {},
                 currentDict,
                 NAV_I18N[currentLang] || NAV_I18N.en || {},
-                SQL_I18N[currentLang] || SQL_I18N.en || {}
+                SQL_I18N[currentLang] || SQL_I18N.en || {},
+                SHEET_I18N[currentLang] || SHEET_I18N.en || {}
             );
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
@@ -1945,6 +2495,8 @@
             if (typeof layoutNav === 'function') layoutNav();
             // SQL 页的提示语是按当前语言拼出来的，切语言后重算一次
             if (typeof refreshSqlI18n === 'function') refreshSqlI18n();
+            // 表格页的文件信息 / 提示语同理
+            if (typeof refreshSheetI18n === 'function') refreshSheetI18n();
         }
 
         // =========================================
@@ -2030,6 +2582,7 @@
         let cmpRightEditor = null;
         let sqlInputEditor = null;
         let sqlOutputEditor = null;
+        let sheetOutputEditor = null;
 
         // =========================================
         // CodeMirror 5 初始化 (本地离线 - 增强版)
@@ -2111,7 +2664,7 @@
         function syncEditorTheme() {
             const isDark = document.documentElement.getAttribute('data-dbx-theme') === 'dark';
             const theme = isDark ? 'material-darker' : 'default';
-            [inputEditor, outputEditor, diffLeftEditor, diffRightEditor, cmpLeftEditor, cmpRightEditor, sqlInputEditor, sqlOutputEditor].forEach((cm) => {
+            [inputEditor, outputEditor, diffLeftEditor, diffRightEditor, cmpLeftEditor, cmpRightEditor, sqlInputEditor, sqlOutputEditor, sheetOutputEditor].forEach((cm) => {
                 if (!cm) return;
                 const switching = cm.getOption('theme') !== theme;
                 cm.setOption('theme', theme);
@@ -2258,8 +2811,14 @@
                 enterCompareMode();
                 return;
             }
+            // 「表格转 JSON」是 Excel / CSV 转 JSON 的独立页
+            if (link.id === 'navSheet') {
+                enterSheetMode();
+                return;
+            }
             if (compareMode) exitCompareMode();
             if (sqlModeActive) exitSqlMode();
+            if (sheetModeActive) exitSheetMode();
             markConvertActive(link);
             clearTimeout(autoTimer);
             suppressAutoConvert = true;
@@ -2326,6 +2885,7 @@
         function updateOutputLabel() {
             // 下拉里也有一份「当前格式对」的高亮，改格式时顺手同步
             if (typeof syncConvertActive === 'function') syncConvertActive();
+            if (typeof updateConvertLabel === 'function') updateConvertLabel();
             outputResultLabel.textContent = targetFormat.value.toUpperCase();
             outputResultLabel.title = `Result Output (${targetFormat.value.toUpperCase()})`;
         }
@@ -3261,6 +3821,7 @@
 
         function enterCompareMode() {
             if (sqlModeActive) exitSqlMode();
+            if (sheetModeActive) exitSheetMode();
             if (isDiffMode) {
                 isDiffMode = false;
                 diffReport.classList.remove('show');
@@ -3477,6 +4038,7 @@
                 toggleDiffBtn.classList.remove('btn-diff');
             }
             if (compareMode) exitCompareMode();
+            if (sheetModeActive) exitSheetMode();
             sqlModeActive = true;
             markConvertActive(null);
             mainWorkspace.classList.add('hidden');
@@ -3559,6 +4121,1122 @@
                     ? (currentDict.toastPasteUnsupported || '当前环境不支持读取剪贴板，请手动粘贴')
                     : (currentDict.toastPasteError || '读取剪贴板失败'), 'error');
             }
+        });
+
+        // =========================================
+        // 9. 表格转 JSON 页（Excel / CSV → JSON）
+        // =========================================
+        // 和 SQL 页一样，这一页的文案单独放一张小表，缺哪种语言就回退 en
+        const SHEET_I18N = {
+            'zh-CN': {
+                navSheet: '表格转 JSON',
+                sheetPick: '选择 Excel / CSV 文件',
+                sheetNoFile: '未选择文件',
+                sheetSamples: '示例',
+                sheetSampleSimple: '简单表格',
+                sheetSampleUsers: '用户信息',
+                sheetSampleScores: '成绩单',
+                sheetPreview: '数据预览',
+                sheetOutput: 'JSON 输出',
+                sheetOutJson: 'JSON 输出',
+                sheetOutSql: 'SQL Insert 输出',
+                sheetTableName: '表名',
+                sheetExportSql: '导出 SQL',
+                sheetToastExportedSql: '已导出 SQL 文件',
+                sheetExport: '导出 JSON',
+                sheetHeader: '首行为表头',
+                sheetSkipNote: '第二行为注释',
+                sheetNoteHint: '第二行疑似说明，跳过？',
+                sheetTipSkippedNote: '已跳过第二行说明',
+                sheetCellRow: '第 {n} 条',
+                sheetCellHeaderRow: '表头行',
+                sheetCellEmpty: '（空）',
+                sheetCellRowData: '整行数据',
+                sheetCellCopy: '复制',
+                sheetCellHint: '双击其他单元格可继续查看',
+                sheetDelimLabel: '分隔符',
+                sheetDelimAuto: '自动',
+                sheetNumbers: '数字识别',
+                sheetBools: '布尔识别',
+                sheetLimitLabel: '最多条数',
+                sheetLimitAll: '全部',
+                sheetFormatPretty: '格式化',
+                sheetFormatCompact: '紧凑',
+                sheetLimitHint: '单文件 ≤ 20 MB · 最多 10 万行',
+                sheetEmptyHint: '选择文件，或把 CSV / Excel 拖到这里',
+                sheetTipIdle: '支持 .xlsx / .csv / .tsv，全程本地解析，不上传任何数据',
+                sheetTipParsing: '解析中…',
+                sheetTipJson: '正在生成 JSON {p}%',
+                sheetTipSql: '正在生成 SQL {p}%',
+                sheetTipDone: '{n} 条记录 · {c} 列 · {s}',
+                sheetTipLimited: '已限制为前 {n} 条（共 {m} 条），导出同样是 {n} 条',
+                sheetTipEmpty: '没有解析到数据，检查一下分隔符或表头设置',
+                sheetTipTooBig: '文件 {s} 超过 {m} 上限，请先拆分再转换',
+                sheetTipBadType: '不支持该文件类型，请选择 .xlsx / .csv / .tsv',
+                sheetTipXls: '旧版 .xls 暂不支持，请在 Excel 里另存为 .xlsx 或 .csv',
+                sheetTipNoZip: '当前环境不支持解压 xlsx，请另存为 CSV 后再转换',
+                sheetTipTruncated: '已按上限截断，只转换前 {n} 行',
+                sheetTipPreview: '预览已截断，复制 / 导出仍是完整内容',
+                sheetToastExported: '已导出 JSON 文件',
+                sheetToastExporting: '正在保存…',
+                sheetToastExportCancel: '已取消导出',
+                sheetToastExportFail: '导出失败：{e}',
+                sheetToastBusy: '正在生成 JSON，请稍候再导出',
+                sheetToastEmpty: '还没有可导出的内容',
+                sheetRowsMore: '还有 {n} 行未显示',
+                sheetParseFailed: '解析失败：{e}'
+            },
+            'zh-TW': {
+                navSheet: '表格轉 JSON',
+                sheetPick: '選擇 Excel / CSV 檔案',
+                sheetNoFile: '未選擇檔案',
+                sheetSamples: '範例',
+                sheetSampleSimple: '簡單表格',
+                sheetSampleUsers: '使用者資訊',
+                sheetSampleScores: '成績單',
+                sheetPreview: '資料預覽',
+                sheetOutput: 'JSON 輸出',
+                sheetOutJson: 'JSON 輸出',
+                sheetOutSql: 'SQL Insert 輸出',
+                sheetTableName: '表名',
+                sheetExportSql: '匯出 SQL',
+                sheetToastExportedSql: '已匯出 SQL 檔案',
+                sheetExport: '匯出 JSON',
+                sheetHeader: '首列為表頭',
+                sheetSkipNote: '第二列為註解',
+                sheetNoteHint: '第二列疑似說明，跳過？',
+                sheetTipSkippedNote: '已跳過第二列說明',
+                sheetCellRow: '第 {n} 筆',
+                sheetCellHeaderRow: '表頭列',
+                sheetCellEmpty: '（空）',
+                sheetCellRowData: '整列資料',
+                sheetCellCopy: '複製',
+                sheetCellHint: '雙擊其他儲存格可繼續查看',
+                sheetDelimLabel: '分隔符',
+                sheetDelimAuto: '自動',
+                sheetNumbers: '數字辨識',
+                sheetBools: '布林辨識',
+                sheetLimitLabel: '最多筆數',
+                sheetLimitAll: '全部',
+                sheetFormatPretty: '格式化',
+                sheetFormatCompact: '緊湊',
+                sheetLimitHint: '單檔 ≤ 20 MB · 最多 10 萬列',
+                sheetEmptyHint: '選擇檔案，或把 CSV / Excel 拖到這裡',
+                sheetTipIdle: '支援 .xlsx / .csv / .tsv，全程本機解析，不上傳任何資料',
+                sheetTipParsing: '解析中…',
+                sheetTipJson: '正在產生 JSON {p}%',
+                sheetTipSql: '正在產生 SQL {p}%',
+                sheetTipDone: '{n} 筆記錄 · {c} 欄 · {s}',
+                sheetTipLimited: '已限制為前 {n} 筆（共 {m} 筆），匯出同樣是 {n} 筆',
+                sheetTipEmpty: '沒有解析到資料，檢查一下分隔符或表頭設定',
+                sheetTipTooBig: '檔案 {s} 超過 {m} 上限，請先拆分再轉換',
+                sheetTipBadType: '不支援該檔案類型，請選擇 .xlsx / .csv / .tsv',
+                sheetTipXls: '舊版 .xls 暫不支援，請在 Excel 裡另存為 .xlsx 或 .csv',
+                sheetTipNoZip: '目前環境不支援解壓 xlsx，請另存為 CSV 後再轉換',
+                sheetTipTruncated: '已依上限截斷，只轉換前 {n} 列',
+                sheetTipPreview: '預覽已截斷，複製 / 匯出仍是完整內容',
+                sheetToastExported: '已匯出 JSON 檔案',
+                sheetToastExporting: '正在儲存…',
+                sheetToastExportCancel: '已取消匯出',
+                sheetToastExportFail: '匯出失敗：{e}',
+                sheetToastBusy: '正在產生 JSON，請稍候再匯出',
+                sheetToastEmpty: '還沒有可匯出的內容',
+                sheetRowsMore: '還有 {n} 列未顯示',
+                sheetParseFailed: '解析失敗：{e}'
+            },
+            en: {
+                navSheet: 'Sheet to JSON',
+                sheetPick: 'Choose Excel / CSV',
+                sheetNoFile: 'No file selected',
+                sheetSamples: 'Examples',
+                sheetSampleSimple: 'Simple table',
+                sheetSampleUsers: 'Users',
+                sheetSampleScores: 'Scores',
+                sheetPreview: 'Preview',
+                sheetOutput: 'JSON output',
+                sheetOutJson: 'JSON output',
+                sheetOutSql: 'SQL Insert output',
+                sheetTableName: 'Table',
+                sheetExportSql: 'Export SQL',
+                sheetToastExportedSql: 'SQL file exported',
+                sheetExport: 'Export JSON',
+                sheetHeader: 'First row is header',
+                sheetSkipNote: 'Row 2 is a note',
+                sheetNoteHint: 'Row 2 looks like a note — skip it?',
+                sheetTipSkippedNote: 'Row 2 note skipped',
+                sheetCellRow: 'Record {n}',
+                sheetCellHeaderRow: 'Header row',
+                sheetCellEmpty: '(empty)',
+                sheetCellRowData: 'Whole row',
+                sheetCellCopy: 'Copy',
+                sheetCellHint: 'Double-click another cell to keep looking',
+                sheetDelimLabel: 'Delimiter',
+                sheetDelimAuto: 'Auto',
+                sheetNumbers: 'Detect numbers',
+                sheetBools: 'Detect booleans',
+                sheetLimitLabel: 'Max records',
+                sheetLimitAll: 'All',
+                sheetFormatPretty: 'Formatted',
+                sheetFormatCompact: 'Compact',
+                sheetLimitHint: '≤ 20 MB per file · up to 100k rows',
+                sheetEmptyHint: 'Choose a file, or drop a CSV / Excel here',
+                sheetTipIdle: '.xlsx / .csv / .tsv — parsed locally, nothing is uploaded',
+                sheetTipParsing: 'Parsing…',
+                sheetTipJson: 'Building JSON {p}%',
+                sheetTipSql: 'Building SQL {p}%',
+                sheetTipDone: '{n} record(s) · {c} column(s) · {s}',
+                sheetTipLimited: 'Limited to the first {n} of {m} record(s) — export uses the same limit',
+                sheetTipEmpty: 'No rows parsed — check the delimiter or header option',
+                sheetTipTooBig: 'File is {s}, above the {m} limit — split it first',
+                sheetTipBadType: 'Unsupported file type, please pick .xlsx / .csv / .tsv',
+                sheetTipXls: 'Legacy .xls is not supported — save as .xlsx or .csv first',
+                sheetTipNoZip: 'This environment cannot unzip xlsx — please save as CSV',
+                sheetTipTruncated: 'Truncated to the first {n} rows',
+                sheetTipPreview: 'Preview truncated — copy / export still contains everything',
+                sheetToastExported: 'JSON file exported',
+                sheetToastExporting: 'Saving…',
+                sheetToastExportCancel: 'Export cancelled',
+                sheetToastExportFail: 'Export failed: {e}',
+                sheetToastBusy: 'Still building JSON — try exporting in a moment',
+                sheetToastEmpty: 'Nothing to export yet',
+                sheetRowsMore: '{n} more row(s) not shown',
+                sheetParseFailed: 'Parse failed: {e}'
+            }
+        };
+
+        if (!window.DBXSheet) throw new Error('ui/js/sheetconv.js 未加载');
+        const DBXSheet = window.DBXSheet;
+        const SHEET_LIMITS = DBXSheet.LIMITS;
+
+        const sheetWorkspace = document.getElementById('sheetWorkspace');
+        const sheetFileInput = document.getElementById('sheetFileInput');
+        const sheetFileInfo = document.getElementById('sheetFileInfo');
+        const sheetSamples = document.getElementById('sheetSamples');
+        const sheetTip = document.getElementById('sheetTip');
+        const sheetInCount = document.getElementById('sheetInCount');
+        const sheetOutCount = document.getElementById('sheetOutCount');
+        const sheetOutSize = document.getElementById('sheetOutSize');
+        const sheetTable = document.getElementById('sheetTable');
+        const sheetTableWrap = document.getElementById('sheetTableWrap');
+        const sheetEmpty = document.getElementById('sheetEmpty');
+        const sheetDelim = document.getElementById('sheetDelim');
+        const sheetHeaderBox = document.getElementById('sheetHeader');
+        const sheetSkipNoteBox = document.getElementById('sheetSkipNote');
+        const sheetNoteWrap = document.getElementById('sheetNoteWrap');
+        const sheetNoteHint = document.getElementById('sheetNoteHint');
+        const sheetNumbersBox = document.getElementById('sheetNumbers');
+        const sheetBoolsBox = document.getElementById('sheetBools');
+        const sheetLimitEl = document.getElementById('sheetLimit');
+        const sheetFormatTabs = document.getElementById('sheetFormat');
+        const sheetOutputModeTabs = document.getElementById('sheetOutputMode');
+        const sheetOutLabel = document.getElementById('sheetOutLabel');
+        const sheetTableNameWrap = document.getElementById('sheetTableNameWrap');
+        const sheetTableNameInput = document.getElementById('sheetTableName');
+        const sheetProgress = document.getElementById('sheetProgress');
+        const sheetProgressFill = document.getElementById('sheetProgressFill');
+        const sheetCellPop = document.getElementById('sheetCellPop');
+        const sheetCellPopTitle = document.getElementById('sheetCellPopTitle');
+        const sheetCellPopValue = document.getElementById('sheetCellPopValue');
+        const sheetCellPopRow = document.getElementById('sheetCellPopRow');
+        const sheetCellPopCopy = document.getElementById('sheetCellPopCopy');
+        const sheetCellPopClose = document.getElementById('sheetCellPopClose');
+        const sheetHScroll = document.getElementById('sheetHScroll');
+        const sheetHScrollTrack = document.getElementById('sheetHScrollTrack');
+        const sheetHScrollThumb = document.getElementById('sheetHScrollThumb');
+        const sheetSheetName = document.getElementById('sheetSheetName');
+        const navSheetLink = document.getElementById('navSheet');
+
+        const SHEET_SAMPLE_DATA = {
+            simple: '姓名,年龄,城市\n张三,18,北京\n李四,22,上海',
+            users: '姓名,年龄,城市,邮箱,注册时间\n张三,18,北京,zhangsan@example.com,2024-03-01\n李四,22,上海,lisi@example.com,2024-05-18\n王五,31,广州,wangwu@example.com,2023-11-02\n赵六,27,成都,zhaoliu@example.com,2024-01-09',
+            scores: '学号,姓名,语文,数学,英语,总分\n1001,张三,92,88,95,275\n1002,李四,78,91,84,253\n1003,王五,85,79,90,254\n1004,赵六,96,94,89,279'
+        };
+
+        let sheetModeActive = false;
+        let sheetDelimiter = 'auto';
+        let sheetJob = 0;
+        let sheetBusy = false;
+        // pretty：缩进 2 格；compact：一条记录一行、不带缩进
+        let sheetFormat = 'pretty';
+        // 输出方式：json / sql
+        let sheetOutputMode = 'json';
+        // 最多条数：0 = 全部
+        let sheetLimit = 0;
+        const sheetState = {
+            kind: '',            // text：按文本重新解析；rows：xlsx 已解析好的矩阵
+            text: '',
+            rows: [],
+            headers: [],
+            records: [],         // 已按「最多条数」裁好的记录，切格式时直接复用
+            available: 0,        // 文件里实际有多少条（裁剪前）
+            limited: false,      // 是否被「最多条数」截断了
+            fileName: '',
+            fileSize: 0,
+            sheetName: '',
+            json: '',
+            sql: '',
+            truncated: false,
+            // 第二行「疑似说明」：只用来提示，不改输出；用户点了才真的跳过
+            noteSuggested: false
+        };
+
+        // 「第二行为注释」只有在有表头时才有意义（没表头就没有第一行列名可比）
+        function sheetSkipNoteValue() {
+            return sheetHeaderBox.checked && sheetSkipNoteBox.checked;
+        }
+
+        function applySheetNoteUi() {
+            const enabled = sheetHeaderBox.checked;
+            sheetNoteWrap.classList.toggle('is-disabled', !enabled);
+            sheetSkipNoteBox.disabled = !enabled;
+            // 已勾选就不必再提示；没有表头时也无所谓第二行是注释
+            sheetNoteHint.hidden = !(sheetState.noteSuggested && enabled && !sheetSkipNoteBox.checked);
+        }
+
+        // 每次数据变了都重新判断一次：可能像、可能不像，判断结果只影响提示
+        function refreshSheetNoteSuggest() {
+            sheetState.noteSuggested = sheetState.rows.length
+                ? DBXSheet.suggestSkipNote(sheetState.rows)
+                : false;
+            applySheetNoteUi();
+        }
+
+        // 「最多条数」：0 = 全部
+        function sheetLimitValue() {
+            return sheetLimit;
+        }
+
+        // 复用顶栏那个 .custom-select（原生 select 的弹层是系统绘制的，跟主题不搭）
+        const sheetLimitSelect = initCustomSelect('sheetLimit');
+
+        function applySheetLimitUi() {
+            if (sheetLimitSelect) sheetLimitSelect.setValue(String(sheetLimit));
+        }
+
+        function setSheetLimit(value) {
+            const n = parseInt(value, 10);
+            sheetLimit = isFinite(n) && n > 0 ? n : 0;
+            applySheetLimitUi();
+            // 换了上限就要重新裁记录（CSV 重新解析，xlsx 直接用已解好的矩阵）
+            if (sheetState.kind) sheetRebuild();
+        }
+
+        function sheetT(key, fallback) {
+            const table = SHEET_I18N[currentLang] || SHEET_I18N.en || {};
+            return table[key] || currentDict[key] || fallback || key;
+        }
+
+        function setSheetTip(text, tone) {
+            sheetTip.textContent = text;
+            sheetTip.className = 'compare-tip' + (tone ? ' ' + tone : '');
+        }
+
+        function sheetIdleTip() {
+            setSheetTip(sheetT('sheetTipIdle', '支持 .xlsx / .csv / .tsv，全程本地解析，不上传任何数据'));
+        }
+
+        function formatSheetBytes(n) {
+            if (!n) return '0 B';
+            if (n < 1024) return n + ' B';
+            if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+            return (n / 1024 / 1024).toFixed(1) + ' MB';
+        }
+
+        function sheetProgressSet(ratio) {
+            if (ratio == null) {
+                sheetProgress.classList.remove('show');
+                sheetProgressFill.style.width = '0%';
+                return;
+            }
+            sheetProgress.classList.add('show');
+            sheetProgressFill.style.width = Math.max(3, Math.round(ratio * 100)) + '%';
+        }
+
+        function escapeSheetHtml(value) {
+            return String(value).replace(/[&<>"]/g, (ch) => (
+                ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : '&quot;'
+            ));
+        }
+
+        function ensureSheetEditor() {
+            if (sheetOutputEditor) return;
+            // 输出栏只读：这里放的是给复制 / 导出用的成品
+            sheetOutputEditor = CodeMirror.fromTextArea(sheetOutputText, Object.assign({}, commonConfig, {
+                mode: MODE_MAP.json,
+                readOnly: true
+            }));
+            syncEditorTheme();
+        }
+
+        function updateSheetFileInfo() {
+            const hasFile = !!sheetState.fileName;
+            sheetFileInfo.classList.toggle('has-file', hasFile);
+            if (!hasFile) {
+                sheetFileInfo.textContent = sheetT('sheetNoFile', '未选择文件');
+                sheetSheetName.textContent = '';
+                return;
+            }
+            const bits = [sheetState.fileName];
+            if (sheetState.fileSize) bits.push(formatSheetBytes(sheetState.fileSize));
+            sheetFileInfo.textContent = bits.join(' · ');
+            sheetFileInfo.title = sheetFileInfo.textContent;
+            sheetSheetName.textContent = sheetState.sheetName || '';
+        }
+
+        // 预览最多画 SHEET_LIMITS.previewRows 行：10 万行全塞进 DOM 会直接把页面卡死。
+        // 「最多条数」比它还小时，就按条数限制收窄，预览与 JSON 保持一致。
+        function renderSheetTable() {
+            const rows = sheetState.rows;
+            const hasHeader = sheetHeaderBox.checked;
+            if (!rows.length) {
+                sheetTable.innerHTML = '';
+                sheetEmpty.classList.remove('hidden');
+                sheetInCount.textContent = '0 × 0';
+                return;
+            }
+            sheetEmpty.classList.add('hidden');
+
+            const width = Math.min(Math.max(sheetState.headers.length, 1), 40);
+            const start = hasHeader ? (sheetSkipNoteValue() ? 2 : 1) : 0;
+            const dataRows = Math.max(rows.length - start, 0);
+            const limit = sheetLimitValue();
+            const windowRows = limit ? Math.min(limit, SHEET_LIMITS.previewRows) : SHEET_LIMITS.previewRows;
+            const end = Math.min(rows.length, start + windowRows);
+            const shown = end - start;
+            const html = ['<thead><tr>'];
+            for (let c = 0; c < width; c++) {
+                const name = sheetState.headers[c] || ('column_' + (c + 1));
+                html.push('<th>' + escapeSheetHtml(name) + '</th>');
+            }
+            html.push('</tr></thead><tbody>');
+            for (let r = start; r < end; r++) {
+                html.push('<tr>');
+                for (let c = 0; c < width; c++) {
+                    const raw = rows[r][c] == null ? '' : String(rows[r][c]);
+                    const numeric = raw !== '' && DBXSheet.isNumberLiteral(raw);
+                    // data-row / data-col 给双击看详情用（行号是文件里的真实下标）
+                    html.push('<td data-row="' + r + '" data-col="' + c + '"' +
+                        (numeric ? ' class="is-num"' : '') + '>' + escapeSheetHtml(raw) + '</td>');
+                }
+                html.push('</tr>');
+            }
+            html.push('</tbody>');
+            // 表尾显示的是「文件里还有多少条没画出来」，不是「还没转换」
+            const hidden = dataRows - shown;
+            if (hidden > 0) {
+                html.push('<tfoot><tr><td colspan="' + width + '" class="sheet-more">' +
+                    escapeSheetHtml(sheetT('sheetRowsMore', '还有 {n} 行未显示').replace('{n}', String(hidden))) +
+                    '</td></tr></tfoot>');
+            }
+            sheetTable.innerHTML = html.join('');
+            // 徽标用「数据行 × 列」，和 JSON 的条数对得上
+            sheetInCount.textContent = dataRows + ' × ' + sheetState.headers.length;
+            scheduleSyncSheetHScroll();
+        }
+
+        // 横向滚动条：macOS 的悬浮滚动条不滚就不出现，列多的时候容易以为「就这几列」。
+        // 这里按 scrollWidth / clientWidth 自己画一条常驻的，拖动它也直接改 scrollLeft。
+        function syncSheetHScroll() {
+            const overflow = sheetTableWrap.scrollWidth - sheetTableWrap.clientWidth;
+            if (overflow <= 1) {
+                sheetHScroll.hidden = true;
+                return;
+            }
+            sheetHScroll.hidden = false;
+            const trackWidth = sheetHScrollTrack.clientWidth;
+            if (!trackWidth) return;
+            const width = Math.max(36, Math.round(trackWidth * sheetTableWrap.clientWidth / sheetTableWrap.scrollWidth));
+            const maxLeft = Math.max(trackWidth - width, 0);
+            const left = maxLeft ? Math.round(maxLeft * (sheetTableWrap.scrollLeft / overflow)) : 0;
+            sheetHScrollThumb.style.width = width + 'px';
+            sheetHScrollThumb.style.left = Math.min(Math.max(left, 0), maxLeft) + 'px';
+        }
+
+        function scheduleSyncSheetHScroll() {
+            // 刚写完 innerHTML，尺寸要等一帧才准
+            if (typeof requestAnimationFrame === 'function') requestAnimationFrame(syncSheetHScroll);
+            else setTimeout(syncSheetHScroll, 0);
+        }
+
+        function sheetOutputLabel() {
+            return sheetOutputMode === 'sql'
+                ? sheetT('sheetOutSql', 'SQL Insert 输出')
+                : sheetT('sheetOutJson', 'JSON 输出');
+        }
+
+        // 第一行数据在 rows 里的下标（有表头就跳过 1 行，勾了「第二行为注释」再跳 1 行）
+        function sheetDataStart() {
+            return sheetHeaderBox.checked ? (sheetSkipNoteValue() ? 2 : 1) : 0;
+        }
+
+        function closeSheetCellPop() {
+            sheetCellPop.hidden = true;
+            sheetCellPop.dataset.value = '';
+        }
+
+        // 双击单元格：列名 + 完整内容 + 整行，横向被截掉的列在这都能看全
+        function openSheetCellPop(rowIndex, colIndex) {
+            const row = sheetState.rows[rowIndex];
+            if (!row) return;
+            const header = sheetState.headers[colIndex] || ('column_' + (colIndex + 1));
+            const cell = row[colIndex] == null ? '' : String(row[colIndex]);
+            const rowNo = rowIndex - sheetDataStart() + 1;
+            const where = rowNo > 0
+                ? sheetT('sheetCellRow', '第 {n} 条').replace('{n}', String(rowNo))
+                : sheetT('sheetCellHeaderRow', '表头行');
+            sheetCellPopTitle.textContent = header + ' · ' + where;
+            sheetCellPopValue.textContent = cell === '' ? sheetT('sheetCellEmpty', '（空）') : cell;
+            sheetCellPopValue.classList.toggle('is-empty', cell === '');
+
+            const width = Math.max(sheetState.headers.length, row.length);
+            const parts = [];
+            for (let c = 0; c < width; c++) {
+                const name = sheetState.headers[c] || ('column_' + (c + 1));
+                const value = row[c] == null ? '' : String(row[c]);
+                parts.push('<tr' + (c === colIndex ? ' class="is-current"' : '') + '><td>' +
+                    escapeSheetHtml(name) + '</td><td>' +
+                    escapeSheetHtml(value === '' ? '—' : value) + '</td></tr>');
+            }
+            sheetCellPopRow.innerHTML = parts.join('');
+            sheetCellPop.dataset.value = cell;
+            sheetCellPop.hidden = false;
+            sheetCellPopValue.scrollTop = 0;
+        }
+
+        function currentSheetText() {
+            return sheetOutputMode === 'sql' ? sheetState.sql : sheetState.json;
+        }
+
+        // 顶栏：JSON 模式才显示「格式化 / 紧凑」，SQL 模式换成表名输入框
+        function applySheetOutputModeUi() {
+            const isSql = sheetOutputMode === 'sql';
+            sheetOutputModeTabs.querySelectorAll('.compare-tab').forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.mode === sheetOutputMode);
+            });
+            sheetTableNameWrap.hidden = !isSql;
+            // 「格式化 / 紧凑」两种输出都保留：JSON 是缩进与不缩进，SQL 是逐行与整句一行
+            sheetOutLabel.setAttribute('data-i18n', isSql ? 'sheetOutSql' : 'sheetOutput');
+            sheetOutLabel.textContent = sheetOutputLabel();
+            const exportBtn = document.getElementById('sheetExport');
+            exportBtn.setAttribute('data-i18n', isSql ? 'sheetExportSql' : 'sheetExport');
+            exportBtn.textContent = sheetT(isSql ? 'sheetExportSql' : 'sheetExport', '导出 JSON');
+        }
+
+        function setSheetOutputMode(mode) {
+            const next = mode === 'sql' ? 'sql' : 'json';
+            if (next === sheetOutputMode) return;
+            sheetOutputMode = next;
+            applySheetOutputModeUi();
+            if (sheetState.records.length) sheetReserialize();
+            else renderSheetOutput('', 0);
+        }
+
+        function renderSheetOutput(text, count) {
+            ensureSheetEditor();
+            let preview = text;
+            const limit = SHEET_LIMITS.previewChars;
+            if (text.length > limit) {
+                const cut = text.lastIndexOf('\n', limit);
+                preview = text.slice(0, cut > 0 ? cut : limit) + '\n…（' + sheetT('sheetTipPreview', '预览已截断，复制 / 导出仍是完整内容') + '）';
+            }
+            if (sheetOutputEditor.getValue() !== preview) sheetOutputEditor.setValue(preview);
+            sheetOutCount.textContent = String(count);
+            sheetOutSize.textContent = text ? formatSheetBytes(text.length) : '';
+            sheetOutLabel.textContent = sheetOutputLabel();
+        }
+
+        function sheetDoneTip(count, columns) {
+            let text = sheetT('sheetTipDone', '{n} 条记录 · {c} 列 · {s}')
+                .replace('{n}', String(count))
+                .replace('{c}', String(columns))
+                .replace('{s}', formatSheetBytes(currentSheetText().length));
+            if (sheetState.limited) {
+                text += ' · ' + sheetT('sheetTipLimited', '已限制为前 {n} 条（共 {m} 条），导出同样是 {n} 条')
+                    .replace(/\{n\}/g, String(count))
+                    .replace('{m}', String(sheetState.available));
+            }
+            if (sheetSkipNoteValue()) {
+                text += ' · ' + sheetT('sheetTipSkippedNote', '已跳过第二行说明');
+            }
+            return text;
+        }
+
+        function tickSheet() {
+            return new Promise((resolve) => setTimeout(resolve, 0));
+        }
+
+        // 按当前输出方式（JSON / SQL）序列化，进度与取消都走同一个 token
+        async function buildSheetOutputText(records, token) {
+            const onProgress = (p) => {
+                if (token !== sheetJob) return;
+                const ratio = p.total ? p.done / p.total : 0;
+                sheetProgressSet(ratio);
+                const key = sheetOutputMode === 'sql' ? 'sheetTipSql' : 'sheetTipJson';
+                setSheetTip(sheetT(key, '正在生成 JSON {p}%').replace('{p}', String(Math.round(ratio * 100))));
+            };
+            const isCancelled = () => token !== sheetJob;
+            if (sheetOutputMode === 'sql') {
+                return await DBXSheet.toSqlInsertTextAsync(records, {
+                    table: sheetTableNameInput.value,
+                    columns: sheetState.headers,
+                    pretty: sheetFormat === 'pretty',
+                    onProgress: onProgress,
+                    isCancelled: isCancelled
+                });
+            }
+            return await DBXSheet.toJsonTextAsync(records, {
+                pretty: sheetFormat === 'pretty',
+                onProgress: onProgress,
+                isCancelled: isCancelled
+            });
+        }
+
+        function stashSheetOutput(text) {
+            if (sheetOutputMode === 'sql') sheetState.sql = text;
+            else sheetState.json = text;
+        }
+
+        async function sheetRebuild() {
+            const token = ++sheetJob;
+            ensureSheetEditor();
+            if (!sheetState.kind) {
+                sheetIdleTip();
+                return;
+            }
+
+            sheetBusy = true;
+            try {
+                if (sheetState.kind === 'text') {
+                    sheetProgressSet(0);
+                    setSheetTip(sheetT('sheetTipParsing', '解析中…'));
+                    await tickSheet();
+                    if (token !== sheetJob) return;
+                    const parsed = DBXSheet.parse(sheetState.text, {
+                        delimiter: sheetDelimiter,
+                        maxRows: SHEET_LIMITS.maxRows,
+                        maxCols: SHEET_LIMITS.maxCols
+                    });
+                    sheetState.rows = parsed.rows;
+                    sheetState.truncated = parsed.truncated;
+                }
+
+                if (!sheetState.rows.length) {
+                    sheetProgressSet(null);
+                    sheetState.headers = [];
+                    sheetState.json = '';
+                    sheetState.sql = '';
+                    renderSheetTable();
+                    renderSheetOutput('', 0);
+                    setSheetTip(sheetT('sheetTipEmpty', '没有解析到数据，检查一下分隔符或表头设置'), 'err');
+                    return;
+                }
+
+                refreshSheetNoteSuggest();
+                const built = DBXSheet.buildRecords(sheetState.rows, {
+                    hasHeader: sheetHeaderBox.checked,
+                    numbers: sheetNumbersBox.checked,
+                    booleans: sheetBoolsBox.checked,
+                    skipNote: sheetSkipNoteValue(),
+                    maxRecords: sheetLimitValue()
+                });
+                sheetState.headers = built.headers;
+                sheetState.records = built.records;
+                sheetState.available = built.available;
+                sheetState.limited = built.limited;
+
+                const text = await buildSheetOutputText(built.records, token);
+                if (text == null || token !== sheetJob) return;
+
+                stashSheetOutput(text);
+                sheetProgressSet(null);
+                renderSheetTable();
+                renderSheetOutput(text, built.records.length);
+                setSheetTip(sheetDoneTip(built.records.length, built.headers.length), 'ok');
+            } finally {
+                if (token === sheetJob) sheetBusy = false;
+            }
+        }
+
+        // 只改输出方式 / 格式 / 表名时不用重新解析，拿缓存的记录重排就行
+        async function sheetReserialize() {
+            if (!sheetState.records.length) return;
+            const token = ++sheetJob;
+            ensureSheetEditor();
+            sheetBusy = true;
+            sheetProgressSet(0);
+            try {
+                const text = await buildSheetOutputText(sheetState.records, token);
+                if (text == null || token !== sheetJob) return;
+                stashSheetOutput(text);
+                sheetProgressSet(null);
+                renderSheetOutput(text, sheetState.records.length);
+                setSheetTip(sheetDoneTip(sheetState.records.length, sheetState.headers.length), 'ok');
+            } finally {
+                if (token === sheetJob) sheetBusy = false;
+            }
+        }
+
+        // 文件解码：先按 UTF-8，出现替换字符再试 GBK（Excel 导出的中文 CSV 常见）
+        async function readSheetText(file) {
+            const buffer = await file.arrayBuffer();
+            let text = new TextDecoder('utf-8').decode(buffer);
+            if (text.indexOf('\uFFFD') !== -1) {
+                try {
+                    const gbk = new TextDecoder('gbk').decode(buffer);
+                    if (gbk.indexOf('\uFFFD') === -1) text = gbk;
+                } catch (err) { /* 环境不支持 gbk，保持 utf-8 结果 */ }
+            }
+            return text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+        }
+
+        function setSheetDelimiter(value) {
+            sheetDelimiter = value;
+            sheetDelim.querySelectorAll('.compare-tab').forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.delim === value);
+            });
+        }
+
+        function setSheetFormat(value) {
+            sheetFormat = value === 'compact' ? 'compact' : 'pretty';
+            sheetFormatTabs.querySelectorAll('.compare-tab').forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.format === sheetFormat);
+            });
+            // 已经有结果就只重排，不用再解析一遍文件
+            if (sheetState.records.length) sheetReserialize();
+        }
+
+        function resetSheetState() {
+            sheetState.kind = '';
+            sheetState.text = '';
+            sheetState.rows = [];
+            sheetState.headers = [];
+            sheetState.records = [];
+            sheetState.available = 0;
+            sheetState.limited = false;
+            sheetState.fileName = '';
+            sheetState.fileSize = 0;
+            sheetState.sheetName = '';
+            sheetState.json = '';
+            sheetState.sql = '';
+            sheetState.truncated = false;
+            sheetState.noteSuggested = false;
+            applySheetNoteUi();
+            closeSheetCellPop();
+            sheetHScroll.hidden = true;
+        }
+
+        async function openSheetFile(file) {
+            if (!file) return;
+            const ext = (/\.([^.]+)$/.exec(file.name || '') || [null, ''])[1].toLowerCase();
+            const limitMb = Math.round(SHEET_LIMITS.maxFileBytes / 1024 / 1024);
+
+            resetSheetState();
+            sheetState.fileName = file.name || 'data';
+            sheetState.fileSize = file.size || 0;
+            updateSheetFileInfo();
+
+            if (file.size > SHEET_LIMITS.maxFileBytes) {
+                setSheetTip(sheetT('sheetTipTooBig', '文件 {s} 超过 {m} 上限，请先拆分再转换')
+                    .replace('{s}', formatSheetBytes(file.size))
+                    .replace('{m}', limitMb + ' MB'), 'err');
+                return;
+            }
+            if (ext === 'xls') {
+                setSheetTip(sheetT('sheetTipXls', '旧版 .xls 暂不支持，请在 Excel 里另存为 .xlsx 或 .csv'), 'err');
+                return;
+            }
+            const isXlsx = ext === 'xlsx' || ext === 'xlsm';
+            if (!isXlsx && ['csv', 'tsv', 'txt'].indexOf(ext) === -1) {
+                setSheetTip(sheetT('sheetTipBadType', '不支持该文件类型，请选择 .xlsx / .csv / .tsv'), 'err');
+                return;
+            }
+
+            const token = ++sheetJob;
+            sheetBusy = true;
+            sheetProgressSet(0);
+            setSheetTip(sheetT('sheetTipParsing', '解析中…'));
+
+            try {
+                if (isXlsx) {
+                    if (!window.DBXXlsx) throw new Error('xlsx reader missing');
+                    const buffer = await file.arrayBuffer();
+                    if (token !== sheetJob) return;
+                    const result = await window.DBXXlsx.read(buffer, { maxRows: SHEET_LIMITS.maxRows });
+                    if (token !== sheetJob) return;
+                    sheetState.kind = 'rows';
+                    sheetState.rows = result.rows;
+                    sheetState.sheetName = result.sheetName || '';
+                    sheetState.truncated = result.truncated;
+                    sheetDelim.classList.add('is-disabled');
+                } else {
+                    const text = await readSheetText(file);
+                    if (token !== sheetJob) return;
+                    sheetState.kind = 'text';
+                    sheetState.text = text;
+                    setSheetDelimiter('auto');
+                    sheetDelim.classList.remove('is-disabled');
+                }
+                updateSheetFileInfo();
+                await sheetRebuild();
+                if (sheetState.truncated && sheetState.json) {
+                    setSheetTip(sheetT('sheetTipTruncated', '已按上限截断，只转换前 {n} 行')
+                        .replace('{n}', String(SHEET_LIMITS.maxRows)), 'diff');
+                }
+            } catch (err) {
+                sheetProgressSet(null);
+                const message = String((err && err.message) || err);
+                const text = /不支持解压|DecompressionStream/.test(message)
+                    ? sheetT('sheetTipNoZip', '当前环境不支持解压 xlsx，请另存为 CSV 后再转换')
+                    : sheetT('sheetParseFailed', '解析失败：{e}').replace('{e}', message);
+                setSheetTip(text, 'err');
+            } finally {
+                if (token === sheetJob) sheetBusy = false;
+            }
+        }
+
+        function openSheetSample(name) {
+            const text = SHEET_SAMPLE_DATA[name];
+            if (!text) return;
+            ++sheetJob;
+            resetSheetState();
+            sheetState.kind = 'text';
+            sheetState.text = text;
+            sheetState.fileName = 'sample-' + name + '.csv';
+            sheetState.fileSize = text.length;
+            setSheetDelimiter('auto');
+            sheetDelim.classList.remove('is-disabled');
+            updateSheetFileInfo();
+            sheetRebuild();
+        }
+
+        // 宿主的保存通道：DBX 的 webview 里 <a download> 常被拦掉（点了没反应），
+        // 所以优先走 dbxPlugin.fileTransfer.beginSave → write → finish，实在没有才回退到浏览器下载。
+        function getHostFileTransfer() {
+            const ft = window.dbxPlugin && window.dbxPlugin.fileTransfer;
+            if (!ft) return null;
+            if (typeof ft.beginSave !== 'function' || typeof ft.write !== 'function' || typeof ft.finish !== 'function') return null;
+            const caps = (window.dbxPlugin.capabilities || {}).fileTransfer || {};
+            if (caps.beginSave === false) return null;
+            return ft;
+        }
+
+        function encodeSheetChunk(bytes) {
+            let binary = '';
+            const step = 0x8000;
+            for (let i = 0; i < bytes.length; i += step) {
+                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + step));
+            }
+            return btoa(binary);
+        }
+
+        // 优先用原生 TextEncoder；老 webview / 测试环境没有时手工编 UTF-8
+        function encodeUtf8(text) {
+            if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(text);
+            const out = [];
+            for (let i = 0; i < text.length; i++) {
+                let code = text.charCodeAt(i);
+                if (code >= 0xd800 && code <= 0xdbff && i + 1 < text.length) {
+                    const next = text.charCodeAt(i + 1);
+                    if (next >= 0xdc00 && next <= 0xdfff) {
+                        code = ((code - 0xd800) << 10) + (next - 0xdc00) + 0x10000;
+                        i++;
+                    }
+                }
+                if (code < 0x80) {
+                    out.push(code);
+                } else if (code < 0x800) {
+                    out.push(0xc0 | (code >> 6), 0x80 | (code & 63));
+                } else if (code < 0x10000) {
+                    out.push(0xe0 | (code >> 12), 0x80 | ((code >> 6) & 63), 0x80 | (code & 63));
+                } else {
+                    out.push(0xf0 | (code >> 18), 0x80 | ((code >> 12) & 63),
+                        0x80 | ((code >> 6) & 63), 0x80 | (code & 63));
+                }
+            }
+            return Uint8Array.from(out);
+        }
+
+        function browserSaveFile(name, text, mime) {
+            const blob = new Blob([text], { type: mime });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = name;
+            link.rel = 'noopener';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+        }
+
+        // 返回 'host' / 'browser' / 'cancelled'
+        async function saveTextFile(name, text, mime) {
+            const ft = getHostFileTransfer();
+            if (!ft) {
+                browserSaveFile(name, text, mime);
+                return 'browser';
+            }
+            let handleId = null;
+            try {
+                const handle = await ft.beginSave({ name: name, contentType: mime });
+                // 用户在选择框里点了取消
+                if (!handle || !handle.handleId) return 'cancelled';
+                handleId = handle.handleId;
+                const chunkBytes = handle.chunkBytes > 0 ? handle.chunkBytes : 1024 * 1024;
+                const bytes = encodeUtf8(text);
+                for (let offset = 0; offset < bytes.length; offset += chunkBytes) {
+                    const end = Math.min(offset + chunkBytes, bytes.length);
+                    await ft.write(handleId, offset, encodeSheetChunk(bytes.subarray(offset, end)));
+                }
+                await ft.finish(handleId);
+                handleId = null;
+                return 'host';
+            } catch (err) {
+                if (handleId && typeof ft.cancel === 'function') {
+                    try { await ft.cancel(handleId); } catch (e) { /* 句柄可能已经关了 */ }
+                }
+                console.error('[Sheet] host save failed, fallback to download:', err);
+                browserSaveFile(name, text, mime);
+                return 'browser';
+            }
+        }
+
+        async function exportSheetJson() {
+            const btn = document.getElementById('sheetExport');
+            if (sheetBusy) {
+                showToast(sheetT('sheetToastBusy', '正在生成 JSON，请稍候再导出'), 'error');
+                return;
+            }
+            const text = currentSheetText();
+            if (!text || !sheetState.records.length) {
+                showToast(sheetT('sheetToastEmpty', '还没有可导出的内容'), 'error');
+                return;
+            }
+            const isSql = sheetOutputMode === 'sql';
+            const base = (sheetState.fileName || 'data').replace(/\.[^.]+$/, '') || 'data';
+            btn.disabled = true;
+            try {
+                const status = await saveTextFile(
+                    base + (isSql ? '.sql' : '.json'),
+                    text,
+                    isSql ? 'text/plain;charset=utf-8' : 'application/json;charset=utf-8'
+                );
+                if (status === 'cancelled') {
+                    showToast(sheetT('sheetToastExportCancel', '已取消导出'), 'error');
+                } else {
+                    showToast(sheetT(isSql ? 'sheetToastExportedSql' : 'sheetToastExported', '已导出 JSON 文件'));
+                }
+            } catch (err) {
+                const message = String((err && err.message) || err);
+                showToast(sheetT('sheetToastExportFail', '导出失败：{e}').replace('{e}', message), 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function refreshSheetI18n() {
+            updateSheetFileInfo();
+            applySheetOutputModeUi();
+            applySheetLimitUi();
+            applySheetNoteUi();
+            if (!sheetState.rows.length) {
+                sheetIdleTip();
+                return;
+            }
+            if (sheetState.json) {
+                setSheetTip(sheetDoneTip(sheetState.records.length, sheetState.headers.length), 'ok');
+            }
+            // 分隔符、条数等控件的文案是动态拼的，切语言后重画一次预览表
+            renderSheetTable();
+        }
+
+        function enterSheetMode() {
+            if (isDiffMode) {
+                isDiffMode = false;
+                diffReport.classList.remove('show');
+                diffWorkspace.classList.remove('active');
+                toggleDiffBtn.textContent = currentDict.diffBtn || '对比差异';
+                toggleDiffBtn.classList.remove('btn-diff');
+            }
+            if (compareMode) exitCompareMode();
+            if (sqlModeActive) exitSqlMode();
+            sheetModeActive = true;
+            markConvertActive(null);
+            mainWorkspace.classList.add('hidden');
+            toolbarEl.classList.add('hidden');
+            sheetWorkspace.classList.add('active');
+            navSheetLink.classList.add('active');
+
+            ensureSheetEditor();
+            updateSheetFileInfo();
+            if (!sheetState.json) sheetIdleTip();
+            requestAnimationFrame(() => sheetOutputEditor.refresh());
+        }
+
+        function exitSheetMode() {
+            if (!sheetModeActive) return;
+            sheetModeActive = false;
+            sheetWorkspace.classList.remove('active');
+            navSheetLink.classList.remove('active');
+            toolbarEl.classList.remove('hidden');
+            mainWorkspace.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                inputEditor.refresh();
+                outputEditor.refresh();
+            });
+        }
+
+        document.getElementById('sheetPick').addEventListener('click', () => sheetFileInput.click());
+        sheetFileInput.addEventListener('change', () => {
+            const file = sheetFileInput.files && sheetFileInput.files[0];
+            if (file) openSheetFile(file);
+            // 同一个文件再选一次也要能触发 change
+            sheetFileInput.value = '';
+        });
+        sheetSamples.addEventListener('click', (e) => {
+            const chip = e.target.closest('.sample-chip');
+            if (chip) openSheetSample(chip.dataset.sample);
+        });
+        sheetDelim.addEventListener('click', (e) => {
+            const tab = e.target.closest('.compare-tab');
+            if (!tab || sheetDelim.classList.contains('is-disabled')) return;
+            setSheetDelimiter(tab.dataset.delim);
+            if (sheetState.kind === 'text') sheetRebuild();
+        });
+        [sheetHeaderBox, sheetNumbersBox, sheetBoolsBox].forEach((box) => {
+            box.addEventListener('change', () => {
+                // 表头开关会影响「第二行为注释」是否可选，先同步 UI 再重算
+                if (box === sheetHeaderBox) applySheetNoteUi();
+                if (sheetState.kind) sheetRebuild();
+            });
+        });
+        // 第二行是数据还是说明，交给用户定：勾选才跳过，取消即恢复
+        sheetSkipNoteBox.addEventListener('change', () => {
+            applySheetNoteUi();
+            if (sheetState.kind) sheetRebuild();
+        });
+        sheetNoteHint.addEventListener('click', () => {
+            sheetSkipNoteBox.checked = true;
+            applySheetNoteUi();
+            if (sheetState.kind) sheetRebuild();
+        });
+        // 条数上限：下拉是自己画的组件，选中后它抛 change（detail 是新值）
+        sheetLimitEl.addEventListener('change', (e) => setSheetLimit(e.detail));
+        // 预览里内容会被省略号截断，双击看全文
+        sheetTable.addEventListener('dblclick', (e) => {
+            const td = e.target.closest('td[data-row]');
+            if (!td) return;
+            openSheetCellPop(parseInt(td.dataset.row, 10), parseInt(td.dataset.col, 10));
+        });
+        sheetCellPopClose.addEventListener('click', closeSheetCellPop);
+        // 横向滚动条：拖动 / 点轨道 / 面板尺寸变化都要跟着走
+        sheetTableWrap.addEventListener('scroll', syncSheetHScroll);
+        window.addEventListener('resize', scheduleSyncSheetHScroll);
+        if (typeof ResizeObserver === 'function') {
+            new ResizeObserver(scheduleSyncSheetHScroll).observe(sheetTableWrap);
+        }
+        sheetHScrollThumb.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const overflow = sheetTableWrap.scrollWidth - sheetTableWrap.clientWidth;
+            const maxLeft = sheetHScrollTrack.clientWidth - sheetHScrollThumb.offsetWidth;
+            if (overflow <= 0 || maxLeft <= 0) return;
+            const startX = e.clientX;
+            const startScroll = sheetTableWrap.scrollLeft;
+            sheetHScroll.classList.add('dragging');
+            const onMove = (ev) => {
+                const delta = (ev.clientX - startX) * (overflow / maxLeft);
+                sheetTableWrap.scrollLeft = Math.min(overflow, Math.max(0, startScroll + delta));
+            };
+            const onUp = () => {
+                sheetHScroll.classList.remove('dragging');
+                document.removeEventListener('pointermove', onMove);
+                document.removeEventListener('pointerup', onUp);
+            };
+            document.addEventListener('pointermove', onMove);
+            document.addEventListener('pointerup', onUp);
+        });
+        sheetHScrollTrack.addEventListener('pointerdown', (e) => {
+            if (e.target === sheetHScrollThumb) return;
+            const rect = sheetHScrollTrack.getBoundingClientRect();
+            const thumbW = sheetHScrollThumb.offsetWidth;
+            const span = rect.width - thumbW;
+            if (span <= 0) return;
+            const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left - thumbW / 2) / span));
+            sheetTableWrap.scrollLeft = ratio * (sheetTableWrap.scrollWidth - sheetTableWrap.clientWidth);
+            syncSheetHScroll();
+        });
+        sheetCellPop.addEventListener('click', (e) => {
+            if (e.target === sheetCellPop) closeSheetCellPop();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sheetCellPop.hidden) closeSheetCellPop();
+        });
+        sheetCellPopCopy.addEventListener('click', async () => {
+            try {
+                await writeClipboardText(sheetCellPop.dataset.value || '');
+                showToast(currentDict.toastCopySuccess || '已复制');
+            } catch (err) {
+                showToast(currentDict.toastCopyError || '复制失败', 'error');
+            }
+        });
+        sheetFormatTabs.addEventListener('click', (e) => {
+            const tab = e.target.closest('.compare-tab');
+            if (!tab || tab.classList.contains('active')) return;
+            setSheetFormat(tab.dataset.format);
+        });
+        sheetOutputModeTabs.addEventListener('click', (e) => {
+            const tab = e.target.closest('.compare-tab');
+            if (!tab || tab.classList.contains('active')) return;
+            setSheetOutputMode(tab.dataset.mode);
+        });
+        // 表名只在失焦 / 回车时重排，避免每敲一个字符就重算整张表
+        sheetTableNameInput.addEventListener('change', () => {
+            if (sheetOutputMode === 'sql' && sheetState.records.length) sheetReserialize();
+        });
+        document.getElementById('sheetExport').addEventListener('click', exportSheetJson);
+        document.getElementById('sheetCopy').addEventListener('click', async () => {
+            const text = currentSheetText();
+            if (!text) {
+                showToast(sheetT('sheetToastEmpty', '还没有可导出的内容'), 'error');
+                return;
+            }
+            try {
+                await writeClipboardText(text);
+                showToast(currentDict.toastCopySuccess || '已复制');
+            } catch (err) {
+                showToast(currentDict.toastCopyError || '复制失败', 'error');
+            }
+        });
+        document.getElementById('sheetClear').addEventListener('click', () => {
+            ++sheetJob;
+            resetSheetState();
+            setSheetDelimiter('auto');
+            sheetDelim.classList.remove('is-disabled');
+            updateSheetFileInfo();
+            sheetProgressSet(null);
+            sheetEmpty.classList.remove('hidden');
+            sheetTable.innerHTML = '';
+            sheetInCount.textContent = '0 × 0';
+            ensureSheetEditor();
+            renderSheetOutput('', 0);
+            sheetIdleTip();
+        });
+        // 拖拽：直接把文件丢到预览区
+        ['dragenter', 'dragover'].forEach((type) => {
+            sheetTableWrap.addEventListener(type, (e) => {
+                e.preventDefault();
+                sheetTableWrap.classList.add('dragover');
+            });
+        });
+        ['dragleave', 'dragend'].forEach((type) => {
+            sheetTableWrap.addEventListener(type, () => sheetTableWrap.classList.remove('dragover'));
+        });
+        sheetTableWrap.addEventListener('drop', (e) => {
+            e.preventDefault();
+            sheetTableWrap.classList.remove('dragover');
+            const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (file) openSheetFile(file);
         });
 
         renderLangMenu();

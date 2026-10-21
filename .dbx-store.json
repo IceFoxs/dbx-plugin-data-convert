@@ -1,6 +1,6 @@
 {
   "name": "Data Converter",
-  "description": "Convert between JSON, YAML, XML, and Properties in one DBX workbench panel, and turn batch text into SQL. Instant conversion, mock data, validation and formatting, field-level JSON diff, a standalone JSON compare page, line-level text compare, and an IN / NOT IN / INSERT value-list generator. Pure frontend, no backend, works offline.",
+  "description": "Convert between JSON, YAML, XML, and Properties in one DBX workbench panel, and turn batch text into SQL. Instant conversion, mock data, validation and formatting, field-level JSON diff, a standalone JSON compare page, line-level text compare, and an IN / NOT IN / INSERT value-list generator. A Sheet-to-JSON page reads .xlsx / .csv / .tsv entirely in the browser: header detection, delimiter sniffing, number/boolean inference, real Excel date cells, a live preview table, JSON export, plus hard limits (20 MB / 100k rows) with chunked parsing so the panel never freezes. Pure frontend, no backend, works offline.",
   "icon": "assets/plugin.svg",
   "tags": [
     "data-convert",
@@ -10,7 +10,11 @@
     "properties",
     "formatter",
     "diff",
-    "sql"
+    "sql",
+    "excel",
+    "csv",
+    "xlsx",
+    "sql-insert"
   ],
   "permissions": [
     "host.clipboard:read",
@@ -19,19 +23,19 @@
   "source": "https://github.com/IceFoxs/dbx-plugin-data-convert",
   "homepage": "https://github.com/IceFoxs/dbx-plugin-data-convert",
   "license": "MIT",
-  "releaseNotes": "0.1.4: a SQL builder page — paste one value per line (or a whole IN (...)/VALUES (...) fragment) and get IN / NOT IN / value list / INSERT, with quote style, number quoting (on by default), dedupe and one-per-line formatting. The seven format pairs now live in a single Convert dropdown in the nav. Still fully offline, with no backend.",
+  "releaseNotes": "0.1.4 (update): a new Sheet to JSON page — drop in .xlsx / .csv / .tsv and get a JSON array or SQL INSERT statements. Header detection, delimiter sniffing, number/boolean inference, real Excel dates, ZIP64 xlsx support, a preview table and a Max-records cap (All / 100 / 500 / 1k / 5k / 10k). The preview table now scrolls horizontally with a persistent scrollbar and double-clicking a cell opens a detail card with the full value plus the whole row. An optional \"row 2 is a note\" toggle skips a description row under the header (suggested, never applied silently). Output can be switched between JSON (formatted or compact) and SQL Insert (table name editable, 500 rows per statement); exports go through the host fileTransfer channel so they actually save inside DBX. Large files are capped (20 MB per file, 100k rows) and parsed in chunks so the panel stays responsive.",
   "localizations": {
     "zh-CN": {
       "name": "数据转换",
-      "description": "在 DBX 工作台里完成 JSON / YAML / XML / Properties 互转，也能把批量文本直接变成 SQL：即时转换、模拟数据、校验与格式化，支持按字段对比 JSON、独立的 JSON 对比页、逐行文本对比，以及 IN / NOT IN / INSERT 值列表生成。纯前端、无后端、可离线运行。"
+      "description": "在 DBX 工作台里完成 JSON / YAML / XML / Properties 互转，也能把批量文本直接变成 SQL：即时转换、模拟数据、校验与格式化，支持按字段对比 JSON、独立的 JSON 对比页、逐行文本对比，以及 IN / NOT IN / INSERT 值列表生成。另外新增「表格转 JSON」页：直接读 .xlsx / .csv / .tsv，自动识别表头与分隔符、推断数字与布尔、还原 Excel 日期（含 ZIP64 包），边解析边出预览表格，可按「最多条数」限制转换量，输出可在 JSON（格式化 / 紧凑）与 SQL Insert 之间切换并向宿主导出文件；预览表支持横向滚动、双击单元格查看完整内容与整行；「第二行为注释」可选跳过（只提示、不擅自改结果）。单文件 20 MB / 10 万行上限，分批解析不卡界面。纯前端、无后端、可离线运行。"
     },
     "zh-TW": {
       "name": "資料轉換",
-      "description": "在 DBX 工作台裡完成 JSON / YAML / XML / Properties 互轉，也能把批次文字直接變成 SQL：即時轉換、模擬資料、校驗與格式化，支援按欄位比對 JSON、獨立的 JSON 對比頁、逐行文字對比，以及 IN / NOT IN / INSERT 值清單產生。純前端、無後端、可離線執行。"
+      "description": "在 DBX 工作台裡完成 JSON / YAML / XML / Properties 互轉，也能把批次文字直接變成 SQL：即時轉換、模擬資料、校驗與格式化，支援按欄位比對 JSON、獨立的 JSON 對比頁、逐行文字對比，以及 IN / NOT IN / INSERT 值清單產生。另外新增「表格轉 JSON」頁：直接讀 .xlsx / .csv / .tsv，自動辨識表頭與分隔符、推斷數字與布林、還原 Excel 日期（含 ZIP64 套件），邊解析邊出預覽表格，可依「最多筆數」限制轉換量，輸出可在 JSON（格式化 / 緊湊）與 SQL Insert 之間切換並向宿主匯出檔案；預覽表支援橫向捲動、雙擊儲存格查看完整內容與整列；「第二列為註解」可選跳過（只提示、不擅自改結果）。單檔 20 MB / 10 萬列上限，分批解析不卡介面。純前端、無後端、可離線執行。"
     },
     "en": {
       "name": "Data Converter",
-      "description": "Convert between JSON, YAML, XML, and Properties in one DBX workbench panel, and turn batch text into SQL. Instant conversion, mock data, validation and formatting, field-level JSON diff, a standalone JSON compare page, line-level text compare, and an IN / NOT IN / INSERT value-list generator. Pure frontend, no backend, works offline."
+      "description": "Convert between JSON, YAML, XML, and Properties in one DBX workbench panel, and turn batch text into SQL. Instant conversion, mock data, validation and formatting, field-level JSON diff, a standalone JSON compare page, line-level text compare, and an IN / NOT IN / INSERT value-list generator. A Sheet page reads .xlsx / .csv / .tsv entirely in the browser: header detection, delimiter sniffing, number/boolean inference, real Excel date cells, ZIP64 support, a live preview table, and output as JSON (formatted / compact) or SQL INSERT with a Max-records cap; exports go through the host fileTransfer channel, the preview scrolls horizontally and double-clicking a cell shows its full value plus the whole row, and an optional 'row 2 is a note' skip handles two-tier headers. Hard limits (20 MB / 100k rows) and chunked parsing keep the panel responsive. Pure frontend, no backend, works offline."
     }
   }
 }
