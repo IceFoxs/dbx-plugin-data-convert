@@ -296,6 +296,186 @@ function check(name, fn) {
     });
 
 
+    // 导航栏新增的「JSON 对比」独立页面
+    doc.getElementById('navCompare').click();
+    await wait(300);
+
+    check('导航可进入 JSON 对比页', function () {
+        if (!doc.getElementById('compareWorkspace').classList.contains('active')) throw new Error('未进入对比页');
+        if (!doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('工具栏未隐藏');
+        if (!doc.getElementById('navCompare').classList.contains('active')) throw new Error('导航未高亮');
+        if (doc.querySelectorAll('#compareWorkspace .CodeMirror').length !== 2) throw new Error('编辑器数量不对');
+    });
+
+    doc.querySelector('.sample-chip[data-sample="user"]').click();
+    await wait(400);
+
+    check('示例数据给出 4 处结构化差异', function () {
+        var tip = doc.getElementById('compareTip').textContent;
+        if (tip.indexOf('4') === -1) throw new Error('提示文案: ' + tip);
+        var cms = doc.querySelectorAll('#compareWorkspace .CodeMirror');
+        function marks(cm, cls) {
+            return cm.getDoc().getAllMarks().filter(function (m) {
+                return String(m.className || '').indexOf(cls) !== -1;
+            }).length;
+        }
+        var left = marks(cms[0].CodeMirror, 'cm-diff-old');
+        var right = marks(cms[1].CodeMirror, 'cm-diff-new');
+        if (left !== 4 || right !== 4) throw new Error('标记数 左' + left + ' 右' + right);
+    });
+
+    check('对比页清空后不留标记', function () {
+        doc.getElementById('cmpClear').click();
+        var cms = doc.querySelectorAll('#compareWorkspace .CodeMirror');
+        if (cms[0].CodeMirror.getValue() !== '' || cms[1].CodeMirror.getValue() !== '') throw new Error('内容未清空');
+        var marks = cms[0].CodeMirror.getDoc().getAllMarks().filter(function (m) {
+            return /cm-diff/.test(m.className || '');
+        });
+        if (marks.length) throw new Error('仍残留 ' + marks.length + ' 个标记');
+    });
+
+    check('非法 JSON 在对比页给出解析错误', function () {
+        var cms = doc.querySelectorAll('#compareWorkspace .CodeMirror');
+        cms[0].CodeMirror.setValue('{"a":1}');
+        cms[1].CodeMirror.setValue('{"a":1,}');
+        doc.getElementById('cmpRun').click();
+        var tip = doc.getElementById('compareTip');
+        if (tip.textContent.indexOf('解析失败') === -1) throw new Error('提示: ' + tip.textContent);
+        if (tip.className.indexOf('err') === -1) throw new Error('未标记为错误态');
+    });
+
+    // 任意文本模式：示例区换成文本样本，左右整行标记
+    doc.querySelector('.compare-tab[data-mode="text"]').click();
+    await wait(250);
+
+    check('切到任意文本模式后示例区互换', function () {
+        var jsonGroup = doc.getElementById('cmpJsonSamples');
+        var textGroup = doc.getElementById('cmpTextSamples');
+        if (!jsonGroup.classList.contains('is-hidden')) throw new Error('JSON 示例区仍在显示');
+        if (textGroup.classList.contains('is-hidden')) throw new Error('文本示例区未显示');
+        if (textGroup.querySelectorAll('.sample-chip').length !== 4) throw new Error('文本示例数量不对');
+    });
+
+    doc.querySelector('#cmpTextSamples .sample-chip[data-sample="md"]').click();
+    await wait(300);
+
+    check('Markdown 示例按整行标出两侧差异', function () {
+        var cms = doc.querySelectorAll('#compareWorkspace .CodeMirror');
+        function withCls(cm, prop, cls) {
+            var d = cm.getDoc();
+            var n = 0;
+            for (var i = 0; i < d.lineCount(); i++) {
+                var h = d.getLineHandle(i);
+                if (h && String(h[prop] || '').indexOf(cls) !== -1) n++;
+            }
+            return n;
+        }
+        var del = withCls(cms[0].CodeMirror, 'wrapClass', 'cm-text-del');
+        var ins = withCls(cms[1].CodeMirror, 'wrapClass', 'cm-text-ins');
+        if (!del) throw new Error('左侧没有删除行');
+        if (!ins) throw new Error('右侧没有新增行');
+        if (cms[0].CodeMirror.getDoc().getAllMarks().length) throw new Error('文本模式不应有内联标记');
+        var tip = doc.getElementById('compareTip').textContent;
+        if (tip.indexOf('行不同') === -1) throw new Error('提示文案: ' + tip);
+    });
+
+    check('文本示例只放文本、不带 JSON 引号', function () {
+        var cms = doc.querySelectorAll('#compareWorkspace .CodeMirror');
+        var left = cms[0].CodeMirror.getValue();
+        if (left.charAt(0) === '{') throw new Error('左侧仍是 JSON');
+        if (left.indexOf('# 订单创建接口') !== 0) throw new Error('左侧不是 Markdown 示例: ' + left.slice(0, 24));
+    });
+
+    doc.querySelector('.compare-tab[data-mode="json"]').click();
+    await wait(250);
+
+    check('切回 JSON 模式示例区复原', function () {
+        var jsonGroup = doc.getElementById('cmpJsonSamples');
+        var textGroup = doc.getElementById('cmpTextSamples');
+        if (jsonGroup.classList.contains('is-hidden')) throw new Error('JSON 示例区未复原');
+        if (!textGroup.classList.contains('is-hidden')) throw new Error('文本示例区仍在显示');
+    });
+
+    check('回到转换页后入口状态复原', function () {
+        doc.querySelector('#navLinks a[data-src="json"][data-tgt="yaml"]').click();
+        if (doc.getElementById('compareWorkspace').classList.contains('active')) throw new Error('对比页仍在显示');
+        if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('工具栏仍隐藏');
+        if (doc.getElementById('navCompare').classList.contains('active')) throw new Error('导航仍高亮');
+    });
+
+
+    // 导航溢出 → 「更多」：jsdom 没有布局，宽高靠 stub
+    var navEl = doc.getElementById('navLinks');
+    var moreEl = doc.getElementById('navMore');
+    var moreMenu = doc.getElementById('navMoreMenu');
+
+    check('宽度足够时不显示「更多」', function () {
+        if (moreEl.classList.contains('show')) throw new Error('「更多」不该出现');
+        if (navEl.querySelectorAll('a').length !== 8) throw new Error('导航项数 ' + navEl.querySelectorAll('a').length);
+        if (doc.getElementById('navMoreTrigger').textContent.indexOf('更多') === -1) throw new Error('「更多」文案缺失');
+    });
+
+    Object.defineProperty(navEl, 'clientWidth', { configurable: true, get: function () { return 260; } });
+    Object.defineProperty(navEl, 'scrollWidth', { configurable: true, get: function () { return navEl.children.length * 90; } });
+    dom.window.dispatchEvent(new dom.window.Event('resize'));
+    await wait(250);
+
+    check('导航装不下时把末尾项收进「更多」', function () {
+        if (!moreEl.classList.contains('show')) throw new Error('「更多」未出现');
+        var inline = navEl.querySelectorAll('a').length;
+        var inMenu = moreMenu.querySelectorAll('a').length;
+        if (inline + inMenu !== 8) throw new Error('项数不守恒 ' + inline + '+' + inMenu);
+        if (inMenu === 0) throw new Error('菜单为空');
+        // 留在导航条上的应当是从头开始的连续几项，收进去的是剩下的后缀，顺序不变
+        var ORDER = ['yaml转json', 'yaml转properties', 'json转properties', 'json转xml',
+                     'xml转yaml', 'json转yaml', 'yaml转xml'];
+        var kept = [].map.call(navEl.querySelectorAll('a'), function (a) {
+            return a.id === 'navCompare' ? 'JSON 对比' : a.textContent.trim();
+        });
+        var moved = [].map.call(moreMenu.querySelectorAll('a'), function (a) { return a.textContent.trim(); });
+        var keptConv = kept.filter(function (t) { return t !== 'JSON 对比'; });
+        var expectKept = ORDER.slice(0, keptConv.length);
+        var expectMoved = ORDER.slice(keptConv.length);
+        if (keptConv.join('|') !== expectKept.join('|')) throw new Error('保留项不是前缀: ' + keptConv.join(','));
+        if (moved.join('|') !== expectMoved.join('|')) throw new Error('菜单项顺序不对: ' + moved.join(','));
+    });
+
+    check('「JSON 对比」优先留在导航条上', function () {
+        if (!navEl.querySelector('#navCompare')) throw new Error('主入口被收进「更多」了');
+    });
+
+    check('点「更多」可展开、再点页面空白可收起', function () {
+        doc.getElementById('navMoreTrigger').click();
+        if (!moreEl.classList.contains('open')) throw new Error('未展开');
+        if (doc.getElementById('navMoreTrigger').getAttribute('aria-expanded') !== 'true') throw new Error('aria-expanded 未同步');
+        doc.body.click();
+        if (moreEl.classList.contains('open')) throw new Error('未收起');
+    });
+
+    check('菜单里的导航项照样能切换格式', function () {
+        var item = moreMenu.querySelector('a');
+        var src = item.dataset.src;
+        var tgt = item.dataset.tgt;
+        item.click();
+        var srcLabel = doc.querySelector('#sourceSelect .custom-select-trigger .label').textContent.trim();
+        var tgtLabel = doc.querySelector('#targetSelect .custom-select-trigger .label').textContent.trim();
+        if (srcLabel.toLowerCase() !== src || tgtLabel.toLowerCase() !== tgt) {
+            throw new Error('变成了 ' + srcLabel + '→' + tgtLabel + '，期望 ' + src + '→' + tgt);
+        }
+        if (moreEl.classList.contains('open')) throw new Error('选完未收起');
+    });
+
+    Object.defineProperty(navEl, 'clientWidth', { configurable: true, get: function () { return 4000; } });
+    dom.window.dispatchEvent(new dom.window.Event('resize'));
+    await wait(250);
+
+    check('宽度恢复后导航项全部回到导航条', function () {
+        if (moreEl.classList.contains('show')) throw new Error('「更多」仍显示');
+        if (moreMenu.querySelectorAll('a').length !== 0) throw new Error('菜单仍有残留');
+        if (navEl.querySelectorAll('a').length !== 8) throw new Error('导航项数 ' + navEl.querySelectorAll('a').length);
+    });
+
+
     results.forEach(function (r) {
         console.log('  ' + r[0] + ' ' + r[1]);
     });

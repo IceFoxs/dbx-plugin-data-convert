@@ -1,6 +1,6 @@
 {
   "name": "dbx-plugin-data-convert",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "type": "commonjs",
   "description": "DBX 数据格式互转插件（纯前端 universal 包）",

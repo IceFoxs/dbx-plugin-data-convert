@@ -155,7 +155,7 @@
         }
         .brand svg { color: var(--primary); }
 
-        /* 中间导航链接 */
+        /* 中间导航链接：装不下的项收进右侧「更多」，不再横向滚动 */
         .nav-links {
             display: flex;
             align-items: center;
@@ -164,35 +164,9 @@
             color: var(--text-muted);
             flex: 1;
             min-width: 0;
-            overflow-x: auto;
+            overflow: hidden;
             white-space: nowrap;
-            scrollbar-width: thin;
-            -ms-overflow-style: auto;
             height: 100%;
-            scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-        }
-        /* 导航栏横向滚动条美化 */
-        .nav-links::-webkit-scrollbar {
-            height: 6px;
-            background: var(--scrollbar-track);
-            border-radius: 6px;
-        }
-        .nav-links::-webkit-scrollbar-track {
-            background: var(--scrollbar-track);
-            border-radius: 6px;
-            margin: 0 2px;
-        }
-        .nav-links::-webkit-scrollbar-thumb {
-            background: var(--scrollbar-thumb);
-            border-radius: 6px;
-            border: 2px solid var(--scrollbar-track);
-            background-clip: content-box;
-            transition: background 0.2s ease;
-        }
-        .nav-links::-webkit-scrollbar-thumb:hover {
-            background: var(--scrollbar-thumb-hover);
-            border: 2px solid var(--scrollbar-track);
-            background-clip: content-box;
         }
         .nav-links a {
             text-decoration: none;
@@ -207,6 +181,90 @@
         }
         .nav-links a:hover {
             color: var(--text-main);
+            background-color: var(--accent-bg);
+        }
+        /* 一项都放不下时不要让空容器继续占位 */
+        .nav-links.is-empty { flex: 0 0 0; }
+
+        /* 导航「更多」下拉：只在真的装不下时出现 */
+        .nav-more {
+            position: relative;
+            flex-shrink: 0;
+            display: none;
+            align-items: center;
+            margin-left: 0.25rem;
+        }
+        .nav-more.show { display: flex; }
+        .nav-more-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.4rem 0.6rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-light);
+            background-color: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-family: var(--font-sans);
+            font-size: 0.8125rem;
+            font-weight: 500;
+            line-height: 1.2;
+            white-space: nowrap;
+            transition: all 0.15s ease;
+        }
+        .nav-more-trigger:hover,
+        .nav-more.open .nav-more-trigger {
+            color: var(--text-main);
+            background-color: var(--accent-bg);
+        }
+        .nav-more-trigger svg {
+            width: 0.85rem;
+            height: 0.85rem;
+            color: var(--text-muted);
+            transition: transform 0.15s ease;
+        }
+        .nav-more.open .nav-more-trigger svg { transform: rotate(180deg); }
+        .nav-more-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 10.5rem;
+            max-width: 16rem;
+            max-height: 60vh;
+            overflow-y: auto;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+            padding: 0.35rem;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .nav-more.open .nav-more-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .nav-more-menu a {
+            display: block;
+            padding: 0.5rem 0.75rem;
+            border-radius: var(--radius-md);
+            font-size: 0.825rem;
+            font-weight: 500;
+            color: var(--text-main);
+            text-decoration: none;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: background-color 0.1s;
+        }
+        .nav-more-menu a:hover { background-color: var(--accent-bg); }
+        .nav-more-menu a.active {
+            color: var(--primary);
             background-color: var(--accent-bg);
         }
 
@@ -660,19 +718,39 @@
         .CodeMirror .cm-value-changed { background-color: rgba(245, 158, 11, 0.12); }
         .CodeMirror .cm-diff-old {
             background-color: rgba(239, 68, 68, 0.22);
+            color: #b91c1c;
             border-radius: 3px;
             box-shadow: inset 0 -1px 0 rgba(239, 68, 68, 0.55);
         }
         .CodeMirror .cm-diff-new {
             background-color: rgba(34, 197, 94, 0.22);
+            color: #15803d;
             border-radius: 3px;
             box-shadow: inset 0 -1px 0 rgba(34, 197, 94, 0.55);
         }
         [data-dbx-theme="dark"] .CodeMirror .cm-inserted { background-color: rgba(34, 197, 94, 0.16); }
         [data-dbx-theme="dark"] .CodeMirror .cm-deleted { background-color: rgba(239, 68, 68, 0.18); }
         [data-dbx-theme="dark"] .CodeMirror .cm-value-changed { background-color: rgba(245, 158, 11, 0.14); }
-        [data-dbx-theme="dark"] .CodeMirror .cm-diff-old { background-color: rgba(239, 68, 68, 0.3); }
-        [data-dbx-theme="dark"] .CodeMirror .cm-diff-new { background-color: rgba(34, 197, 94, 0.28); }
+        [data-dbx-theme="dark"] .CodeMirror .cm-diff-old {
+            background-color: rgba(239, 68, 68, 0.32);
+            color: #fecaca;
+        }
+        [data-dbx-theme="dark"] .CodeMirror .cm-diff-new {
+            background-color: rgba(34, 197, 94, 0.28);
+            color: #bbf7d0;
+        }
+        /* 任意文本：整行标记（左侧删除线淡红、右侧淡绿），与 JSON 的「只标值」区分 */
+        .CodeMirror .cm-text-del {
+            text-decoration: line-through;
+            text-decoration-color: rgba(239, 68, 68, 0.65);
+            opacity: 0.72;
+        }
+        .CodeMirror .cm-text-ins {
+            box-shadow: inset 2px 0 0 rgba(34, 197, 94, 0.8);
+        }
+        [data-dbx-theme="dark"] .CodeMirror .cm-text-del {
+            text-decoration-color: rgba(248, 113, 113, 0.75);
+        }
 
         /* ================= 结构化差异面板 ================= */
         .diff-report {
@@ -783,9 +861,143 @@
             .diff-report { width: auto; left: 0.75rem; max-height: 45%; }
         }
 
+        /* ================= JSON 对比页 ================= */
+        .compare-workspace {
+            display: none;
+            flex: 1 1 0;
+            flex-direction: column;
+            gap: 0.75rem;
+            min-height: 0;
+        }
+        .compare-workspace.active { display: flex; }
+        .toolbar.hidden { display: none; }
+
+        .compare-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+            padding: 0.45rem 0.75rem;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+        }
+        .compare-tabs {
+            display: flex;
+            gap: 2px;
+            padding: 3px;
+            background-color: var(--accent-bg);
+            border-radius: 999px;
+            flex-shrink: 0;
+        }
+        .compare-tab {
+            border: none;
+            background: transparent;
+            padding: 0.28rem 0.7rem;
+            border-radius: 999px;
+            font-family: var(--font-sans);
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background-color 0.15s, color 0.15s;
+        }
+        .compare-tab:hover { color: var(--text-main); }
+        .compare-tab.active {
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        }
+        .compare-samples {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            flex-wrap: wrap;
+        }
+        .compare-samples.is-hidden { display: none; }
+        .compare-samples-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+        .sample-chip {
+            border: 1px solid var(--border-light);
+            background-color: transparent;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            padding: 0.15rem 0.45rem;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+        }
+        .sample-chip:hover {
+            color: var(--primary);
+            border-color: var(--primary);
+            background-color: var(--accent-bg);
+        }
+        .compare-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+        .compare-actions .btn {
+            padding: 0.35rem 0.85rem;
+            font-size: 0.78rem;
+            border-radius: 999px;
+        }
+        .compare-tip {
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+        .compare-tip.diff { color: #b45309; font-weight: 500; }
+        .compare-tip.ok { color: #15803d; font-weight: 500; }
+        .compare-tip.err { color: #b91c1c; font-weight: 500; }
+        [data-dbx-theme="dark"] .compare-tip.diff { color: #fbbf24; }
+        [data-dbx-theme="dark"] .compare-tip.ok { color: #4ade80; }
+        [data-dbx-theme="dark"] .compare-tip.err { color: #fca5a5; }
+
+        .compare-grid {
+            flex: 1 1 0;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-rows: minmax(0, 1fr);
+            gap: 1.25rem;
+            min-height: 0;
+        }
+        .compare-pane {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .compare-pane .editor-container { flex: 1 1 0; min-height: 0; }
+
+        .nav-links a.active {
+            color: var(--primary);
+            background-color: var(--accent-bg);
+        }
+
+        @media (max-width: 900px) {
+            .compare-actions { margin-left: 0; }
+            .compare-tip { width: 100%; order: 9; }
+        }
+        @media (max-width: 768px) {
+            .compare-grid {
+                grid-template-columns: minmax(0, 1fr);
+                grid-template-rows: repeat(2, minmax(0, 1fr));
+            }
+        }
+
         /* 差异对比按钮高亮 */
-        .btn-diff {
-            background-color: #3b82f6;
+        .btn-diff {            background-color: #3b82f6;
             color: white;
             border-color: #3b82f6;
         }
@@ -809,9 +1021,8 @@
             }
             .toolbar { flex-direction: row; flex-wrap: wrap; border-radius: var(--radius-lg); padding: 1rem; width: 100%;}
             .main-container { padding: 1rem; gap: 0.75rem; }
-            .nav-links::-webkit-scrollbar {
-                height: 4px;
-            }
+            .topbar { gap: 0.25rem; }
+            .brand { margin-right: 0.25rem; }
         }
     </style>
 </head>
@@ -831,7 +1042,17 @@
         <a data-src="xml" data-tgt="yaml" data-i18n="navXmlYaml">xml转yaml</a>
         <a data-src="json" data-tgt="yaml" data-i18n="navJsonYaml">json转yaml</a>
         <a data-src="yaml" data-tgt="xml" data-i18n="navYamlXml">yaml转xml</a>
+        <a id="navCompare" class="nav-compare" data-i18n="navCompare">JSON 对比</a>
     </nav>
+
+    <!-- 导航装不下时，多出来的项收到这里（见 layoutNav） -->
+    <div class="nav-more" id="navMore">
+        <button type="button" class="nav-more-trigger" id="navMoreTrigger" aria-haspopup="true" aria-expanded="false">
+            <span data-i18n="navMore">更多</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="nav-more-menu" id="navMoreMenu"></div>
+    </div>
 
     <div class="lang-switcher" id="langSwitcher">
         <button class="lang-trigger" id="langTrigger">
@@ -987,6 +1208,53 @@
             <div class="diff-report-list" id="diffReportList"></div>
         </div>
     </div>
+
+    <!-- JSON 对比：独立的双栏对比页（从导航栏进入） -->
+    <section class="compare-workspace" id="compareWorkspace">
+        <div class="compare-bar">
+            <div class="compare-tabs" id="compareTabs">
+                <button type="button" class="compare-tab active" data-mode="json" data-i18n="navCompare">JSON 对比</button>
+                <button type="button" class="compare-tab" data-mode="text" data-i18n="cmpTabText">任意文本</button>
+            </div>
+
+            <div class="compare-samples" id="cmpJsonSamples">
+                <span class="compare-samples-label" data-i18n="cmpSamples">示例 JSON:</span>
+                <button type="button" class="sample-chip" data-sample="user" data-i18n="cmpSampleUser">用户信息</button>
+                <button type="button" class="sample-chip" data-sample="product" data-i18n="cmpSampleProduct">商品数据</button>
+                <button type="button" class="sample-chip" data-sample="config" data-i18n="cmpSampleConfig">配置选项</button>
+                <button type="button" class="sample-chip" data-sample="api" data-i18n="cmpSampleApi">API响应</button>
+            </div>
+
+            <div class="compare-samples is-hidden" id="cmpTextSamples">
+                <span class="compare-samples-label" data-i18n="cmpTextSamples">示例文本:</span>
+                <button type="button" class="sample-chip" data-sample="md" data-i18n="cmpSampleMarkdown">Markdown</button>
+                <button type="button" class="sample-chip" data-sample="conf" data-i18n="cmpSampleConf">配置文件</button>
+                <button type="button" class="sample-chip" data-sample="html" data-i18n="cmpSampleHtml">HTML片段</button>
+                <button type="button" class="sample-chip" data-sample="log" data-i18n="cmpSampleLog">日志输出</button>
+            </div>
+
+            <div class="compare-actions">
+                <button type="button" class="btn btn-outline" id="cmpBeautify" data-i18n="cmpBeautify">美化</button>
+                <button type="button" class="btn btn-outline" id="cmpClear" data-i18n="cmpClear">清空</button>
+                <button type="button" class="btn btn-primary" id="cmpRun" data-i18n="cmpRun">对比</button>
+            </div>
+
+            <div class="compare-tip" id="compareTip"></div>
+        </div>
+
+        <div class="compare-grid">
+            <div class="compare-pane">
+                <div class="editor-container">
+                    <textarea id="cmpLeftText" class="textarea" spellcheck="false"></textarea>
+                </div>
+            </div>
+            <div class="compare-pane">
+                <div class="editor-container">
+                    <textarea id="cmpRightText" class="textarea" spellcheck="false"></textarea>
+                </div>
+            </div>
+        </div>
+    </section>
 </main>
 
 <div id="toastContainer" class="toast-container"></div>
@@ -997,20 +1265,20 @@
         // 1. 国际化 (I18n) 字典配置 (全量语言)
         // =========================================
         const languageConfigs = [
-            { code: 'zh-CN', name: '简体中文', flag: '🇨🇳', dict: { brand: '转换工具', navYamlJson: 'yaml转json', navYamlProps: 'yaml转properties', navJsonProps: 'json转properties', navJsonXml: 'json转xml', navXmlYaml: 'xml转yaml', navJsonYaml: 'json转yaml', navYamlXml: 'yaml转xml', fromLabel: '从', toLabel: '转为', swapTitle: '互换格式', inputLabel: '输入内容', outputLabel: '输出结果', formatBtn: '格式化', mockBtn: '模拟数据', clearBtn: '清空', convertBtn: '执行转换', copyBtn: '复制', pasteBtn: '粘贴', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '已生成模拟数据', toastFormatInput: '输入格式化成功', toastFormatOutput: '输出格式化成功', toastFormatError: '格式化失败', toastConvertSuccess: '转换成功', toastConvertError: '转换失败', toastCopySuccess: '已复制', toastCopyError: '复制失败', toastPasteSuccess: '已粘贴', toastPasteError: '读取剪贴板失败', toastPasteUnsupported: '当前环境不支持读取剪贴板，请手动粘贴', toastEmptyInput: '请输入内容', toastSameFormat: '格式相同', diffBtn: '对比差异', diffExitBtn: '退出对比', diffLeftTitle: '原始版本 (输入)', diffRightTitle: '修改版本 (输出)', diffLarge: '文件较大，已切换为快速对比（行级高亮可能不够精确）', diffReportTitle: '结构化差异 {n} 处', diffChange: '修改', diffAdd: '新增', diffRemove: '删除', diffSame: '两版内容一致', diffSameHint: '未发现字段级差异' } },
-            { code: 'zh-TW', name: '繁體中文', flag: '繁', dict: { brand: '轉換工具', navYamlJson: 'yaml轉json', navYamlProps: 'yaml轉properties', navJsonProps: 'json轉properties', navJsonXml: 'json轉xml', navXmlYaml: 'xml轉yaml', navJsonYaml: 'json轉yaml', navYamlXml: 'yaml轉xml', fromLabel: '從', toLabel: '轉為', swapTitle: '互換格式', inputLabel: '輸入內容', outputLabel: '輸出結果', formatBtn: '格式化', mockBtn: '模擬數據', clearBtn: '清空', convertBtn: '執行轉換', copyBtn: '複製', pasteBtn: '粘貼', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '已生成模擬數據', toastFormatInput: '輸入格式化成功', toastFormatOutput: '輸出格式化成功', toastFormatError: '格式化失敗', toastConvertSuccess: '轉換成功', toastConvertError: '轉換失敗', toastCopySuccess: '已複製', toastCopyError: '複製失敗', toastPasteSuccess: '已粘貼', toastPasteError: '讀取剪貼板失敗', toastPasteUnsupported: '當前環境不支持讀取剪貼板，請手動粘貼', toastEmptyInput: '請輸入內容', toastSameFormat: '格式相同', diffBtn: '對比差異', diffExitBtn: '退出對比', diffLeftTitle: '原始版本 (輸入)', diffRightTitle: '修改版本 (輸出)', diffLarge: '檔案較大，已切換為快速對比（行級標記可能不夠精確）', diffReportTitle: '結構化差異 {n} 處', diffChange: '修改', diffAdd: '新增', diffRemove: '刪除', diffSame: '兩版內容一致', diffSameHint: '未發現欄位級差異' } },
-            { code: 'en', name: 'English', flag: '🇺🇸', dict: { brand: 'Converter', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock Data', clearBtn: 'Clear', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here, please paste manually', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)', diffLarge: 'Large input — switched to fast diff, highlights may be less precise', diffReportTitle: 'Structured changes: {n}', diffChange: 'Modified', diffAdd: 'Added', diffRemove: 'Deleted', diffSame: 'No differences', diffSameHint: 'No field-level changes found' } },
-            { code: 'az', name: 'Azərbaycan', flag: '🇦🇿', dict: { brand: 'Alətlər', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock', clearBtn: 'Clear', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)', diffLarge: 'Giriş böyükdür — sürətli müqayisəyə keçildi', diffReportTitle: 'Struktur fərqlər: {n}', diffChange: 'Dəyişdi', diffAdd: 'Əlavə', diffRemove: 'Silindi', diffSame: 'Fərq yoxdur', diffSameHint: 'Sahə səviyyəsində fərq tapılmadı' } },
-            { code: 'es', name: 'Español', flag: '🇪🇸', dict: { brand: 'Herramientas', navYamlJson: 'YAML a JSON', navYamlProps: 'YAML a Props', navJsonProps: 'JSON a Props', navJsonXml: 'JSON a XML', navXmlYaml: 'XML a YAML', navJsonYaml: 'JSON a YAML', navYamlXml: 'YAML a XML', fromLabel: 'De', toLabel: 'A', swapTitle: 'Intercambiar', inputLabel: 'Entrada', outputLabel: 'Salida', formatBtn: 'Formatear', mockBtn: 'Simular', clearBtn: 'Limpiar', convertBtn: 'Convertir', copyBtn: 'Copiar', pasteBtn: 'Pegar', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulado generado', toastFormatInput: 'Entrada formateada', toastFormatOutput: 'Salida formateada', toastFormatError: 'Error de formato', toastConvertSuccess: 'Convertido', toastConvertError: 'Error de conversión', toastCopySuccess: 'Copiado', toastCopyError: 'Error al copiar', toastPasteSuccess: 'Pegado', toastPasteError: 'Error al leer el portapapeles', toastPasteUnsupported: 'Lectura del portapapeles no soportada', toastEmptyInput: 'Entrada vacía', toastSameFormat: 'Mismo formato', diffBtn: 'Comparar', diffExitBtn: 'Salir', diffLeftTitle: 'Original (Entrada)', diffRightTitle: 'Modificado (Salida)', diffLarge: 'Entrada grande: se cambió a comparación rápida', diffReportTitle: 'Cambios estructurados: {n}', diffChange: 'Modificado', diffAdd: 'Añadido', diffRemove: 'Eliminado', diffSame: 'Sin diferencias', diffSameHint: 'No se encontraron cambios' } },
-            { code: 'id', name: 'Bahasa Indonesia', flag: '🇮🇩', dict: { brand: 'Alat', navYamlJson: 'YAML ke JSON', navYamlProps: 'YAML ke Props', navJsonProps: 'JSON ke Props', navJsonXml: 'JSON ke XML', navXmlYaml: 'XML ke YAML', navJsonYaml: 'JSON ke YAML', navYamlXml: 'YAML ke XML', fromLabel: 'Dari', toLabel: 'Ke', swapTitle: 'Tukar', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock', clearBtn: 'Hapus', convertBtn: 'Konversi', copyBtn: 'Salin', pasteBtn: 'Tempel', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock dibuat', toastFormatInput: 'Input diformat', toastFormatOutput: 'Output diformat', toastFormatError: 'Format gagal', toastConvertSuccess: 'Dikonversi', toastConvertError: 'Konversi gagal', toastCopySuccess: 'Disalin', toastCopyError: 'Gagal menyalin', toastPasteSuccess: 'Ditempel', toastPasteError: 'Gagal membaca clipboard', toastPasteUnsupported: 'Baca clipboard tidak didukung', toastEmptyInput: 'Input kosong', toastSameFormat: 'Format sama', diffBtn: 'Bandingkan', diffExitBtn: 'Keluar', diffLeftTitle: 'Asli (Input)', diffRightTitle: 'Diubah (Output)', diffLarge: 'Input besar — beralih ke perbandingan cepat', diffReportTitle: 'Perubahan terstruktur: {n}', diffChange: 'Diubah', diffAdd: 'Ditambah', diffRemove: 'Dihapus', diffSame: 'Tidak ada perbedaan', diffSameHint: 'Tidak ada perubahan pada field' } },
-            { code: 'it', name: 'Italiano', flag: '🇮🇹', dict: { brand: 'Strumenti', navYamlJson: 'YAML in JSON', navYamlProps: 'YAML in Props', navJsonProps: 'JSON in Props', navJsonXml: 'JSON in XML', navXmlYaml: 'XML in YAML', navJsonYaml: 'JSON in YAML', navYamlXml: 'YAML in XML', fromLabel: 'Da', toLabel: 'A', swapTitle: 'Scambia', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Formatta', mockBtn: 'Simula', clearBtn: 'Pulisci', convertBtn: 'Converti', copyBtn: 'Copia', pasteBtn: 'Incolla', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulazione creata', toastFormatInput: 'Input formattato', toastFormatOutput: 'Output formattato', toastFormatError: 'Formato fallito', toastConvertSuccess: 'Convertito', toastConvertError: 'Conversione fallita', toastCopySuccess: 'Copiato', toastCopyError: 'Copia fallita', toastPasteSuccess: 'Incollato', toastPasteError: 'Lettura appunti fallita', toastPasteUnsupported: 'Lettura appunti non supportata', toastEmptyInput: 'Input vuoto', toastSameFormat: 'Stesso formato', diffBtn: 'Confronta', diffExitBtn: 'Esci', diffLeftTitle: 'Originale (Input)', diffRightTitle: 'Modificato (Output)', diffLarge: 'Input grande: confronto rapido attivato', diffReportTitle: 'Modifiche strutturate: {n}', diffChange: 'Modificato', diffAdd: 'Aggiunto', diffRemove: 'Rimosso', diffSame: 'Nessuna differenza', diffSameHint: 'Nessuna modifica a livello di campo' } },
-            { code: 'ja', name: '日本語', flag: '🇯🇵', dict: { brand: '変換ツール', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '変換元', toLabel: '変換先', swapTitle: '入れ替え', inputLabel: '入力', outputLabel: '出力', formatBtn: '整形', mockBtn: 'モック', clearBtn: 'クリア', convertBtn: '変換', copyBtn: 'コピー', pasteBtn: '貼り付け', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'モック生成完了', toastFormatInput: '入力整形完了', toastFormatOutput: '出力整形完了', toastFormatError: '整形失敗', toastConvertSuccess: '変換完了', toastConvertError: '変換失敗', toastCopySuccess: 'コピーしました', toastCopyError: 'コピー失敗', toastPasteSuccess: '貼り付けました', toastPasteError: 'クリップボードの読み取りに失敗', toastPasteUnsupported: 'クリップボードの読み取り非対応', toastEmptyInput: '入力が空です', toastSameFormat: '同じ形式です', diffBtn: '比較', diffExitBtn: '終了', diffLeftTitle: '元のバージョン (入力)', diffRightTitle: '変更後 (出力)', diffLarge: '入力が大きいため高速比較に切り替えました', diffReportTitle: '構造化差分 {n} 件', diffChange: '変更', diffAdd: '追加', diffRemove: '削除', diffSame: '差分なし', diffSameHint: 'フィールド単位の差分はありません' } },
-            { code: 'ko', name: '한국어', flag: '🇰🇷', dict: { brand: '변환 도구', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '변환 전', toLabel: '변환 후', swapTitle: '교체', inputLabel: '입력', outputLabel: '출력', formatBtn: '포맷', mockBtn: '모의', clearBtn: '지우기', convertBtn: '변환', copyBtn: '복사', pasteBtn: '붙여넣기', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '모의 생성됨', toastFormatInput: '입력 포맷됨', toastFormatOutput: '출력 포맷됨', toastFormatError: '포맷 실패', toastConvertSuccess: '변환됨', toastConvertError: '변환 실패', toastCopySuccess: '복사됨', toastCopyError: '복사 실패', toastPasteSuccess: '붙여넣음', toastPasteError: '클립보드 읽기 실패', toastPasteUnsupported: '클립보드 읽기 미지원', toastEmptyInput: '입력이 비어있음', toastSameFormat: '같은 형식', diffBtn: '비교', diffExitBtn: '종료', diffLeftTitle: '원본 (입력)', diffRightTitle: '수정됨 (출력)', diffLarge: '입력이 커서 빠른 비교로 전환했습니다', diffReportTitle: '구조화 차이 {n}건', diffChange: '수정', diffAdd: '추가', diffRemove: '삭제', diffSame: '차이 없음', diffSameHint: '필드 단위 차이가 없습니다' } },
-            { code: 'pt', name: 'Português', flag: '🇧🇷', dict: { brand: 'Ferramentas', navYamlJson: 'YAML para JSON', navYamlProps: 'YAML para Props', navJsonProps: 'JSON para Props', navJsonXml: 'JSON para XML', navXmlYaml: 'XML para YAML', navJsonYaml: 'JSON para YAML', navYamlXml: 'YAML para XML', fromLabel: 'De', toLabel: 'Para', swapTitle: 'Trocar', inputLabel: 'Entrada', outputLabel: 'Saída', formatBtn: 'Formatar', mockBtn: 'Simular', clearBtn: 'Limpar', convertBtn: 'Converter', copyBtn: 'Copiar', pasteBtn: 'Colar', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulação criada', toastFormatInput: 'Entrada formatada', toastFormatOutput: 'Saída formatada', toastFormatError: 'Falha na formatação', toastConvertSuccess: 'Convertido', toastConvertError: 'Falha na conversão', toastCopySuccess: 'Copiado', toastCopyError: 'Falha ao copiar', toastPasteSuccess: 'Colado', toastPasteError: 'Falha ao ler a área de transferência', toastPasteUnsupported: 'Leitura da área de transferência não suportada', toastEmptyInput: 'Entrada vazia', toastSameFormat: 'Mesmo formato', diffBtn: 'Comparar', diffExitBtn: 'Sair', diffLeftTitle: 'Original (Entrada)', diffRightTitle: 'Modificado (Saída)', diffLarge: 'Entrada grande — comparação rápida ativada', diffReportTitle: 'Alterações estruturadas: {n}', diffChange: 'Modificado', diffAdd: 'Adicionado', diffRemove: 'Removido', diffSame: 'Sem diferenças', diffSameHint: 'Nenhuma alteração em campos' } },
-            { code: 'pl', name: 'Polski', flag: '🇵🇱', dict: { brand: 'Narzędzia', navYamlJson: 'YAML na JSON', navYamlProps: 'YAML na Props', navJsonProps: 'JSON na Props', navJsonXml: 'JSON na XML', navXmlYaml: 'XML na YAML', navJsonYaml: 'JSON na YAML', navYamlXml: 'YAML na XML', fromLabel: 'Z', toLabel: 'Na', swapTitle: 'Zamień', inputLabel: 'Wejście', outputLabel: 'Wyjście', formatBtn: 'Formatuj', mockBtn: 'Mock', clearBtn: 'Wyczyść', convertBtn: 'Konwertuj', copyBtn: 'Kopiuj', pasteBtn: 'Wklej', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock utworzony', toastFormatInput: 'Wejście sformatowane', toastFormatOutput: 'Wyjście sformatowane', toastFormatError: 'Błąd formatowania', toastConvertSuccess: 'Przekonwertowano', toastConvertError: 'Błąd konwersji', toastCopySuccess: 'Skopiowano', toastCopyError: 'Błąd kopiowania', toastPasteSuccess: 'Wklejono', toastPasteError: 'Błąd odczytu schowka', toastPasteUnsupported: 'Odczyt schowka nieobsługiwany', toastEmptyInput: 'Brak danych', toastSameFormat: 'Ten sam format', diffBtn: 'Porównaj', diffExitBtn: 'Wyjdź', diffLeftTitle: 'Oryginał (Wejście)', diffRightTitle: 'Zmodyfikowany (Wyjście)', diffLarge: 'Duży plik — włączono szybkie porównanie', diffReportTitle: 'Zmiany strukturalne: {n}', diffChange: 'Zmieniono', diffAdd: 'Dodano', diffRemove: 'Usunięto', diffSame: 'Brak różnic', diffSameHint: 'Brak zmian na poziomie pól' } },
-            { code: 'ru', name: 'Русский', flag: '🇷🇺', dict: { brand: 'Инструменты', navYamlJson: 'YAML в JSON', navYamlProps: 'YAML в Props', navJsonProps: 'JSON в Props', navJsonXml: 'JSON в XML', navXmlYaml: 'XML в YAML', navJsonYaml: 'JSON в YAML', navYamlXml: 'YAML в XML', fromLabel: 'Из', toLabel: 'В', swapTitle: 'Поменять', inputLabel: 'Вход', outputLabel: 'Выход', formatBtn: 'Формат', mockBtn: 'Мок', clearBtn: 'Очистить', convertBtn: 'Конверт', copyBtn: 'Копия', pasteBtn: 'Вставить', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Мок создан', toastFormatInput: 'Вход отформатирован', toastFormatOutput: 'Выход отформатирован', toastFormatError: 'Ошибка формата', toastConvertSuccess: 'Конвертировано', toastConvertError: 'Ошибка конвертации', toastCopySuccess: 'Скопировано', toastCopyError: 'Ошибка копии', toastPasteSuccess: 'Вставлено', toastPasteError: 'Ошибка чтения буфера обмена', toastPasteUnsupported: 'Чтение буфера обмена не поддерживается', toastEmptyInput: 'Пустой ввод', toastSameFormat: 'Тот же формат', diffBtn: 'Сравнить', diffExitBtn: 'Выйти', diffLeftTitle: 'Оригинал (Вход)', diffRightTitle: 'Изменено (Выход)', diffLarge: 'Большой файл — включено быстрое сравнение', diffReportTitle: 'Структурные изменения: {n}', diffChange: 'Изменено', diffAdd: 'Добавлено', diffRemove: 'Удалено', diffSame: 'Различий нет', diffSameHint: 'Изменений на уровне полей нет' } },
-            { code: 'th', name: 'ภาษาไทย', flag: '🇹🇭', dict: { brand: 'เครื่องมือ', navYamlJson: 'YAML เป็น JSON', navYamlProps: 'YAML เป็น Props', navJsonProps: 'JSON เป็น Props', navJsonXml: 'JSON เป็น XML', navXmlYaml: 'XML เป็น YAML', navJsonYaml: 'JSON เป็น YAML', navYamlXml: 'YAML เป็น XML', fromLabel: 'จาก', toLabel: 'เป็น', swapTitle: 'สลับ', inputLabel: 'อินพุต', outputLabel: 'เอาต์พุต', formatBtn: 'จัดรูปแบบ', mockBtn: 'จำลอง', clearBtn: 'ล้าง', convertBtn: 'แปลง', copyBtn: 'คัดลอก', pasteBtn: 'วาง', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'สร้างจำลองแล้ว', toastFormatInput: 'จัดรูปแบบอินพุตแล้ว', toastFormatOutput: 'จัดรูปแบบเอาต์พุตแล้ว', toastFormatError: 'จัดรูปแบบล้มเหลว', toastConvertSuccess: 'แปลงแล้ว', toastConvertError: 'แปลงล้มเหลว', toastCopySuccess: 'คัดลอกแล้ว', toastCopyError: 'คัดลอกล้มเหลว', toastPasteSuccess: 'วางแล้ว', toastPasteError: 'อ่านคลิปบอร์ดล้มเหลว', toastPasteUnsupported: 'ไม่รองรับการอ่านคลิปบอร์ด', toastEmptyInput: 'ไม่มีข้อมูล', toastSameFormat: 'รูปแบบเดียวกัน', diffBtn: 'เปรียบเทียบ', diffExitBtn: 'ออก', diffLeftTitle: 'ต้นฉบับ (อินพุต)', diffRightTitle: 'แก้ไขแล้ว (เอาต์พุต)', diffLarge: 'ข้อมูลขนาดใหญ่ เปลี่ยนไปใช้การเปรียบเทียบแบบเร็ว', diffReportTitle: 'ความแตกต่างเชิงโครงสร้าง {n} จุด', diffChange: 'แก้ไข', diffAdd: 'เพิ่ม', diffRemove: 'ลบ', diffSame: 'ไม่พบความแตกต่าง', diffSameHint: 'ไม่พบการเปลี่ยนแปลงระดับฟิลด์' } },
-            { code: 'tr', name: 'Türkçe', flag: '🇹🇷', dict: { brand: 'Araçlar', navYamlJson: 'YAML -> JSON', navYamlProps: 'YAML -> Props', navJsonProps: 'JSON -> Props', navJsonXml: 'JSON -> XML', navXmlYaml: 'XML -> YAML', navJsonYaml: 'JSON -> YAML', navYamlXml: 'YAML -> XML', fromLabel: 'Kimden', toLabel: 'Kime', swapTitle: 'Değiştir', inputLabel: 'Giriş', outputLabel: 'Çıkış', formatBtn: 'Biçimlendir', mockBtn: 'Mock', clearBtn: 'Temizle', convertBtn: 'Dönüştür', copyBtn: 'Kopyala', pasteBtn: 'Yapıştır', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock oluşturuldu', toastFormatInput: 'Giriş biçimlendirildi', toastFormatOutput: 'Çıkış biçimlendirildi', toastFormatError: 'Biçimlendirme hatası', toastConvertSuccess: 'Dönüştürüldü', toastConvertError: 'Dönüştürme hatası', toastCopySuccess: 'Kopyalandı', toastCopyError: 'Kopyalama hatası', toastPasteSuccess: 'Yapıştırıldı', toastPasteError: 'Pano okunamadı', toastPasteUnsupported: 'Pano okuma desteklenmiyor', toastEmptyInput: 'Giriş boş', toastSameFormat: 'Aynı format', diffBtn: 'Karşılaştır', diffExitBtn: 'Çıkış', diffLeftTitle: 'Orijinal (Giriş)', diffRightTitle: 'Değiştirilmiş (Çıkış)', diffLarge: 'Girdi büyük — hızlı karşılaştırmaya geçildi', diffReportTitle: 'Yapısal değişiklikler: {n}', diffChange: 'Değişti', diffAdd: 'Eklendi', diffRemove: 'Silindi', diffSame: 'Fark yok', diffSameHint: 'Alan düzeyinde değişiklik yok' } },
+            { code: 'zh-CN', name: '简体中文', flag: '🇨🇳', dict: { brand: '转换工具', navYamlJson: 'yaml转json', navYamlProps: 'yaml转properties', navJsonProps: 'json转properties', navJsonXml: 'json转xml', navXmlYaml: 'xml转yaml', navJsonYaml: 'json转yaml', navYamlXml: 'yaml转xml', fromLabel: '从', toLabel: '转为', swapTitle: '互换格式', inputLabel: '输入内容', outputLabel: '输出结果', formatBtn: '格式化', mockBtn: '模拟数据', clearBtn: '清空', convertBtn: '执行转换', copyBtn: '复制', pasteBtn: '粘贴', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '已生成模拟数据', toastFormatInput: '输入格式化成功', toastFormatOutput: '输出格式化成功', toastFormatError: '格式化失败', toastConvertSuccess: '转换成功', toastConvertError: '转换失败', toastCopySuccess: '已复制', toastCopyError: '复制失败', toastPasteSuccess: '已粘贴', toastPasteError: '读取剪贴板失败', toastPasteUnsupported: '当前环境不支持读取剪贴板，请手动粘贴', toastEmptyInput: '请输入内容', toastSameFormat: '格式相同', diffBtn: '对比差异', diffExitBtn: '退出对比', diffLeftTitle: '原始版本 (输入)', diffRightTitle: '修改版本 (输出)', diffLarge: '文件较大，已切换为快速对比（行级高亮可能不够精确）', diffReportTitle: '结构化差异 {n} 处', diffChange: '修改', diffAdd: '新增', diffRemove: '删除', diffSame: '两版内容一致', diffSameHint: '未发现字段级差异', navCompare: 'JSON 对比', navMore: '更多', cmpTabText: '任意文本', cmpSamples: '示例 JSON:', cmpSampleUser: '用户信息', cmpSampleProduct: '商品数据', cmpSampleConfig: '配置选项', cmpSampleApi: 'API响应', cmpTextSamples: '示例文本:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '配置文件', cmpSampleHtml: 'HTML片段', cmpSampleLog: '日志输出', cmpBeautify: '美化', cmpClear: '清空', cmpRun: '对比', cmpTipIdle: '粘贴两侧内容后点击「对比」', cmpTipJson: '两侧 JSON 比对完成，共有 {n} 处不一致！', cmpTipSame: '两侧内容完全一致', cmpTipText: '两侧文本比对完成，共有 {n} 行不同', cmpTipError: '解析失败', cmpLeftSide: '左侧', cmpRightSide: '右侧' } },
+            { code: 'zh-TW', name: '繁體中文', flag: '繁', dict: { brand: '轉換工具', navYamlJson: 'yaml轉json', navYamlProps: 'yaml轉properties', navJsonProps: 'json轉properties', navJsonXml: 'json轉xml', navXmlYaml: 'xml轉yaml', navJsonYaml: 'json轉yaml', navYamlXml: 'yaml轉xml', fromLabel: '從', toLabel: '轉為', swapTitle: '互換格式', inputLabel: '輸入內容', outputLabel: '輸出結果', formatBtn: '格式化', mockBtn: '模擬數據', clearBtn: '清空', convertBtn: '執行轉換', copyBtn: '複製', pasteBtn: '粘貼', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '已生成模擬數據', toastFormatInput: '輸入格式化成功', toastFormatOutput: '輸出格式化成功', toastFormatError: '格式化失敗', toastConvertSuccess: '轉換成功', toastConvertError: '轉換失敗', toastCopySuccess: '已複製', toastCopyError: '複製失敗', toastPasteSuccess: '已粘貼', toastPasteError: '讀取剪貼板失敗', toastPasteUnsupported: '當前環境不支持讀取剪貼板，請手動粘貼', toastEmptyInput: '請輸入內容', toastSameFormat: '格式相同', diffBtn: '對比差異', diffExitBtn: '退出對比', diffLeftTitle: '原始版本 (輸入)', diffRightTitle: '修改版本 (輸出)', diffLarge: '檔案較大，已切換為快速對比（行級標記可能不夠精確）', diffReportTitle: '結構化差異 {n} 處', diffChange: '修改', diffAdd: '新增', diffRemove: '刪除', diffSame: '兩版內容一致', diffSameHint: '未發現欄位級差異', navCompare: 'JSON 對比', navMore: '更多', cmpTabText: '任意文字', cmpSamples: '範例 JSON:', cmpSampleUser: '使用者資訊', cmpSampleProduct: '商品資料', cmpSampleConfig: '設定選項', cmpSampleApi: 'API 回應', cmpTextSamples: '範例文字:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '設定檔', cmpSampleHtml: 'HTML 片段', cmpSampleLog: '日誌輸出', cmpBeautify: '美化', cmpClear: '清空', cmpRun: '對比', cmpTipIdle: '貼上兩側內容後點擊「對比」', cmpTipJson: '兩側 JSON 比對完成，共有 {n} 處不一致！', cmpTipSame: '兩側內容完全一致', cmpTipText: '兩側文字比對完成，共有 {n} 行不同', cmpTipError: '解析失敗', cmpLeftSide: '左側', cmpRightSide: '右側' } },
+            { code: 'en', name: 'English', flag: '🇺🇸', dict: { brand: 'Converter', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock Data', clearBtn: 'Clear', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here, please paste manually', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)', diffLarge: 'Large input — switched to fast diff, highlights may be less precise', diffReportTitle: 'Structured changes: {n}', diffChange: 'Modified', diffAdd: 'Added', diffRemove: 'Deleted', diffSame: 'No differences', diffSameHint: 'No field-level changes found', navCompare: 'JSON Compare', navMore: 'More', cmpTabText: 'Any text', cmpSamples: 'Examples:', cmpSampleUser: 'User', cmpSampleProduct: 'Product', cmpSampleConfig: 'Config', cmpSampleApi: 'API response', cmpTextSamples: 'Examples:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Config file', cmpSampleHtml: 'HTML snippet', cmpSampleLog: 'Log output', cmpBeautify: 'Beautify', cmpClear: 'Clear', cmpRun: 'Compare', cmpTipIdle: 'Paste both sides, then click Compare', cmpTipJson: 'JSON compared — {n} difference(s) found', cmpTipSame: 'Both sides are identical', cmpTipText: 'Text compared — {n} different line(s)', cmpTipError: 'Parse failed', cmpLeftSide: 'left side', cmpRightSide: 'right side' } },
+            { code: 'az', name: 'Azərbaycan', flag: '🇦🇿', dict: { brand: 'Alətlər', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock', clearBtn: 'Clear', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)', diffLarge: 'Giriş böyükdür — sürətli müqayisəyə keçildi', diffReportTitle: 'Struktur fərqlər: {n}', diffChange: 'Dəyişdi', diffAdd: 'Əlavə', diffRemove: 'Silindi', diffSame: 'Fərq yoxdur', diffSameHint: 'Sahə səviyyəsində fərq tapılmadı', navCompare: 'JSON müqayisə', navMore: 'Daha çox', cmpTabText: 'İstənilən mətn', cmpSamples: 'Nümunə:', cmpSampleUser: 'İstifadəçi', cmpSampleProduct: 'Məhsul', cmpSampleConfig: 'Konfiq', cmpSampleApi: 'API cavabı', cmpTextSamples: 'Nümunə mətn:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Konfiq faylı', cmpSampleHtml: 'HTML fraqmenti', cmpSampleLog: 'Jurnal çıxışı', cmpBeautify: 'Formatla', cmpClear: 'Təmizlə', cmpRun: 'Müqayisə et', cmpTipIdle: 'Hər iki tərəfi yerləşdirin və «Müqayisə et» basın', cmpTipJson: 'JSON müqayisə bitdi, {n} fərq', cmpTipSame: 'Hər iki tərəf eynidir', cmpTipText: 'Mətn müqayisəsi bitdi, {n} sətir fərqli', cmpTipError: 'Analiz alınmadı', cmpLeftSide: 'sol tərəf', cmpRightSide: 'sağ tərəf' } },
+            { code: 'es', name: 'Español', flag: '🇪🇸', dict: { brand: 'Herramientas', navYamlJson: 'YAML a JSON', navYamlProps: 'YAML a Props', navJsonProps: 'JSON a Props', navJsonXml: 'JSON a XML', navXmlYaml: 'XML a YAML', navJsonYaml: 'JSON a YAML', navYamlXml: 'YAML a XML', fromLabel: 'De', toLabel: 'A', swapTitle: 'Intercambiar', inputLabel: 'Entrada', outputLabel: 'Salida', formatBtn: 'Formatear', mockBtn: 'Simular', clearBtn: 'Limpiar', convertBtn: 'Convertir', copyBtn: 'Copiar', pasteBtn: 'Pegar', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulado generado', toastFormatInput: 'Entrada formateada', toastFormatOutput: 'Salida formateada', toastFormatError: 'Error de formato', toastConvertSuccess: 'Convertido', toastConvertError: 'Error de conversión', toastCopySuccess: 'Copiado', toastCopyError: 'Error al copiar', toastPasteSuccess: 'Pegado', toastPasteError: 'Error al leer el portapapeles', toastPasteUnsupported: 'Lectura del portapapeles no soportada', toastEmptyInput: 'Entrada vacía', toastSameFormat: 'Mismo formato', diffBtn: 'Comparar', diffExitBtn: 'Salir', diffLeftTitle: 'Original (Entrada)', diffRightTitle: 'Modificado (Salida)', diffLarge: 'Entrada grande: se cambió a comparación rápida', diffReportTitle: 'Cambios estructurados: {n}', diffChange: 'Modificado', diffAdd: 'Añadido', diffRemove: 'Eliminado', diffSame: 'Sin diferencias', diffSameHint: 'No se encontraron cambios', navCompare: 'Comparar JSON', navMore: 'Más', cmpTabText: 'Texto libre', cmpSamples: 'Ejemplos:', cmpSampleUser: 'Usuario', cmpSampleProduct: 'Producto', cmpSampleConfig: 'Config', cmpSampleApi: 'Respuesta API', cmpTextSamples: 'Ejemplos:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Archivo de configuración', cmpSampleHtml: 'Fragmento HTML', cmpSampleLog: 'Salida de log', cmpBeautify: 'Formatear', cmpClear: 'Limpiar', cmpRun: 'Comparar', cmpTipIdle: 'Pega ambos lados y pulsa Comparar', cmpTipJson: 'JSON comparado: {n} diferencia(s)', cmpTipSame: 'Ambos lados son idénticos', cmpTipText: 'Texto comparado: {n} línea(s) distinta(s)', cmpTipError: 'Error de análisis', cmpLeftSide: 'lado izquierdo', cmpRightSide: 'lado derecho' } },
+            { code: 'id', name: 'Bahasa Indonesia', flag: '🇮🇩', dict: { brand: 'Alat', navYamlJson: 'YAML ke JSON', navYamlProps: 'YAML ke Props', navJsonProps: 'JSON ke Props', navJsonXml: 'JSON ke XML', navXmlYaml: 'XML ke YAML', navJsonYaml: 'JSON ke YAML', navYamlXml: 'YAML ke XML', fromLabel: 'Dari', toLabel: 'Ke', swapTitle: 'Tukar', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock', clearBtn: 'Hapus', convertBtn: 'Konversi', copyBtn: 'Salin', pasteBtn: 'Tempel', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock dibuat', toastFormatInput: 'Input diformat', toastFormatOutput: 'Output diformat', toastFormatError: 'Format gagal', toastConvertSuccess: 'Dikonversi', toastConvertError: 'Konversi gagal', toastCopySuccess: 'Disalin', toastCopyError: 'Gagal menyalin', toastPasteSuccess: 'Ditempel', toastPasteError: 'Gagal membaca clipboard', toastPasteUnsupported: 'Baca clipboard tidak didukung', toastEmptyInput: 'Input kosong', toastSameFormat: 'Format sama', diffBtn: 'Bandingkan', diffExitBtn: 'Keluar', diffLeftTitle: 'Asli (Input)', diffRightTitle: 'Diubah (Output)', diffLarge: 'Input besar — beralih ke perbandingan cepat', diffReportTitle: 'Perubahan terstruktur: {n}', diffChange: 'Diubah', diffAdd: 'Ditambah', diffRemove: 'Dihapus', diffSame: 'Tidak ada perbedaan', diffSameHint: 'Tidak ada perubahan pada field', navCompare: 'Bandingkan JSON', navMore: 'Lainnya', cmpTabText: 'Teks bebas', cmpSamples: 'Contoh:', cmpSampleUser: 'Pengguna', cmpSampleProduct: 'Produk', cmpSampleConfig: 'Konfigurasi', cmpSampleApi: 'Respons API', cmpTextSamples: 'Contoh teks:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Berkas konfigurasi', cmpSampleHtml: 'Cuplikan HTML', cmpSampleLog: 'Keluaran log', cmpBeautify: 'Rapikan', cmpClear: 'Hapus', cmpRun: 'Bandingkan', cmpTipIdle: 'Tempel kedua sisi lalu klik Bandingkan', cmpTipJson: 'JSON dibandingkan: {n} perbedaan', cmpTipSame: 'Kedua sisi identik', cmpTipText: 'Teks dibandingkan: {n} baris berbeda', cmpTipError: 'Gagal mengurai', cmpLeftSide: 'sisi kiri', cmpRightSide: 'sisi kanan' } },
+            { code: 'it', name: 'Italiano', flag: '🇮🇹', dict: { brand: 'Strumenti', navYamlJson: 'YAML in JSON', navYamlProps: 'YAML in Props', navJsonProps: 'JSON in Props', navJsonXml: 'JSON in XML', navXmlYaml: 'XML in YAML', navJsonYaml: 'JSON in YAML', navYamlXml: 'YAML in XML', fromLabel: 'Da', toLabel: 'A', swapTitle: 'Scambia', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Formatta', mockBtn: 'Simula', clearBtn: 'Pulisci', convertBtn: 'Converti', copyBtn: 'Copia', pasteBtn: 'Incolla', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulazione creata', toastFormatInput: 'Input formattato', toastFormatOutput: 'Output formattato', toastFormatError: 'Formato fallito', toastConvertSuccess: 'Convertito', toastConvertError: 'Conversione fallita', toastCopySuccess: 'Copiato', toastCopyError: 'Copia fallita', toastPasteSuccess: 'Incollato', toastPasteError: 'Lettura appunti fallita', toastPasteUnsupported: 'Lettura appunti non supportata', toastEmptyInput: 'Input vuoto', toastSameFormat: 'Stesso formato', diffBtn: 'Confronta', diffExitBtn: 'Esci', diffLeftTitle: 'Originale (Input)', diffRightTitle: 'Modificato (Output)', diffLarge: 'Input grande: confronto rapido attivato', diffReportTitle: 'Modifiche strutturate: {n}', diffChange: 'Modificato', diffAdd: 'Aggiunto', diffRemove: 'Rimosso', diffSame: 'Nessuna differenza', diffSameHint: 'Nessuna modifica a livello di campo', navCompare: 'Confronta JSON', navMore: 'Altro', cmpTabText: 'Testo libero', cmpSamples: 'Esempi:', cmpSampleUser: 'Utente', cmpSampleProduct: 'Prodotto', cmpSampleConfig: 'Config', cmpSampleApi: 'Risposta API', cmpTextSamples: 'Esempi:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'File di configurazione', cmpSampleHtml: 'Snippet HTML', cmpSampleLog: 'Output di log', cmpBeautify: 'Formatta', cmpClear: 'Pulisci', cmpRun: 'Confronta', cmpTipIdle: 'Incolla entrambi i lati e premi Confronta', cmpTipJson: 'JSON confrontato: {n} differenze', cmpTipSame: 'I due lati sono identici', cmpTipText: 'Testo confrontato: {n} righe diverse', cmpTipError: 'Analisi non riuscita', cmpLeftSide: 'lato sinistro', cmpRightSide: 'lato destro' } },
+            { code: 'ja', name: '日本語', flag: '🇯🇵', dict: { brand: '変換ツール', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '変換元', toLabel: '変換先', swapTitle: '入れ替え', inputLabel: '入力', outputLabel: '出力', formatBtn: '整形', mockBtn: 'モック', clearBtn: 'クリア', convertBtn: '変換', copyBtn: 'コピー', pasteBtn: '貼り付け', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'モック生成完了', toastFormatInput: '入力整形完了', toastFormatOutput: '出力整形完了', toastFormatError: '整形失敗', toastConvertSuccess: '変換完了', toastConvertError: '変換失敗', toastCopySuccess: 'コピーしました', toastCopyError: 'コピー失敗', toastPasteSuccess: '貼り付けました', toastPasteError: 'クリップボードの読み取りに失敗', toastPasteUnsupported: 'クリップボードの読み取り非対応', toastEmptyInput: '入力が空です', toastSameFormat: '同じ形式です', diffBtn: '比較', diffExitBtn: '終了', diffLeftTitle: '元のバージョン (入力)', diffRightTitle: '変更後 (出力)', diffLarge: '入力が大きいため高速比較に切り替えました', diffReportTitle: '構造化差分 {n} 件', diffChange: '変更', diffAdd: '追加', diffRemove: '削除', diffSame: '差分なし', diffSameHint: 'フィールド単位の差分はありません', navCompare: 'JSON 比較', navMore: 'その他', cmpTabText: '任意テキスト', cmpSamples: 'サンプル:', cmpSampleUser: 'ユーザー情報', cmpSampleProduct: '商品データ', cmpSampleConfig: '設定', cmpSampleApi: 'API レスポンス', cmpTextSamples: 'サンプルテキスト:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '設定ファイル', cmpSampleHtml: 'HTML 断片', cmpSampleLog: 'ログ出力', cmpBeautify: '整形', cmpClear: 'クリア', cmpRun: '比較', cmpTipIdle: '両側に貼り付けて「比較」を押してください', cmpTipJson: 'JSON の比較完了、相違 {n} 件', cmpTipSame: '両側は完全に一致しています', cmpTipText: 'テキスト比較完了、{n} 行の違い', cmpTipError: '解析失敗', cmpLeftSide: '左側', cmpRightSide: '右側' } },
+            { code: 'ko', name: '한국어', flag: '🇰🇷', dict: { brand: '변환 도구', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '변환 전', toLabel: '변환 후', swapTitle: '교체', inputLabel: '입력', outputLabel: '출력', formatBtn: '포맷', mockBtn: '모의', clearBtn: '지우기', convertBtn: '변환', copyBtn: '복사', pasteBtn: '붙여넣기', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '모의 생성됨', toastFormatInput: '입력 포맷됨', toastFormatOutput: '출력 포맷됨', toastFormatError: '포맷 실패', toastConvertSuccess: '변환됨', toastConvertError: '변환 실패', toastCopySuccess: '복사됨', toastCopyError: '복사 실패', toastPasteSuccess: '붙여넣음', toastPasteError: '클립보드 읽기 실패', toastPasteUnsupported: '클립보드 읽기 미지원', toastEmptyInput: '입력이 비어있음', toastSameFormat: '같은 형식', diffBtn: '비교', diffExitBtn: '종료', diffLeftTitle: '원본 (입력)', diffRightTitle: '수정됨 (출력)', diffLarge: '입력이 커서 빠른 비교로 전환했습니다', diffReportTitle: '구조화 차이 {n}건', diffChange: '수정', diffAdd: '추가', diffRemove: '삭제', diffSame: '차이 없음', diffSameHint: '필드 단위 차이가 없습니다', navCompare: 'JSON 비교', navMore: '더보기', cmpTabText: '임의 텍스트', cmpSamples: '예시:', cmpSampleUser: '사용자 정보', cmpSampleProduct: '상품 데이터', cmpSampleConfig: '설정', cmpSampleApi: 'API 응답', cmpTextSamples: '예시 텍스트:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '설정 파일', cmpSampleHtml: 'HTML 조각', cmpSampleLog: '로그 출력', cmpBeautify: '정리', cmpClear: '지우기', cmpRun: '비교', cmpTipIdle: '양쪽에 붙여넣고 「비교」를 누르세요', cmpTipJson: 'JSON 비교 완료, {n}곳 다름', cmpTipSame: '양쪽이 완전히 동일합니다', cmpTipText: '텍스트 비교 완료, {n}줄 다름', cmpTipError: '구문 분석 실패', cmpLeftSide: '왼쪽', cmpRightSide: '오른쪽' } },
+            { code: 'pt', name: 'Português', flag: '🇧🇷', dict: { brand: 'Ferramentas', navYamlJson: 'YAML para JSON', navYamlProps: 'YAML para Props', navJsonProps: 'JSON para Props', navJsonXml: 'JSON para XML', navXmlYaml: 'XML para YAML', navJsonYaml: 'JSON para YAML', navYamlXml: 'YAML para XML', fromLabel: 'De', toLabel: 'Para', swapTitle: 'Trocar', inputLabel: 'Entrada', outputLabel: 'Saída', formatBtn: 'Formatar', mockBtn: 'Simular', clearBtn: 'Limpar', convertBtn: 'Converter', copyBtn: 'Copiar', pasteBtn: 'Colar', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulação criada', toastFormatInput: 'Entrada formatada', toastFormatOutput: 'Saída formatada', toastFormatError: 'Falha na formatação', toastConvertSuccess: 'Convertido', toastConvertError: 'Falha na conversão', toastCopySuccess: 'Copiado', toastCopyError: 'Falha ao copiar', toastPasteSuccess: 'Colado', toastPasteError: 'Falha ao ler a área de transferência', toastPasteUnsupported: 'Leitura da área de transferência não suportada', toastEmptyInput: 'Entrada vazia', toastSameFormat: 'Mesmo formato', diffBtn: 'Comparar', diffExitBtn: 'Sair', diffLeftTitle: 'Original (Entrada)', diffRightTitle: 'Modificado (Saída)', diffLarge: 'Entrada grande — comparação rápida ativada', diffReportTitle: 'Alterações estruturadas: {n}', diffChange: 'Modificado', diffAdd: 'Adicionado', diffRemove: 'Removido', diffSame: 'Sem diferenças', diffSameHint: 'Nenhuma alteração em campos', navCompare: 'Comparar JSON', navMore: 'Mais', cmpTabText: 'Texto livre', cmpSamples: 'Exemplos:', cmpSampleUser: 'Usuário', cmpSampleProduct: 'Produto', cmpSampleConfig: 'Config', cmpSampleApi: 'Resposta API', cmpTextSamples: 'Exemplos:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Arquivo de configuração', cmpSampleHtml: 'Trecho HTML', cmpSampleLog: 'Saída de log', cmpBeautify: 'Formatar', cmpClear: 'Limpar', cmpRun: 'Comparar', cmpTipIdle: 'Cole os dois lados e clique em Comparar', cmpTipJson: 'JSON comparado: {n} diferença(s)', cmpTipSame: 'Os dois lados são idênticos', cmpTipText: 'Texto comparado: {n} linha(s) diferente(s)', cmpTipError: 'Falha ao analisar', cmpLeftSide: 'lado esquerdo', cmpRightSide: 'lado direito' } },
+            { code: 'pl', name: 'Polski', flag: '🇵🇱', dict: { brand: 'Narzędzia', navYamlJson: 'YAML na JSON', navYamlProps: 'YAML na Props', navJsonProps: 'JSON na Props', navJsonXml: 'JSON na XML', navXmlYaml: 'XML na YAML', navJsonYaml: 'JSON na YAML', navYamlXml: 'YAML na XML', fromLabel: 'Z', toLabel: 'Na', swapTitle: 'Zamień', inputLabel: 'Wejście', outputLabel: 'Wyjście', formatBtn: 'Formatuj', mockBtn: 'Mock', clearBtn: 'Wyczyść', convertBtn: 'Konwertuj', copyBtn: 'Kopiuj', pasteBtn: 'Wklej', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock utworzony', toastFormatInput: 'Wejście sformatowane', toastFormatOutput: 'Wyjście sformatowane', toastFormatError: 'Błąd formatowania', toastConvertSuccess: 'Przekonwertowano', toastConvertError: 'Błąd konwersji', toastCopySuccess: 'Skopiowano', toastCopyError: 'Błąd kopiowania', toastPasteSuccess: 'Wklejono', toastPasteError: 'Błąd odczytu schowka', toastPasteUnsupported: 'Odczyt schowka nieobsługiwany', toastEmptyInput: 'Brak danych', toastSameFormat: 'Ten sam format', diffBtn: 'Porównaj', diffExitBtn: 'Wyjdź', diffLeftTitle: 'Oryginał (Wejście)', diffRightTitle: 'Zmodyfikowany (Wyjście)', diffLarge: 'Duży plik — włączono szybkie porównanie', diffReportTitle: 'Zmiany strukturalne: {n}', diffChange: 'Zmieniono', diffAdd: 'Dodano', diffRemove: 'Usunięto', diffSame: 'Brak różnic', diffSameHint: 'Brak zmian na poziomie pól', navCompare: 'Porównaj JSON', navMore: 'Więcej', cmpTabText: 'Dowolny tekst', cmpSamples: 'Przykłady:', cmpSampleUser: 'Użytkownik', cmpSampleProduct: 'Produkt', cmpSampleConfig: 'Konfiguracja', cmpSampleApi: 'Odpowiedź API', cmpTextSamples: 'Przykłady:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Plik konfiguracyjny', cmpSampleHtml: 'Fragment HTML', cmpSampleLog: 'Wyjście logu', cmpBeautify: 'Formatuj', cmpClear: 'Wyczyść', cmpRun: 'Porównaj', cmpTipIdle: 'Wklej obie strony i kliknij Porównaj', cmpTipJson: 'Porównano JSON: {n} różnic', cmpTipSame: 'Obie strony są identyczne', cmpTipText: 'Porównano tekst: {n} różnych linii', cmpTipError: 'Błąd analizy', cmpLeftSide: 'lewa strona', cmpRightSide: 'prawa strona' } },
+            { code: 'ru', name: 'Русский', flag: '🇷🇺', dict: { brand: 'Инструменты', navYamlJson: 'YAML в JSON', navYamlProps: 'YAML в Props', navJsonProps: 'JSON в Props', navJsonXml: 'JSON в XML', navXmlYaml: 'XML в YAML', navJsonYaml: 'JSON в YAML', navYamlXml: 'YAML в XML', fromLabel: 'Из', toLabel: 'В', swapTitle: 'Поменять', inputLabel: 'Вход', outputLabel: 'Выход', formatBtn: 'Формат', mockBtn: 'Мок', clearBtn: 'Очистить', convertBtn: 'Конверт', copyBtn: 'Копия', pasteBtn: 'Вставить', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Мок создан', toastFormatInput: 'Вход отформатирован', toastFormatOutput: 'Выход отформатирован', toastFormatError: 'Ошибка формата', toastConvertSuccess: 'Конвертировано', toastConvertError: 'Ошибка конвертации', toastCopySuccess: 'Скопировано', toastCopyError: 'Ошибка копии', toastPasteSuccess: 'Вставлено', toastPasteError: 'Ошибка чтения буфера обмена', toastPasteUnsupported: 'Чтение буфера обмена не поддерживается', toastEmptyInput: 'Пустой ввод', toastSameFormat: 'Тот же формат', diffBtn: 'Сравнить', diffExitBtn: 'Выйти', diffLeftTitle: 'Оригинал (Вход)', diffRightTitle: 'Изменено (Выход)', diffLarge: 'Большой файл — включено быстрое сравнение', diffReportTitle: 'Структурные изменения: {n}', diffChange: 'Изменено', diffAdd: 'Добавлено', diffRemove: 'Удалено', diffSame: 'Различий нет', diffSameHint: 'Изменений на уровне полей нет', navCompare: 'Сравнить JSON', navMore: 'Ещё', cmpTabText: 'Любой текст', cmpSamples: 'Примеры:', cmpSampleUser: 'Пользователь', cmpSampleProduct: 'Товар', cmpSampleConfig: 'Конфиг', cmpSampleApi: 'Ответ API', cmpTextSamples: 'Примеры:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Файл конфигурации', cmpSampleHtml: 'Фрагмент HTML', cmpSampleLog: 'Вывод журнала', cmpBeautify: 'Формат', cmpClear: 'Очистить', cmpRun: 'Сравнить', cmpTipIdle: 'Вставьте обе стороны и нажмите «Сравнить»', cmpTipJson: 'JSON сравнён: различий {n}', cmpTipSame: 'Обе стороны идентичны', cmpTipText: 'Текст сравнён: {n} строк отличаются', cmpTipError: 'Ошибка разбора', cmpLeftSide: 'левая сторона', cmpRightSide: 'правая сторона' } },
+            { code: 'th', name: 'ภาษาไทย', flag: '🇹🇭', dict: { brand: 'เครื่องมือ', navYamlJson: 'YAML เป็น JSON', navYamlProps: 'YAML เป็น Props', navJsonProps: 'JSON เป็น Props', navJsonXml: 'JSON เป็น XML', navXmlYaml: 'XML เป็น YAML', navJsonYaml: 'JSON เป็น YAML', navYamlXml: 'YAML เป็น XML', fromLabel: 'จาก', toLabel: 'เป็น', swapTitle: 'สลับ', inputLabel: 'อินพุต', outputLabel: 'เอาต์พุต', formatBtn: 'จัดรูปแบบ', mockBtn: 'จำลอง', clearBtn: 'ล้าง', convertBtn: 'แปลง', copyBtn: 'คัดลอก', pasteBtn: 'วาง', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'สร้างจำลองแล้ว', toastFormatInput: 'จัดรูปแบบอินพุตแล้ว', toastFormatOutput: 'จัดรูปแบบเอาต์พุตแล้ว', toastFormatError: 'จัดรูปแบบล้มเหลว', toastConvertSuccess: 'แปลงแล้ว', toastConvertError: 'แปลงล้มเหลว', toastCopySuccess: 'คัดลอกแล้ว', toastCopyError: 'คัดลอกล้มเหลว', toastPasteSuccess: 'วางแล้ว', toastPasteError: 'อ่านคลิปบอร์ดล้มเหลว', toastPasteUnsupported: 'ไม่รองรับการอ่านคลิปบอร์ด', toastEmptyInput: 'ไม่มีข้อมูล', toastSameFormat: 'รูปแบบเดียวกัน', diffBtn: 'เปรียบเทียบ', diffExitBtn: 'ออก', diffLeftTitle: 'ต้นฉบับ (อินพุต)', diffRightTitle: 'แก้ไขแล้ว (เอาต์พุต)', diffLarge: 'ข้อมูลขนาดใหญ่ เปลี่ยนไปใช้การเปรียบเทียบแบบเร็ว', diffReportTitle: 'ความแตกต่างเชิงโครงสร้าง {n} จุด', diffChange: 'แก้ไข', diffAdd: 'เพิ่ม', diffRemove: 'ลบ', diffSame: 'ไม่พบความแตกต่าง', diffSameHint: 'ไม่พบการเปลี่ยนแปลงระดับฟิลด์', navCompare: 'เปรียบเทียบ JSON', navMore: 'เพิ่มเติม', cmpTabText: 'ข้อความใดก็ได้', cmpSamples: 'ตัวอย่าง:', cmpSampleUser: 'ผู้ใช้', cmpSampleProduct: 'สินค้า', cmpSampleConfig: 'การตั้งค่า', cmpSampleApi: 'การตอบกลับ API', cmpTextSamples: 'ตัวอย่างข้อความ:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'ไฟล์กำหนดค่า', cmpSampleHtml: 'ส่วน HTML', cmpSampleLog: 'บันทึกผลลัพธ์', cmpBeautify: 'จัดรูปแบบ', cmpClear: 'ล้าง', cmpRun: 'เปรียบเทียบ', cmpTipIdle: 'วางทั้งสองด้านแล้วกดเปรียบเทียบ', cmpTipJson: 'เปรียบเทียบ JSON แล้ว พบ {n} จุดต่าง', cmpTipSame: 'ทั้งสองด้านเหมือนกันทุกประการ', cmpTipText: 'เปรียบเทียบข้อความแล้ว ต่างกัน {n} บรรทัด', cmpTipError: 'แยกวิเคราะห์ไม่สำเร็จ', cmpLeftSide: 'ด้านซ้าย', cmpRightSide: 'ด้านขวา' } },
+            { code: 'tr', name: 'Türkçe', flag: '🇹🇷', dict: { brand: 'Araçlar', navYamlJson: 'YAML -> JSON', navYamlProps: 'YAML -> Props', navJsonProps: 'JSON -> Props', navJsonXml: 'JSON -> XML', navXmlYaml: 'XML -> YAML', navJsonYaml: 'JSON -> YAML', navYamlXml: 'YAML -> XML', fromLabel: 'Kimden', toLabel: 'Kime', swapTitle: 'Değiştir', inputLabel: 'Giriş', outputLabel: 'Çıkış', formatBtn: 'Biçimlendir', mockBtn: 'Mock', clearBtn: 'Temizle', convertBtn: 'Dönüştür', copyBtn: 'Kopyala', pasteBtn: 'Yapıştır', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock oluşturuldu', toastFormatInput: 'Giriş biçimlendirildi', toastFormatOutput: 'Çıkış biçimlendirildi', toastFormatError: 'Biçimlendirme hatası', toastConvertSuccess: 'Dönüştürüldü', toastConvertError: 'Dönüştürme hatası', toastCopySuccess: 'Kopyalandı', toastCopyError: 'Kopyalama hatası', toastPasteSuccess: 'Yapıştırıldı', toastPasteError: 'Pano okunamadı', toastPasteUnsupported: 'Pano okuma desteklenmiyor', toastEmptyInput: 'Giriş boş', toastSameFormat: 'Aynı format', diffBtn: 'Karşılaştır', diffExitBtn: 'Çıkış', diffLeftTitle: 'Orijinal (Giriş)', diffRightTitle: 'Değiştirilmiş (Çıkış)', diffLarge: 'Girdi büyük — hızlı karşılaştırmaya geçildi', diffReportTitle: 'Yapısal değişiklikler: {n}', diffChange: 'Değişti', diffAdd: 'Eklendi', diffRemove: 'Silindi', diffSame: 'Fark yok', diffSameHint: 'Alan düzeyinde değişiklik yok', navCompare: 'JSON Karşılaştır', navMore: 'Daha fazla', cmpTabText: 'Serbest metin', cmpSamples: 'Örnekler:', cmpSampleUser: 'Kullanıcı', cmpSampleProduct: 'Ürün', cmpSampleConfig: 'Yapılandırma', cmpSampleApi: 'API yanıtı', cmpTextSamples: 'Örnek metin:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Yapılandırma dosyası', cmpSampleHtml: 'HTML parçası', cmpSampleLog: 'Günlük çıktısı', cmpBeautify: 'Biçimlendir', cmpClear: 'Temizle', cmpRun: 'Karşılaştır', cmpTipIdle: 'İki tarafı yapıştırıp Karşılaştır’a basın', cmpTipJson: 'JSON karşılaştırıldı: {n} fark', cmpTipSame: 'İki taraf birebir aynı', cmpTipText: 'Metin karşılaştırıldı: {n} satır farklı', cmpTipError: 'Ayrıştırma başarısız', cmpLeftSide: 'sol taraf', cmpRightSide: 'sağ taraf' } },
         ];
 
         const displayLangCodes = ['zh-CN', 'zh-TW', 'en'];
@@ -1102,6 +1370,98 @@
         });
 
         // =========================================
+        // 3.5 导航溢出 → 收进「更多」
+        // =========================================
+        const navMoreEl = document.getElementById('navMore');
+        const navMoreTrigger = document.getElementById('navMoreTrigger');
+        const navMoreMenu = document.getElementById('navMoreMenu');
+        const navLinksEl = document.getElementById('navLinks');
+        // 「JSON 对比」是主入口，优先留在导航条上，实在放不下才收起来
+        const NAV_PIN_SELECTOR = '.nav-compare';
+
+        function navOverflow() {
+            return navLinksEl.scrollWidth - navLinksEl.clientWidth > 1;
+        }
+
+        function navLinkList() {
+            return Array.prototype.slice.call(
+                document.querySelectorAll('#navLinks a, #navMoreMenu a')
+            );
+        }
+
+        // 首次布局时记下原始顺序，之后靠它复原
+        function captureNavOrder() {
+            navLinkList().forEach((el, i) => {
+                if (!el.hasAttribute('data-nav-idx')) el.setAttribute('data-nav-idx', String(i));
+            });
+        }
+
+        function closeNavMore() {
+            navMoreEl.classList.remove('open');
+            navMoreTrigger.setAttribute('aria-expanded', 'false');
+        }
+
+        // 装得下就全部放回导航条；装不下就把末尾的项依次收进「更多」
+        function layoutNav() {
+            const links = navLinkList().sort((a, b) => {
+                return Number(a.getAttribute('data-nav-idx') || 0) - Number(b.getAttribute('data-nav-idx') || 0);
+            });
+            navLinksEl.classList.remove('is-empty');
+            links.forEach((el) => navLinksEl.appendChild(el));
+            navMoreEl.classList.remove('show');
+            closeNavMore();
+
+            if (!links.length) return;
+            // 放得下就不用「更多」按钮（避免占位把内容挤出去）
+            if (!navOverflow()) return;
+
+            navMoreEl.classList.add('show');
+            // 从后往前挪；先只挪非固定项
+            const movable = links.filter((el) => !el.matches(NAV_PIN_SELECTOR));
+            let guard = 0;
+            while (navOverflow() && movable.length && guard++ < 64) {
+                navMoreMenu.insertBefore(movable.pop(), navMoreMenu.firstChild);
+            }
+            // 极端窄屏：连固定项也放不下了
+            if (navOverflow()) {
+                links.filter((el) => el.matches(NAV_PIN_SELECTOR)).forEach((el) => {
+                    navMoreMenu.appendChild(el);
+                });
+            }
+            // 一项都没挪出去时不该出现空菜单
+            if (!navMoreMenu.children.length) navMoreEl.classList.remove('show');
+            // 导航条被搬空时收起这块空白，让「更多」贴着品牌走
+            if (!navLinksEl.children.length) navLinksEl.classList.add('is-empty');
+        }
+
+        captureNavOrder();
+
+        let navResizeTimer = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(navResizeTimer);
+            navResizeTimer = setTimeout(layoutNav, 80);
+        });
+        // 字体/样式就绪后宽度会变，再算一次
+        window.addEventListener('load', layoutNav);
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(() => layoutNav()).catch(() => {});
+        }
+
+        navMoreTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const open = navMoreEl.classList.toggle('open');
+            navMoreTrigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!navMoreEl.contains(e.target)) closeNavMore();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeNavMore();
+        });
+
+        // =========================================
         // 4. 应用国际化
         // =========================================
         function applyI18n() {
@@ -1128,6 +1488,8 @@
             }
 
             updateOutputLabel();
+            // 文案长度随语言变化，重新决定收哪几项进「更多」
+            if (typeof layoutNav === 'function') layoutNav();
         }
 
         // =========================================
@@ -1191,7 +1553,6 @@
             document.querySelectorAll('.custom-select-trigger').forEach(tr => tr.classList.remove('active'));
         });
 
-        const navLinks = document.querySelectorAll('#navLinks a');
         const inputText = document.getElementById('inputText');
         const outputText = document.getElementById('outputText');
         const swapBtn = document.getElementById('swapBtn');
@@ -1412,18 +1773,30 @@
             await navigator.clipboard.writeText(text);
         }
 
-        navLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                clearTimeout(autoTimer);
-                suppressAutoConvert = true;
-                inputText.value = '';
-                setOutput('');
-                suppressAutoConvert = false;
-                currentDataObj = null;
-                clearError();
-                handleFormatChange(link.dataset.src, link.dataset.tgt);
-            });
+        // 导航项会被「更多」下拉搬来搬去，所以用事件委托而不是逐个绑定
+        function handleNavClick(link) {
+            // 导航里的「JSON 对比」进入独立对比页，其余仍是格式转换入口
+            if (link.id === 'navCompare') {
+                enterCompareMode();
+                return;
+            }
+            if (compareMode) exitCompareMode();
+            clearTimeout(autoTimer);
+            suppressAutoConvert = true;
+            inputText.value = '';
+            setOutput('');
+            suppressAutoConvert = false;
+            currentDataObj = null;
+            clearError();
+            handleFormatChange(link.dataset.src, link.dataset.tgt);
+        }
+
+        document.querySelector('.topbar').addEventListener('click', (e) => {
+            const link = e.target.closest('#navLinks a, #navMoreMenu a');
+            if (!link) return;
+            e.preventDefault();
+            handleNavClick(link);
+            closeNavMore();
         });
 
         document.getElementById('sourceSelect').addEventListener('change', (e) => {
@@ -1697,7 +2070,7 @@
            用例：node tests/diff.test.js / node tests/objdiff.test.js */
         if (!window.DBXDiff || !window.DBXObjDiff) throw new Error('ui/js/diff.js 或 ui/js/objdiff.js 未加载');
         const { diffLines, sides } = window.DBXDiff;
-        const { diffObjects, serializeTracked, displayValue } = window.DBXObjDiff;
+        const { diffObjects, serializeTracked, displayValue, scanJson } = window.DBXObjDiff;
 
         const diffReport = document.getElementById('diffReport');
         const diffReportTitle = document.getElementById('diffReportTitle');
@@ -1956,6 +2329,501 @@
                 });
             }
         });
+
+        // =========================================
+        // 7. JSON 对比页（导航栏入口，独立双栏）
+        // =========================================
+        const compareWorkspace = document.getElementById('compareWorkspace');
+        const cmpLeftText = document.getElementById('cmpLeftText');
+        const cmpRightText = document.getElementById('cmpRightText');
+        const compareTip = document.getElementById('compareTip');
+        const compareTabs = document.getElementById('compareTabs');
+        const compareSamples = document.getElementById('cmpJsonSamples');
+        const compareTextSamples = document.getElementById('cmpTextSamples');
+        const navCompareLink = document.getElementById('navCompare');
+        const toolbarEl = document.querySelector('.toolbar');
+
+        let cmpLeftEditor = null;
+        let cmpRightEditor = null;
+        let cmpMode = 'json';
+        let compareMode = false;
+        let cmpMarks = [];
+
+        // 示例：左右各一份，点一下就有一组「确实不一样」的数据可看
+        const COMPARE_SAMPLES = {
+            user: {
+                left: {
+                    status: 'success',
+                    code: 200,
+                    data: {
+                        users: [
+                            { id: 1, name: '李明', role: 'admin' },
+                            { id: 2, name: '王芳', role: 'user' },
+                            { id: 3, name: '赵强', role: 'editor' }
+                        ],
+                        pagination: { total: 25, page: 1, limit: 10 }
+                    },
+                    timestamp: 1642558132,
+                    version: '1.0.0'
+                },
+                right: {
+                    status: 'success',
+                    code: 200,
+                    data: {
+                        users: [
+                            { id: 1, name: '李明', role: 'admin' },
+                            { id: 2, name: '王芳', role: 'user' },
+                            { id: 3, name: '赵强', role: 'moderator' }
+                        ],
+                        pagination: { total: 28, page: 1, limit: 10 }
+                    },
+                    timestamp: 1652558132,
+                    version: '1.2.0'
+                }
+            },
+            product: {
+                left: {
+                    product: { id: 'p-1001', name: '无线耳机', price: 399, stock: 120, tags: ['蓝牙', '降噪'] },
+                    updatedAt: '2024-03-01'
+                },
+                right: {
+                    product: { id: 'p-1001', name: '无线耳机', price: 359, stock: 86, tags: ['蓝牙', '降噪', '快充'] },
+                    updatedAt: '2024-04-18'
+                }
+            },
+            config: {
+                left: {
+                    app: { theme: 'light', lang: 'zh-CN', autoSave: true },
+                    net: { timeout: 3000, retries: 2 }
+                },
+                right: {
+                    app: { theme: 'dark', lang: 'zh-CN', autoSave: false },
+                    net: { timeout: 5000, retries: 2 }
+                }
+            },
+            api: {
+                left: { code: 200, msg: 'ok', data: { list: [], total: 0 } },
+                right: { code: 200, msg: 'ok', data: { list: [{ id: 1 }], total: 1 }, traceId: 'trace-9f2c' }
+            }
+        };
+
+        // 任意文本示例：故意只在少数几行上有差别，方便看整行标记
+        const COMPARE_TEXT_SAMPLES = {
+            md: {
+                left: [
+                    '# 订单创建接口',
+                    '',
+                    '## 请求地址',
+                    '',
+                    '`POST /api/v1/order/create`',
+                    '',
+                    '## 请求参数',
+                    '',
+                    '| 参数 | 类型 | 必填 |',
+                    '| --- | --- | --- |',
+                    '| skuId | string | 是 |',
+                    '| count | number | 否 |',
+                    '',
+                    '## 返回示例',
+                    '',
+                    '```json',
+                    '{ "code": 0, "orderId": "o-1001" }',
+                    '```',
+                    '',
+                    '> 注意：count 默认值为 1。'
+                ].join('\n'),
+                right: [
+                    '# 订单创建接口',
+                    '',
+                    '## 请求地址',
+                    '',
+                    '`POST /api/v2/order/create`',
+                    '',
+                    '## 请求参数',
+                    '',
+                    '| 参数 | 类型 | 必填 |',
+                    '| --- | --- | --- |',
+                    '| skuId | string | 是 |',
+                    '| count | number | 是 |',
+                    '| couponId | string | 否 |',
+                    '',
+                    '## 返回示例',
+                    '',
+                    '```json',
+                    '{ "code": 0, "orderId": "o-1001", "payUrl": "https://pay.example.com/o-1001" }',
+                    '```',
+                    '',
+                    '> 注意：count 必填，且必须大于 0。'
+                ].join('\n')
+            },
+            conf: {
+                left: [
+                    '# app.conf',
+                    '[server]',
+                    'host = 127.0.0.1',
+                    'port = 8080',
+                    'workers = 4',
+                    '',
+                    '[log]',
+                    'level = info',
+                    'path = /var/log/app.log',
+                    'rotate = daily',
+                    '',
+                    '[cache]',
+                    'enabled = true',
+                    'ttl = 300',
+                    'backend = memory'
+                ].join('\n'),
+                right: [
+                    '# app.conf',
+                    '[server]',
+                    'host = 0.0.0.0',
+                    'port = 8080',
+                    'workers = 8',
+                    '',
+                    '[log]',
+                    'level = warn',
+                    'path = /var/log/app.log',
+                    'rotate = hourly',
+                    '',
+                    '[cache]',
+                    'enabled = true',
+                    'ttl = 600',
+                    'backend = redis',
+                    'redis_url = redis://127.0.0.1:6379/0'
+                ].join('\n')
+            },
+            html: {
+                left: [
+                    '<section class="card">',
+                    '    <h2 class="card-title">月度报表</h2>',
+                    '    <p class="card-desc">数据更新至 2024-03-01</p>',
+                    '    <ul class="card-list">',
+                    '        <li>订单量：1,208</li>',
+                    '        <li>成交额：¥ 86,400</li>',
+                    '    </ul>',
+                    '    <a href="/report/2024-03" class="btn">查看详情</a>',
+                    '</section>'
+                ].join('\n'),
+                right: [
+                    '<section class="card card--primary">',
+                    '    <h2 class="card-title">月度报表</h2>',
+                    '    <p class="card-desc">数据更新至 2024-04-01</p>',
+                    '    <ul class="card-list">',
+                    '        <li>订单量：1,536</li>',
+                    '        <li>成交额：¥ 102,900</li>',
+                    '        <li>退款率：1.2%</li>',
+                    '    </ul>',
+                    '    <a href="/report/2024-04" class="btn btn--ghost">查看详情</a>',
+                    '</section>'
+                ].join('\n')
+            },
+            log: {
+                left: [
+                    '2024-05-01 09:12:03 INFO  [main] app starting, version=1.2.0',
+                    '2024-05-01 09:12:03 INFO  [main] loaded config from /etc/app/app.conf',
+                    '2024-05-01 09:12:04 INFO  [db] connected to 127.0.0.1:5432 (12ms)',
+                    '2024-05-01 09:12:04 WARN  [cache] miss ratio 32%, consider warming up',
+                    '2024-05-01 09:12:05 INFO  [http] listening on 0.0.0.0:8080',
+                    '2024-05-01 09:12:31 INFO  [http] GET /api/orders 200 18ms',
+                    '2024-05-01 09:12:44 ERROR [http] POST /api/orders 500 timeout after 3000ms'
+                ].join('\n'),
+                right: [
+                    '2024-05-01 09:12:03 INFO  [main] app starting, version=1.2.1',
+                    '2024-05-01 09:12:03 INFO  [main] loaded config from /etc/app/app.conf',
+                    '2024-05-01 09:12:04 INFO  [db] connected to 127.0.0.1:5432 (9ms)',
+                    '2024-05-01 09:12:04 WARN  [cache] miss ratio 12%, consider warming up',
+                    '2024-05-01 09:12:05 INFO  [http] listening on 0.0.0.0:8080',
+                    '2024-05-01 09:12:31 INFO  [http] GET /api/orders 200 15ms',
+                    '2024-05-01 09:12:44 ERROR [http] POST /api/orders 500 timeout after 3000ms',
+                    '2024-05-01 09:12:45 WARN  [retry] retry 1/3 for POST /api/orders'
+                ].join('\n')
+            }
+        };
+
+        function t(key, fallback) {
+            return currentDict[key] || fallback;
+        }
+
+        function setCompareTip(text, tone) {
+            compareTip.textContent = text;
+            compareTip.className = 'compare-tip' + (tone ? ' ' + tone : '');
+        }
+
+        function idleCompareTip() {
+            setCompareTip(t('cmpTipIdle', '粘贴两侧内容后点击「对比」'));
+        }
+
+        function ensureCompareEditors() {
+            if (cmpLeftEditor) return;
+            const config = Object.assign({}, commonConfig, {
+                mode: MODE_MAP.json,
+                extraKeys: Object.assign({}, commonConfig.extraKeys, {
+                    'Cmd-Enter': () => runCompare(),
+                    'Ctrl-Enter': () => runCompare()
+                })
+            });
+            cmpLeftEditor = CodeMirror.fromTextArea(cmpLeftText, Object.assign({}, config));
+            cmpRightEditor = CodeMirror.fromTextArea(cmpRightText, Object.assign({}, config));
+        }
+
+        function clearCompareMarks() {
+            cmpMarks.forEach((mark) => {
+                try { mark.clear(); } catch (e) { /* 编辑器重建过 */ }
+            });
+            cmpMarks = [];
+            [cmpLeftEditor, cmpRightEditor].forEach((cm) => {
+                if (!cm) return;
+                const doc = cm.getDoc();
+                for (let i = 0; i < doc.lineCount(); i++) {
+                    doc.removeLineClass(i, 'background', 'cm-value-changed');
+                    doc.removeLineClass(i, 'background', 'cm-deleted');
+                    doc.removeLineClass(i, 'background', 'cm-inserted');
+                    doc.removeLineClass(i, 'wrap', 'cm-text-del');
+                    doc.removeLineClass(i, 'wrap', 'cm-text-ins');
+                }
+            });
+        }
+
+        function markCompareSpan(cm, span, className) {
+            if (!cm || !span) return;
+            cmpMarks.push(cm.getDoc().markText(
+                { line: span.line, ch: span.col },
+                { line: span.endLine == null ? span.line : span.endLine, ch: span.endCol },
+                { className: className }
+            ));
+        }
+
+        function markCompareChange(change, leftMap, rightMap) {
+            const ls = leftMap[change.pointer];
+            const rs = rightMap[change.pointer];
+            if (change.type === 'change') {
+                if (ls) {
+                    cmpLeftEditor.getDoc().addLineClass(ls.line, 'background', 'cm-value-changed');
+                    markCompareSpan(cmpLeftEditor, ls, 'cm-diff-old');
+                }
+                if (rs) {
+                    cmpRightEditor.getDoc().addLineClass(rs.line, 'background', 'cm-value-changed');
+                    markCompareSpan(cmpRightEditor, rs, 'cm-diff-new');
+                }
+                return;
+            }
+            if (change.type === 'remove') {
+                if (ls) {
+                    cmpLeftEditor.getDoc().addLineClass(ls.line, 'background', 'cm-deleted');
+                    markCompareSpan(cmpLeftEditor, ls, 'cm-diff-old');
+                }
+                return;
+            }
+            if (rs) {
+                cmpRightEditor.getDoc().addLineClass(rs.line, 'background', 'cm-inserted');
+                markCompareSpan(cmpRightEditor, rs, 'cm-diff-new');
+            }
+        }
+
+        function runCompare() {
+            ensureCompareEditors();
+            clearCompareMarks();
+
+            const leftRaw = cmpLeftEditor.getValue();
+            const rightRaw = cmpRightEditor.getValue();
+            if (!leftRaw.trim() || !rightRaw.trim()) {
+                idleCompareTip();
+                return;
+            }
+
+            if (cmpMode === 'json') {
+                let leftObj, leftMap, rightObj, rightMap;
+                try {
+                    leftObj = JSON.parse(leftRaw);
+                    leftMap = scanJson(leftRaw).map;
+                } catch (err) {
+                    setCompareTip(t('cmpTipError', '解析失败') + ' · ' + t('cmpLeftSide', '左侧') + ' · ' + err.message, 'err');
+                    return;
+                }
+                try {
+                    rightObj = JSON.parse(rightRaw);
+                    rightMap = scanJson(rightRaw).map;
+                } catch (err) {
+                    setCompareTip(t('cmpTipError', '解析失败') + ' · ' + t('cmpRightSide', '右侧') + ' · ' + err.message, 'err');
+                    return;
+                }
+
+                const changes = diffObjects(leftObj, rightObj).changes;
+                changes.forEach((change) => markCompareChange(change, leftMap, rightMap));
+
+                if (!changes.length) {
+                    setCompareTip(t('cmpTipSame', '两侧内容完全一致'), 'ok');
+                } else {
+                    setCompareTip(t('cmpTipJson', '两侧 JSON 比对完成，共有 {n} 处不一致！').replace('{n}', changes.length), 'diff');
+                }
+                return;
+            }
+
+            // 任意文本：逐行对比，不要求能解析成对象
+            const diff = diffLines(leftRaw, rightRaw);
+            const parts = sides(diff.ops);
+            const leftDoc = cmpLeftEditor.getDoc();
+            const rightDoc = cmpRightEditor.getDoc();
+            parts.left.forEach((p) => {
+                if (p.type !== 'delete') return;
+                leftDoc.addLineClass(p.line, 'background', 'cm-deleted');
+                leftDoc.addLineClass(p.line, 'wrap', 'cm-text-del');
+            });
+            parts.right.forEach((p) => {
+                if (p.type !== 'insert') return;
+                rightDoc.addLineClass(p.line, 'background', 'cm-inserted');
+                rightDoc.addLineClass(p.line, 'wrap', 'cm-text-ins');
+            });
+
+            const changedLines = Math.max(diff.stats.removed, diff.stats.added);
+            if (!changedLines) {
+                setCompareTip(t('cmpTipSame', '两侧内容完全一致'), 'ok');
+            } else {
+                setCompareTip(t('cmpTipText', '两侧文本比对完成，共有 {n} 行不同').replace('{n}', changedLines), 'diff');
+            }
+        }
+
+        function beautifyCompare() {
+            ensureCompareEditors();
+            let failed = false;
+            [cmpLeftEditor, cmpRightEditor].forEach((cm) => {
+                const raw = cm.getValue().trim();
+                if (!raw) return;
+                if (cmpMode !== 'json') {
+                    if (raw !== cm.getValue()) cm.setValue(raw);
+                    return;
+                }
+                try {
+                    cm.setValue(JSON.stringify(JSON.parse(raw), null, 2));
+                } catch (err) {
+                    failed = true;
+                }
+            });
+            clearCompareMarks();
+            if (failed) {
+                setCompareTip(t('cmpTipError', '解析失败'), 'err');
+            } else {
+                idleCompareTip();
+            }
+        }
+
+        function clearCompare() {
+            ensureCompareEditors();
+            cmpLeftEditor.setValue('');
+            cmpRightEditor.setValue('');
+            clearCompareMarks();
+            idleCompareTip();
+        }
+
+        function applySample(name) {
+            ensureCompareEditors();
+            const textSample = COMPARE_TEXT_SAMPLES[name];
+            if (textSample) {
+                if (cmpMode !== 'text') setCompareMode('text');
+                cmpLeftEditor.setValue(textSample.left);
+                cmpRightEditor.setValue(textSample.right);
+                runCompare();
+                return;
+            }
+            const sample = COMPARE_SAMPLES[name];
+            if (!sample) return;
+            if (cmpMode !== 'json') setCompareMode('json');
+            cmpLeftEditor.setValue(JSON.stringify(sample.left, null, 2));
+            cmpRightEditor.setValue(JSON.stringify(sample.right, null, 2));
+            runCompare();
+        }
+
+        // 两个示例区按当前模式互斥显示
+        function syncSampleGroups() {
+            if (compareSamples) compareSamples.classList.toggle('is-hidden', cmpMode !== 'json');
+            if (compareTextSamples) compareTextSamples.classList.toggle('is-hidden', cmpMode !== 'text');
+        }
+
+        function setCompareMode(mode) {
+            cmpMode = mode === 'text' ? 'text' : 'json';
+            compareTabs.querySelectorAll('.compare-tab').forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.mode === cmpMode);
+            });
+            syncSampleGroups();
+            if (cmpLeftEditor) {
+                const target = cmpMode === 'json' ? MODE_MAP.json : 'text/plain';
+                cmpLeftEditor.setOption('mode', target);
+                cmpRightEditor.setOption('mode', target);
+                clearCompareMarks();
+                // 切模式后重新按新模式算一遍，避免旧的标记和新的提示对不上
+                if (cmpLeftEditor.getValue().trim() && cmpRightEditor.getValue().trim()) {
+                    runCompare();
+                    return;
+                }
+            }
+            idleCompareTip();
+        }
+
+        function enterCompareMode() {
+            if (isDiffMode) {
+                isDiffMode = false;
+                diffReport.classList.remove('show');
+                diffWorkspace.classList.remove('active');
+                toggleDiffBtn.textContent = currentDict.diffBtn || '对比差异';
+                toggleDiffBtn.classList.remove('btn-diff');
+            }
+            compareMode = true;
+            mainWorkspace.classList.add('hidden');
+            toolbarEl.classList.add('hidden');
+            compareWorkspace.classList.add('active');
+            navCompareLink.classList.add('active');
+
+            ensureCompareEditors();
+            compareTabs.querySelectorAll('.compare-tab').forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.mode === cmpMode);
+            });
+            syncSampleGroups();
+            cmpLeftEditor.setOption('mode', cmpMode === 'json' ? MODE_MAP.json : 'text/plain');
+            cmpRightEditor.setOption('mode', cmpMode === 'json' ? MODE_MAP.json : 'text/plain');
+
+            // 之前已经填过内容的话，重新进入时直接给出结果，免得标记和提示不一致
+            if (cmpLeftEditor.getValue().trim() && cmpRightEditor.getValue().trim()) {
+                runCompare();
+            } else {
+                idleCompareTip();
+            }
+
+            requestAnimationFrame(() => {
+                cmpLeftEditor.refresh();
+                cmpRightEditor.refresh();
+            });
+        }
+
+        function exitCompareMode() {
+            if (!compareMode) return;
+            compareMode = false;
+            compareWorkspace.classList.remove('active');
+            toolbarEl.classList.remove('hidden');
+            mainWorkspace.classList.remove('hidden');
+            navCompareLink.classList.remove('active');
+            requestAnimationFrame(() => {
+                inputEditor.refresh();
+                outputEditor.refresh();
+            });
+        }
+
+        compareTabs.addEventListener('click', (e) => {
+            const tab = e.target.closest('.compare-tab');
+            if (tab) setCompareMode(tab.dataset.mode);
+        });
+        function bindSampleGroup(el) {
+            if (!el) return;
+            el.addEventListener('click', (e) => {
+                const chip = e.target.closest('.sample-chip');
+                if (chip) applySample(chip.dataset.sample);
+            });
+        }
+        bindSampleGroup(compareSamples);
+        bindSampleGroup(compareTextSamples);
+        document.getElementById('cmpRun').addEventListener('click', runCompare);
+        document.getElementById('cmpBeautify').addEventListener('click', beautifyCompare);
+        document.getElementById('cmpClear').addEventListener('click', clearCompare);
 
         renderLangMenu();
         applyI18n();

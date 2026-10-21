@@ -11,11 +11,20 @@
 - **模拟数据生成**：内置模拟数据生成器，用于快速测试和 Schema 设计。
 - **格式校验与美化**：自动格式化 JSON、YAML 和 XML 字符串。
 - **结构化差异对比**：按字段（JSON Pointer）比较两版数据，只高亮真正变了的那个值，并在右下角列出变更清单。
+- **JSON 对比页**：导航栏独立入口，左右两栏各贴一份 JSON，一键标出所有不一致的值并给出「共 N 处」提示，另附 4 组示例与「任意文本」模式。
+- **任意文本对比**：切到该模式后示例换成 Markdown / 配置文件 / HTML 片段 / 日志输出四组真实文本，按行对比——删掉的行整行淡红加删除线，新增的行整行淡绿，底部提示「共 N 行不同」。
+- **导航溢出收进「更多」**：导航项放不下时不再出现横向滚动条，末尾几项自动收进「更多」下拉；窗口拉宽、切换语言后自动复原，`JSON 对比` 优先留在导航条上。
 - **国际化 (i18n)**：支持多语言 UI，包括 zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。
 - **主题适配**：支持深色模式，自动跟随 DBX 宿主主题及 shadcn/ui 设计令牌。
 - **剪贴板集成**：通过 DBX Host API 或浏览器降级方案，一键复制转换结果。
 
 ![结构化差异对比](docs/screen-diff.png)
+
+![JSON 对比页](docs/screen-compare.png)
+
+![任意文本对比](docs/screen-compare-text.png)
+
+![导航溢出收进「更多」](docs/screen-nav-more.png)
 
 ## 环境要求
 
@@ -32,12 +41,12 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## 构建与测试
 
 ```bash
-./scripts/build.sh test         # 转换核心 + 差异算法回归用例（66 条）
+./scripts/build.sh test         # 转换核心 + 差异算法回归用例（72 条）
 ./scripts/build.sh              # 先跑用例，再打包 dist/*.dbxp
 ./scripts/run.sh                # 等价于 build.sh dev
 
 npm test                        # 只跑转换核心与差异算法，无第三方依赖
-npm install && npm run test:ui  # jsdom 页面接线冒烟（21 项）
+npm install && npm run test:ui  # jsdom 页面接线冒烟（40 项）
 ```
 
 Windows 下使用 `scripts\build.cmd`（需要 Git Bash）。

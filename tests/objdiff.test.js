@@ -174,8 +174,64 @@ test('空对象/空数组有位置记录', function () {
     assert.strictEqual(t.text.split('\n')[t.map['/b'].line].slice(t.map['/b'].col, t.map['/b'].endCol), '{}');
 });
 
-console.log('\n== displayValue ==');
+console.log('\n== scanJson 原文定位 ==');
 
+function sliceAt(text, span) {
+    var lines = text.split('\n');
+    return lines[span.line].slice(span.col, span.endCol);
+}
+
+test('缩进文本里每个值都能按行列取回', function () {
+    var text = '{\n  "a": 1,\n  "b": [\n    "x",\n    {"c/d": true}\n  ]\n}';
+    var map = O.scanJson(text).map;
+    assert.strictEqual(sliceAt(text, map['/a']), '1');
+    assert.strictEqual(sliceAt(text, map['/b/0']), '"x"');
+    assert.strictEqual(sliceAt(text, map['/b/1']), '{');
+    assert.strictEqual(sliceAt(text, map['/b/1/c~1d']), 'true');
+    assert.strictEqual(map['/a'].line, 1);
+    assert.strictEqual(map['/b/0'].line, 3);
+});
+
+test('压缩成一行也能精确定位', function () {
+    var text = '{"x":{"y":[1,2]},"z":null}';
+    var map = O.scanJson(text).map;
+    assert.strictEqual(sliceAt(text, map['/x/y/0']), '1');
+    assert.strictEqual(sliceAt(text, map['/x/y/1']), '2');
+    assert.strictEqual(sliceAt(text, map['/z']), 'null');
+    assert.strictEqual(map['/x/y/1'].line, 0);
+});
+
+test('字符串里的转义不破坏定位', function () {
+    var text = '{\n  "k": "a\\"b\\\\c",\n  "n": 2\n}';
+    var map = O.scanJson(text).map;
+    assert.strictEqual(sliceAt(text, map['/k']), '"a\\"b\\\\c"');
+    assert.strictEqual(map['/n'].line, 2);
+});
+
+test('中文与 emoji 的值整段可取回', function () {
+    var text = '{\n  "name": "张三",\n  "icon": "🚀"\n}';
+    var map = O.scanJson(text).map;
+    assert.strictEqual(sliceAt(text, map['/name']), '"张三"');
+    assert.strictEqual(sliceAt(text, map['/icon']), '"🚀"');
+});
+
+test('非法 JSON 抛错并给出行列', function () {
+    assert.throws(function () {
+        O.scanJson('{\n  "a": 1,\n}');
+    }, /第 3 行/);
+    assert.throws(function () {
+        O.scanJson('{"a":1} trailing');
+    });
+});
+
+test('空对象/空数组有定位', function () {
+    var text = '{\n  "a": [],\n  "b": {}\n}';
+    var map = O.scanJson(text).map;
+    assert.strictEqual(sliceAt(text, map['/a']), '[');
+    assert.strictEqual(sliceAt(text, map['/b']), '{');
+});
+
+console.log('\n== displayValue ==');
 test('字符串不加引号，数字照原样', function () {
     assert.strictEqual(O.displayValue('256GB'), '256GB');
     assert.strictEqual(O.displayValue(5299), '5299');

@@ -233,9 +233,198 @@
         return text;
     }
 
+    /* ------------------------------------------------------------ 原文位置扫描 */
+
+    /**
+     * 解析 JSON 文本，同时记录每个值的行列范围（不改动原文）。
+     * 对比页直接标注用户自己那两份文本，不走「格式化后再比较」的弯路。
+     * @param {string} text
+     * @returns {{map: Object}}
+     */
+    function scanJson(text) {
+        var pos = 0;
+        var line = 0;
+        var col = 0;
+        var map = Object.create(null);
+
+        function fail(message) {
+            throw new SyntaxError(message + '（第 ' + (line + 1) + ' 行，第 ' + (col + 1) + ' 列）');
+        }
+
+        function skipWhitespace() {
+            while (pos < text.length) {
+                var ch = text[pos];
+                if (ch === '\n') {
+                    pos++;
+                    line++;
+                    col = 0;
+                } else if (ch === ' ' || ch === '\t' || ch === '\r') {
+                    pos++;
+                    col++;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        function recordContainer(pointer) {
+            map[pointer] = { line: line, col: col, endLine: line, endCol: col + 1 };
+        }
+
+        function parseString() {
+            var startLine = line;
+            var startCol = col;
+            pos++;
+            col++;
+            while (pos < text.length) {
+                var ch = text[pos];
+                if (ch === '\\') {
+                    pos++;
+                    col++;
+                    if (text[pos] === 'u') {
+                        pos += 5;
+                        col += 5;
+                    } else {
+                        pos++;
+                        col++;
+                    }
+                    continue;
+                }
+                if (ch === '\n') fail('字符串未结束');
+                pos++;
+                col++;
+                if (ch === '"') {
+                    return { line: startLine, col: startCol, endLine: startLine, endCol: col };
+                }
+            }
+            fail('字符串未结束');
+        }
+
+        function parseNumber() {
+            var startLine = line;
+            var startCol = col;
+            while (pos < text.length && '0123456789+-.eE'.indexOf(text[pos]) !== -1) {
+                pos++;
+                col++;
+            }
+            return { line: startLine, col: startCol, endLine: line, endCol: col };
+        }
+
+        function parseLiteral(word) {
+            if (text.slice(pos, pos + word.length) !== word) fail('无法识别的值');
+            var startLine = line;
+            var startCol = col;
+            pos += word.length;
+            col += word.length;
+            return { line: startLine, col: startCol, endLine: startLine, endCol: startCol + word.length };
+        }
+
+        function parseObject(pointer) {
+            recordContainer(pointer);
+            pos++;
+            col++;
+            skipWhitespace();
+            if (text[pos] === '}') {
+                pos++;
+                col++;
+                return;
+            }
+            while (true) {
+                skipWhitespace();
+                if (text[pos] !== '"') fail('对象的键必须是字符串');
+                var keyStart = pos;
+                parseString();
+                var key = JSON.parse(text.slice(keyStart, pos));
+                skipWhitespace();
+                if (text[pos] !== ':') fail('缺少冒号');
+                pos++;
+                col++;
+                parseValue(pointer + '/' + escapeToken(key));
+                skipWhitespace();
+                if (text[pos] === ',') {
+                    pos++;
+                    col++;
+                    skipWhitespace();
+                    continue;
+                }
+                if (text[pos] === '}') {
+                    pos++;
+                    col++;
+                    return;
+                }
+                fail('对象未正确结束');
+            }
+        }
+
+        function parseArray(pointer) {
+            recordContainer(pointer);
+            pos++;
+            col++;
+            skipWhitespace();
+            if (text[pos] === ']') {
+                pos++;
+                col++;
+                return;
+            }
+            var index = 0;
+            while (true) {
+                parseValue(pointer + '/' + index);
+                index++;
+                skipWhitespace();
+                if (text[pos] === ',') {
+                    pos++;
+                    col++;
+                    continue;
+                }
+                if (text[pos] === ']') {
+                    pos++;
+                    col++;
+                    return;
+                }
+                fail('数组未正确结束');
+            }
+        }
+
+        function parseValue(pointer) {
+            skipWhitespace();
+            var ch = text[pos];
+            if (ch === undefined) fail('内容意外结束');
+            if (ch === '{') return parseObject(pointer);
+            if (ch === '[') return parseArray(pointer);
+            if (ch === '"') {
+                map[pointer] = parseString();
+                return;
+            }
+            if (ch === 't') {
+                map[pointer] = parseLiteral('true');
+                return;
+            }
+            if (ch === 'f') {
+                map[pointer] = parseLiteral('false');
+                return;
+            }
+            if (ch === 'n') {
+                map[pointer] = parseLiteral('null');
+                return;
+            }
+            if (ch === '-' || (ch >= '0' && ch <= '9')) {
+                map[pointer] = parseNumber();
+                return;
+            }
+            fail('无法识别的字符 "' + ch + '"');
+        }
+
+        parseValue('');
+        skipWhitespace();
+        if (pos < text.length) fail('JSON 结束后仍有多余内容');
+
+        return { map: map };
+    }
+
     var API = {
         diffObjects: diffObjects,
         serializeTracked: serializeTracked,
+        scanJson: scanJson,
         displayValue: displayValue,
         escapeToken: escapeToken
     };
