@@ -889,6 +889,116 @@ function check(name, fn) {
         if (doc.getElementById('navSheet').classList.contains('active')) throw new Error('导航仍高亮');
     });
 
+    // ---------------- 图片 ↔ Base64 ----------------
+    var imgWs = doc.getElementById('imageWorkspace');
+    var imgDrop = doc.getElementById('imgDrop');
+    var imgInputWrap = doc.getElementById('imgInputWrap');
+    var imgOutputWrap = doc.getElementById('imgOutputWrap');
+    var imgFormatTabs = doc.getElementById('imgFormat');
+    var imgSampleWrap = doc.getElementById('imgSampleWrap');
+    var imgCopyBtn = doc.getElementById('imgCopy');
+    var imgPasteBtn = doc.getElementById('imgPaste');
+    var imgTip = doc.getElementById('imgTip');
+    var imgMetaB64 = doc.getElementById('imgMetaB64');
+    var imgOutBadge = doc.getElementById('imgOutBadge');
+
+    check('导航可进入图片 Base64 页', function () {
+        doc.getElementById('navImage').click();
+        if (!imgWs.classList.contains('active')) throw new Error('图片页没显示');
+        if (!doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('工具栏没隐藏');
+        if (!doc.getElementById('navImage').classList.contains('active')) throw new Error('导航没高亮');
+    });
+
+    check('默认是编码页：拖拽区 + 格式页签 + 示例按钮都在', function () {
+        if (imgDrop.hidden) throw new Error('拖拽区被藏了');
+        if (!imgInputWrap.hidden) throw new Error('解码用的输入框不该显示');
+        if (imgOutputWrap.hidden) throw new Error('输出区不该藏');
+        if (imgFormatTabs.hidden) throw new Error('格式页签不该藏');
+        if (imgSampleWrap.hidden) throw new Error('示例按钮不该藏');
+        if (imgCopyBtn.hidden || imgPasteBtn.hidden) throw new Error('复制/粘贴按钮不该藏');
+    });
+
+    check('「纯 Base64」页签写的是纯字符串，导出也跟着变', function () {
+        var rawTab = imgFormatTabs.querySelector('[data-format="raw"]');
+        if (!rawTab) throw new Error('缺少 raw 页签');
+        if (rawTab.textContent.indexOf('纯 Base64') < 0) throw new Error('页签文案没写清是纯 Base64：' + rawTab.textContent);
+        rawTab.click();
+        var title = doc.getElementById('imgExport').title || '';
+        if (title.indexOf('纯 Base64') < 0) throw new Error('导出提示没跟着切：' + title);
+        if (title.indexOf('.base64.txt') < 0) throw new Error('纯 Base64 应该导出成 .base64.txt：' + title);
+        imgFormatTabs.querySelector('[data-format="datauri"]').click();
+    });
+
+    check('切到解码页：输入框出现、拖拽区与格式页签藏起来', function () {
+        doc.querySelector('#imgModeTabs [data-mode="decode"]').click();
+        if (!imgDrop.hidden) throw new Error('解码页还显示拖拽区');
+        if (imgInputWrap.hidden) throw new Error('Base64 输入框没出来');
+        if (!imgOutputWrap.hidden) throw new Error('编码结果区不该显示');
+        if (!imgFormatTabs.hidden) throw new Error('格式页签应该藏起来');
+        if (!imgSampleWrap.hidden) throw new Error('示例按钮应该藏起来');
+        if (!imgCopyBtn.hidden || !imgPasteBtn.hidden) throw new Error('复制/粘贴只属于编码页');
+    });
+
+    // 1x1 PNG：用来验证「裸 Base64 直接解析成图片」
+    var PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+    var imgTextarea = doc.getElementById('imgInput');
+    imgTextarea.value = PNG_B64;
+    imgTextarea.dispatchEvent(new win.Event('input', { bubbles: true }));
+    await wait(600);
+
+    check('裸 Base64（没有 data: 前缀）被自动解析成图片', function () {
+        if (imgTip.textContent.indexOf('已识别') < 0) throw new Error('没识别出来：' + imgTip.textContent);
+        if (imgTip.textContent.indexOf('裸 Base64') < 0) throw new Error('没标出是裸 Base64：' + imgTip.textContent);
+        if (imgTip.textContent.indexOf('image/png') < 0) throw new Error('没嗅探出 PNG：' + imgTip.textContent);
+        var src = doc.getElementById('imgDecodeImg').getAttribute('src') || '';
+        if (src.indexOf('data:image/png;base64,') !== 0) throw new Error('预览图不是 PNG DataURI');
+        if (imgOutBadge.textContent === '—') throw new Error('输出徽标没更新');
+        if (imgMetaB64.textContent.indexOf('Base64') < 0) throw new Error('字符数没显示');
+    });
+
+    imgTextarea.value = 'data:image/png;base64,' + PNG_B64;
+    imgTextarea.dispatchEvent(new win.Event('input', { bubbles: true }));
+    await wait(600);
+
+    check('带 data: 前缀的 DataURI 同样能解，且标注为 DataURI', function () {
+        if (imgTip.textContent.indexOf('DataURI') < 0) throw new Error('没标出 DataURI：' + imgTip.textContent);
+        if (imgTip.textContent.indexOf('image/png') < 0) throw new Error('没识别出 PNG');
+    });
+
+    imgTextarea.value = 'hello world ###';
+    imgTextarea.dispatchEvent(new win.Event('input', { bubbles: true }));
+    await wait(600);
+
+    check('普通文本给出「识别不出 Base64」而不是硬解', function () {
+        if (imgTip.textContent.indexOf('识别不出') < 0) throw new Error('提示不对：' + imgTip.textContent);
+        if (imgTip.className.indexOf('err') < 0) throw new Error('没标成错误态');
+    });
+
+    check('解码页清空后回到待输入提示', function () {
+        doc.getElementById('imgClear').click();
+        if (imgTextarea.value !== '') throw new Error('输入框没清空');
+        if (imgTip.textContent.indexOf('贴一段 Base64') < 0) throw new Error('提示没复位：' + imgTip.textContent);
+        if (imgOutBadge.textContent !== '—') throw new Error('徽标没复位');
+    });
+
+    check('离开图片页后入口状态复原', function () {
+        doc.querySelector('#navConvertMenu a[data-src="yaml"][data-tgt="json"]').click();
+        if (imgWs.classList.contains('active')) throw new Error('图片页仍在显示');
+        if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('工具栏仍隐藏');
+        if (doc.getElementById('navImage').classList.contains('active')) throw new Error('导航仍高亮');
+        // 复位成默认的 json→yaml：后面的导航用例按这个状态断言触发器文案
+        doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
+    });
+
+    check('纯 Base64 输出不带 data: 前缀（可被解码页原样吃回去）', function () {
+        var raw = win.DBXImg.buildText(PNG_B64, 'image/png', 'raw');
+        if (raw !== PNG_B64) throw new Error('raw 输出被改动了');
+        var parsed = win.DBXImg.parseInput(raw);
+        if (parsed.kind !== 'base64') throw new Error('导出的纯 Base64 反解不回来：' + parsed.kind);
+        if (parsed.base64 !== PNG_B64) throw new Error('往返后内容不一致');
+    });
+
 
     // 导航：7 个格式互转收进「格式转换」下拉，导航条上只剩 3 个单元
     var navEl = doc.getElementById('navLinks');
@@ -907,7 +1017,8 @@ function check(name, fn) {
         if (convertMenu.querySelectorAll('a').length !== 7) {
             throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
         }
-        if (inlineNavLinks().length !== 3) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
+        // 直属项：SQL 转换 / 表格转 JSON / 图片 Base64 / JSON 对比
+        if (inlineNavLinks().length !== 4) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
         if (!doc.getElementById('navConvertTrigger')) throw new Error('缺少「格式转换」触发器');
         // 触发器直接显示当前这一对格式，而不是固定的「格式转换」
         var label = doc.getElementById('navConvertLabel').textContent.trim();
@@ -956,7 +1067,7 @@ function check(name, fn) {
         if (!moreEl.classList.contains('show')) throw new Error('「更多」未出现');
         var names = [].map.call(moreMenu.querySelectorAll('a'), function (a) { return a.textContent.trim(); });
         // 收进「更多」的先后顺序取决于「非固定项先挪、固定项兜底」，这里只校验集合
-        if (names.slice().sort().join('|') !== ['SQL 转换', 'JSON 对比', '表格转 JSON'].sort().join('|')) {
+        if (names.slice().sort().join('|') !== ['SQL 转换', 'JSON 对比', '表格转 JSON', '图片 Base64'].sort().join('|')) {
             throw new Error('菜单项: ' + names.join(','));
         }
         if (inlineNavLinks().length !== 0) throw new Error('导航条上还剩 ' + inlineNavLinks().length + ' 项');
@@ -987,6 +1098,8 @@ function check(name, fn) {
             if (!doc.getElementById('compareWorkspace').classList.contains('active')) throw new Error('未进入对比页');
         } else if (label === '表格转 JSON') {
             if (!doc.getElementById('sheetWorkspace').classList.contains('active')) throw new Error('未进入表格页');
+        } else if (label === '图片 Base64') {
+            if (!doc.getElementById('imageWorkspace').classList.contains('active')) throw new Error('未进入图片页');
         } else {
             throw new Error('菜单项不是页面入口: ' + label);
         }
@@ -1003,7 +1116,7 @@ function check(name, fn) {
     check('宽度恢复后导航项全部回到导航条', function () {
         if (moreEl.classList.contains('show')) throw new Error('「更多」仍显示');
         if (moreMenu.querySelectorAll('a').length !== 0) throw new Error('菜单仍有残留');
-        if (inlineNavLinks().length !== 3) throw new Error('导航项数 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 4) throw new Error('导航项数 ' + inlineNavLinks().length);
         if (convertMenu.querySelectorAll('a').length !== 7) throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
     });
 

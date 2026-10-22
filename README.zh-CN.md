@@ -1,49 +1,68 @@
 # 数据转换 (Data Format Converter)
 
-一个 [DBX](https://dbxio.com) 插件，提供 JSON、YAML、XML 和 Properties 格式之间的无缝转换。采用 **纯前端（通用）** 模板构建，生成单个跨平台的 `universal` 包，无需任何原生后端。
+一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties 互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON，以及图片 ⇄ Base64。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
 
-![数据转换工作台界面](docs/screen.png)
+![数据转换工作台](docs/screen.png)
 
-## 功能特性
+## 功能页一览
 
-- **多格式支持**：JSON、YAML、XML 和 Properties 之间的无缝转换。
-- **无需后端**：完全在 DBX 宿主环境的前端（Vanilla JS）中运行。
-- **模拟数据生成**：内置模拟数据生成器，用于快速测试和 Schema 设计。
-- **格式校验与美化**：自动格式化 JSON、YAML 和 XML 字符串。
-- **结构化差异对比**：按字段（JSON Pointer）比较两版数据，只高亮真正变了的那个值，并在右下角列出变更清单。
-- **JSON 对比页**：导航栏独立入口，左右两栏各贴一份 JSON，一键标出所有不一致的值并给出「共 N 处」提示，另附 4 组示例与「任意文本」模式。
-- **任意文本对比**：切到该模式后示例换成 Markdown / 配置文件 / HTML 片段 / 日志输出四组真实文本，按行对比——删掉的行整行淡红底 + 行首红条，新增的行整行淡绿底 + 行首绿条（不划删除线，代码也读得清），底部提示「共 N 行不同」；两侧都是 JSON 时会提示改用「JSON 对比」。
-- **SQL 生成页（批量文本）**：导航栏独立入口。左边一行一个值（也认逗号、分号、制表符），右边直接出 SQL：`IN (...)` / `NOT IN (...)` / 值列表 / `INSERT INTO ... VALUES ...;` 四种模板，多行或单行随时切；单引号、双引号、不加引号三选一；纯数字默认也按字符串加引号（`'31010100003922409'`，ID 列大多是 varchar），勾上「数字不加引号」才输出裸数字（避免 int 列隐式转换丢索引），三个开关改完立刻重算。自动去重并分别显示「拆出几个值 / 用了几个值」。从 SQL 文件里整段粘回来的 `WHERE id IN ('a','b')`、`INSERT ... VALUES ('a'),('b')` 同样能反向拆出干净的值，输入即生成，可一键复制。
-- **表格转 JSON 页（Excel / CSV）**：导航栏独立入口。把 `.xlsx` / `.csv` / `.tsv` 拖进预览区（或点按钮选择），左边立刻出解析后的数据预览表格，右边是 JSON 数组。首行表头可关（关掉键名是 `column_1..N`），分隔符自动嗅探也能手动钉住 `,` / `Tab` / `;`；数字与布尔分别可关，`007`、0912 这类前导零编号和超过 15 位的长数字始终按字符串处理（否则 JSON 掉精度），短行补空串、空表头补 `column_N`、重名列加 `_2`。Excel 的日期样式（内置 + 自定义 `numFmt`）会还原成 `2024-03-01`，共享字符串富文本、`inlineStr`、布尔与 `#DIV/0!` 之类错误值都照原样还原。输出栏只读、一条记录一行，可复制或「导出 JSON」（走宿主的 fileTransfer 保存通道，webview 里也能落盘）；单文件 20 MB / 10 万行上限，可用「最多条数」（全部 / 100 / 500 / 1000 / 5000 / 10000，自绘下拉、和顶栏「从 / 转为」同一套样式）只转前 N 条，预览最多画 500 行、输出预览超 12 万字符截断（复制与导出跟着条数上限走），序列化分批让出主线程并显示进度，切文件时旧任务自动作废。输出栏可在 `JSON` 与 `SQL Insert` 之间切换：SQL 按表名生成 `INSERT INTO t (...) VALUES (...);`（每 500 条断一条语句、单引号转义、数字裸写、空值 `NULL`），导出后缀自动变 `.sql`；JSON 还能选「格式化（逐字段换行缩进）/ 紧凑（一条记录一行）」。旧版 `.xls` 会提示另存为 `.xlsx` / `.csv`。
-- **「第二行为注释」可选跳过**：有些表格第一行是英文列名、第二行是中文说明（`id / method` 上面一行 `编号 / 请求方法`），说明行会被当成一条数据。现在选项行有独立开关，勾上才跳过；同时用启发式判断「第二行像不像说明」（第一行几乎全英文列名、第二行成片中文且不含数字）——**只提示不擅自改结果**，点头上的「第二行疑似说明，跳过？」确认后才生效，取消勾选立刻恢复。
-- **预览表横向滚动 + 双击看详情**：列多时表格按内容撑开（不再挤在面板宽度里把列压没），底部有一条常驻的横向滚动条（自绘、可拖动；macOS 的悬浮滚动条不滚就不出现，容易以为「就这几列」）。单元格内容被省略号截断时，双击弹出详情：左边是完整内容，下面是整行所有列的值（被横向截掉的列也能看全），可一键复制。
+| 页面 | 能做什么 |
+| --- | --- |
+| **格式转换** | JSON / YAML / XML / Properties 的 7 种互转，即时转换、校验与格式化、模拟数据 |
+| **对比** | 按 JSON Pointer 逐字段对比 JSON，或对任意文本逐行对比 |
+| **SQL 转换** | 粘贴一列值 → `IN` / `NOT IN` / 值列表 / `INSERT`；整段 SQL 片段也能反向拆回干净的值 |
+| **表格转 JSON** | `.xlsx` / `.csv` / `.tsv` → JSON 数组或 SQL `INSERT`，全程在浏览器里解析 |
+| **图片 Base64** | 图片 → DataURI / 纯 Base64 / CSS / HTML / Markdown，Base64（带前缀或裸串）→ 图片 |
 
-- **导航「格式转换」下拉**：7 个格式互转入口收进一个下拉，触发器直接显示当前这一对（如 `yaml转properties`，改格式时立刻跟着变；窄窗口退成 `YAML→Props`，`title` 仍是完整文案；当前项在下拉里高亮，`Esc` / 点空白收起），导航条上只留 `格式转换 / SQL 转换 / 表格转 JSON / JSON 对比`；再窄就继续收进「更多」，不会出现横向滚动条。
-- **国际化 (i18n)**：支持多语言 UI，包括 zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。
-- **主题适配**：支持深色模式，自动跟随 DBX 宿主主题及 shadcn/ui 设计令牌——即使宿主只下发主题信息、没有写 `data-dbx-theme`，也会自行判定明暗并切换编辑器语法主题；自定义调色板（含暖色皮肤）同样生效。明暗切换有 300ms 的整页颜色过渡（背景、文字、边框一起渐变，编辑器语法色在过渡中点切换），首屏按宿主主题直接落定、不会先闪白底，`prefers-reduced-motion` 下自动关掉动画。
-- **剪贴板集成**：通过 DBX Host API 或浏览器降级方案，一键复制转换结果。
+## 格式转换
 
-![结构化差异对比](docs/screen-diff.png)
+- 7 个互转对收在一个下拉里，触发器直接显示当前这一对（如 `yaml转properties`），当前项高亮，`Esc` 或点空白收起；再窄就继续收进「更多」，导航条不会出现横向滚动条。
+- JSON / YAML / XML 自动美化、校验失败能指出问题所在，另有模拟数据生成器，做 Schema 试跑不用手写样本。
+- 全部本地完成：贴进去就转，不请求网络。
+
+## 对比
+
+- **结构化 JSON 对比**——两侧先解析成对象树，按 JSON Pointer 逐节点比，只高亮真正变了的那个值，并在右下角列出变更清单（修改 / 新增 / 删除 + 路径 + 新值），点任意一行两侧同时滚到对应位置；跨格式（json ↔ yaml）只给清单，不做无意义的整块涂色。
+- **任意文本对比**——Markdown、配置文件、HTML 片段、日志：按行比对，删掉的行淡红底 + 行首红条，新增的行淡绿底 + 行首绿条，不划删除线，代码也读得清；两侧都是合法 JSON 时会提示改用 JSON 对比。
+- 每种模式自带 4 组示例，不准备数据也能直接试。
 
 ![JSON 对比页](docs/screen-compare.png)
 
-![任意文本对比](docs/screen-compare-text.png)
+## SQL 转换
+
+- 左边一行一个值（逗号、分号、制表符也认），右边直接出 SQL：`IN (...)`、`NOT IN (...)`、值列表、`INSERT INTO ... VALUES ...;`，多行或单行随时切。
+- 引号可选：单引号 / 双引号 / 不加引号。纯数字默认加引号（`'31010100003922409'`，ID 列大多是 varchar），勾上「数字不加引号」才输出裸数字，避免 int 列隐式转换丢索引。
+- 从 SQL 文件里整段粘回来的 `WHERE id IN ('a','b')`、`INSERT ... VALUES ('a'),('b')` 也能反向拆出干净的值；成对引号还原、`O'Brien` 不会被拆坏、重复值自动去掉并分别显示「拆出几个 / 用了几个」。
+- 输入即生成，`Cmd/Ctrl+Enter` 立即出结果，一键复制。
 
 ![SQL 生成页](docs/screen-sql.png)
 
-![导航「格式转换」下拉](docs/screen-nav-convert.png)
+## 表格转 JSON
+
+- 拖入 `.xlsx` / `.csv` / `.tsv`：首行作表头（可关），分隔符自动嗅探（也能钉住 `,` / Tab / `;`），数字与布尔可推断，但 `007`、超过 15 位的长编号始终按字符串处理；短行补空、重名列加 `_2`。
+- Excel 日期还原成 `2024-03-01`（内置与自定义 `numFmt` 都认），共享字符串 / `inlineStr` / 布尔 / `#DIV/0!` 之类错误值照原样还原，ZIP64 写出来的 xlsx 也能读。
+- 旁边是实时预览表格：列多时按内容撑开、底部常驻横向滚动条，单元格被截断时双击弹出详情（完整内容 + 整行所有列）。
+- 输出可切 **JSON**（逐字段缩进 / 一条记录一行）或 **SQL Insert**（表名可改、每 500 条一句、单引号转义、导出 `.sql`），「最多条数」只转前 N 条。
+- 大文件不假死：单文件 20 MB / 10 万行上限，预览只画 500 行，序列化分批让出主线程并显示进度，切文件时旧任务作废；导出走宿主 `fileTransfer`，没有宿主才回退浏览器下载。
 
 ![表格转 JSON 页](docs/screen-sheet.png)
 
-![表格转 JSON 页（横向滚动）](docs/screen-sheet-scroll.png)
+## 图片 ⇄ Base64
 
-![双击单元格查看详情](docs/screen-sheet-cell.png)
+- **编码**：选文件、拖进来或粘贴截图，输出 DataURI、纯 Base64、CSS、HTML、Markdown——切换格式不用重新编码。
+- **解码**：边贴边出图（300 ms 防抖），尺寸、体积、字符数、+33% 膨胀率都摆在图下面，棋盘格底让透明 PNG 不会糊在白底上。
+- **纯 Base64 与 DataURI 等价**：没有 `data:` 前缀的裸串同样能解，类型靠魔数嗅探（PNG / JPEG / GIF / BMP / WEBP / ICO / AVIF / HEIC / SVG），提示里写明读到的是哪一种。现实变体先规范化再校验：76 字符换行、url-safe `-_`、缺补位、引号 / `url("…")` / 整条 CSS 声明、只抄了 `image/png;base64,` 半截前缀、UTF-8 BOM。在编码页粘贴一段 Base64 会自动切到解码页。
+- **SVG 也算图片**：`.svg` 编码成 `image/svg+xml`，SVG 的 Base64 / DataURI 能解回图片；矢量图本来就是文本，所以**SVG 源码**也能直接贴进来，自动按 UTF-8 编码再渲染。嗅探会跳过 BOM、`<?xml?>`、`<!DOCTYPE svg>` 和注释，HTML 里恰好嵌了个 `<svg>` 不会被误判。
+- **内存有界，不拖垮宿主**：单张图 10 MB、Base64 文本 14 M 字符，超了在入口拦下。编码按 3 字节对齐分块，带进度条与取消 token（8 MB 约 250 ms）。预览最多 200 K 字符，Base64 超过 2 M 字符时整串**不留在内存里**——预览由切片拼出，导出时才拼一次；预览图走 object URL 而不是几 MB 的 data URI，截断时点「复制」会引导去导出文件而不是假装成功。
 
-![第二行疑似注释提示](docs/screen-sheet-note.png)
+![图片转 Base64 页](docs/screen-image.png)
 
-![表格转 JSON 页（SQL Insert 输出）](docs/screen-sheet-sql.png)
+## 通用
 
-![表格转 JSON 页（暗色）](docs/screen-sheet-dark.png)
+- **国际化**——14 种语言：zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。
+- **主题适配**——跟随 DBX 宿主主题与 shadcn/ui 设计令牌，宿主只下发主题信息（不写 `data-dbx-theme`）或自定义调色板同样生效。首屏按宿主主题直接落定、不闪白底，明暗切换有 300 ms 整页过渡，`prefers-reduced-motion` 下自动关掉。
+- **剪贴板**——通过 DBX Host API 一键复制，没有宿主时走浏览器降级方案。
+- **离线**——无后端、无 CDN、无遥测；CodeMirror 与 YAML 库都打在包里。
 
 ## 环境要求
 
@@ -60,12 +79,12 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## 构建与测试
 
 ```bash
-./scripts/build.sh test         # 转换核心 + 差异算法 + SQL 生成 + 表格解析 / SQL Insert 用例（160 条）
+./scripts/build.sh test         # 全部用例（222 条）
 ./scripts/build.sh              # 先跑用例，再打包 dist/*.dbxp
 ./scripts/run.sh                # 等价于 build.sh dev
 
-npm test                        # 只跑转换核心、差异算法、SQL 生成与表格解析，无第三方依赖
-npm install && npm run test:ui  # jsdom 页面接线冒烟（93 项）
+npm test                        # 纯函数用例，无第三方依赖（222 条）
+npm install && npm run test:ui  # jsdom 页面接线冒烟（103 项）
 ```
 
 Windows 下使用 `scripts\build.cmd`（需要 Git Bash）。
@@ -80,8 +99,9 @@ ui/js/diff.js          逐行差异 —— 带行号的 ops、超限自动降级
 ui/js/sqlgen.js        SQL 生成 —— 批量文本拆值 + IN/NOT IN/INSERT 渲染
 ui/js/sheetconv.js     表格文本 → 记录 → JSON —— 分隔符嗅探、类型推断、限流
 ui/js/xlsxread.js      .xlsx 读取 —— ZIP + DecompressionStream + XML 扫描，零依赖
+ui/js/imgconv.js       图片 ↔ Base64 —— 魔数嗅探、规范化、SVG 源码编码
 tests/                 回归用例，直接 node 运行
 scripts/build.sh       package | dev | test
 ```
 
-转换核心与 DOM 解耦：`node tests/converters.test.js` 无需浏览器即可覆盖 12 条格式互转路径及边界情况；`node tests/diff.test.js` 校验每一步差异的行号都指回原文，并覆盖大文件降级路径。
+逻辑层与 DOM 解耦，`node tests/*.test.js` 无需浏览器即可覆盖全部转换路径、差异算法、表格解析与 Base64 往返。
