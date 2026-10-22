@@ -49,9 +49,9 @@
 
 ## 图片 ⇄ Base64
 
-- **编码**：选文件、拖进来或粘贴截图，输出 DataURI、纯 Base64、CSS、HTML、Markdown——切换格式不用重新编码。
+- **编码**：选文件、拖进来或 `Ctrl/Cmd+V` 粘贴截图，输出 DataURI、纯 Base64、CSS、HTML、Markdown——切换格式不用重新编码。
 - **解码**：边贴边出图（300 ms 防抖），尺寸、体积、字符数、+33% 膨胀率都摆在图下面，棋盘格底让透明 PNG 不会糊在白底上。
-- **纯 Base64 与 DataURI 等价**：没有 `data:` 前缀的裸串同样能解，类型靠魔数嗅探（PNG / JPEG / GIF / BMP / WEBP / ICO / AVIF / HEIC / SVG），提示里写明读到的是哪一种。现实变体先规范化再校验：76 字符换行、url-safe `-_`、缺补位、引号 / `url("…")` / 整条 CSS 声明、只抄了 `image/png;base64,` 半截前缀、UTF-8 BOM。在编码页粘贴一段 Base64 会自动切到解码页。
+- **纯 Base64 与 DataURI 等价**：没有 `data:` 前缀的裸串同样能解，类型靠魔数嗅探（PNG / JPEG / GIF / BMP / WEBP / ICO / AVIF / HEIC / SVG），提示里写明读到的是哪一种。现实变体先规范化再校验：76 字符换行、url-safe `-_`、缺补位、引号 / `url("…")` / 整条 CSS 声明、只抄了 `image/png;base64,` 半截前缀、UTF-8 BOM。在编码页 `Ctrl/Cmd+V` 粘贴一段 Base64 会自动切到解码页。页面不设「读剪贴板」按钮——macOS 的 WebView 会在按钮旁边弹一个自己的 Paste 气泡，所以贴图一律走 `Ctrl/Cmd+V` 或拖拽（两条路都拿得到完整图片数据）。
 - **SVG 也算图片**：`.svg` 编码成 `image/svg+xml`，SVG 的 Base64 / DataURI 能解回图片；矢量图本来就是文本，所以**SVG 源码**也能直接贴进来，自动按 UTF-8 编码再渲染。嗅探会跳过 BOM、`<?xml?>`、`<!DOCTYPE svg>` 和注释，HTML 里恰好嵌了个 `<svg>` 不会被误判。
 - **内存有界，不拖垮宿主**：单张图 10 MB、Base64 文本 14 M 字符，超了在入口拦下。编码按 3 字节对齐分块，带进度条与取消 token（8 MB 约 250 ms）。预览最多 200 K 字符，Base64 超过 2 M 字符时整串**不留在内存里**——预览由切片拼出，导出时才拼一次；预览图走 object URL 而不是几 MB 的 data URI，截断时点「复制」会引导去导出文件而不是假装成功。
 
@@ -59,7 +59,7 @@
 
 ## 通用
 
-- **国际化**——14 种语言：zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。
+- **国际化**——14 种语言：zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。切换器里列出前三种，其余随宿主 locale 自动匹配；格式转换、对比、SQL、表格、图片五页的文案都已覆盖全部 14 种，缺一条会退回英文而不是中文。
 - **主题适配**——跟随 DBX 宿主主题与 shadcn/ui 设计令牌，宿主只下发主题信息（不写 `data-dbx-theme`）或自定义调色板同样生效。首屏按宿主主题直接落定、不闪白底，明暗切换有 300 ms 整页过渡，`prefers-reduced-motion` 下自动关掉。
 - **剪贴板**——通过 DBX Host API 一键复制，没有宿主时走浏览器降级方案。
 - **离线**——无后端、无 CDN、无遥测；CodeMirror 与 YAML 库都打在包里。

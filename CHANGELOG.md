@@ -4,7 +4,7 @@
 ### ✨ 新增 (Features)
 
 *   **图片 Base64 页（图片 ↔ Base64 互转）**：导航栏新增「图片 Base64」入口，双向两用——「图片转 Base64」把选中的图编码成字符串，「Base64 转图片」把字符串还原成图。编码侧支持选择文件、拖进来、`Ctrl/Cmd+V` 粘贴截图，五个输出格式（DataURI / 纯 Base64 / CSS / HTML / Markdown）随时切、不用重新编码；解码侧边贴边出图（300 ms 防抖），尺寸、体积、字符数、膨胀率都摆在下面，图片用棋盘格底预览，透明图不会糊在白底上。
-*   **纯 Base64 与 DataURI 一视同仁**：解码框里贴 `data:image/png;base64,…` 能认，贴**裸 Base64**（没有前缀）也能认——MIME 靠魔数嗅探（PNG / JPEG / GIF / BMP / WEBP / ICO / AVIF / HEIC / SVG），提示里会写明这段是「DataURI」还是「裸 Base64」。现实里的变体也都吃：`base64 xxx.png` 出来的 76 字符换行、url-safe 的 `-_`、缺补位的尾巴、被引号 / `url("…")` / 整条 CSS 声明包着的、只抄了 `image/png;base64,` 半截前缀的、带 BOM 的，都先规范化再校验。在编码页直接粘贴一段 Base64 文本会自动切到解码页并出图，剪贴板里只有文本时「粘贴」按钮也走同一条路。
+*   **纯 Base64 与 DataURI 一视同仁**：解码框里贴 `data:image/png;base64,…` 能认，贴**裸 Base64**（没有前缀）也能认——MIME 靠魔数嗅探（PNG / JPEG / GIF / BMP / WEBP / ICO / AVIF / HEIC / SVG），提示里会写明这段是「DataURI」还是「裸 Base64」。现实里的变体也都吃：`base64 xxx.png` 出来的 76 字符换行、url-safe 的 `-_`、缺补位的尾巴、被引号 / `url("…")` / 整条 CSS 声明包着的、只抄了 `image/png;base64,` 半截前缀的、带 BOM 的，都先规范化再校验。在编码页直接 `Ctrl/Cmd+V` 粘贴一段 Base64 文本会自动切到解码页并出图。
 *   **SVG 也算图片**：`.svg` 文件可以编码（`image/svg+xml`），裸 Base64 或 DataURI 形式的 SVG 能解回图片；矢量图本来就是文本，所以连**SVG 源码**都能直接贴进解码框——自动按 UTF-8 编码成 `data:image/svg+xml;base64,…` 再渲染，提示标「SVG 源码」。嗅探会跳过 BOM、`<?xml>`、`<!DOCTYPE svg>` 和注释，`<svg>` 落在头 4 KB 里就能认出；HTML 里恰好嵌了个 `<svg>` 不会被误判成图片。
 *   **体积上限与不卡界面**：单张图 10 MB、Base64 文本 14 M 字符，超了在入口就拦下并说明上限；编码按 3 字节对齐分块（1 MB 让出一次主线程），进度条实时走、切文件 / 清空用 token 取消旧任务；输出预览最多 200 K 字符，**预览截断时「复制」会提示改用导出**（10 MB 图解码后是 1300 万字符，塞剪贴板既慢又容易失败），导出走宿主的 `fileTransfer` 分片写文件，没有宿主才回退浏览器下载。
 *   **导出跟着输出格式走**：编码页导出 `.txt`（选「纯 Base64」时是 `.base64.txt`，内容就是裸字符串，能被解码框原样吃回去）；解码页导出图片本体（`.png` / `.jpg` / `.svg` / `.bin`），按钮上直接写后缀，鼠标悬停能看到这次导的是什么格式。
@@ -12,14 +12,18 @@
 ### 🔧 修复 (Fixes)
 
 *   **暗色主题下 Base64 输入 / 输出框是白底黑字**：两个 `<textarea>` 用的是 `background: transparent`，可滚动文本框会被浏览器提升成独立合成层，暗色下这一层按白底光栅化——整页都黑了，只有这一块刺眼。改成显式 `background-color: var(--bg-card)`，跟面板同色，深浅主题都不再错位。
+*   **其余 11 种语言的表格页 / 图片页文案是中文**：`SHEET_I18N` 与 `IMG_I18N` 之前只写了 zh-CN / zh-TW / en 三份，宿主 locale 是 ja / ko / ru / es… 时这两页会退到调用处的中文兜底——导航和通用按钮换了语言，页面正文还是中文。现在两张表补齐到 14 种语言（表格 56 键、图片 53 键），三张表的取值也统一成「当前语言 → 英文 → 主字典 → 中文兜底」，万一再缺键至少回退到英文。顺带把转换页的错误定位「第 N 行 第 M 列」从硬编码模板改成主字典里的 `errorLocLine` / `errorLocCol`，英文下显示 `line 3, column 5`、日文下是 `3 行目 5 列目`；英文 `sheetTipLimited` 少写了一个 `{n}`（“导出同样是 N 条”那半句没数字）也一并补上。
+*   **图片页的「粘贴」按钮会弹出英文 Paste 气泡 —— 按钮已去掉**：那个气泡不是插件的提示，而是 macOS WebView 的剪贴板授权 UI——页面一调 `navigator.clipboard.read()`，WebView 就在按钮旁边浮一个自己的 Paste 按钮让用户再点一次，中文界面里格外突兀，还压住旁边的「选择图片」。这条 API 在宿主 WebView 里既拿不到图也不可控，索性把按钮删掉：贴图改走 `Ctrl/Cmd+V`（`paste` 事件直接拿到文件，无授权弹窗）或拖拽，两条路都完整可用，空状态提示里也是这么写的。删按钮同时顺带解决上一版「点粘贴被带到解码页」的跳页问题——不再有会自己换页签的入口。
 
 ### 🛠 工程化 (Internal)
 
 *   新增 `ui/js/imgconv.js`（纯函数，无 DOM）：`sniffMime()` 魔数嗅探、`normalizeBase64()` 规范化、`parseInput()` 识别 DataURI / 裸 Base64、`bytesToBase64(Async)()` / `base64ToBytes(Async)()` 分块编解码、`buildText()` 五种输出格式、`previewText()` 预览截断、`looksLikeSvgText()` / `svgTextToBase64()` SVG 源码；上限集中在 `LIMITS`。
 *   编码从「每组 4 字符 push 进数组再 join」改成「预分配 `Uint8Array` 写码点 + 8 KB 一段 `fromCharCode`」：8 MB 从 1758 ms 降到 130 ms 上下（解码同步优化到 190 ms 左右），并且异步分块结果与同步结果逐字节相同。
 *   加载与使用时都按「别把宿主拖崩」来做：Base64 超过 2 M 字符时**不再拼出完整输出串**，预览只拼 200 K 字符的切片（`imgState.text = ''`、另存真实长度），导出时才临时拼一次、写完立刻释放；预览图改用 `URL.createObjectURL(file)` 而不是把上千万字符的 data URI 塞进 `<img>`，并在清空 / 换图 / 卸载时 `revokeObjectURL`；`normalizeBase64()` 增加快路径（干净且长度 4 对齐的输入直接返回，躲开 8 次全量正则替换），9.33 MB 干净 Base64 规范化 27 ms、`parseInput` 39 ms；`encodeUtf8()` 预分配 `len*3` 缓冲再 `subarray`。进图片页 29 ms、示例编码 38 ms。
-*   新增 `tests/imgconv.test.js`（62 条：MIME 嗅探含 BOM / DOCTYPE / `<svg>` 越过 512 字节、HTML 不误判、编解码与 `Buffer` 逐字节对齐、url-safe / 缺补位 / 换行 / 引号 / CSS 包裹、非法输入、五种格式、体积上限、**8 MB 与 10 MB 往返 + 计时**、9 MB 干净 Base64 的规范化快路径、取消与进度回调）；`npm test` 与 `scripts/build.sh test` 一并纳入。单测合计 222 条。
-*   冒烟测试 92 → 103 项，新增图片页入口与编码/解码页互斥、格式页签与导出后缀联动、裸 Base64 自动出图并标注来源、DataURI 同样能解、普通文本不硬解、清空复位、离开页面复原、纯 Base64 输出可被原样反解。
+*   四张字典补齐到 14 种语言后，`ui/index.html` 从 6.5 k 行涨到 7.9 k 行（+23 KB，打包 258 → 281 KB）：冷启动 `DOMContentLoaded` 从约 500 ms 到约 590 ms（`domInteractive` 476 ms），JS 堆仍 9.5 MB、535 节点，进图片页 64 ms，8 MB 图编码 409 ms 且编码后堆不涨（`imgState.text` 为空，只留 200 000 字符预览），反复进出页面 5 次堆与节点数完全不变。语言表是纯字面量，不参与运行时计算，体积换的是「宿主 locale 是日语时不会露出中文」。
+*   新增 `tests/i18n.test.js`（19 条）：直接从 `ui/index.html` 源码里解析四张字典与 `languageConfigs`，断言语言集合一致（14 种）、每张表的键集合与 zh-CN 完全对齐、没有空译文、占位符（`{n}` / `{size}` / `{e}` …）在各语言里都保留。`npm test` 与 `scripts/build.sh` 一并纳入——以后新增文案漏语言会直接失败，而不是等到用户切到日语才发现。
+*   新增 `tests/imgconv.test.js`（62 条：MIME 嗅探含 BOM / DOCTYPE / `<svg>` 越过 512 字节、HTML 不误判、编解码与 `Buffer` 逐字节对齐、url-safe / 缺补位 / 换行 / 引号 / CSS 包裹、非法输入、五种格式、体积上限、**8 MB 与 10 MB 往返 + 计时**、9 MB 干净 Base64 的规范化快路径、取消与进度回调）；`npm test` 与 `scripts/build.sh test` 一并纳入。单测合计 241 条。
+*   冒烟测试 92 → 105 项，新增图片页入口与编码/解码页互斥、格式页签与导出后缀联动、裸 Base64 自动出图并标注来源、DataURI 同样能解、普通文本不硬解、清空复位、离开页面复原、纯 Base64 输出可被原样反解，以及「粘贴按钮已移除且空状态引导 Ctrl/Cmd+V」「宿主补的 title 会被摘掉」。`tests/ui.smoke.js` 里原来那三条点粘贴按钮的用例随按钮一起删掉。
 *   文档补 `docs/screen-image.png`（1440×900 / 1x，示例为页面内置生成的图片，不含任何真实素材）。README 同时重构成「功能页一览 + 每页一节」：主图、JSON 对比、SQL 转换、表格转 JSON 四张按当前导航（已含「图片 Base64」）重拍，细节截图（滚动、弹层、暗色、窄屏等）不再进 README，24 张失效旧图一并删除，`docs/` 从 4 MB 收到 780 KB。
 
 ## [0.1.4]

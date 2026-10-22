@@ -897,10 +897,12 @@ function check(name, fn) {
     var imgFormatTabs = doc.getElementById('imgFormat');
     var imgSampleWrap = doc.getElementById('imgSampleWrap');
     var imgCopyBtn = doc.getElementById('imgCopy');
-    var imgPasteBtn = doc.getElementById('imgPaste');
     var imgTip = doc.getElementById('imgTip');
     var imgMetaB64 = doc.getElementById('imgMetaB64');
     var imgOutBadge = doc.getElementById('imgOutBadge');
+
+    // 1x1 PNG：用来验证「裸 Base64 直接解析成图片」
+    var PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
     check('导航可进入图片 Base64 页', function () {
         doc.getElementById('navImage').click();
@@ -915,7 +917,8 @@ function check(name, fn) {
         if (imgOutputWrap.hidden) throw new Error('输出区不该藏');
         if (imgFormatTabs.hidden) throw new Error('格式页签不该藏');
         if (imgSampleWrap.hidden) throw new Error('示例按钮不该藏');
-        if (imgCopyBtn.hidden || imgPasteBtn.hidden) throw new Error('复制/粘贴按钮不该藏');
+        if (imgCopyBtn.hidden) throw new Error('复制按钮不该藏');
+        if (doc.getElementById('imgPaste')) throw new Error('粘贴按钮已经移除，不该还在');
     });
 
     check('「纯 Base64」页签写的是纯字符串，导出也跟着变', function () {
@@ -929,6 +932,11 @@ function check(name, fn) {
         imgFormatTabs.querySelector('[data-format="datauri"]').click();
     });
 
+    check('空状态引导用快捷键粘贴（按钮已去掉）', function () {
+        var hint = doc.getElementById('imgEmpty').textContent;
+        if (hint.indexOf('Ctrl') < 0) throw new Error('没提示 Ctrl/Cmd+V：' + hint);
+    });
+
     check('切到解码页：输入框出现、拖拽区与格式页签藏起来', function () {
         doc.querySelector('#imgModeTabs [data-mode="decode"]').click();
         if (!imgDrop.hidden) throw new Error('解码页还显示拖拽区');
@@ -936,7 +944,8 @@ function check(name, fn) {
         if (!imgOutputWrap.hidden) throw new Error('编码结果区不该显示');
         if (!imgFormatTabs.hidden) throw new Error('格式页签应该藏起来');
         if (!imgSampleWrap.hidden) throw new Error('示例按钮应该藏起来');
-        if (!imgCopyBtn.hidden || !imgPasteBtn.hidden) throw new Error('复制/粘贴只属于编码页');
+        if (!imgCopyBtn.hidden) throw new Error('复制按钮只属于编码页');
+        if (doc.getElementById('imgPaste')) throw new Error('解码页也不该有粘贴按钮');
     });
 
     // 1x1 PNG：用来验证「裸 Base64 直接解析成图片」
@@ -980,6 +989,16 @@ function check(name, fn) {
         if (imgTextarea.value !== '') throw new Error('输入框没清空');
         if (imgTip.textContent.indexOf('贴一段 Base64') < 0) throw new Error('提示没复位：' + imgTip.textContent);
         if (imgOutBadge.textContent !== '—') throw new Error('徽标没复位');
+    });
+
+    check('宿主补的 tooltip 会被摘掉（中文界面不再冒出英文 Paste）', function () {
+        // 模拟宿主给按钮补 title 的两种时机：加载后补（观察器）与移入时补（捕获阶段）
+        var pickTop = doc.getElementById('imgPickTop');
+        pickTop.setAttribute('title', 'Paste');
+        pickTop.dispatchEvent(new win.Event('pointerover', { bubbles: true }));
+        if (pickTop.hasAttribute('title')) throw new Error('移入时没有摘掉宿主补的 title：' + pickTop.getAttribute('title'));
+        // 我们自己写的 data-i18n-title 要留着（转换页「复制」按钮）
+        if (!doc.getElementById('copyBtn').getAttribute('title')) throw new Error('自带文案的按钮提示被误删');
     });
 
     check('离开图片页后入口状态复原', function () {
