@@ -39,6 +39,7 @@
     <script src="js/sheetconv.js"></script>
     <script src="js/xlsxread.js"></script>
     <script src="js/imgconv.js"></script>
+    <script src="js/codegen.js"></script>
     <script>
         if (typeof xml2js === 'undefined' || typeof js2xml === 'undefined') {
             console.warn('xml-js 加载失败，将退回基础解析逻辑');
@@ -1118,7 +1119,8 @@
         /* ================= SQL 生成页 / 表格转 JSON 页 / 图片 Base64 页 ================= */
         .sql-workspace,
         .sheet-workspace,
-        .img-workspace {
+        .img-workspace,
+        .code-workspace {
             display: none;
             flex: 1 1 0;
             flex-direction: column;
@@ -1127,7 +1129,8 @@
         }
         .sql-workspace.active,
         .sheet-workspace.active,
-        .img-workspace.active { display: flex; }
+        .img-workspace.active,
+        .code-workspace.active { display: flex; }
         /* 选项行：引号、去重、每行一项、数字不加引号 */
         .sql-options {
             display: flex;
@@ -1533,6 +1536,20 @@
         /* ================= 图片 Base64 页 ================= */
         .img-options .compare-samples-label { font-size: 0.72rem; }
         .img-sample-wrap { display: inline-flex; }
+        /* 代码生成页：根类型名输入框，跟选项行同高 */
+        .code-root-input {
+            width: 9.5rem;
+            padding: 0.18rem 0.45rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            outline: none;
+        }
+        .code-root-input:focus { border-color: var(--primary); }
+        .code-options .is-hidden { display: none; }
         /* 拖拽区：虚线大框，跟表格页的「拖进来」是同一个观感 */
         .img-drop {
             position: relative;
@@ -1650,7 +1667,9 @@
 
         /* 输出 / 输入都是纯文本域：13 M 字符的 Base64 塞进 CodeMirror 会卡死 */
         .img-output,
-        .img-input {
+        .img-input,
+        .code-output,
+        .code-input {
             flex: 1 1 0;
             min-height: 0;
             width: 100%;
@@ -1671,10 +1690,15 @@
             tab-size: 2;
         }
         .img-output::placeholder,
-        .img-input::placeholder { color: var(--text-muted); }
+        .img-input::placeholder,
+        .code-output::placeholder,
+        .code-input::placeholder { color: var(--text-muted); }
         .img-input { overflow: auto; }
         .img-output { overflow: auto; color: var(--text-muted); }
         .img-output.has-content { color: var(--text-main); }
+        .code-input { overflow: auto; }
+        .code-output { overflow: auto; color: var(--text-muted); }
+        .code-output.has-content { color: var(--text-main); }
 
         /* 体积 / 尺寸 / 类型：一行灰色小字，放不下就换行 */
         .img-meta {
@@ -1788,6 +1812,7 @@
     <nav class="nav-links" id="navLinks">
         <a id="navSql" class="nav-sql" data-i18n="navSql">SQL 转换</a>
         <a id="navSheet" class="nav-sheet" data-i18n="navSheet">表格转 JSON</a>
+        <a id="navCodegen" class="nav-code" data-i18n="navCodegen">代码生成</a>
         <a id="navImage" class="nav-image" data-i18n="navImage">图片 Base64</a>
         <a id="navCompare" class="nav-compare" data-i18n="navCompare">JSON 对比</a>
     </nav>
@@ -2310,6 +2335,72 @@
 
         <input type="file" id="imgFileInput" accept="image/*" hidden>
     </section>
+
+    <!-- ================= 代码生成：JSON / SQL DDL → 多语言模型 ================= -->
+    <section class="code-workspace" id="codeWorkspace">
+        <div class="compare-bar">
+            <div class="compare-tabs" id="codeSourceTabs">
+                <button type="button" class="compare-tab active" data-source="json" data-i18n="genTabJson">JSON 转模型</button>
+                <button type="button" class="compare-tab" data-source="ddl" data-i18n="genTabDdl">SQL DDL 转模型</button>
+            </div>
+
+            <div class="compare-tabs" id="codeLangTabs">
+                <button type="button" class="compare-tab active" data-lang="ts">TypeScript</button>
+                <button type="button" class="compare-tab" data-lang="go">Go</button>
+                <button type="button" class="compare-tab" data-lang="java">Java</button>
+                <button type="button" class="compare-tab" data-lang="python">Python</button>
+            </div>
+
+            <div class="compare-actions">
+                <button type="button" class="btn btn-outline" id="codeCopy" data-i18n="copyBtn">复制</button>
+                <button type="button" class="btn btn-outline" id="codeExport" data-keep-title data-i18n="genExport">导出</button>
+                <button type="button" class="btn btn-outline" id="codeClear" data-i18n="clearBtn">清空</button>
+            </div>
+
+            <div class="compare-tip" id="codeTip"></div>
+        </div>
+
+        <div class="sheet-options code-options">
+            <span class="compare-samples-label" data-i18n="genRootLabel">根类型名</span>
+            <input id="codeRoot" class="code-root-input" spellcheck="false" autocomplete="off" data-i18n-placeholder="genRootPlaceholder">
+            <span class="compare-samples-label" data-i18n="genSamples">示例</span>
+            <span class="code-sample-group" id="codeJsonSamples">
+                <button type="button" class="sample-chip" data-sample="user" data-i18n="genSampleUser">用户信息</button>
+                <button type="button" class="sample-chip" data-sample="order" data-i18n="genSampleOrder">订单</button>
+                <button type="button" class="sample-chip" data-sample="api" data-i18n="genSampleApi">接口响应</button>
+            </span>
+            <span class="code-sample-group is-hidden" id="codeDdlSamples">
+                <button type="button" class="sample-chip" data-sample="user" data-i18n="genSampleDdl">用户表 DDL</button>
+            </span>
+        </div>
+
+        <div class="compare-grid">
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span id="codeInLabel" data-i18n="genInputJsonTitle">JSON 示例</span>
+                        <span class="pane-badge" id="codeInBadge">—</span>
+                    </div>
+                </div>
+                <div class="editor-container">
+                    <textarea id="codeInput" class="code-input" spellcheck="false" data-i18n-placeholder="genPlaceholderJson"></textarea>
+                </div>
+            </div>
+
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="genOutputTitle">生成结果</span>
+                        <span class="pane-badge" id="codeOutBadge">TypeScript</span>
+                    </div>
+                    <div class="pane-actions"><span class="sheet-size" id="codeOutSize"></span></div>
+                </div>
+                <div class="editor-container">
+                    <textarea id="codeOutput" class="code-output" readonly spellcheck="false" data-i18n-placeholder="genEmpty"></textarea>
+                </div>
+            </div>
+        </div>
+    </section>
 </main>
 
 <div id="toastContainer" class="toast-container"></div>
@@ -2320,20 +2411,20 @@
         // 1. 国际化 (I18n) 字典配置 (全量语言)
         // =========================================
         const languageConfigs = [
-            { code: 'zh-CN', name: '简体中文', flag: '🇨🇳', dict: { brand: '转换工具', navYamlJson: 'yaml转json', navYamlProps: 'yaml转properties', navJsonProps: 'json转properties', navJsonXml: 'json转xml', navXmlYaml: 'xml转yaml', navJsonYaml: 'json转yaml', navYamlXml: 'yaml转xml', fromLabel: '从', toLabel: '转为', swapTitle: '互换格式', inputLabel: '输入内容', outputLabel: '输出结果', formatBtn: '格式化', mockBtn: '模拟数据', clearBtn: '清空', convertBtn: '执行转换', copyBtn: '复制', pasteBtn: '粘贴', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '已生成模拟数据', toastFormatInput: '输入格式化成功', toastFormatOutput: '输出格式化成功', toastFormatError: '格式化失败', toastConvertSuccess: '转换成功', toastConvertError: '转换失败', toastCopySuccess: '已复制', toastCopyError: '复制失败', toastPasteSuccess: '已粘贴', toastPasteError: '读取剪贴板失败', toastPasteUnsupported: '当前环境不支持读取剪贴板，请手动粘贴', toastEmptyInput: '请输入内容', toastSameFormat: '格式相同', diffBtn: '对比差异', diffExitBtn: '退出对比', diffLeftTitle: '原始版本 (输入)', diffRightTitle: '修改版本 (输出)', diffLarge: '文件较大，已切换为快速对比（行级高亮可能不够精确）', diffReportTitle: '结构化差异 {n} 处', diffChange: '修改', diffAdd: '新增', diffRemove: '删除', diffSame: '两版内容一致', diffSameHint: '未发现字段级差异', navCompare: 'JSON 对比', navMore: '更多', cmpTabText: '任意文本', cmpSamples: '示例 JSON:', cmpSampleUser: '用户信息', cmpSampleProduct: '商品数据', cmpSampleConfig: '配置选项', cmpSampleApi: 'API响应', cmpTextSamples: '示例文本:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '配置文件', cmpSampleHtml: 'HTML片段', cmpSampleLog: '日志输出', cmpBeautify: '美化', cmpClear: '清空', cmpRun: '对比', cmpTipIdle: '粘贴两侧内容后点击「对比」', cmpTipJson: '两侧 JSON 比对完成，共有 {n} 处不一致！', cmpTipSame: '两侧内容完全一致', cmpTipText: '两侧文本比对完成，共有 {n} 行不同', cmpTipUseJson: '两侧都是 JSON，切到「JSON 对比」可精确到字段', cmpTipError: '解析失败', cmpLeftSide: '左侧', cmpRightSide: '右侧', errorLocLine: '第 {n} 行', errorLocCol: ' 第 {n} 列' } },
-            { code: 'zh-TW', name: '繁體中文', flag: '繁', dict: { brand: '轉換工具', navYamlJson: 'yaml轉json', navYamlProps: 'yaml轉properties', navJsonProps: 'json轉properties', navJsonXml: 'json轉xml', navXmlYaml: 'xml轉yaml', navJsonYaml: 'json轉yaml', navYamlXml: 'yaml轉xml', fromLabel: '從', toLabel: '轉為', swapTitle: '互換格式', inputLabel: '輸入內容', outputLabel: '輸出結果', formatBtn: '格式化', mockBtn: '模擬數據', clearBtn: '清空', convertBtn: '執行轉換', copyBtn: '複製', pasteBtn: '粘貼', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '已生成模擬數據', toastFormatInput: '輸入格式化成功', toastFormatOutput: '輸出格式化成功', toastFormatError: '格式化失敗', toastConvertSuccess: '轉換成功', toastConvertError: '轉換失敗', toastCopySuccess: '已複製', toastCopyError: '複製失敗', toastPasteSuccess: '已粘貼', toastPasteError: '讀取剪貼板失敗', toastPasteUnsupported: '當前環境不支持讀取剪貼板，請手動粘貼', toastEmptyInput: '請輸入內容', toastSameFormat: '格式相同', diffBtn: '對比差異', diffExitBtn: '退出對比', diffLeftTitle: '原始版本 (輸入)', diffRightTitle: '修改版本 (輸出)', diffLarge: '檔案較大，已切換為快速對比（行級標記可能不夠精確）', diffReportTitle: '結構化差異 {n} 處', diffChange: '修改', diffAdd: '新增', diffRemove: '刪除', diffSame: '兩版內容一致', diffSameHint: '未發現欄位級差異', navCompare: 'JSON 對比', navMore: '更多', cmpTabText: '任意文字', cmpSamples: '範例 JSON:', cmpSampleUser: '使用者資訊', cmpSampleProduct: '商品資料', cmpSampleConfig: '設定選項', cmpSampleApi: 'API 回應', cmpTextSamples: '範例文字:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '設定檔', cmpSampleHtml: 'HTML 片段', cmpSampleLog: '日誌輸出', cmpBeautify: '美化', cmpClear: '清空', cmpRun: '對比', cmpTipIdle: '貼上兩側內容後點擊「對比」', cmpTipJson: '兩側 JSON 比對完成，共有 {n} 處不一致！', cmpTipSame: '兩側內容完全一致', cmpTipText: '兩側文字比對完成，共有 {n} 行不同', cmpTipUseJson: '兩側都是 JSON，切到「JSON 對比」可精確到欄位', cmpTipError: '解析失敗', cmpLeftSide: '左側', cmpRightSide: '右側', errorLocLine: '第 {n} 行', errorLocCol: ' 第 {n} 欄' } },
-            { code: 'en', name: 'English', flag: '🇺🇸', dict: { brand: 'Converter', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock Data', clearBtn: 'Clear', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here, please paste manually', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)', diffLarge: 'Large input — switched to fast diff, highlights may be less precise', diffReportTitle: 'Structured changes: {n}', diffChange: 'Modified', diffAdd: 'Added', diffRemove: 'Deleted', diffSame: 'No differences', diffSameHint: 'No field-level changes found', navCompare: 'JSON Compare', navMore: 'More', cmpTabText: 'Any text', cmpSamples: 'Examples:', cmpSampleUser: 'User', cmpSampleProduct: 'Product', cmpSampleConfig: 'Config', cmpSampleApi: 'API response', cmpTextSamples: 'Examples:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Config file', cmpSampleHtml: 'HTML snippet', cmpSampleLog: 'Log output', cmpBeautify: 'Beautify', cmpClear: 'Clear', cmpRun: 'Compare', cmpTipIdle: 'Paste both sides, then click Compare', cmpTipJson: 'JSON compared — {n} difference(s) found', cmpTipSame: 'Both sides are identical', cmpTipText: 'Text compared — {n} different line(s)', cmpTipUseJson: 'Both sides look like JSON — switch to JSON compare for a field-level diff', cmpTipError: 'Parse failed', cmpLeftSide: 'left side', cmpRightSide: 'right side', errorLocLine: 'line {n}', errorLocCol: ', column {n}' } },
-            { code: 'az', name: 'Azərbaycan', flag: '🇦🇿', dict: { brand: 'Alətlər', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock', clearBtn: 'Clear', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)', diffLarge: 'Giriş böyükdür — sürətli müqayisəyə keçildi', diffReportTitle: 'Struktur fərqlər: {n}', diffChange: 'Dəyişdi', diffAdd: 'Əlavə', diffRemove: 'Silindi', diffSame: 'Fərq yoxdur', diffSameHint: 'Sahə səviyyəsində fərq tapılmadı', navCompare: 'JSON müqayisə', navMore: 'Daha çox', cmpTabText: 'İstənilən mətn', cmpSamples: 'Nümunə:', cmpSampleUser: 'İstifadəçi', cmpSampleProduct: 'Məhsul', cmpSampleConfig: 'Konfiq', cmpSampleApi: 'API cavabı', cmpTextSamples: 'Nümunə mətn:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Konfiq faylı', cmpSampleHtml: 'HTML fraqmenti', cmpSampleLog: 'Jurnal çıxışı', cmpBeautify: 'Formatla', cmpClear: 'Təmizlə', cmpRun: 'Müqayisə et', cmpTipIdle: 'Hər iki tərəfi yerləşdirin və «Müqayisə et» basın', cmpTipJson: 'JSON müqayisə bitdi, {n} fərq', cmpTipSame: 'Hər iki tərəf eynidir', cmpTipText: 'Mətn müqayisəsi bitdi, {n} sətir fərqli', cmpTipUseJson: 'Hər iki tərəf JSON-dur — sahə səviyyəsində müqayisə üçün «JSON müqayisə»yə keçin', cmpTipError: 'Analiz alınmadı', cmpLeftSide: 'sol tərəf', cmpRightSide: 'sağ tərəf', errorLocLine: '{n}-ci sətir', errorLocCol: ', {n}-ci sütun' } },
-            { code: 'es', name: 'Español', flag: '🇪🇸', dict: { brand: 'Herramientas', navYamlJson: 'YAML a JSON', navYamlProps: 'YAML a Props', navJsonProps: 'JSON a Props', navJsonXml: 'JSON a XML', navXmlYaml: 'XML a YAML', navJsonYaml: 'JSON a YAML', navYamlXml: 'YAML a XML', fromLabel: 'De', toLabel: 'A', swapTitle: 'Intercambiar', inputLabel: 'Entrada', outputLabel: 'Salida', formatBtn: 'Formatear', mockBtn: 'Simular', clearBtn: 'Limpiar', convertBtn: 'Convertir', copyBtn: 'Copiar', pasteBtn: 'Pegar', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulado generado', toastFormatInput: 'Entrada formateada', toastFormatOutput: 'Salida formateada', toastFormatError: 'Error de formato', toastConvertSuccess: 'Convertido', toastConvertError: 'Error de conversión', toastCopySuccess: 'Copiado', toastCopyError: 'Error al copiar', toastPasteSuccess: 'Pegado', toastPasteError: 'Error al leer el portapapeles', toastPasteUnsupported: 'Lectura del portapapeles no soportada', toastEmptyInput: 'Entrada vacía', toastSameFormat: 'Mismo formato', diffBtn: 'Comparar', diffExitBtn: 'Salir', diffLeftTitle: 'Original (Entrada)', diffRightTitle: 'Modificado (Salida)', diffLarge: 'Entrada grande: se cambió a comparación rápida', diffReportTitle: 'Cambios estructurados: {n}', diffChange: 'Modificado', diffAdd: 'Añadido', diffRemove: 'Eliminado', diffSame: 'Sin diferencias', diffSameHint: 'No se encontraron cambios', navCompare: 'Comparar JSON', navMore: 'Más', cmpTabText: 'Texto libre', cmpSamples: 'Ejemplos:', cmpSampleUser: 'Usuario', cmpSampleProduct: 'Producto', cmpSampleConfig: 'Config', cmpSampleApi: 'Respuesta API', cmpTextSamples: 'Ejemplos:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Archivo de configuración', cmpSampleHtml: 'Fragmento HTML', cmpSampleLog: 'Salida de log', cmpBeautify: 'Formatear', cmpClear: 'Limpiar', cmpRun: 'Comparar', cmpTipIdle: 'Pega ambos lados y pulsa Comparar', cmpTipJson: 'JSON comparado: {n} diferencia(s)', cmpTipSame: 'Ambos lados son idénticos', cmpTipText: 'Texto comparado: {n} línea(s) distinta(s)', cmpTipUseJson: 'Ambos lados son JSON: cambia a «Comparar JSON» para ver diferencias por campo', cmpTipError: 'Error de análisis', cmpLeftSide: 'lado izquierdo', cmpRightSide: 'lado derecho', errorLocLine: 'línea {n}', errorLocCol: ', columna {n}' } },
-            { code: 'id', name: 'Bahasa Indonesia', flag: '🇮🇩', dict: { brand: 'Alat', navYamlJson: 'YAML ke JSON', navYamlProps: 'YAML ke Props', navJsonProps: 'JSON ke Props', navJsonXml: 'JSON ke XML', navXmlYaml: 'XML ke YAML', navJsonYaml: 'JSON ke YAML', navYamlXml: 'YAML ke XML', fromLabel: 'Dari', toLabel: 'Ke', swapTitle: 'Tukar', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock', clearBtn: 'Hapus', convertBtn: 'Konversi', copyBtn: 'Salin', pasteBtn: 'Tempel', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock dibuat', toastFormatInput: 'Input diformat', toastFormatOutput: 'Output diformat', toastFormatError: 'Format gagal', toastConvertSuccess: 'Dikonversi', toastConvertError: 'Konversi gagal', toastCopySuccess: 'Disalin', toastCopyError: 'Gagal menyalin', toastPasteSuccess: 'Ditempel', toastPasteError: 'Gagal membaca clipboard', toastPasteUnsupported: 'Baca clipboard tidak didukung', toastEmptyInput: 'Input kosong', toastSameFormat: 'Format sama', diffBtn: 'Bandingkan', diffExitBtn: 'Keluar', diffLeftTitle: 'Asli (Input)', diffRightTitle: 'Diubah (Output)', diffLarge: 'Input besar — beralih ke perbandingan cepat', diffReportTitle: 'Perubahan terstruktur: {n}', diffChange: 'Diubah', diffAdd: 'Ditambah', diffRemove: 'Dihapus', diffSame: 'Tidak ada perbedaan', diffSameHint: 'Tidak ada perubahan pada field', navCompare: 'Bandingkan JSON', navMore: 'Lainnya', cmpTabText: 'Teks bebas', cmpSamples: 'Contoh:', cmpSampleUser: 'Pengguna', cmpSampleProduct: 'Produk', cmpSampleConfig: 'Konfigurasi', cmpSampleApi: 'Respons API', cmpTextSamples: 'Contoh teks:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Berkas konfigurasi', cmpSampleHtml: 'Cuplikan HTML', cmpSampleLog: 'Keluaran log', cmpBeautify: 'Rapikan', cmpClear: 'Hapus', cmpRun: 'Bandingkan', cmpTipIdle: 'Tempel kedua sisi lalu klik Bandingkan', cmpTipJson: 'JSON dibandingkan: {n} perbedaan', cmpTipSame: 'Kedua sisi identik', cmpTipText: 'Teks dibandingkan: {n} baris berbeda', cmpTipUseJson: 'Kedua sisi JSON — beralih ke «Bandingkan JSON» untuk diff per field', cmpTipError: 'Gagal mengurai', cmpLeftSide: 'sisi kiri', cmpRightSide: 'sisi kanan', errorLocLine: 'baris {n}', errorLocCol: ', kolom {n}' } },
-            { code: 'it', name: 'Italiano', flag: '🇮🇹', dict: { brand: 'Strumenti', navYamlJson: 'YAML in JSON', navYamlProps: 'YAML in Props', navJsonProps: 'JSON in Props', navJsonXml: 'JSON in XML', navXmlYaml: 'XML in YAML', navJsonYaml: 'JSON in YAML', navYamlXml: 'YAML in XML', fromLabel: 'Da', toLabel: 'A', swapTitle: 'Scambia', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Formatta', mockBtn: 'Simula', clearBtn: 'Pulisci', convertBtn: 'Converti', copyBtn: 'Copia', pasteBtn: 'Incolla', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulazione creata', toastFormatInput: 'Input formattato', toastFormatOutput: 'Output formattato', toastFormatError: 'Formato fallito', toastConvertSuccess: 'Convertito', toastConvertError: 'Conversione fallita', toastCopySuccess: 'Copiato', toastCopyError: 'Copia fallita', toastPasteSuccess: 'Incollato', toastPasteError: 'Lettura appunti fallita', toastPasteUnsupported: 'Lettura appunti non supportata', toastEmptyInput: 'Input vuoto', toastSameFormat: 'Stesso formato', diffBtn: 'Confronta', diffExitBtn: 'Esci', diffLeftTitle: 'Originale (Input)', diffRightTitle: 'Modificato (Output)', diffLarge: 'Input grande: confronto rapido attivato', diffReportTitle: 'Modifiche strutturate: {n}', diffChange: 'Modificato', diffAdd: 'Aggiunto', diffRemove: 'Rimosso', diffSame: 'Nessuna differenza', diffSameHint: 'Nessuna modifica a livello di campo', navCompare: 'Confronta JSON', navMore: 'Altro', cmpTabText: 'Testo libero', cmpSamples: 'Esempi:', cmpSampleUser: 'Utente', cmpSampleProduct: 'Prodotto', cmpSampleConfig: 'Config', cmpSampleApi: 'Risposta API', cmpTextSamples: 'Esempi:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'File di configurazione', cmpSampleHtml: 'Snippet HTML', cmpSampleLog: 'Output di log', cmpBeautify: 'Formatta', cmpClear: 'Pulisci', cmpRun: 'Confronta', cmpTipIdle: 'Incolla entrambi i lati e premi Confronta', cmpTipJson: 'JSON confrontato: {n} differenze', cmpTipSame: 'I due lati sono identici', cmpTipText: 'Testo confrontato: {n} righe diverse', cmpTipUseJson: 'Entrambi i lati sono JSON — passa a «Confronta JSON» per il diff per campo', cmpTipError: 'Analisi non riuscita', cmpLeftSide: 'lato sinistro', cmpRightSide: 'lato destro', errorLocLine: 'riga {n}', errorLocCol: ', colonna {n}' } },
-            { code: 'ja', name: '日本語', flag: '🇯🇵', dict: { brand: '変換ツール', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '変換元', toLabel: '変換先', swapTitle: '入れ替え', inputLabel: '入力', outputLabel: '出力', formatBtn: '整形', mockBtn: 'モック', clearBtn: 'クリア', convertBtn: '変換', copyBtn: 'コピー', pasteBtn: '貼り付け', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'モック生成完了', toastFormatInput: '入力整形完了', toastFormatOutput: '出力整形完了', toastFormatError: '整形失敗', toastConvertSuccess: '変換完了', toastConvertError: '変換失敗', toastCopySuccess: 'コピーしました', toastCopyError: 'コピー失敗', toastPasteSuccess: '貼り付けました', toastPasteError: 'クリップボードの読み取りに失敗', toastPasteUnsupported: 'クリップボードの読み取り非対応', toastEmptyInput: '入力が空です', toastSameFormat: '同じ形式です', diffBtn: '比較', diffExitBtn: '終了', diffLeftTitle: '元のバージョン (入力)', diffRightTitle: '変更後 (出力)', diffLarge: '入力が大きいため高速比較に切り替えました', diffReportTitle: '構造化差分 {n} 件', diffChange: '変更', diffAdd: '追加', diffRemove: '削除', diffSame: '差分なし', diffSameHint: 'フィールド単位の差分はありません', navCompare: 'JSON 比較', navMore: 'その他', cmpTabText: '任意テキスト', cmpSamples: 'サンプル:', cmpSampleUser: 'ユーザー情報', cmpSampleProduct: '商品データ', cmpSampleConfig: '設定', cmpSampleApi: 'API レスポンス', cmpTextSamples: 'サンプルテキスト:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '設定ファイル', cmpSampleHtml: 'HTML 断片', cmpSampleLog: 'ログ出力', cmpBeautify: '整形', cmpClear: 'クリア', cmpRun: '比較', cmpTipIdle: '両側に貼り付けて「比較」を押してください', cmpTipJson: 'JSON の比較完了、相違 {n} 件', cmpTipSame: '両側は完全に一致しています', cmpTipText: 'テキスト比較完了、{n} 行の違い', cmpTipUseJson: '両側とも JSON です。「JSON 比較」に切り替えるとフィールド単位で比較できます', cmpTipError: '解析失敗', cmpLeftSide: '左側', cmpRightSide: '右側', errorLocLine: '{n} 行目', errorLocCol: ' {n} 列目' } },
-            { code: 'ko', name: '한국어', flag: '🇰🇷', dict: { brand: '변환 도구', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '변환 전', toLabel: '변환 후', swapTitle: '교체', inputLabel: '입력', outputLabel: '출력', formatBtn: '포맷', mockBtn: '모의', clearBtn: '지우기', convertBtn: '변환', copyBtn: '복사', pasteBtn: '붙여넣기', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '모의 생성됨', toastFormatInput: '입력 포맷됨', toastFormatOutput: '출력 포맷됨', toastFormatError: '포맷 실패', toastConvertSuccess: '변환됨', toastConvertError: '변환 실패', toastCopySuccess: '복사됨', toastCopyError: '복사 실패', toastPasteSuccess: '붙여넣음', toastPasteError: '클립보드 읽기 실패', toastPasteUnsupported: '클립보드 읽기 미지원', toastEmptyInput: '입력이 비어있음', toastSameFormat: '같은 형식', diffBtn: '비교', diffExitBtn: '종료', diffLeftTitle: '원본 (입력)', diffRightTitle: '수정됨 (출력)', diffLarge: '입력이 커서 빠른 비교로 전환했습니다', diffReportTitle: '구조화 차이 {n}건', diffChange: '수정', diffAdd: '추가', diffRemove: '삭제', diffSame: '차이 없음', diffSameHint: '필드 단위 차이가 없습니다', navCompare: 'JSON 비교', navMore: '더보기', cmpTabText: '임의 텍스트', cmpSamples: '예시:', cmpSampleUser: '사용자 정보', cmpSampleProduct: '상품 데이터', cmpSampleConfig: '설정', cmpSampleApi: 'API 응답', cmpTextSamples: '예시 텍스트:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '설정 파일', cmpSampleHtml: 'HTML 조각', cmpSampleLog: '로그 출력', cmpBeautify: '정리', cmpClear: '지우기', cmpRun: '비교', cmpTipIdle: '양쪽에 붙여넣고 「비교」를 누르세요', cmpTipJson: 'JSON 비교 완료, {n}곳 다름', cmpTipSame: '양쪽이 완전히 동일합니다', cmpTipText: '텍스트 비교 완료, {n}줄 다름', cmpTipUseJson: '양쪽 모두 JSON입니다. 「JSON 비교」로 전환하면 필드 단위로 비교됩니다', cmpTipError: '구문 분석 실패', cmpLeftSide: '왼쪽', cmpRightSide: '오른쪽', errorLocLine: '{n}행', errorLocCol: ', {n}열' } },
-            { code: 'pt', name: 'Português', flag: '🇧🇷', dict: { brand: 'Ferramentas', navYamlJson: 'YAML para JSON', navYamlProps: 'YAML para Props', navJsonProps: 'JSON para Props', navJsonXml: 'JSON para XML', navXmlYaml: 'XML para YAML', navJsonYaml: 'JSON para YAML', navYamlXml: 'YAML para XML', fromLabel: 'De', toLabel: 'Para', swapTitle: 'Trocar', inputLabel: 'Entrada', outputLabel: 'Saída', formatBtn: 'Formatar', mockBtn: 'Simular', clearBtn: 'Limpar', convertBtn: 'Converter', copyBtn: 'Copiar', pasteBtn: 'Colar', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulação criada', toastFormatInput: 'Entrada formatada', toastFormatOutput: 'Saída formatada', toastFormatError: 'Falha na formatação', toastConvertSuccess: 'Convertido', toastConvertError: 'Falha na conversão', toastCopySuccess: 'Copiado', toastCopyError: 'Falha ao copiar', toastPasteSuccess: 'Colado', toastPasteError: 'Falha ao ler a área de transferência', toastPasteUnsupported: 'Leitura da área de transferência não suportada', toastEmptyInput: 'Entrada vazia', toastSameFormat: 'Mesmo formato', diffBtn: 'Comparar', diffExitBtn: 'Sair', diffLeftTitle: 'Original (Entrada)', diffRightTitle: 'Modificado (Saída)', diffLarge: 'Entrada grande — comparação rápida ativada', diffReportTitle: 'Alterações estruturadas: {n}', diffChange: 'Modificado', diffAdd: 'Adicionado', diffRemove: 'Removido', diffSame: 'Sem diferenças', diffSameHint: 'Nenhuma alteração em campos', navCompare: 'Comparar JSON', navMore: 'Mais', cmpTabText: 'Texto livre', cmpSamples: 'Exemplos:', cmpSampleUser: 'Usuário', cmpSampleProduct: 'Produto', cmpSampleConfig: 'Config', cmpSampleApi: 'Resposta API', cmpTextSamples: 'Exemplos:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Arquivo de configuração', cmpSampleHtml: 'Trecho HTML', cmpSampleLog: 'Saída de log', cmpBeautify: 'Formatar', cmpClear: 'Limpar', cmpRun: 'Comparar', cmpTipIdle: 'Cole os dois lados e clique em Comparar', cmpTipJson: 'JSON comparado: {n} diferença(s)', cmpTipSame: 'Os dois lados são idênticos', cmpTipText: 'Texto comparado: {n} linha(s) diferente(s)', cmpTipUseJson: 'Ambos os lados são JSON — mude para «Comparar JSON» para diff por campo', cmpTipError: 'Falha ao analisar', cmpLeftSide: 'lado esquerdo', cmpRightSide: 'lado direito', errorLocLine: 'linha {n}', errorLocCol: ', coluna {n}' } },
-            { code: 'pl', name: 'Polski', flag: '🇵🇱', dict: { brand: 'Narzędzia', navYamlJson: 'YAML na JSON', navYamlProps: 'YAML na Props', navJsonProps: 'JSON na Props', navJsonXml: 'JSON na XML', navXmlYaml: 'XML na YAML', navJsonYaml: 'JSON na YAML', navYamlXml: 'YAML na XML', fromLabel: 'Z', toLabel: 'Na', swapTitle: 'Zamień', inputLabel: 'Wejście', outputLabel: 'Wyjście', formatBtn: 'Formatuj', mockBtn: 'Mock', clearBtn: 'Wyczyść', convertBtn: 'Konwertuj', copyBtn: 'Kopiuj', pasteBtn: 'Wklej', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock utworzony', toastFormatInput: 'Wejście sformatowane', toastFormatOutput: 'Wyjście sformatowane', toastFormatError: 'Błąd formatowania', toastConvertSuccess: 'Przekonwertowano', toastConvertError: 'Błąd konwersji', toastCopySuccess: 'Skopiowano', toastCopyError: 'Błąd kopiowania', toastPasteSuccess: 'Wklejono', toastPasteError: 'Błąd odczytu schowka', toastPasteUnsupported: 'Odczyt schowka nieobsługiwany', toastEmptyInput: 'Brak danych', toastSameFormat: 'Ten sam format', diffBtn: 'Porównaj', diffExitBtn: 'Wyjdź', diffLeftTitle: 'Oryginał (Wejście)', diffRightTitle: 'Zmodyfikowany (Wyjście)', diffLarge: 'Duży plik — włączono szybkie porównanie', diffReportTitle: 'Zmiany strukturalne: {n}', diffChange: 'Zmieniono', diffAdd: 'Dodano', diffRemove: 'Usunięto', diffSame: 'Brak różnic', diffSameHint: 'Brak zmian na poziomie pól', navCompare: 'Porównaj JSON', navMore: 'Więcej', cmpTabText: 'Dowolny tekst', cmpSamples: 'Przykłady:', cmpSampleUser: 'Użytkownik', cmpSampleProduct: 'Produkt', cmpSampleConfig: 'Konfiguracja', cmpSampleApi: 'Odpowiedź API', cmpTextSamples: 'Przykłady:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Plik konfiguracyjny', cmpSampleHtml: 'Fragment HTML', cmpSampleLog: 'Wyjście logu', cmpBeautify: 'Formatuj', cmpClear: 'Wyczyść', cmpRun: 'Porównaj', cmpTipIdle: 'Wklej obie strony i kliknij Porównaj', cmpTipJson: 'Porównano JSON: {n} różnic', cmpTipSame: 'Obie strony są identyczne', cmpTipText: 'Porównano tekst: {n} różnych linii', cmpTipUseJson: 'Obie strony to JSON — przełącz na «Porównaj JSON», aby porównać pola', cmpTipError: 'Błąd analizy', cmpLeftSide: 'lewa strona', cmpRightSide: 'prawa strona', errorLocLine: 'wiersz {n}', errorLocCol: ', kolumna {n}' } },
-            { code: 'ru', name: 'Русский', flag: '🇷🇺', dict: { brand: 'Инструменты', navYamlJson: 'YAML в JSON', navYamlProps: 'YAML в Props', navJsonProps: 'JSON в Props', navJsonXml: 'JSON в XML', navXmlYaml: 'XML в YAML', navJsonYaml: 'JSON в YAML', navYamlXml: 'YAML в XML', fromLabel: 'Из', toLabel: 'В', swapTitle: 'Поменять', inputLabel: 'Вход', outputLabel: 'Выход', formatBtn: 'Формат', mockBtn: 'Мок', clearBtn: 'Очистить', convertBtn: 'Конверт', copyBtn: 'Копия', pasteBtn: 'Вставить', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Мок создан', toastFormatInput: 'Вход отформатирован', toastFormatOutput: 'Выход отформатирован', toastFormatError: 'Ошибка формата', toastConvertSuccess: 'Конвертировано', toastConvertError: 'Ошибка конвертации', toastCopySuccess: 'Скопировано', toastCopyError: 'Ошибка копии', toastPasteSuccess: 'Вставлено', toastPasteError: 'Ошибка чтения буфера обмена', toastPasteUnsupported: 'Чтение буфера обмена не поддерживается', toastEmptyInput: 'Пустой ввод', toastSameFormat: 'Тот же формат', diffBtn: 'Сравнить', diffExitBtn: 'Выйти', diffLeftTitle: 'Оригинал (Вход)', diffRightTitle: 'Изменено (Выход)', diffLarge: 'Большой файл — включено быстрое сравнение', diffReportTitle: 'Структурные изменения: {n}', diffChange: 'Изменено', diffAdd: 'Добавлено', diffRemove: 'Удалено', diffSame: 'Различий нет', diffSameHint: 'Изменений на уровне полей нет', navCompare: 'Сравнить JSON', navMore: 'Ещё', cmpTabText: 'Любой текст', cmpSamples: 'Примеры:', cmpSampleUser: 'Пользователь', cmpSampleProduct: 'Товар', cmpSampleConfig: 'Конфиг', cmpSampleApi: 'Ответ API', cmpTextSamples: 'Примеры:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Файл конфигурации', cmpSampleHtml: 'Фрагмент HTML', cmpSampleLog: 'Вывод журнала', cmpBeautify: 'Формат', cmpClear: 'Очистить', cmpRun: 'Сравнить', cmpTipIdle: 'Вставьте обе стороны и нажмите «Сравнить»', cmpTipJson: 'JSON сравнён: различий {n}', cmpTipSame: 'Обе стороны идентичны', cmpTipText: 'Текст сравнён: {n} строк отличаются', cmpTipUseJson: 'Обе стороны — JSON. Переключитесь на «Сравнить JSON» для сравнения по полям', cmpTipError: 'Ошибка разбора', cmpLeftSide: 'левая сторона', cmpRightSide: 'правая сторона', errorLocLine: 'строка {n}', errorLocCol: ', столбец {n}' } },
-            { code: 'th', name: 'ภาษาไทย', flag: '🇹🇭', dict: { brand: 'เครื่องมือ', navYamlJson: 'YAML เป็น JSON', navYamlProps: 'YAML เป็น Props', navJsonProps: 'JSON เป็น Props', navJsonXml: 'JSON เป็น XML', navXmlYaml: 'XML เป็น YAML', navJsonYaml: 'JSON เป็น YAML', navYamlXml: 'YAML เป็น XML', fromLabel: 'จาก', toLabel: 'เป็น', swapTitle: 'สลับ', inputLabel: 'อินพุต', outputLabel: 'เอาต์พุต', formatBtn: 'จัดรูปแบบ', mockBtn: 'จำลอง', clearBtn: 'ล้าง', convertBtn: 'แปลง', copyBtn: 'คัดลอก', pasteBtn: 'วาง', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'สร้างจำลองแล้ว', toastFormatInput: 'จัดรูปแบบอินพุตแล้ว', toastFormatOutput: 'จัดรูปแบบเอาต์พุตแล้ว', toastFormatError: 'จัดรูปแบบล้มเหลว', toastConvertSuccess: 'แปลงแล้ว', toastConvertError: 'แปลงล้มเหลว', toastCopySuccess: 'คัดลอกแล้ว', toastCopyError: 'คัดลอกล้มเหลว', toastPasteSuccess: 'วางแล้ว', toastPasteError: 'อ่านคลิปบอร์ดล้มเหลว', toastPasteUnsupported: 'ไม่รองรับการอ่านคลิปบอร์ด', toastEmptyInput: 'ไม่มีข้อมูล', toastSameFormat: 'รูปแบบเดียวกัน', diffBtn: 'เปรียบเทียบ', diffExitBtn: 'ออก', diffLeftTitle: 'ต้นฉบับ (อินพุต)', diffRightTitle: 'แก้ไขแล้ว (เอาต์พุต)', diffLarge: 'ข้อมูลขนาดใหญ่ เปลี่ยนไปใช้การเปรียบเทียบแบบเร็ว', diffReportTitle: 'ความแตกต่างเชิงโครงสร้าง {n} จุด', diffChange: 'แก้ไข', diffAdd: 'เพิ่ม', diffRemove: 'ลบ', diffSame: 'ไม่พบความแตกต่าง', diffSameHint: 'ไม่พบการเปลี่ยนแปลงระดับฟิลด์', navCompare: 'เปรียบเทียบ JSON', navMore: 'เพิ่มเติม', cmpTabText: 'ข้อความใดก็ได้', cmpSamples: 'ตัวอย่าง:', cmpSampleUser: 'ผู้ใช้', cmpSampleProduct: 'สินค้า', cmpSampleConfig: 'การตั้งค่า', cmpSampleApi: 'การตอบกลับ API', cmpTextSamples: 'ตัวอย่างข้อความ:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'ไฟล์กำหนดค่า', cmpSampleHtml: 'ส่วน HTML', cmpSampleLog: 'บันทึกผลลัพธ์', cmpBeautify: 'จัดรูปแบบ', cmpClear: 'ล้าง', cmpRun: 'เปรียบเทียบ', cmpTipIdle: 'วางทั้งสองด้านแล้วกดเปรียบเทียบ', cmpTipJson: 'เปรียบเทียบ JSON แล้ว พบ {n} จุดต่าง', cmpTipSame: 'ทั้งสองด้านเหมือนกันทุกประการ', cmpTipText: 'เปรียบเทียบข้อความแล้ว ต่างกัน {n} บรรทัด', cmpTipUseJson: 'ทั้งสองด้านเป็น JSON — สลับไปที่ «เปรียบเทียบ JSON» เพื่อเทียบระดับฟิลด์', cmpTipError: 'แยกวิเคราะห์ไม่สำเร็จ', cmpLeftSide: 'ด้านซ้าย', cmpRightSide: 'ด้านขวา', errorLocLine: 'บรรทัด {n}', errorLocCol: ' คอลัมน์ {n}' } },
-            { code: 'tr', name: 'Türkçe', flag: '🇹🇷', dict: { brand: 'Araçlar', navYamlJson: 'YAML -> JSON', navYamlProps: 'YAML -> Props', navJsonProps: 'JSON -> Props', navJsonXml: 'JSON -> XML', navXmlYaml: 'XML -> YAML', navJsonYaml: 'JSON -> YAML', navYamlXml: 'YAML -> XML', fromLabel: 'Kimden', toLabel: 'Kime', swapTitle: 'Değiştir', inputLabel: 'Giriş', outputLabel: 'Çıkış', formatBtn: 'Biçimlendir', mockBtn: 'Mock', clearBtn: 'Temizle', convertBtn: 'Dönüştür', copyBtn: 'Kopyala', pasteBtn: 'Yapıştır', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock oluşturuldu', toastFormatInput: 'Giriş biçimlendirildi', toastFormatOutput: 'Çıkış biçimlendirildi', toastFormatError: 'Biçimlendirme hatası', toastConvertSuccess: 'Dönüştürüldü', toastConvertError: 'Dönüştürme hatası', toastCopySuccess: 'Kopyalandı', toastCopyError: 'Kopyalama hatası', toastPasteSuccess: 'Yapıştırıldı', toastPasteError: 'Pano okunamadı', toastPasteUnsupported: 'Pano okuma desteklenmiyor', toastEmptyInput: 'Giriş boş', toastSameFormat: 'Aynı format', diffBtn: 'Karşılaştır', diffExitBtn: 'Çıkış', diffLeftTitle: 'Orijinal (Giriş)', diffRightTitle: 'Değiştirilmiş (Çıkış)', diffLarge: 'Girdi büyük — hızlı karşılaştırmaya geçildi', diffReportTitle: 'Yapısal değişiklikler: {n}', diffChange: 'Değişti', diffAdd: 'Eklendi', diffRemove: 'Silindi', diffSame: 'Fark yok', diffSameHint: 'Alan düzeyinde değişiklik yok', navCompare: 'JSON Karşılaştır', navMore: 'Daha fazla', cmpTabText: 'Serbest metin', cmpSamples: 'Örnekler:', cmpSampleUser: 'Kullanıcı', cmpSampleProduct: 'Ürün', cmpSampleConfig: 'Yapılandırma', cmpSampleApi: 'API yanıtı', cmpTextSamples: 'Örnek metin:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Yapılandırma dosyası', cmpSampleHtml: 'HTML parçası', cmpSampleLog: 'Günlük çıktısı', cmpBeautify: 'Biçimlendir', cmpClear: 'Temizle', cmpRun: 'Karşılaştır', cmpTipIdle: 'İki tarafı yapıştırıp Karşılaştır’a basın', cmpTipJson: 'JSON karşılaştırıldı: {n} fark', cmpTipSame: 'İki taraf birebir aynı', cmpTipText: 'Metin karşılaştırıldı: {n} satır farklı', cmpTipUseJson: 'İki taraf da JSON — alan bazında karşılaştırma için «JSON Karşılaştır»a geçin', cmpTipError: 'Ayrıştırma başarısız', cmpLeftSide: 'sol taraf', cmpRightSide: 'sağ taraf', errorLocLine: 'satır {n}', errorLocCol: ', sütun {n}' } },
+            { code: 'zh-CN', name: '简体中文', flag: '🇨🇳', dict: { brand: '转换工具', navYamlJson: 'yaml转json', navYamlProps: 'yaml转properties', navJsonProps: 'json转properties', navJsonXml: 'json转xml', navXmlYaml: 'xml转yaml', navJsonYaml: 'json转yaml', navYamlXml: 'yaml转xml', fromLabel: '从', toLabel: '转为', swapTitle: '互换格式', inputLabel: '输入内容', outputLabel: '输出结果', formatBtn: '格式化', mockBtn: '模拟数据', clearBtn: '清空', convertShortcut: 'Ctrl / ⌘ + Enter 执行转换', convertBtn: '执行转换', copyBtn: '复制', pasteBtn: '粘贴', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '已生成模拟数据', toastFormatInput: '输入格式化成功', toastFormatOutput: '输出格式化成功', toastFormatError: '格式化失败', toastConvertSuccess: '转换成功', toastConvertError: '转换失败', toastCopySuccess: '已复制', toastCopyError: '复制失败', toastPasteSuccess: '已粘贴', toastPasteError: '读取剪贴板失败', toastPasteUnsupported: '当前环境不支持读取剪贴板，请手动粘贴', toastEmptyInput: '请输入内容', toastSameFormat: '格式相同', diffBtn: '对比差异', diffExitBtn: '退出对比', diffLeftTitle: '原始版本 (输入)', diffRightTitle: '修改版本 (输出)', diffLarge: '文件较大，已切换为快速对比（行级高亮可能不够精确）', diffReportTitle: '结构化差异 {n} 处', diffChange: '修改', diffAdd: '新增', diffRemove: '删除', diffSame: '两版内容一致', diffSameHint: '未发现字段级差异', navCompare: 'JSON 对比', navMore: '更多', cmpTabText: '任意文本', cmpSamples: '示例 JSON:', cmpSampleUser: '用户信息', cmpSampleProduct: '商品数据', cmpSampleConfig: '配置选项', cmpSampleApi: 'API响应', cmpTextSamples: '示例文本:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '配置文件', cmpSampleHtml: 'HTML片段', cmpSampleLog: '日志输出', cmpBeautify: '美化', cmpClear: '清空', cmpRun: '对比', cmpTipIdle: '粘贴两侧内容后点击「对比」', cmpTipJson: '两侧 JSON 比对完成，共有 {n} 处不一致！', cmpTipSame: '两侧内容完全一致', cmpTipText: '两侧文本比对完成，共有 {n} 行不同', cmpTipUseJson: '两侧都是 JSON，切到「JSON 对比」可精确到字段', cmpTipError: '解析失败', cmpLeftSide: '左侧', cmpRightSide: '右侧', errorLocLine: '第 {n} 行', errorLocCol: ' 第 {n} 列' } },
+            { code: 'zh-TW', name: '繁體中文', flag: '繁', dict: { brand: '轉換工具', navYamlJson: 'yaml轉json', navYamlProps: 'yaml轉properties', navJsonProps: 'json轉properties', navJsonXml: 'json轉xml', navXmlYaml: 'xml轉yaml', navJsonYaml: 'json轉yaml', navYamlXml: 'yaml轉xml', fromLabel: '從', toLabel: '轉為', swapTitle: '互換格式', inputLabel: '輸入內容', outputLabel: '輸出結果', formatBtn: '格式化', mockBtn: '模擬數據', clearBtn: '清空', convertShortcut: 'Ctrl / ⌘ + Enter 執行轉換', convertBtn: '執行轉換', copyBtn: '複製', pasteBtn: '粘貼', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '已生成模擬數據', toastFormatInput: '輸入格式化成功', toastFormatOutput: '輸出格式化成功', toastFormatError: '格式化失敗', toastConvertSuccess: '轉換成功', toastConvertError: '轉換失敗', toastCopySuccess: '已複製', toastCopyError: '複製失敗', toastPasteSuccess: '已粘貼', toastPasteError: '讀取剪貼板失敗', toastPasteUnsupported: '當前環境不支持讀取剪貼板，請手動粘貼', toastEmptyInput: '請輸入內容', toastSameFormat: '格式相同', diffBtn: '對比差異', diffExitBtn: '退出對比', diffLeftTitle: '原始版本 (輸入)', diffRightTitle: '修改版本 (輸出)', diffLarge: '檔案較大，已切換為快速對比（行級標記可能不夠精確）', diffReportTitle: '結構化差異 {n} 處', diffChange: '修改', diffAdd: '新增', diffRemove: '刪除', diffSame: '兩版內容一致', diffSameHint: '未發現欄位級差異', navCompare: 'JSON 對比', navMore: '更多', cmpTabText: '任意文字', cmpSamples: '範例 JSON:', cmpSampleUser: '使用者資訊', cmpSampleProduct: '商品資料', cmpSampleConfig: '設定選項', cmpSampleApi: 'API 回應', cmpTextSamples: '範例文字:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '設定檔', cmpSampleHtml: 'HTML 片段', cmpSampleLog: '日誌輸出', cmpBeautify: '美化', cmpClear: '清空', cmpRun: '對比', cmpTipIdle: '貼上兩側內容後點擊「對比」', cmpTipJson: '兩側 JSON 比對完成，共有 {n} 處不一致！', cmpTipSame: '兩側內容完全一致', cmpTipText: '兩側文字比對完成，共有 {n} 行不同', cmpTipUseJson: '兩側都是 JSON，切到「JSON 對比」可精確到欄位', cmpTipError: '解析失敗', cmpLeftSide: '左側', cmpRightSide: '右側', errorLocLine: '第 {n} 行', errorLocCol: ' 第 {n} 欄' } },
+            { code: 'en', name: 'English', flag: '🇺🇸', dict: { brand: 'Converter', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock Data', clearBtn: 'Clear', convertShortcut: 'Ctrl / ⌘ + Enter to convert', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here, please paste manually', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)', diffLarge: 'Large input — switched to fast diff, highlights may be less precise', diffReportTitle: 'Structured changes: {n}', diffChange: 'Modified', diffAdd: 'Added', diffRemove: 'Deleted', diffSame: 'No differences', diffSameHint: 'No field-level changes found', navCompare: 'JSON Compare', navMore: 'More', cmpTabText: 'Any text', cmpSamples: 'Examples:', cmpSampleUser: 'User', cmpSampleProduct: 'Product', cmpSampleConfig: 'Config', cmpSampleApi: 'API response', cmpTextSamples: 'Examples:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Config file', cmpSampleHtml: 'HTML snippet', cmpSampleLog: 'Log output', cmpBeautify: 'Beautify', cmpClear: 'Clear', cmpRun: 'Compare', cmpTipIdle: 'Paste both sides, then click Compare', cmpTipJson: 'JSON compared — {n} difference(s) found', cmpTipSame: 'Both sides are identical', cmpTipText: 'Text compared — {n} different line(s)', cmpTipUseJson: 'Both sides look like JSON — switch to JSON compare for a field-level diff', cmpTipError: 'Parse failed', cmpLeftSide: 'left side', cmpRightSide: 'right side', errorLocLine: 'line {n}', errorLocCol: ', column {n}' } },
+            { code: 'az', name: 'Azərbaycan', flag: '🇦🇿', dict: { brand: 'Alətlər', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock', clearBtn: 'Clear', convertShortcut: 'Çevirmək üçün Ctrl / ⌘ + Enter', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)', diffLarge: 'Giriş böyükdür — sürətli müqayisəyə keçildi', diffReportTitle: 'Struktur fərqlər: {n}', diffChange: 'Dəyişdi', diffAdd: 'Əlavə', diffRemove: 'Silindi', diffSame: 'Fərq yoxdur', diffSameHint: 'Sahə səviyyəsində fərq tapılmadı', navCompare: 'JSON müqayisə', navMore: 'Daha çox', cmpTabText: 'İstənilən mətn', cmpSamples: 'Nümunə:', cmpSampleUser: 'İstifadəçi', cmpSampleProduct: 'Məhsul', cmpSampleConfig: 'Konfiq', cmpSampleApi: 'API cavabı', cmpTextSamples: 'Nümunə mətn:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Konfiq faylı', cmpSampleHtml: 'HTML fraqmenti', cmpSampleLog: 'Jurnal çıxışı', cmpBeautify: 'Formatla', cmpClear: 'Təmizlə', cmpRun: 'Müqayisə et', cmpTipIdle: 'Hər iki tərəfi yerləşdirin və «Müqayisə et» basın', cmpTipJson: 'JSON müqayisə bitdi, {n} fərq', cmpTipSame: 'Hər iki tərəf eynidir', cmpTipText: 'Mətn müqayisəsi bitdi, {n} sətir fərqli', cmpTipUseJson: 'Hər iki tərəf JSON-dur — sahə səviyyəsində müqayisə üçün «JSON müqayisə»yə keçin', cmpTipError: 'Analiz alınmadı', cmpLeftSide: 'sol tərəf', cmpRightSide: 'sağ tərəf', errorLocLine: '{n}-ci sətir', errorLocCol: ', {n}-ci sütun' } },
+            { code: 'es', name: 'Español', flag: '🇪🇸', dict: { brand: 'Herramientas', navYamlJson: 'YAML a JSON', navYamlProps: 'YAML a Props', navJsonProps: 'JSON a Props', navJsonXml: 'JSON a XML', navXmlYaml: 'XML a YAML', navJsonYaml: 'JSON a YAML', navYamlXml: 'YAML a XML', fromLabel: 'De', toLabel: 'A', swapTitle: 'Intercambiar', inputLabel: 'Entrada', outputLabel: 'Salida', formatBtn: 'Formatear', mockBtn: 'Simular', clearBtn: 'Limpiar', convertShortcut: 'Ctrl / ⌘ + Enter para convertir', convertBtn: 'Convertir', copyBtn: 'Copiar', pasteBtn: 'Pegar', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulado generado', toastFormatInput: 'Entrada formateada', toastFormatOutput: 'Salida formateada', toastFormatError: 'Error de formato', toastConvertSuccess: 'Convertido', toastConvertError: 'Error de conversión', toastCopySuccess: 'Copiado', toastCopyError: 'Error al copiar', toastPasteSuccess: 'Pegado', toastPasteError: 'Error al leer el portapapeles', toastPasteUnsupported: 'Lectura del portapapeles no soportada', toastEmptyInput: 'Entrada vacía', toastSameFormat: 'Mismo formato', diffBtn: 'Comparar', diffExitBtn: 'Salir', diffLeftTitle: 'Original (Entrada)', diffRightTitle: 'Modificado (Salida)', diffLarge: 'Entrada grande: se cambió a comparación rápida', diffReportTitle: 'Cambios estructurados: {n}', diffChange: 'Modificado', diffAdd: 'Añadido', diffRemove: 'Eliminado', diffSame: 'Sin diferencias', diffSameHint: 'No se encontraron cambios', navCompare: 'Comparar JSON', navMore: 'Más', cmpTabText: 'Texto libre', cmpSamples: 'Ejemplos:', cmpSampleUser: 'Usuario', cmpSampleProduct: 'Producto', cmpSampleConfig: 'Config', cmpSampleApi: 'Respuesta API', cmpTextSamples: 'Ejemplos:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Archivo de configuración', cmpSampleHtml: 'Fragmento HTML', cmpSampleLog: 'Salida de log', cmpBeautify: 'Formatear', cmpClear: 'Limpiar', cmpRun: 'Comparar', cmpTipIdle: 'Pega ambos lados y pulsa Comparar', cmpTipJson: 'JSON comparado: {n} diferencia(s)', cmpTipSame: 'Ambos lados son idénticos', cmpTipText: 'Texto comparado: {n} línea(s) distinta(s)', cmpTipUseJson: 'Ambos lados son JSON: cambia a «Comparar JSON» para ver diferencias por campo', cmpTipError: 'Error de análisis', cmpLeftSide: 'lado izquierdo', cmpRightSide: 'lado derecho', errorLocLine: 'línea {n}', errorLocCol: ', columna {n}' } },
+            { code: 'id', name: 'Bahasa Indonesia', flag: '🇮🇩', dict: { brand: 'Alat', navYamlJson: 'YAML ke JSON', navYamlProps: 'YAML ke Props', navJsonProps: 'JSON ke Props', navJsonXml: 'JSON ke XML', navXmlYaml: 'XML ke YAML', navJsonYaml: 'JSON ke YAML', navYamlXml: 'YAML ke XML', fromLabel: 'Dari', toLabel: 'Ke', swapTitle: 'Tukar', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock', clearBtn: 'Hapus', convertShortcut: 'Ctrl / ⌘ + Enter untuk mengonversi', convertBtn: 'Konversi', copyBtn: 'Salin', pasteBtn: 'Tempel', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock dibuat', toastFormatInput: 'Input diformat', toastFormatOutput: 'Output diformat', toastFormatError: 'Format gagal', toastConvertSuccess: 'Dikonversi', toastConvertError: 'Konversi gagal', toastCopySuccess: 'Disalin', toastCopyError: 'Gagal menyalin', toastPasteSuccess: 'Ditempel', toastPasteError: 'Gagal membaca clipboard', toastPasteUnsupported: 'Baca clipboard tidak didukung', toastEmptyInput: 'Input kosong', toastSameFormat: 'Format sama', diffBtn: 'Bandingkan', diffExitBtn: 'Keluar', diffLeftTitle: 'Asli (Input)', diffRightTitle: 'Diubah (Output)', diffLarge: 'Input besar — beralih ke perbandingan cepat', diffReportTitle: 'Perubahan terstruktur: {n}', diffChange: 'Diubah', diffAdd: 'Ditambah', diffRemove: 'Dihapus', diffSame: 'Tidak ada perbedaan', diffSameHint: 'Tidak ada perubahan pada field', navCompare: 'Bandingkan JSON', navMore: 'Lainnya', cmpTabText: 'Teks bebas', cmpSamples: 'Contoh:', cmpSampleUser: 'Pengguna', cmpSampleProduct: 'Produk', cmpSampleConfig: 'Konfigurasi', cmpSampleApi: 'Respons API', cmpTextSamples: 'Contoh teks:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Berkas konfigurasi', cmpSampleHtml: 'Cuplikan HTML', cmpSampleLog: 'Keluaran log', cmpBeautify: 'Rapikan', cmpClear: 'Hapus', cmpRun: 'Bandingkan', cmpTipIdle: 'Tempel kedua sisi lalu klik Bandingkan', cmpTipJson: 'JSON dibandingkan: {n} perbedaan', cmpTipSame: 'Kedua sisi identik', cmpTipText: 'Teks dibandingkan: {n} baris berbeda', cmpTipUseJson: 'Kedua sisi JSON — beralih ke «Bandingkan JSON» untuk diff per field', cmpTipError: 'Gagal mengurai', cmpLeftSide: 'sisi kiri', cmpRightSide: 'sisi kanan', errorLocLine: 'baris {n}', errorLocCol: ', kolom {n}' } },
+            { code: 'it', name: 'Italiano', flag: '🇮🇹', dict: { brand: 'Strumenti', navYamlJson: 'YAML in JSON', navYamlProps: 'YAML in Props', navJsonProps: 'JSON in Props', navJsonXml: 'JSON in XML', navXmlYaml: 'XML in YAML', navJsonYaml: 'JSON in YAML', navYamlXml: 'YAML in XML', fromLabel: 'Da', toLabel: 'A', swapTitle: 'Scambia', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Formatta', mockBtn: 'Simula', clearBtn: 'Pulisci', convertShortcut: 'Ctrl / ⌘ + Enter per convertire', convertBtn: 'Converti', copyBtn: 'Copia', pasteBtn: 'Incolla', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulazione creata', toastFormatInput: 'Input formattato', toastFormatOutput: 'Output formattato', toastFormatError: 'Formato fallito', toastConvertSuccess: 'Convertito', toastConvertError: 'Conversione fallita', toastCopySuccess: 'Copiato', toastCopyError: 'Copia fallita', toastPasteSuccess: 'Incollato', toastPasteError: 'Lettura appunti fallita', toastPasteUnsupported: 'Lettura appunti non supportata', toastEmptyInput: 'Input vuoto', toastSameFormat: 'Stesso formato', diffBtn: 'Confronta', diffExitBtn: 'Esci', diffLeftTitle: 'Originale (Input)', diffRightTitle: 'Modificato (Output)', diffLarge: 'Input grande: confronto rapido attivato', diffReportTitle: 'Modifiche strutturate: {n}', diffChange: 'Modificato', diffAdd: 'Aggiunto', diffRemove: 'Rimosso', diffSame: 'Nessuna differenza', diffSameHint: 'Nessuna modifica a livello di campo', navCompare: 'Confronta JSON', navMore: 'Altro', cmpTabText: 'Testo libero', cmpSamples: 'Esempi:', cmpSampleUser: 'Utente', cmpSampleProduct: 'Prodotto', cmpSampleConfig: 'Config', cmpSampleApi: 'Risposta API', cmpTextSamples: 'Esempi:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'File di configurazione', cmpSampleHtml: 'Snippet HTML', cmpSampleLog: 'Output di log', cmpBeautify: 'Formatta', cmpClear: 'Pulisci', cmpRun: 'Confronta', cmpTipIdle: 'Incolla entrambi i lati e premi Confronta', cmpTipJson: 'JSON confrontato: {n} differenze', cmpTipSame: 'I due lati sono identici', cmpTipText: 'Testo confrontato: {n} righe diverse', cmpTipUseJson: 'Entrambi i lati sono JSON — passa a «Confronta JSON» per il diff per campo', cmpTipError: 'Analisi non riuscita', cmpLeftSide: 'lato sinistro', cmpRightSide: 'lato destro', errorLocLine: 'riga {n}', errorLocCol: ', colonna {n}' } },
+            { code: 'ja', name: '日本語', flag: '🇯🇵', dict: { brand: '変換ツール', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '変換元', toLabel: '変換先', swapTitle: '入れ替え', inputLabel: '入力', outputLabel: '出力', formatBtn: '整形', mockBtn: 'モック', clearBtn: 'クリア', convertShortcut: 'Ctrl / ⌘ + Enter で変換', convertBtn: '変換', copyBtn: 'コピー', pasteBtn: '貼り付け', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'モック生成完了', toastFormatInput: '入力整形完了', toastFormatOutput: '出力整形完了', toastFormatError: '整形失敗', toastConvertSuccess: '変換完了', toastConvertError: '変換失敗', toastCopySuccess: 'コピーしました', toastCopyError: 'コピー失敗', toastPasteSuccess: '貼り付けました', toastPasteError: 'クリップボードの読み取りに失敗', toastPasteUnsupported: 'クリップボードの読み取り非対応', toastEmptyInput: '入力が空です', toastSameFormat: '同じ形式です', diffBtn: '比較', diffExitBtn: '終了', diffLeftTitle: '元のバージョン (入力)', diffRightTitle: '変更後 (出力)', diffLarge: '入力が大きいため高速比較に切り替えました', diffReportTitle: '構造化差分 {n} 件', diffChange: '変更', diffAdd: '追加', diffRemove: '削除', diffSame: '差分なし', diffSameHint: 'フィールド単位の差分はありません', navCompare: 'JSON 比較', navMore: 'その他', cmpTabText: '任意テキスト', cmpSamples: 'サンプル:', cmpSampleUser: 'ユーザー情報', cmpSampleProduct: '商品データ', cmpSampleConfig: '設定', cmpSampleApi: 'API レスポンス', cmpTextSamples: 'サンプルテキスト:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '設定ファイル', cmpSampleHtml: 'HTML 断片', cmpSampleLog: 'ログ出力', cmpBeautify: '整形', cmpClear: 'クリア', cmpRun: '比較', cmpTipIdle: '両側に貼り付けて「比較」を押してください', cmpTipJson: 'JSON の比較完了、相違 {n} 件', cmpTipSame: '両側は完全に一致しています', cmpTipText: 'テキスト比較完了、{n} 行の違い', cmpTipUseJson: '両側とも JSON です。「JSON 比較」に切り替えるとフィールド単位で比較できます', cmpTipError: '解析失敗', cmpLeftSide: '左側', cmpRightSide: '右側', errorLocLine: '{n} 行目', errorLocCol: ' {n} 列目' } },
+            { code: 'ko', name: '한국어', flag: '🇰🇷', dict: { brand: '변환 도구', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '변환 전', toLabel: '변환 후', swapTitle: '교체', inputLabel: '입력', outputLabel: '출력', formatBtn: '포맷', mockBtn: '모의', clearBtn: '지우기', convertShortcut: 'Ctrl / ⌘ + Enter로 변환', convertBtn: '변환', copyBtn: '복사', pasteBtn: '붙여넣기', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '모의 생성됨', toastFormatInput: '입력 포맷됨', toastFormatOutput: '출력 포맷됨', toastFormatError: '포맷 실패', toastConvertSuccess: '변환됨', toastConvertError: '변환 실패', toastCopySuccess: '복사됨', toastCopyError: '복사 실패', toastPasteSuccess: '붙여넣음', toastPasteError: '클립보드 읽기 실패', toastPasteUnsupported: '클립보드 읽기 미지원', toastEmptyInput: '입력이 비어있음', toastSameFormat: '같은 형식', diffBtn: '비교', diffExitBtn: '종료', diffLeftTitle: '원본 (입력)', diffRightTitle: '수정됨 (출력)', diffLarge: '입력이 커서 빠른 비교로 전환했습니다', diffReportTitle: '구조화 차이 {n}건', diffChange: '수정', diffAdd: '추가', diffRemove: '삭제', diffSame: '차이 없음', diffSameHint: '필드 단위 차이가 없습니다', navCompare: 'JSON 비교', navMore: '더보기', cmpTabText: '임의 텍스트', cmpSamples: '예시:', cmpSampleUser: '사용자 정보', cmpSampleProduct: '상품 데이터', cmpSampleConfig: '설정', cmpSampleApi: 'API 응답', cmpTextSamples: '예시 텍스트:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '설정 파일', cmpSampleHtml: 'HTML 조각', cmpSampleLog: '로그 출력', cmpBeautify: '정리', cmpClear: '지우기', cmpRun: '비교', cmpTipIdle: '양쪽에 붙여넣고 「비교」를 누르세요', cmpTipJson: 'JSON 비교 완료, {n}곳 다름', cmpTipSame: '양쪽이 완전히 동일합니다', cmpTipText: '텍스트 비교 완료, {n}줄 다름', cmpTipUseJson: '양쪽 모두 JSON입니다. 「JSON 비교」로 전환하면 필드 단위로 비교됩니다', cmpTipError: '구문 분석 실패', cmpLeftSide: '왼쪽', cmpRightSide: '오른쪽', errorLocLine: '{n}행', errorLocCol: ', {n}열' } },
+            { code: 'pt', name: 'Português', flag: '🇧🇷', dict: { brand: 'Ferramentas', navYamlJson: 'YAML para JSON', navYamlProps: 'YAML para Props', navJsonProps: 'JSON para Props', navJsonXml: 'JSON para XML', navXmlYaml: 'XML para YAML', navJsonYaml: 'JSON para YAML', navYamlXml: 'YAML para XML', fromLabel: 'De', toLabel: 'Para', swapTitle: 'Trocar', inputLabel: 'Entrada', outputLabel: 'Saída', formatBtn: 'Formatar', mockBtn: 'Simular', clearBtn: 'Limpar', convertShortcut: 'Ctrl / ⌘ + Enter para converter', convertBtn: 'Converter', copyBtn: 'Copiar', pasteBtn: 'Colar', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulação criada', toastFormatInput: 'Entrada formatada', toastFormatOutput: 'Saída formatada', toastFormatError: 'Falha na formatação', toastConvertSuccess: 'Convertido', toastConvertError: 'Falha na conversão', toastCopySuccess: 'Copiado', toastCopyError: 'Falha ao copiar', toastPasteSuccess: 'Colado', toastPasteError: 'Falha ao ler a área de transferência', toastPasteUnsupported: 'Leitura da área de transferência não suportada', toastEmptyInput: 'Entrada vazia', toastSameFormat: 'Mesmo formato', diffBtn: 'Comparar', diffExitBtn: 'Sair', diffLeftTitle: 'Original (Entrada)', diffRightTitle: 'Modificado (Saída)', diffLarge: 'Entrada grande — comparação rápida ativada', diffReportTitle: 'Alterações estruturadas: {n}', diffChange: 'Modificado', diffAdd: 'Adicionado', diffRemove: 'Removido', diffSame: 'Sem diferenças', diffSameHint: 'Nenhuma alteração em campos', navCompare: 'Comparar JSON', navMore: 'Mais', cmpTabText: 'Texto livre', cmpSamples: 'Exemplos:', cmpSampleUser: 'Usuário', cmpSampleProduct: 'Produto', cmpSampleConfig: 'Config', cmpSampleApi: 'Resposta API', cmpTextSamples: 'Exemplos:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Arquivo de configuração', cmpSampleHtml: 'Trecho HTML', cmpSampleLog: 'Saída de log', cmpBeautify: 'Formatar', cmpClear: 'Limpar', cmpRun: 'Comparar', cmpTipIdle: 'Cole os dois lados e clique em Comparar', cmpTipJson: 'JSON comparado: {n} diferença(s)', cmpTipSame: 'Os dois lados são idênticos', cmpTipText: 'Texto comparado: {n} linha(s) diferente(s)', cmpTipUseJson: 'Ambos os lados são JSON — mude para «Comparar JSON» para diff por campo', cmpTipError: 'Falha ao analisar', cmpLeftSide: 'lado esquerdo', cmpRightSide: 'lado direito', errorLocLine: 'linha {n}', errorLocCol: ', coluna {n}' } },
+            { code: 'pl', name: 'Polski', flag: '🇵🇱', dict: { brand: 'Narzędzia', navYamlJson: 'YAML na JSON', navYamlProps: 'YAML na Props', navJsonProps: 'JSON na Props', navJsonXml: 'JSON na XML', navXmlYaml: 'XML na YAML', navJsonYaml: 'JSON na YAML', navYamlXml: 'YAML na XML', fromLabel: 'Z', toLabel: 'Na', swapTitle: 'Zamień', inputLabel: 'Wejście', outputLabel: 'Wyjście', formatBtn: 'Formatuj', mockBtn: 'Mock', clearBtn: 'Wyczyść', convertShortcut: 'Ctrl / ⌘ + Enter, aby przekonwertować', convertBtn: 'Konwertuj', copyBtn: 'Kopiuj', pasteBtn: 'Wklej', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock utworzony', toastFormatInput: 'Wejście sformatowane', toastFormatOutput: 'Wyjście sformatowane', toastFormatError: 'Błąd formatowania', toastConvertSuccess: 'Przekonwertowano', toastConvertError: 'Błąd konwersji', toastCopySuccess: 'Skopiowano', toastCopyError: 'Błąd kopiowania', toastPasteSuccess: 'Wklejono', toastPasteError: 'Błąd odczytu schowka', toastPasteUnsupported: 'Odczyt schowka nieobsługiwany', toastEmptyInput: 'Brak danych', toastSameFormat: 'Ten sam format', diffBtn: 'Porównaj', diffExitBtn: 'Wyjdź', diffLeftTitle: 'Oryginał (Wejście)', diffRightTitle: 'Zmodyfikowany (Wyjście)', diffLarge: 'Duży plik — włączono szybkie porównanie', diffReportTitle: 'Zmiany strukturalne: {n}', diffChange: 'Zmieniono', diffAdd: 'Dodano', diffRemove: 'Usunięto', diffSame: 'Brak różnic', diffSameHint: 'Brak zmian na poziomie pól', navCompare: 'Porównaj JSON', navMore: 'Więcej', cmpTabText: 'Dowolny tekst', cmpSamples: 'Przykłady:', cmpSampleUser: 'Użytkownik', cmpSampleProduct: 'Produkt', cmpSampleConfig: 'Konfiguracja', cmpSampleApi: 'Odpowiedź API', cmpTextSamples: 'Przykłady:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Plik konfiguracyjny', cmpSampleHtml: 'Fragment HTML', cmpSampleLog: 'Wyjście logu', cmpBeautify: 'Formatuj', cmpClear: 'Wyczyść', cmpRun: 'Porównaj', cmpTipIdle: 'Wklej obie strony i kliknij Porównaj', cmpTipJson: 'Porównano JSON: {n} różnic', cmpTipSame: 'Obie strony są identyczne', cmpTipText: 'Porównano tekst: {n} różnych linii', cmpTipUseJson: 'Obie strony to JSON — przełącz na «Porównaj JSON», aby porównać pola', cmpTipError: 'Błąd analizy', cmpLeftSide: 'lewa strona', cmpRightSide: 'prawa strona', errorLocLine: 'wiersz {n}', errorLocCol: ', kolumna {n}' } },
+            { code: 'ru', name: 'Русский', flag: '🇷🇺', dict: { brand: 'Инструменты', navYamlJson: 'YAML в JSON', navYamlProps: 'YAML в Props', navJsonProps: 'JSON в Props', navJsonXml: 'JSON в XML', navXmlYaml: 'XML в YAML', navJsonYaml: 'JSON в YAML', navYamlXml: 'YAML в XML', fromLabel: 'Из', toLabel: 'В', swapTitle: 'Поменять', inputLabel: 'Вход', outputLabel: 'Выход', formatBtn: 'Формат', mockBtn: 'Мок', clearBtn: 'Очистить', convertShortcut: 'Ctrl / ⌘ + Enter для преобразования', convertBtn: 'Конверт', copyBtn: 'Копия', pasteBtn: 'Вставить', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Мок создан', toastFormatInput: 'Вход отформатирован', toastFormatOutput: 'Выход отформатирован', toastFormatError: 'Ошибка формата', toastConvertSuccess: 'Конвертировано', toastConvertError: 'Ошибка конвертации', toastCopySuccess: 'Скопировано', toastCopyError: 'Ошибка копии', toastPasteSuccess: 'Вставлено', toastPasteError: 'Ошибка чтения буфера обмена', toastPasteUnsupported: 'Чтение буфера обмена не поддерживается', toastEmptyInput: 'Пустой ввод', toastSameFormat: 'Тот же формат', diffBtn: 'Сравнить', diffExitBtn: 'Выйти', diffLeftTitle: 'Оригинал (Вход)', diffRightTitle: 'Изменено (Выход)', diffLarge: 'Большой файл — включено быстрое сравнение', diffReportTitle: 'Структурные изменения: {n}', diffChange: 'Изменено', diffAdd: 'Добавлено', diffRemove: 'Удалено', diffSame: 'Различий нет', diffSameHint: 'Изменений на уровне полей нет', navCompare: 'Сравнить JSON', navMore: 'Ещё', cmpTabText: 'Любой текст', cmpSamples: 'Примеры:', cmpSampleUser: 'Пользователь', cmpSampleProduct: 'Товар', cmpSampleConfig: 'Конфиг', cmpSampleApi: 'Ответ API', cmpTextSamples: 'Примеры:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Файл конфигурации', cmpSampleHtml: 'Фрагмент HTML', cmpSampleLog: 'Вывод журнала', cmpBeautify: 'Формат', cmpClear: 'Очистить', cmpRun: 'Сравнить', cmpTipIdle: 'Вставьте обе стороны и нажмите «Сравнить»', cmpTipJson: 'JSON сравнён: различий {n}', cmpTipSame: 'Обе стороны идентичны', cmpTipText: 'Текст сравнён: {n} строк отличаются', cmpTipUseJson: 'Обе стороны — JSON. Переключитесь на «Сравнить JSON» для сравнения по полям', cmpTipError: 'Ошибка разбора', cmpLeftSide: 'левая сторона', cmpRightSide: 'правая сторона', errorLocLine: 'строка {n}', errorLocCol: ', столбец {n}' } },
+            { code: 'th', name: 'ภาษาไทย', flag: '🇹🇭', dict: { brand: 'เครื่องมือ', navYamlJson: 'YAML เป็น JSON', navYamlProps: 'YAML เป็น Props', navJsonProps: 'JSON เป็น Props', navJsonXml: 'JSON เป็น XML', navXmlYaml: 'XML เป็น YAML', navJsonYaml: 'JSON เป็น YAML', navYamlXml: 'YAML เป็น XML', fromLabel: 'จาก', toLabel: 'เป็น', swapTitle: 'สลับ', inputLabel: 'อินพุต', outputLabel: 'เอาต์พุต', formatBtn: 'จัดรูปแบบ', mockBtn: 'จำลอง', clearBtn: 'ล้าง', convertShortcut: 'Ctrl / ⌘ + Enter เพื่อแปลง', convertBtn: 'แปลง', copyBtn: 'คัดลอก', pasteBtn: 'วาง', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'สร้างจำลองแล้ว', toastFormatInput: 'จัดรูปแบบอินพุตแล้ว', toastFormatOutput: 'จัดรูปแบบเอาต์พุตแล้ว', toastFormatError: 'จัดรูปแบบล้มเหลว', toastConvertSuccess: 'แปลงแล้ว', toastConvertError: 'แปลงล้มเหลว', toastCopySuccess: 'คัดลอกแล้ว', toastCopyError: 'คัดลอกล้มเหลว', toastPasteSuccess: 'วางแล้ว', toastPasteError: 'อ่านคลิปบอร์ดล้มเหลว', toastPasteUnsupported: 'ไม่รองรับการอ่านคลิปบอร์ด', toastEmptyInput: 'ไม่มีข้อมูล', toastSameFormat: 'รูปแบบเดียวกัน', diffBtn: 'เปรียบเทียบ', diffExitBtn: 'ออก', diffLeftTitle: 'ต้นฉบับ (อินพุต)', diffRightTitle: 'แก้ไขแล้ว (เอาต์พุต)', diffLarge: 'ข้อมูลขนาดใหญ่ เปลี่ยนไปใช้การเปรียบเทียบแบบเร็ว', diffReportTitle: 'ความแตกต่างเชิงโครงสร้าง {n} จุด', diffChange: 'แก้ไข', diffAdd: 'เพิ่ม', diffRemove: 'ลบ', diffSame: 'ไม่พบความแตกต่าง', diffSameHint: 'ไม่พบการเปลี่ยนแปลงระดับฟิลด์', navCompare: 'เปรียบเทียบ JSON', navMore: 'เพิ่มเติม', cmpTabText: 'ข้อความใดก็ได้', cmpSamples: 'ตัวอย่าง:', cmpSampleUser: 'ผู้ใช้', cmpSampleProduct: 'สินค้า', cmpSampleConfig: 'การตั้งค่า', cmpSampleApi: 'การตอบกลับ API', cmpTextSamples: 'ตัวอย่างข้อความ:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'ไฟล์กำหนดค่า', cmpSampleHtml: 'ส่วน HTML', cmpSampleLog: 'บันทึกผลลัพธ์', cmpBeautify: 'จัดรูปแบบ', cmpClear: 'ล้าง', cmpRun: 'เปรียบเทียบ', cmpTipIdle: 'วางทั้งสองด้านแล้วกดเปรียบเทียบ', cmpTipJson: 'เปรียบเทียบ JSON แล้ว พบ {n} จุดต่าง', cmpTipSame: 'ทั้งสองด้านเหมือนกันทุกประการ', cmpTipText: 'เปรียบเทียบข้อความแล้ว ต่างกัน {n} บรรทัด', cmpTipUseJson: 'ทั้งสองด้านเป็น JSON — สลับไปที่ «เปรียบเทียบ JSON» เพื่อเทียบระดับฟิลด์', cmpTipError: 'แยกวิเคราะห์ไม่สำเร็จ', cmpLeftSide: 'ด้านซ้าย', cmpRightSide: 'ด้านขวา', errorLocLine: 'บรรทัด {n}', errorLocCol: ' คอลัมน์ {n}' } },
+            { code: 'tr', name: 'Türkçe', flag: '🇹🇷', dict: { brand: 'Araçlar', navYamlJson: 'YAML -> JSON', navYamlProps: 'YAML -> Props', navJsonProps: 'JSON -> Props', navJsonXml: 'JSON -> XML', navXmlYaml: 'XML -> YAML', navJsonYaml: 'JSON -> YAML', navYamlXml: 'YAML -> XML', fromLabel: 'Kimden', toLabel: 'Kime', swapTitle: 'Değiştir', inputLabel: 'Giriş', outputLabel: 'Çıkış', formatBtn: 'Biçimlendir', mockBtn: 'Mock', clearBtn: 'Temizle', convertShortcut: 'Dönüştürmek için Ctrl / ⌘ + Enter', convertBtn: 'Dönüştür', copyBtn: 'Kopyala', pasteBtn: 'Yapıştır', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock oluşturuldu', toastFormatInput: 'Giriş biçimlendirildi', toastFormatOutput: 'Çıkış biçimlendirildi', toastFormatError: 'Biçimlendirme hatası', toastConvertSuccess: 'Dönüştürüldü', toastConvertError: 'Dönüştürme hatası', toastCopySuccess: 'Kopyalandı', toastCopyError: 'Kopyalama hatası', toastPasteSuccess: 'Yapıştırıldı', toastPasteError: 'Pano okunamadı', toastPasteUnsupported: 'Pano okuma desteklenmiyor', toastEmptyInput: 'Giriş boş', toastSameFormat: 'Aynı format', diffBtn: 'Karşılaştır', diffExitBtn: 'Çıkış', diffLeftTitle: 'Orijinal (Giriş)', diffRightTitle: 'Değiştirilmiş (Çıkış)', diffLarge: 'Girdi büyük — hızlı karşılaştırmaya geçildi', diffReportTitle: 'Yapısal değişiklikler: {n}', diffChange: 'Değişti', diffAdd: 'Eklendi', diffRemove: 'Silindi', diffSame: 'Fark yok', diffSameHint: 'Alan düzeyinde değişiklik yok', navCompare: 'JSON Karşılaştır', navMore: 'Daha fazla', cmpTabText: 'Serbest metin', cmpSamples: 'Örnekler:', cmpSampleUser: 'Kullanıcı', cmpSampleProduct: 'Ürün', cmpSampleConfig: 'Yapılandırma', cmpSampleApi: 'API yanıtı', cmpTextSamples: 'Örnek metin:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Yapılandırma dosyası', cmpSampleHtml: 'HTML parçası', cmpSampleLog: 'Günlük çıktısı', cmpBeautify: 'Biçimlendir', cmpClear: 'Temizle', cmpRun: 'Karşılaştır', cmpTipIdle: 'İki tarafı yapıştırıp Karşılaştır’a basın', cmpTipJson: 'JSON karşılaştırıldı: {n} fark', cmpTipSame: 'İki taraf birebir aynı', cmpTipText: 'Metin karşılaştırıldı: {n} satır farklı', cmpTipUseJson: 'İki taraf da JSON — alan bazında karşılaştırma için «JSON Karşılaştır»a geçin', cmpTipError: 'Ayrıştırma başarısız', cmpLeftSide: 'sol taraf', cmpRightSide: 'sağ taraf', errorLocLine: 'satır {n}', errorLocCol: ', sütun {n}' } },
         ];
 
         const displayLangCodes = ['zh-CN', 'zh-TW', 'en'];
@@ -2749,7 +2840,8 @@
                 NAV_I18N[currentLang] || NAV_I18N.en || {},
                 SQL_I18N[currentLang] || SQL_I18N.en || {},
                 SHEET_I18N[currentLang] || SHEET_I18N.en || {},
-                IMG_I18N[currentLang] || IMG_I18N.en || {}
+                IMG_I18N[currentLang] || IMG_I18N.en || {},
+                GEN_I18N[currentLang] || GEN_I18N.en || {}
             );
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
@@ -2782,6 +2874,8 @@
             if (typeof refreshSheetI18n === 'function') refreshSheetI18n();
             // 图片页的格式后缀、占位符、右上角按钮都是拼出来的
             if (typeof refreshImgI18n === 'function') refreshImgI18n();
+            // 代码生成页的页签、占位符、统计文案同理
+            if (typeof refreshCodeI18n === 'function') refreshCodeI18n();
         }
 
         // 宿主（DBX）会给没写 title 的按钮补一个提示，用的却是宿主自己的词表：
@@ -3130,10 +3224,16 @@
                 enterImageMode();
                 return;
             }
+            // 「代码生成」是 JSON / DDL → 多语言模型的独立页
+            if (link.id === 'navCodegen') {
+                enterCodeMode();
+                return;
+            }
             if (compareMode) exitCompareMode();
             if (sqlModeActive) exitSqlMode();
             if (sheetModeActive) exitSheetMode();
             if (imgModeActive) exitImageMode();
+            if (codeModeActive) exitCodeMode();
             markConvertActive(link);
             clearTimeout(autoTimer);
             suppressAutoConvert = true;
@@ -4144,6 +4244,7 @@
             if (sqlModeActive) exitSqlMode();
             if (sheetModeActive) exitSheetMode();
             if (imgModeActive) exitImageMode();
+            if (codeModeActive) exitCodeMode();
             if (isDiffMode) {
                 isDiffMode = false;
                 diffReport.classList.remove('show');
@@ -4362,6 +4463,7 @@
             if (compareMode) exitCompareMode();
             if (sheetModeActive) exitSheetMode();
             if (imgModeActive) exitImageMode();
+            if (codeModeActive) exitCodeMode();
             sqlModeActive = true;
             markConvertActive(null);
             mainWorkspace.classList.add('hidden');
@@ -6032,6 +6134,7 @@
             if (compareMode) exitCompareMode();
             if (sqlModeActive) exitSqlMode();
             if (imgModeActive) exitImageMode();
+            if (codeModeActive) exitCodeMode();
             sheetModeActive = true;
             markConvertActive(null);
             mainWorkspace.classList.add('hidden');
@@ -7437,6 +7540,7 @@
             if (compareMode) exitCompareMode();
             if (sqlModeActive) exitSqlMode();
             if (sheetModeActive) exitSheetMode();
+            if (codeModeActive) exitCodeMode();
             imgModeActive = true;
             markConvertActive(null);
             mainWorkspace.classList.add('hidden');
@@ -7738,6 +7842,677 @@
                 imgDecodeNow();
             };
             reader.readAsText(file);
+        });
+
+        // =========================================
+        // 代码生成页：JSON / SQL DDL → TypeScript / Go / Java / Python
+        // =========================================
+        const GEN_I18N = {
+            'zh-CN': {
+                navCodegen: '代码生成',
+                genTabJson: 'JSON 转模型',
+                genTabDdl: 'SQL DDL 转模型',
+                genRootLabel: '根类型名',
+                genRootPlaceholder: '留空自动命名',
+                genSamples: '示例',
+                genSampleUser: '用户信息',
+                genSampleOrder: '订单',
+                genSampleApi: '接口响应',
+                genSampleDdl: '用户表 DDL',
+                genInputJsonTitle: 'JSON 示例',
+                genInputDdlTitle: 'CREATE TABLE 语句',
+                genPlaceholderJson: '粘贴一段 JSON，例如 {"id":1,"name":"Ada"}',
+                genPlaceholderDdl: '粘贴 CREATE TABLE 语句，支持 MySQL / PostgreSQL',
+                genOutputTitle: '生成结果',
+                genEmpty: '贴入 JSON 或 CREATE TABLE，这里会出现模型代码',
+                genTipIdle: '输入即生成，右侧可切语言',
+                genTipOk: '已生成 {t} 个类型 · {f} 个字段',
+                genTipChars: '{n} 字符',
+                genErrEmpty: '还没有输入内容',
+                genErrBadJson: 'JSON 解析失败',
+                genErrNoDdl: '没有找到 CREATE TABLE 语句',
+                genErrTooLarge: '输入超过 1 M 字符，请分段生成',
+                genCopied: '已复制到剪贴板',
+                genCopyFail: '复制失败',
+                genExport: '导出',
+                genExported: '已导出'
+            },
+            'zh-TW': {
+                navCodegen: '程式碼產生',
+                genTabJson: 'JSON 轉模型',
+                genTabDdl: 'SQL DDL 轉模型',
+                genRootLabel: '根型別名稱',
+                genRootPlaceholder: '留空自動命名',
+                genSamples: '範例',
+                genSampleUser: '使用者資訊',
+                genSampleOrder: '訂單',
+                genSampleApi: 'API 回應',
+                genSampleDdl: '使用者表 DDL',
+                genInputJsonTitle: 'JSON 範例',
+                genInputDdlTitle: 'CREATE TABLE 語句',
+                genPlaceholderJson: '貼上一段 JSON，例如 {"id":1,"name":"Ada"}',
+                genPlaceholderDdl: '貼上 CREATE TABLE 語句，支援 MySQL / PostgreSQL',
+                genOutputTitle: '產生結果',
+                genEmpty: '貼入 JSON 或 CREATE TABLE，這裡會出現模型程式碼',
+                genTipIdle: '輸入即產生，右側可切語言',
+                genTipOk: '已產生 {t} 個型別 · {f} 個欄位',
+                genTipChars: '{n} 字元',
+                genErrEmpty: '還沒有輸入內容',
+                genErrBadJson: 'JSON 解析失敗',
+                genErrNoDdl: '找不到 CREATE TABLE 語句',
+                genErrTooLarge: '輸入超過 1 M 字元，請分段產生',
+                genCopied: '已複製到剪貼簿',
+                genCopyFail: '複製失敗',
+                genExport: '匯出',
+                genExported: '已匯出'
+            },
+            en: {
+                navCodegen: 'Code Gen',
+                genTabJson: 'JSON → Model',
+                genTabDdl: 'SQL DDL → Model',
+                genRootLabel: 'Root type',
+                genRootPlaceholder: 'Empty = auto name',
+                genSamples: 'Samples',
+                genSampleUser: 'User',
+                genSampleOrder: 'Order',
+                genSampleApi: 'API response',
+                genSampleDdl: 'Users table DDL',
+                genInputJsonTitle: 'JSON sample',
+                genInputDdlTitle: 'CREATE TABLE statement',
+                genPlaceholderJson: 'Paste JSON here, e.g. {"id":1,"name":"Ada"}',
+                genPlaceholderDdl: 'Paste CREATE TABLE, MySQL / PostgreSQL supported',
+                genOutputTitle: 'Generated code',
+                genEmpty: 'Paste JSON or CREATE TABLE to generate models',
+                genTipIdle: 'Type to generate; switch languages on the right',
+                genTipOk: '{t} types · {f} fields',
+                genTipChars: '{n} chars',
+                genErrEmpty: 'Nothing to generate yet',
+                genErrBadJson: 'Invalid JSON',
+                genErrNoDdl: 'No CREATE TABLE found',
+                genErrTooLarge: 'Input exceeds 1M characters',
+                genCopied: 'Copied to clipboard',
+                genCopyFail: 'Copy failed',
+                genExport: 'Export',
+                genExported: 'Exported'
+            },
+            az: {
+                navCodegen: 'Kod generatoru',
+                genTabJson: 'JSON → model',
+                genTabDdl: 'SQL DDL → model',
+                genRootLabel: 'Kök tip adı',
+                genRootPlaceholder: 'Boş = avtomatik ad',
+                genSamples: 'Nümunələr',
+                genSampleUser: 'İstifadəçi',
+                genSampleOrder: 'Sifariş',
+                genSampleApi: 'API cavabı',
+                genSampleDdl: 'İstifadəçi cədvəli DDL',
+                genInputJsonTitle: 'JSON nümunəsi',
+                genInputDdlTitle: 'CREATE TABLE ifadəsi',
+                genPlaceholderJson: 'JSON yapışdırın, məs. {"id":1,"name":"Ada"}',
+                genPlaceholderDdl: 'CREATE TABLE yapışdırın (MySQL / PostgreSQL)',
+                genOutputTitle: 'Yaradılmış kod',
+                genEmpty: 'Model yaratmaq üçün JSON və ya CREATE TABLE yapışdırın',
+                genTipIdle: 'Yazdıqca yaranır; dili sağdan dəyişin',
+                genTipOk: '{t} tip · {f} sahə',
+                genTipChars: '{n} simvol',
+                genErrEmpty: 'Hələ yaradılacaq nəsə yoxdur',
+                genErrBadJson: 'Yanlış JSON',
+                genErrNoDdl: 'CREATE TABLE tapılmadı',
+                genErrTooLarge: 'Giriş 1 mln simvolu keçir',
+                genCopied: 'Buferə kopyalandı',
+                genCopyFail: 'Kopyalama alınmadı',
+                genExport: 'İxrac et',
+                genExported: 'İxrac edildi'
+            },
+            es: {
+                navCodegen: 'Generador de código',
+                genTabJson: 'JSON → modelo',
+                genTabDdl: 'SQL DDL → modelo',
+                genRootLabel: 'Tipo raíz',
+                genRootPlaceholder: 'Vacío = nombre automático',
+                genSamples: 'Ejemplos',
+                genSampleUser: 'Usuario',
+                genSampleOrder: 'Pedido',
+                genSampleApi: 'Respuesta API',
+                genSampleDdl: 'DDL de tabla de usuarios',
+                genInputJsonTitle: 'Ejemplo JSON',
+                genInputDdlTitle: 'Sentencia CREATE TABLE',
+                genPlaceholderJson: 'Pega un JSON, p. ej. {"id":1,"name":"Ada"}',
+                genPlaceholderDdl: 'Pega un CREATE TABLE (MySQL / PostgreSQL)',
+                genOutputTitle: 'Código generado',
+                genEmpty: 'Pega JSON o CREATE TABLE para generar modelos',
+                genTipIdle: 'Escribe y se genera; cambia el lenguaje a la derecha',
+                genTipOk: '{t} tipos · {f} campos',
+                genTipChars: '{n} caracteres',
+                genErrEmpty: 'Aún no hay nada que generar',
+                genErrBadJson: 'JSON no válido',
+                genErrNoDdl: 'No se encontró CREATE TABLE',
+                genErrTooLarge: 'La entrada supera 1 M de caracteres',
+                genCopied: 'Copiado al portapapeles',
+                genCopyFail: 'No se pudo copiar',
+                genExport: 'Exportar',
+                genExported: 'Exportado'
+            },
+            id: {
+                navCodegen: 'Pembuat Kode',
+                genTabJson: 'JSON → model',
+                genTabDdl: 'SQL DDL → model',
+                genRootLabel: 'Nama tipe akar',
+                genRootPlaceholder: 'Kosong = nama otomatis',
+                genSamples: 'Contoh',
+                genSampleUser: 'Pengguna',
+                genSampleOrder: 'Pesanan',
+                genSampleApi: 'Respons API',
+                genSampleDdl: 'DDL tabel pengguna',
+                genInputJsonTitle: 'Contoh JSON',
+                genInputDdlTitle: 'Pernyataan CREATE TABLE',
+                genPlaceholderJson: 'Tempel JSON, mis. {"id":1,"name":"Ada"}',
+                genPlaceholderDdl: 'Tempel CREATE TABLE (MySQL / PostgreSQL)',
+                genOutputTitle: 'Kode hasil',
+                genEmpty: 'Tempel JSON atau CREATE TABLE untuk membuat model',
+                genTipIdle: 'Ketik untuk membuat; ganti bahasa di kanan',
+                genTipOk: '{t} tipe · {f} kolom',
+                genTipChars: '{n} karakter',
+                genErrEmpty: 'Belum ada yang dibuat',
+                genErrBadJson: 'JSON tidak valid',
+                genErrNoDdl: 'CREATE TABLE tidak ditemukan',
+                genErrTooLarge: 'Input melebihi 1 juta karakter',
+                genCopied: 'Disalin ke papan klip',
+                genCopyFail: 'Gagal menyalin',
+                genExport: 'Ekspor',
+                genExported: 'Diekspor'
+            },
+            it: {
+                navCodegen: 'Generatore di codice',
+                genTabJson: 'JSON → modello',
+                genTabDdl: 'SQL DDL → modello',
+                genRootLabel: 'Tipo radice',
+                genRootPlaceholder: 'Vuoto = nome automatico',
+                genSamples: 'Esempi',
+                genSampleUser: 'Utente',
+                genSampleOrder: 'Ordine',
+                genSampleApi: 'Risposta API',
+                genSampleDdl: 'DDL tabella utenti',
+                genInputJsonTitle: 'Esempio JSON',
+                genInputDdlTitle: 'Istruzione CREATE TABLE',
+                genPlaceholderJson: 'Incolla un JSON, es. {"id":1,"name":"Ada"}',
+                genPlaceholderDdl: 'Incolla CREATE TABLE (MySQL / PostgreSQL)',
+                genOutputTitle: 'Codice generato',
+                genEmpty: 'Incolla JSON o CREATE TABLE per generare i modelli',
+                genTipIdle: 'Digita per generare; cambia linguaggio a destra',
+                genTipOk: '{t} tipi · {f} campi',
+                genTipChars: '{n} caratteri',
+                genErrEmpty: 'Niente da generare',
+                genErrBadJson: 'JSON non valido',
+                genErrNoDdl: 'Nessun CREATE TABLE trovato',
+                genErrTooLarge: 'Input oltre 1 M caratteri',
+                genCopied: 'Copiato negli appunti',
+                genCopyFail: 'Copia non riuscita',
+                genExport: 'Esporta',
+                genExported: 'Esportato'
+            },
+            ja: {
+                navCodegen: 'コード生成',
+                genTabJson: 'JSON → モデル',
+                genTabDdl: 'SQL DDL → モデル',
+                genRootLabel: 'ルート型名',
+                genRootPlaceholder: '空欄で自動命名',
+                genSamples: 'サンプル',
+                genSampleUser: 'ユーザー情報',
+                genSampleOrder: '注文',
+                genSampleApi: 'API レスポンス',
+                genSampleDdl: 'ユーザーテーブル DDL',
+                genInputJsonTitle: 'JSON サンプル',
+                genInputDdlTitle: 'CREATE TABLE 文',
+                genPlaceholderJson: 'JSON を貼り付け（例: {"id":1,"name":"Ada"}）',
+                genPlaceholderDdl: 'CREATE TABLE 文を貼り付け（MySQL / PostgreSQL 対応）',
+                genOutputTitle: '生成結果',
+                genEmpty: 'JSON または CREATE TABLE を貼るとモデルが生成されます',
+                genTipIdle: '入力すると生成、右側で言語を切替',
+                genTipOk: '{t} 型 · {f} フィールド',
+                genTipChars: '{n} 文字',
+                genErrEmpty: '入力がありません',
+                genErrBadJson: 'JSON の解析に失敗しました',
+                genErrNoDdl: 'CREATE TABLE が見つかりません',
+                genErrTooLarge: '入力が 1 M 文字を超えています',
+                genCopied: 'クリップボードにコピーしました',
+                genCopyFail: 'コピーに失敗しました',
+                genExport: 'エクスポート',
+                genExported: 'エクスポートしました'
+            },
+            ko: {
+                navCodegen: '코드 생성',
+                genTabJson: 'JSON → 모델',
+                genTabDdl: 'SQL DDL → 모델',
+                genRootLabel: '루트 타입 이름',
+                genRootPlaceholder: '비우면 자동命名',
+                genSamples: '예시',
+                genSampleUser: '사용자 정보',
+                genSampleOrder: '주문',
+                genSampleApi: 'API 응답',
+                genSampleDdl: '사용자 테이블 DDL',
+                genInputJsonTitle: 'JSON 예시',
+                genInputDdlTitle: 'CREATE TABLE 문',
+                genPlaceholderJson: 'JSON을 붙여넣으세요 (예: {"id":1,"name":"Ada"})',
+                genPlaceholderDdl: 'CREATE TABLE 문을 붙여넣으세요 (MySQL / PostgreSQL 지원)',
+                genOutputTitle: '생성 결과',
+                genEmpty: 'JSON 또는 CREATE TABLE을 붙이면 모델이 생성됩니다',
+                genTipIdle: '입력하면 생성되고 오른쪽에서 언어를 전환합니다',
+                genTipOk: '{t}개 타입 · {f}개 필드',
+                genTipChars: '{n}자',
+                genErrEmpty: '입력이 없습니다',
+                genErrBadJson: 'JSON 파싱 실패',
+                genErrNoDdl: 'CREATE TABLE을 찾을 수 없습니다',
+                genErrTooLarge: '입력이 1M자를 초과했습니다',
+                genCopied: '클립보드에 복사했습니다',
+                genCopyFail: '복사하지 못했습니다',
+                genExport: '내보내기',
+                genExported: '내보냈습니다'
+            },
+            pt: {
+                navCodegen: 'Gerador de código',
+                genTabJson: 'JSON → modelo',
+                genTabDdl: 'SQL DDL → modelo',
+                genRootLabel: 'Tipo raiz',
+                genRootPlaceholder: 'Vazio = nome automático',
+                genSamples: 'Exemplos',
+                genSampleUser: 'Usuário',
+                genSampleOrder: 'Pedido',
+                genSampleApi: 'Resposta da API',
+                genSampleDdl: 'DDL da tabela de usuários',
+                genInputJsonTitle: 'Exemplo JSON',
+                genInputDdlTitle: 'Instrução CREATE TABLE',
+                genPlaceholderJson: 'Cole um JSON, ex. {"id":1,"name":"Ada"}',
+                genPlaceholderDdl: 'Cole CREATE TABLE (MySQL / PostgreSQL)',
+                genOutputTitle: 'Código gerado',
+                genEmpty: 'Cole JSON ou CREATE TABLE para gerar modelos',
+                genTipIdle: 'Digite para gerar; troque o idioma à direita',
+                genTipOk: '{t} tipos · {f} campos',
+                genTipChars: '{n} caracteres',
+                genErrEmpty: 'Nada para gerar ainda',
+                genErrBadJson: 'JSON inválido',
+                genErrNoDdl: 'Nenhum CREATE TABLE encontrado',
+                genErrTooLarge: 'Entrada acima de 1 M caracteres',
+                genCopied: 'Copiado para a área de transferência',
+                genCopyFail: 'Falha ao copiar',
+                genExport: 'Exportar',
+                genExported: 'Exportado'
+            },
+            pl: {
+                navCodegen: 'Generator kodu',
+                genTabJson: 'JSON → model',
+                genTabDdl: 'SQL DDL → model',
+                genRootLabel: 'Nazwa typu głównego',
+                genRootPlaceholder: 'Puste = nazwa automatyczna',
+                genSamples: 'Przykłady',
+                genSampleUser: 'Użytkownik',
+                genSampleOrder: 'Zamówienie',
+                genSampleApi: 'Odpowiedź API',
+                genSampleDdl: 'DDL tabeli użytkowników',
+                genInputJsonTitle: 'Przykład JSON',
+                genInputDdlTitle: 'Instrukcja CREATE TABLE',
+                genPlaceholderJson: 'Wklej JSON, np. {"id":1,"name":"Ada"}',
+                genPlaceholderDdl: 'Wklej CREATE TABLE (MySQL / PostgreSQL)',
+                genOutputTitle: 'Wygenerowany kod',
+                genEmpty: 'Wklej JSON lub CREATE TABLE, aby wygenerować modele',
+                genTipIdle: 'Wpisuj, aby generować; zmień język po prawej',
+                genTipOk: '{t} typów · {f} pól',
+                genTipChars: '{n} znaków',
+                genErrEmpty: 'Nie ma jeszcze nic do wygenerowania',
+                genErrBadJson: 'Nieprawidłowy JSON',
+                genErrNoDdl: 'Nie znaleziono CREATE TABLE',
+                genErrTooLarge: 'Dane przekraczają 1 mln znaków',
+                genCopied: 'Skopiowano do schowka',
+                genCopyFail: 'Kopiowanie nie powiodło się',
+                genExport: 'Eksportuj',
+                genExported: 'Wyeksportowano'
+            },
+            ru: {
+                navCodegen: 'Генератор кода',
+                genTabJson: 'JSON → модель',
+                genTabDdl: 'SQL DDL → модель',
+                genRootLabel: 'Имя корневого типа',
+                genRootPlaceholder: 'Пусто — автоимя',
+                genSamples: 'Примеры',
+                genSampleUser: 'Пользователь',
+                genSampleOrder: 'Заказ',
+                genSampleApi: 'Ответ API',
+                genSampleDdl: 'DDL таблицы пользователей',
+                genInputJsonTitle: 'Пример JSON',
+                genInputDdlTitle: 'Оператор CREATE TABLE',
+                genPlaceholderJson: 'Вставьте JSON, напр. {"id":1,"name":"Ada"}',
+                genPlaceholderDdl: 'Вставьте CREATE TABLE (MySQL / PostgreSQL)',
+                genOutputTitle: 'Сгенерированный код',
+                genEmpty: 'Вставьте JSON или CREATE TABLE, чтобы получить модели',
+                genTipIdle: 'Введите данные; язык переключается справа',
+                genTipOk: '{t} типов · {f} полей',
+                genTipChars: '{n} символов',
+                genErrEmpty: 'Пока нечего генерировать',
+                genErrBadJson: 'Неверный JSON',
+                genErrNoDdl: 'CREATE TABLE не найден',
+                genErrTooLarge: 'Ввод превышает 1 млн символов',
+                genCopied: 'Скопировано в буфер обмена',
+                genCopyFail: 'Не удалось скопировать',
+                genExport: 'Экспорт',
+                genExported: 'Экспортировано'
+            },
+            th: {
+                navCodegen: 'สร้างโค้ด',
+                genTabJson: 'JSON → โมเดล',
+                genTabDdl: 'SQL DDL → โมเดล',
+                genRootLabel: 'ชื่อชนิดราก',
+                genRootPlaceholder: 'เว้นว่างเพื่อตั้งชื่ออัตโนมัติ',
+                genSamples: 'ตัวอย่าง',
+                genSampleUser: 'ข้อมูลผู้ใช้',
+                genSampleOrder: 'คำสั่งซื้อ',
+                genSampleApi: 'การตอบกลับ API',
+                genSampleDdl: 'DDL ตารางผู้ใช้',
+                genInputJsonTitle: 'ตัวอย่าง JSON',
+                genInputDdlTitle: 'คำสั่ง CREATE TABLE',
+                genPlaceholderJson: 'วาง JSON เช่น {"id":1,"name":"Ada"}',
+                genPlaceholderDdl: 'วาง CREATE TABLE (รองรับ MySQL / PostgreSQL)',
+                genOutputTitle: 'โค้ดที่สร้าง',
+                genEmpty: 'วาง JSON หรือ CREATE TABLE เพื่อสร้างโมเดล',
+                genTipIdle: 'พิมพ์แล้วสร้างทันที สลับภาษาได้ทางขวา',
+                genTipOk: '{t} ชนิด · {f} ฟิลด์',
+                genTipChars: '{n} อักขระ',
+                genErrEmpty: 'ยังไม่มีข้อมูลให้สร้าง',
+                genErrBadJson: 'JSON ไม่ถูกต้อง',
+                genErrNoDdl: 'ไม่พบ CREATE TABLE',
+                genErrTooLarge: 'อินพุตเกิน 1 ล้านอักขระ',
+                genCopied: 'คัดลอกไปยังคลิปบอร์ดแล้ว',
+                genCopyFail: 'คัดลอกไม่สำเร็จ',
+                genExport: 'ส่งออก',
+                genExported: 'ส่งออกแล้ว'
+            },
+            tr: {
+                navCodegen: 'Kod Üretici',
+                genTabJson: 'JSON → model',
+                genTabDdl: 'SQL DDL → model',
+                genRootLabel: 'Kök tür adı',
+                genRootPlaceholder: 'Boş = otomatik ad',
+                genSamples: 'Örnekler',
+                genSampleUser: 'Kullanıcı',
+                genSampleOrder: 'Sipariş',
+                genSampleApi: 'API yanıtı',
+                genSampleDdl: 'Kullanıcı tablosu DDL',
+                genInputJsonTitle: 'JSON örneği',
+                genInputDdlTitle: 'CREATE TABLE ifadesi',
+                genPlaceholderJson: 'JSON yapıştırın, ör. {"id":1,"name":"Ada"}',
+                genPlaceholderDdl: 'CREATE TABLE yapıştırın (MySQL / PostgreSQL)',
+                genOutputTitle: 'Üretilen kod',
+                genEmpty: 'Model üretmek için JSON veya CREATE TABLE yapıştırın',
+                genTipIdle: 'Yazdıkça üretilir; dili sağdan değiştirin',
+                genTipOk: '{t} tür · {f} alan',
+                genTipChars: '{n} karakter',
+                genErrEmpty: 'Henüz üretilecek bir şey yok',
+                genErrBadJson: 'Geçersiz JSON',
+                genErrNoDdl: 'CREATE TABLE bulunamadı',
+                genErrTooLarge: 'Giriş 1 M karakteri aşıyor',
+                genCopied: 'Panoya kopyalandı',
+                genCopyFail: 'Kopyalanamadı',
+                genExport: 'Dışa aktar',
+                genExported: 'Dışa aktarıldı'
+            }
+        };
+
+        function genT(key, fallback) {
+            const table = GEN_I18N[currentLang] || {};
+            return table[key] || GEN_I18N.en[key] || (currentDict && currentDict[key]) || fallback || key;
+        }
+
+        const CODE_LANG_LABEL = { ts: 'TypeScript', go: 'Go', java: 'Java', python: 'Python' };
+        const CODE_EXT = { ts: '.ts', go: '.go', java: '.java', python: '.py' };
+        const codeWorkspace = document.getElementById('codeWorkspace');
+        const navCodegenLink = document.getElementById('navCodegen');
+        const codeInput = document.getElementById('codeInput');
+        const codeOutput = document.getElementById('codeOutput');
+        const codeRoot = document.getElementById('codeRoot');
+        const codeTip = document.getElementById('codeTip');
+        const codeInBadge = document.getElementById('codeInBadge');
+        const codeOutBadge = document.getElementById('codeOutBadge');
+        const codeOutSize = document.getElementById('codeOutSize');
+        const codeInLabel = document.getElementById('codeInLabel');
+        const codeJsonSamples = document.getElementById('codeJsonSamples');
+        const codeDdlSamples = document.getElementById('codeDdlSamples');
+        const codeSourceTabs = document.getElementById('codeSourceTabs');
+        const codeLangTabs = document.getElementById('codeLangTabs');
+
+        let codeModeActive = false;
+        let codeSource = 'json';
+        let codeLang = 'ts';
+        let codeTimer = null;
+        let codeLast = null;
+        let codeSampleText = '';
+
+        const CODE_SAMPLES = {
+            user: '{\n  "id": 1024,\n  "name": "Ada Lovelace",\n  "email": "ada@example.com",\n  "active": true,\n  "score": 98.5,\n  "address": { "city": "Shanghai", "zip": "200000" },\n  "tags": ["vip", "beta"],\n  "orders": [\n    { "id": 1, "total": 128.5, "paid": true },\n    { "id": 2, "total": 42, "note": "urgent" }\n  ]\n}',
+            order: '{\n  "orderNo": "SO-20241022-0001",\n  "status": "PAID",\n  "amount": 1280.5,\n  "currency": "CNY",\n  "paidAt": "2024-10-22T12:00:00Z",\n  "buyer": { "id": 7, "nickname": "icefox" },\n  "items": [\n    { "sku": "A-001", "qty": 2, "price": 399 },\n    { "sku": "B-002", "qty": 1, "price": 482.5 }\n  ],\n  "remark": null\n}',
+            api: '{\n  "code": 0,\n  "message": "ok",\n  "data": {\n    "total": 2,\n    "page": 1,\n    "list": [\n      { "id": 1, "title": "First", "published": true, "tags": [] },\n      { "id": 2, "title": "Second", "published": false, "tags": ["dev"] }\n    ]\n  }\n}'
+        };
+
+        const CODE_DDL_SAMPLE = 'CREATE TABLE `t_user` (\n  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT \'用户 ID\',\n  `user_name` varchar(64) NOT NULL COMMENT \'登录名\',\n  `email` varchar(128) DEFAULT NULL COMMENT \'邮箱\',\n  `age` tinyint(4) DEFAULT NULL,\n  `enabled` tinyint(1) NOT NULL DEFAULT 1,\n  `balance` decimal(12,2) NOT NULL DEFAULT 0.00,\n  `created_at` datetime NOT NULL COMMENT \'创建时间\',\n  PRIMARY KEY (`id`),\n  KEY `idx_user_name` (`user_name`)\n) ENGINE=InnoDB COMMENT=\'用户表\';';
+
+        function codeErrorText(res) {
+            if (res.code === 'empty') return genT('genErrEmpty');
+            if (res.code === 'too-large') return genT('genErrTooLarge');
+            if (res.code === 'no-ddl') return genT('genErrNoDdl');
+            return genT('genErrBadJson');
+        }
+
+        function codeSetTip(text, cls) {
+            codeTip.textContent = text || '';
+            codeTip.className = 'compare-tip' + (cls ? ' ' + cls : '');
+        }
+
+        function codeApplySourceUi() {
+            codeSourceTabs.querySelectorAll('.compare-tab').forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.source === codeSource);
+            });
+            codeLangTabs.querySelectorAll('.compare-tab').forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.lang === codeLang);
+            });
+            codeJsonSamples.classList.toggle('is-hidden', codeSource !== 'json');
+            codeDdlSamples.classList.toggle('is-hidden', codeSource !== 'ddl');
+            codeInLabel.textContent = genT(codeSource === 'json' ? 'genInputJsonTitle' : 'genInputDdlTitle');
+            codeInput.placeholder = genT(codeSource === 'json' ? 'genPlaceholderJson' : 'genPlaceholderDdl');
+            codeOutput.placeholder = genT('genEmpty');
+            codeRoot.placeholder = genT('genRootPlaceholder');
+            codeInBadge.textContent = codeSource === 'json' ? 'JSON' : 'DDL';
+            codeOutBadge.textContent = CODE_LANG_LABEL[codeLang];
+            if (codeLast) {
+                codeSetTip(genT('genTipOk')
+                    .replace('{t}', String(codeLast.types))
+                    .replace('{f}', String(codeLast.fields)), 'ok');
+            } else {
+                codeSetTip(genT('genTipIdle'));
+            }
+        }
+
+        function codeIdle() {
+            codeOutput.value = '';
+            codeOutput.classList.remove('has-content');
+            codeOutSize.textContent = '';
+            codeLast = null;
+            codeSetTip(genT('genTipIdle'));
+        }
+
+        function codeRegen() {
+            const text = codeInput.value;
+            if (!text.trim()) {
+                codeIdle();
+                return;
+            }
+            if (!window.DBXCodegen) {
+                codeSetTip(genT('genErrBadJson'), 'err');
+                return;
+            }
+            const res = window.DBXCodegen.generate(text, {
+                source: codeSource,
+                lang: codeLang,
+                rootName: codeRoot.value.trim()
+            });
+            if (!res.ok) {
+                codeOutput.value = '';
+                codeOutput.classList.remove('has-content');
+                codeOutSize.textContent = '';
+                codeLast = null;
+                codeSetTip(codeErrorText(res), 'err');
+                codeTip.title = res.detail || '';
+                return;
+            }
+            codeLast = res;
+            codeOutput.value = res.code;
+            codeOutput.classList.add('has-content');
+            codeOutSize.textContent = genT('genTipChars').replace('{n}', res.code.length.toLocaleString());
+            codeSetTip(genT('genTipOk')
+                .replace('{t}', String(res.types))
+                .replace('{f}', String(res.fields)), 'ok');
+            codeTip.title = '';
+            codeOutBadge.textContent = CODE_LANG_LABEL[res.lang];
+        }
+
+        function codeSchedule() {
+            clearTimeout(codeTimer);
+            codeTimer = setTimeout(codeRegen, 180);
+        }
+
+        function codeLoadSample(name) {
+            const text = codeSource === 'ddl'
+                ? CODE_DDL_SAMPLE
+                : (CODE_SAMPLES[name] || CODE_SAMPLES.user);
+            codeSampleText = text;
+            codeInput.value = text;
+            codeRegen();
+        }
+
+        function codeSetSource(source) {
+            if (source !== 'json' && source !== 'ddl') return;
+            if (source === codeSource) return;
+            codeSource = source;
+            codeApplySourceUi();
+            // 只有空着、或者当前内容还是上一次的示例时才自动换示例，别覆盖用户贴的数据
+            if (!codeInput.value.trim() || codeInput.value === codeSampleText) {
+                codeLoadSample('user');
+            } else {
+                codeRegen();
+            }
+        }
+
+        function codeSetLang(lang) {
+            if (!CODE_LANG_LABEL[lang] || lang === codeLang) return;
+            codeLang = lang;
+            codeOutBadge.textContent = CODE_LANG_LABEL[lang];
+            codeLangTabs.querySelectorAll('.compare-tab').forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.lang === lang);
+            });
+            codeRegen();
+        }
+
+        function codeFileName() {
+            const code = codeOutput.value;
+            const m = /(?:export interface|public class|class|type)\s+([A-Za-z_][A-Za-z0-9_]*)/.exec(code);
+            const base = m ? m[1] : 'model';
+            const snake = base.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+            if (codeLang === 'go' || codeLang === 'python') return snake + CODE_EXT[codeLang];
+            return base + CODE_EXT[codeLang];
+        }
+
+        function enterCodeMode() {
+            if (isDiffMode) {
+                isDiffMode = false;
+                diffReport.classList.remove('show');
+                diffWorkspace.classList.remove('active');
+                toggleDiffBtn.textContent = currentDict.diffBtn || '对比差异';
+                toggleDiffBtn.classList.remove('btn-diff');
+            }
+            if (compareMode) exitCompareMode();
+            if (sqlModeActive) exitSqlMode();
+            if (sheetModeActive) exitSheetMode();
+            if (imgModeActive) exitImageMode();
+            codeModeActive = true;
+            markConvertActive(null);
+            mainWorkspace.classList.add('hidden');
+            toolbarEl.classList.add('hidden');
+            codeWorkspace.classList.add('active');
+            navCodegenLink.classList.add('active');
+            codeApplySourceUi();
+            if (!codeInput.value.trim()) codeLoadSample('user');
+            else codeRegen();
+        }
+
+        function exitCodeMode() {
+            if (!codeModeActive) return;
+            codeModeActive = false;
+            clearTimeout(codeTimer);
+            codeWorkspace.classList.remove('active');
+            navCodegenLink.classList.remove('active');
+            toolbarEl.classList.remove('hidden');
+            mainWorkspace.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                inputEditor.refresh();
+                outputEditor.refresh();
+            });
+        }
+
+        function refreshCodeI18n() {
+            codeApplySourceUi();
+            if (codeModeActive) codeRegen();
+        }
+
+        codeSourceTabs.addEventListener('click', (e) => {
+            const tab = e.target.closest('.compare-tab');
+            if (tab) codeSetSource(tab.dataset.source);
+        });
+        codeLangTabs.addEventListener('click', (e) => {
+            const tab = e.target.closest('.compare-tab');
+            if (tab) codeSetLang(tab.dataset.lang);
+        });
+        codeJsonSamples.addEventListener('click', (e) => {
+            const chip = e.target.closest('.sample-chip');
+            if (chip) codeLoadSample(chip.dataset.sample);
+        });
+        codeDdlSamples.addEventListener('click', (e) => {
+            const chip = e.target.closest('.sample-chip');
+            if (chip) codeLoadSample(chip.dataset.sample);
+        });
+        codeInput.addEventListener('input', codeSchedule);
+        codeRoot.addEventListener('input', codeSchedule);
+        codeRoot.addEventListener('blur', () => {
+            // 失焦即把用户输入清洗成合法类型名，避免生成 `interface my user`
+            const cleaned = window.DBXCodegen ? window.DBXCodegen.sanitizeTypeName(codeRoot.value.trim()) : codeRoot.value.trim();
+            if (codeRoot.value.trim() && cleaned !== codeRoot.value.trim()) {
+                codeRoot.value = cleaned;
+                codeRegen();
+            }
+        });
+        document.getElementById('codeCopy').addEventListener('click', async () => {
+            if (!codeOutput.value.trim()) {
+                showToast(genT('genErrEmpty'), 'error');
+                return;
+            }
+            try {
+                await writeClipboardText(codeOutput.value);
+                showToast(genT('genCopied'));
+            } catch (err) {
+                showToast(genT('genCopyFail'), 'error');
+            }
+        });
+        document.getElementById('codeExport').addEventListener('click', async () => {
+            if (!codeOutput.value.trim()) {
+                showToast(genT('genErrEmpty'), 'error');
+                return;
+            }
+            const name = codeFileName();
+            const result = await saveTextFile(name, codeOutput.value, 'text/plain');
+            if (result !== 'cancelled') showToast(genT('genExported'));
+        });
+        document.getElementById('codeClear').addEventListener('click', () => {
+            clearTimeout(codeTimer);
+            codeInput.value = '';
+            codeSampleText = '';
+            codeApplySourceUi();
+            codeIdle();
         });
 
         renderLangMenu();

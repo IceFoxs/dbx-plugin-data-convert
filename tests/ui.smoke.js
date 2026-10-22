@@ -1019,6 +1019,126 @@ function check(name, fn) {
     });
 
 
+    // ---------------- 代码生成：JSON / SQL DDL → TS / Go / Java / Python ----------------
+    var codeWs = doc.getElementById('codeWorkspace');
+    var codeInput = doc.getElementById('codeInput');
+    var codeOutput = doc.getElementById('codeOutput');
+    var codeRoot = doc.getElementById('codeRoot');
+    var codeTip = doc.getElementById('codeTip');
+    var codeOutBadge = doc.getElementById('codeOutBadge');
+    var codeInBadge = doc.getElementById('codeInBadge');
+
+    function typeIn(el, value) {
+        el.value = value;
+        el.dispatchEvent(new win.Event('input', { bubbles: true }));
+    }
+
+    check('导航可进入代码生成页', function () {
+        doc.getElementById('navCodegen').click();
+        if (!codeWs.classList.contains('active')) throw new Error('代码页没显示');
+        if (!doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('工具栏没隐藏');
+        if (!doc.getElementById('navCodegen').classList.contains('active')) throw new Error('导航没高亮');
+    });
+
+    check('空着进来自动装一份示例并立刻出 TypeScript', function () {
+        if (!codeInput.value.trim()) throw new Error('没自动装示例');
+        if (codeOutput.value.indexOf('export interface') !== 0) {
+            throw new Error('默认没出 TypeScript：' + codeOutput.value.slice(0, 60));
+        }
+        var langs = [].map.call(doc.querySelectorAll('#codeLangTabs .compare-tab'), function (t) {
+            return t.dataset.lang;
+        });
+        if (langs.join(',') !== 'ts,go,java,python') throw new Error('语言页签: ' + langs.join(','));
+        if (codeOutBadge.textContent !== 'TypeScript') throw new Error('输出徽标: ' + codeOutBadge.textContent);
+        if (codeInBadge.textContent !== 'JSON') throw new Error('输入徽标: ' + codeInBadge.textContent);
+    });
+
+    check('切语言即时重新生成，徽标跟着走', function () {
+        doc.querySelector('#codeLangTabs [data-lang="go"]').click();
+        if (codeOutput.value.indexOf('package model') !== 0) throw new Error('没切到 Go：' + codeOutput.value.slice(0, 40));
+        if (codeOutBadge.textContent !== 'Go') throw new Error('徽标没跟着切');
+        doc.querySelector('#codeLangTabs [data-lang="java"]').click();
+        if (codeOutput.value.indexOf('public class') < 0) throw new Error('没切到 Java');
+        doc.querySelector('#codeLangTabs [data-lang="python"]').click();
+        if (codeOutput.value.indexOf('from __future__') !== 0) throw new Error('没切到 Python');
+        doc.querySelector('#codeLangTabs [data-lang="ts"]').click();
+    });
+
+    typeIn(codeRoot, 'MyDto');
+    await wait(300);
+
+    check('根类型名跟着输入框走', function () {
+        if (codeOutput.value.indexOf('interface MyDto') < 0) throw new Error('没用上自定义类型名：' + codeOutput.value.slice(0, 80));
+    });
+
+    typeIn(codeRoot, '');
+    typeIn(codeInput, '{"id":1,"user_name":"ada"}');
+    await wait(300);
+
+    check('输入的 JSON 被推断成模型，snake_case 键保持原样', function () {
+        if (codeOutput.value.indexOf('user_name: string;') < 0) {
+            throw new Error('JSON 的键不该被改名：' + codeOutput.value);
+        }
+        if (codeTip.textContent.indexOf('1') < 0) throw new Error('没给出类型/字段统计：' + codeTip.textContent);
+    });
+
+    typeIn(codeInput, '{oops');
+    await wait(300);
+
+    check('坏 JSON 给出错误提示且不产出代码', function () {
+        if (codeOutput.value !== '') throw new Error('出错还留着旧结果');
+        if (codeTip.textContent.indexOf('解析失败') < 0) throw new Error('提示不是「JSON 解析失败」：' + codeTip.textContent);
+        if (codeTip.className.indexOf('err') < 0) throw new Error('没标成错误态');
+    });
+
+    // 换页签只在「空着 / 内容还是示例」时自动装新示例，所以先清掉刚才的坏 JSON
+    typeIn(codeInput, '');
+    await wait(250);
+
+    check('切到 DDL 页签：标题、徽标、示例都换成 DDL 的', function () {
+        doc.querySelector('#codeSourceTabs [data-source="ddl"]').click();
+        if (codeInBadge.textContent !== 'DDL') throw new Error('输入徽标: ' + codeInBadge.textContent);
+        if (codeInput.value.indexOf('CREATE TABLE') < 0) throw new Error('没换上 DDL 示例');
+        if (doc.getElementById('codeInLabel').textContent.indexOf('CREATE TABLE') < 0) {
+            throw new Error('输入区标题没换：' + doc.getElementById('codeInLabel').textContent);
+        }
+        if (doc.getElementById('codeJsonSamples').classList.contains('is-hidden') === false) {
+            throw new Error('JSON 示例组该藏起来');
+        }
+    });
+
+    check('DDL 列名转小驼峰、表注释带出来', function () {
+        if (codeOutput.value.indexOf('userName: string;') < 0) {
+            throw new Error('DDL 列名没转小驼峰：' + codeOutput.value);
+        }
+        if (codeOutput.value.indexOf('用户表') < 0) throw new Error('表注释没带出来');
+    });
+
+    typeIn(codeInput, 'select 1 from dual');
+    await wait(300);
+
+    check('DDL 里没有 CREATE TABLE 时给出对应提示', function () {
+        if (codeOutput.value !== '') throw new Error('出错还留着旧结果');
+        if (codeTip.textContent.indexOf('CREATE TABLE') < 0) {
+            throw new Error('提示没提到 CREATE TABLE：' + codeTip.textContent);
+        }
+        if (codeTip.className.indexOf('err') < 0) throw new Error('没标成错误态');
+    });
+
+    check('清空后回到待输入提示', function () {
+        doc.getElementById('codeClear').click();
+        if (codeInput.value !== '') throw new Error('输入框没清空');
+        if (codeOutput.value !== '') throw new Error('输出没清空');
+        if (codeTip.textContent.indexOf('输入即生成') < 0) throw new Error('提示没复位：' + codeTip.textContent);
+    });
+
+    check('离开代码生成页后入口状态复原', function () {
+        doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
+        if (codeWs.classList.contains('active')) throw new Error('代码页仍在显示');
+        if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('工具栏仍隐藏');
+        if (doc.getElementById('navCodegen').classList.contains('active')) throw new Error('导航仍高亮');
+    });
+
     // 导航：7 个格式互转收进「格式转换」下拉，导航条上只剩 3 个单元
     var navEl = doc.getElementById('navLinks');
     var moreEl = doc.getElementById('navMore');
@@ -1036,8 +1156,8 @@ function check(name, fn) {
         if (convertMenu.querySelectorAll('a').length !== 7) {
             throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
         }
-        // 直属项：SQL 转换 / 表格转 JSON / 图片 Base64 / JSON 对比
-        if (inlineNavLinks().length !== 4) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
+        // 直属项：SQL 转换 / 表格转 JSON / 代码生成 / 图片 Base64 / JSON 对比
+        if (inlineNavLinks().length !== 5) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
         if (!doc.getElementById('navConvertTrigger')) throw new Error('缺少「格式转换」触发器');
         // 触发器直接显示当前这一对格式，而不是固定的「格式转换」
         var label = doc.getElementById('navConvertLabel').textContent.trim();
@@ -1086,7 +1206,8 @@ function check(name, fn) {
         if (!moreEl.classList.contains('show')) throw new Error('「更多」未出现');
         var names = [].map.call(moreMenu.querySelectorAll('a'), function (a) { return a.textContent.trim(); });
         // 收进「更多」的先后顺序取决于「非固定项先挪、固定项兜底」，这里只校验集合
-        if (names.slice().sort().join('|') !== ['SQL 转换', 'JSON 对比', '表格转 JSON', '图片 Base64'].sort().join('|')) {
+        var expect = ['SQL 转换', 'JSON 对比', '表格转 JSON', '代码生成', '图片 Base64'].sort().join('|');
+        if (names.slice().sort().join('|') !== expect) {
             throw new Error('菜单项: ' + names.join(','));
         }
         if (inlineNavLinks().length !== 0) throw new Error('导航条上还剩 ' + inlineNavLinks().length + ' 项');
@@ -1119,6 +1240,8 @@ function check(name, fn) {
             if (!doc.getElementById('sheetWorkspace').classList.contains('active')) throw new Error('未进入表格页');
         } else if (label === '图片 Base64') {
             if (!doc.getElementById('imageWorkspace').classList.contains('active')) throw new Error('未进入图片页');
+        } else if (label === '代码生成') {
+            if (!doc.getElementById('codeWorkspace').classList.contains('active')) throw new Error('未进入代码生成页');
         } else {
             throw new Error('菜单项不是页面入口: ' + label);
         }
@@ -1135,7 +1258,7 @@ function check(name, fn) {
     check('宽度恢复后导航项全部回到导航条', function () {
         if (moreEl.classList.contains('show')) throw new Error('「更多」仍显示');
         if (moreMenu.querySelectorAll('a').length !== 0) throw new Error('菜单仍有残留');
-        if (inlineNavLinks().length !== 4) throw new Error('导航项数 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 5) throw new Error('导航项数 ' + inlineNavLinks().length);
         if (convertMenu.querySelectorAll('a').length !== 7) throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
     });
 

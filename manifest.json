@@ -5,7 +5,7 @@
   "name": "数据转换工具",
   "version": "0.1.5",
   "publisher": "icefoxs",
-  "description": "🛠️ 全能数据格式互转工具：支持 JSON、YAML、XML、Properties 之间的无缝互转，也能把批量文本一键变成 SQL 的 IN / NOT IN / INSERT 语句。纯前端实现，支持零网络依赖离线运行，内置智能容错与代码格式化；另含 Excel / CSV 转 JSON 或 SQL Insert（本地解析、大文件限流、条数限制、一键导出），以及图片 ↔ Base64 互转（导出 DataURI / 纯 Base64 / CSS / HTML / Markdown，裸 Base64 直接解回图片，支持 SVG 与 SVG 源码）。",
+  "description": "🛠️ 一个面板搞定数据搬运：JSON / YAML / XML / Properties 互转、批量文本生成 SQL、Excel / CSV 转 JSON 或 SQL Insert、图片 ↔ Base64，以及 JSON 或 CREATE TABLE 直接生成 TypeScript / Go / Java / Python 模型。纯前端、不联网、可离线。",
   "source": "https://github.com/IceFoxs/dbx-plugin-data-convert",
   "homepage": "https://github.com/IceFoxs/dbx-plugin-data-convert",
   "icon": "assets/plugin.svg",
@@ -35,7 +35,7 @@
   "localizations": {
     "zh-CN": {
       "name": "数据转换",
-      "description": "🛠️ 全能数据格式互转工具：支持 JSON、YAML、XML、Properties 之间的无缝互转，也能把批量文本一键变成 SQL 的 IN / NOT IN / INSERT 语句。纯前端实现，支持零网络依赖离线运行，内置智能容错与代码格式化；另含 Excel / CSV 转 JSON 或 SQL Insert（本地解析、大文件限流、条数限制、一键导出），以及图片 ↔ Base64 互转（导出 DataURI / 纯 Base64 / CSS / HTML / Markdown，裸 Base64 直接解回图片，支持 SVG 与 SVG 源码）。",
+      "description": "🛠️ 一个面板搞定数据搬运：JSON / YAML / XML / Properties 互转、批量文本生成 SQL、Excel / CSV 转 JSON 或 SQL Insert、图片 ↔ Base64，以及 JSON 或 CREATE TABLE 直接生成 TypeScript / Go / Java / Python 模型。纯前端、不联网、可离线。",
       "contributions": {
         "io.github.icefoxs.data-convert.workbench": {
           "label": "数据转换",
@@ -45,7 +45,7 @@
     },
     "zh-TW": {
       "name": "資料轉換",
-      "description": "🛠️ 全能資料格式互轉工具：支援 JSON、YAML、XML、Properties 之間的無縫互轉，也能把批次文字一鍵變成 SQL 的 IN / NOT IN / INSERT 語句。純前端實現，支援零網路依賴離線運行，內建智慧容錯與程式碼格式化；另含 Excel / CSV 轉 JSON 或 SQL Insert（本機解析、大檔案限流、筆數限制、一鍵匯出），以及圖片 ↔ Base64 互轉（匯出 DataURI / 純 Base64 / CSS / HTML / Markdown，裸 Base64 直接解回圖片，支援 SVG 與 SVG 原始碼）。",
+      "description": "🛠️ 一個面板搞定資料搬運：JSON / YAML / XML / Properties 互轉、批次文字產生 SQL、Excel / CSV 轉 JSON 或 SQL Insert、圖片 ↔ Base64，以及 JSON 或 CREATE TABLE 直接產生 TypeScript / Go / Java / Python 模型。純前端、不連網、可離線。",
       "contributions": {
         "io.github.icefoxs.data-convert.workbench": {
           "label": "資料轉換",
@@ -55,7 +55,7 @@
     },
     "en": {
       "name": "Data Converter",
-      "description": "🛠️ All-in-one data format converter: Seamlessly convert between JSON, YAML, XML, and Properties, and turn batch text into SQL IN / NOT IN / INSERT statements. Pure frontend, zero network dependency, with smart fault tolerance and code formatting. Also converts Excel / CSV files to JSON or SQL INSERT locally, with large-file guards and one-click export, plus an Image ↔ Base64 page (DataURI / raw Base64 / CSS / HTML / Markdown output, bare Base64 decoded straight back into a picture, SVG and pasted SVG source included).",
+      "description": "🛠️ One panel for all your data plumbing: JSON / YAML / XML / Properties conversion, batch text to SQL, Excel / CSV to JSON or SQL INSERT, Image ⇄ Base64, and JSON or CREATE TABLE straight into TypeScript / Go / Java / Python models. Pure frontend, no network, works offline.",
       "contributions": {
         "io.github.icefoxs.data-convert.workbench": {
           "label": "Data Converter",

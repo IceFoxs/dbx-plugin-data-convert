@@ -1,6 +1,6 @@
 {
   "name": "Data Converter",
-  "description": "Convert between JSON, YAML, XML, and Properties in one DBX workbench panel, and turn batch text into SQL. Instant conversion, mock data, validation and formatting, field-level JSON diff, a standalone JSON compare page, line-level text compare, and an IN / NOT IN / INSERT value-list generator. A Sheet-to-JSON page reads .xlsx / .csv / .tsv entirely in the browser: header detection, delimiter sniffing, number/boolean inference, real Excel date cells, a live preview table, JSON export, plus hard limits (20 MB / 100k rows) with chunked parsing so the panel never freezes. An Image ↔ Base64 page encodes a picture to DataURI / raw Base64 / CSS / HTML / Markdown and decodes a bare Base64 string straight back into an image, sniffing the type from magic bytes (PNG, JPEG, GIF, BMP, WEBP, ICO, AVIF, HEIC and SVG, including pasted SVG source). Pure frontend, no backend, works offline.",
+  "description": "Convert data in one DBX workbench panel: JSON / YAML / XML / Properties, batch text to SQL (IN / NOT IN / INSERT), .xlsx / .csv / .tsv to JSON, and Image ⇄ Base64. A Code Gen page turns a JSON sample or a CREATE TABLE into TypeScript / Go / Java / Python models. Pure frontend, no backend, works offline.",
   "icon": "assets/plugin.svg",
   "tags": [
     "data-convert",
@@ -17,7 +17,13 @@
     "sql-insert",
     "base64",
     "image",
-    "svg"
+    "svg",
+    "codegen",
+    "typescript",
+    "golang",
+    "java",
+    "python",
+    "ddl"
   ],
   "permissions": [
     "host.clipboard:read",
@@ -26,19 +32,19 @@
   "source": "https://github.com/IceFoxs/dbx-plugin-data-convert/tree/v0.1.5",
   "homepage": "https://github.com/IceFoxs/dbx-plugin-data-convert",
   "license": "MIT",
-  "releaseNotes": "0.1.5 (update): a new Image ↔ Base64 page. Image to Base64 takes a picked file, a dropped file or a pasted screenshot and emits DataURI, raw Base64, CSS, HTML or Markdown (switching format never re-encodes); Base64 to image renders as you paste, with size, dimensions, character count and the +33% overhead underneath. A bare Base64 string with no data: prefix works just like a DataURI — the MIME type is sniffed from magic bytes (PNG / JPEG / GIF / BMP / WEBP / ICO / AVIF / HEIC / SVG) and the tip says which one it read. Real-world variants normalise first: 76-column wrapping, url-safe -_, missing padding, quotes / url(\"…\") / a whole CSS declaration, a partial image/png;base64, prefix and a UTF-8 BOM. SVG counts as an image, so pasted SVG source is UTF-8 encoded and rendered too. Encoding is chunked with a progress bar and a cancel token, 8 MB encodes in about 250 ms, and big strings stay bounded: above 200 K characters only a slice is kept for the preview, above 2 M characters the full Base64 is not held in memory at all, previews use an object URL instead of a data URI, and Copy on a truncated preview points at Export instead of pretending to succeed.",
+  "releaseNotes": "0.1.5 (update): a new Image ↔ Base64 page (DataURI / raw Base64 / CSS / HTML / Markdown output, bare Base64 decoded straight back into a picture, SVG and pasted SVG source included) and a new Code Gen page. Code Gen turns a JSON sample or a CREATE TABLE into TypeScript interfaces, Go structs, Java POJOs or Python dataclasses, splitting nested structures into their own types, camel-casing column names and carrying comments into the code. All six pages are translated into every one of the 14 supported languages, and the panel stays bounded: chunked work, hard limits on size and depth, no network and no eval.",
   "localizations": {
     "zh-CN": {
       "name": "数据转换",
-      "description": "在 DBX 工作台里完成 JSON / YAML / XML / Properties 互转，也能把批量文本直接变成 SQL：即时转换、模拟数据、校验与格式化，支持按字段对比 JSON、独立的 JSON 对比页、逐行文本对比，以及 IN / NOT IN / INSERT 值列表生成。另外新增「表格转 JSON」页：直接读 .xlsx / .csv / .tsv，自动识别表头与分隔符、推断数字与布尔、还原 Excel 日期（含 ZIP64 包），边解析边出预览表格，可按「最多条数」限制转换量，输出可在 JSON（格式化 / 紧凑）与 SQL Insert 之间切换并向宿主导出文件；预览表支持横向滚动、双击单元格查看完整内容与整行；「第二行为注释」可选跳过（只提示、不擅自改结果）。单文件 20 MB / 10 万行上限，分批解析不卡界面。还有「图片 Base64」页：图片编码成 DataURI / 纯 Base64 / CSS / HTML / Markdown，裸 Base64（没有 data: 前缀）或 DataURI 都能直接解回图片，类型按魔数嗅探（PNG / JPEG / GIF / BMP / WEBP / ICO / AVIF / HEIC / SVG），连 SVG 源码都能贴；大图分块编码带进度与取消，预览与内存都有上限。纯前端、无后端、可离线运行。"
+      "description": "在 DBX 工作台里完成 JSON / YAML / XML / Properties 互转、批量文本生成 SQL（IN / NOT IN / INSERT）、.xlsx / .csv / .tsv 转 JSON，以及图片 ↔ Base64；「代码生成」页把一段 JSON 示例或一条 CREATE TABLE 直接变成 TypeScript / Go / Java / Python 模型。纯前端、无后端、可离线运行。"
     },
     "zh-TW": {
       "name": "資料轉換",
-      "description": "在 DBX 工作台裡完成 JSON / YAML / XML / Properties 互轉，也能把批次文字直接變成 SQL：即時轉換、模擬資料、校驗與格式化，支援按欄位比對 JSON、獨立的 JSON 對比頁、逐行文字對比，以及 IN / NOT IN / INSERT 值清單產生。另外新增「表格轉 JSON」頁：直接讀 .xlsx / .csv / .tsv，自動辨識表頭與分隔符、推斷數字與布林、還原 Excel 日期（含 ZIP64 套件），邊解析邊出預覽表格，可依「最多筆數」限制轉換量，輸出可在 JSON（格式化 / 緊湊）與 SQL Insert 之間切換並向宿主匯出檔案；預覽表支援橫向捲動、雙擊儲存格查看完整內容與整列；「第二列為註解」可選跳過（只提示、不擅自改結果）。單檔 20 MB / 10 萬列上限，分批解析不卡介面。還有「圖片 Base64」頁：圖片編碼成 DataURI / 純 Base64 / CSS / HTML / Markdown，裸 Base64（沒有 data: 前綴）或 DataURI 都能直接解回圖片，類型按魔數嗅探（PNG / JPEG / GIF / BMP / WEBP / ICO / AVIF / HEIC / SVG），連 SVG 原始碼都能貼；大圖分塊編碼帶進度與取消，預覽與記憶體都有上限。純前端、無後端、可離線執行。"
+      "description": "在 DBX 工作台裡完成 JSON / YAML / XML / Properties 互轉、批次文字產生 SQL（IN / NOT IN / INSERT）、.xlsx / .csv / .tsv 轉 JSON，以及圖片 ↔ Base64；「程式碼產生」頁把一段 JSON 範例或一條 CREATE TABLE 直接變成 TypeScript / Go / Java / Python 模型。純前端、無後端、可離線執行。"
     },
     "en": {
       "name": "Data Converter",
-      "description": "Convert between JSON, YAML, XML, and Properties in one DBX workbench panel, and turn batch text into SQL. Instant conversion, mock data, validation and formatting, field-level JSON diff, a standalone JSON compare page, line-level text compare, and an IN / NOT IN / INSERT value-list generator. A Sheet page reads .xlsx / .csv / .tsv entirely in the browser: header detection, delimiter sniffing, number/boolean inference, real Excel date cells, ZIP64 support, a live preview table, and output as JSON (formatted / compact) or SQL INSERT with a Max-records cap; exports go through the host fileTransfer channel, the preview scrolls horizontally and double-clicking a cell shows its full value plus the whole row, and an optional 'row 2 is a note' skip handles two-tier headers. Hard limits (20 MB / 100k rows) and chunked parsing keep the panel responsive. An Image ↔ Base64 page encodes a picture to DataURI, raw Base64, CSS, HTML or Markdown and decodes a bare Base64 string back into a picture, sniffing the type from magic bytes (PNG / JPEG / GIF / BMP / WEBP / ICO / AVIF / HEIC / SVG, plus pasted SVG source); chunked encoding with progress and cancel, and bounded previews so a big image never stalls the host. Pure frontend, no backend, works offline."
+      "description": "Convert data in one DBX workbench panel: JSON / YAML / XML / Properties, batch text to SQL (IN / NOT IN / INSERT), .xlsx / .csv / .tsv to JSON, and Image ⇄ Base64. A Code Gen page turns a JSON sample or a CREATE TABLE into TypeScript / Go / Java / Python models. Pure frontend, no backend, works offline."
     }
   }
 }

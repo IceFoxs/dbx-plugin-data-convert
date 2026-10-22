@@ -2,7 +2,7 @@
  * i18n 完整性测试 —— 只在源码层面解析 ui/index.html，不需要浏览器。
  *
  * 目的：新增文案时最容易犯的错是「只补了 zh-CN / zh-TW / en 三种」，
- * 其余 11 种语言悄悄回退到英文或中文兜底。这里把四张字典全量对齐：
+ * 其余 11 种语言悄悄回退到英文或中文兜底。这里把各张字典全量对齐：
  *   1. 语言集合必须和 languageConfigs 一致（14 种）；
  *   2. 每张表的键集合必须和 zh-CN 完全一致（不缺、不多）；
  *   3. 不允许空字符串；
@@ -66,7 +66,8 @@ var tables = {
     NAV_I18N: readLiteral(html, 'NAV_I18N'),
     SQL_I18N: readLiteral(html, 'SQL_I18N'),
     SHEET_I18N: readLiteral(html, 'SHEET_I18N'),
-    IMG_I18N: readLiteral(html, 'IMG_I18N')
+    IMG_I18N: readLiteral(html, 'IMG_I18N'),
+    GEN_I18N: readLiteral(html, 'GEN_I18N')
 };
 
 var langCodes = languageConfigs.map(function (l) { return l.code; });
@@ -143,6 +144,24 @@ check('主字典里每种语言都有错误定位文案', function () {
         return !l.dict.errorLocLine || !l.dict.errorLocCol;
     }).map(function (l) { return l.code; });
     if (problems.length) throw new Error('缺 errorLocLine/errorLocCol: ' + problems.join(','));
+});
+
+check('HTML 里用到的 data-i18n 键都能在字典中找到', function () {
+    var pool = {};
+    languageConfigs.forEach(function (l) {
+        Object.keys(l.dict).forEach(function (k) { pool[k] = 1; });
+    });
+    Object.keys(tables).forEach(function (name) {
+        Object.keys((tables[name]['zh-CN'] || {})).forEach(function (k) { pool[k] = 1; });
+    });
+    var used = [];
+    var re = /data-i18n(?:-placeholder|-title)?="([A-Za-z0-9_]+)"/g;
+    var m;
+    while ((m = re.exec(html))) used.push(m[1]);
+    if (!used.length) throw new Error('一个 data-i18n 都没解析到，正则可能失效了');
+    var missing = used.filter(function (k) { return !pool[k]; });
+    missing = missing.filter(function (k, i) { return missing.indexOf(k) === i; });
+    if (missing.length) throw new Error('字典里没有: ' + missing.join(', '));
 });
 
 check('主字典键数各语言一致', function () {

@@ -1,6 +1,6 @@
 # 数据转换 (Data Format Converter)
 
-一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties 互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON，以及图片 ⇄ Base64。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
+一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties 互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON、图片 ⇄ Base64，以及 JSON / `CREATE TABLE` 直接生成多语言模型代码。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
 
 ![数据转换工作台](docs/screen.png)
 
@@ -13,6 +13,7 @@
 | **SQL 转换** | 粘贴一列值 → `IN` / `NOT IN` / 值列表 / `INSERT`；整段 SQL 片段也能反向拆回干净的值 |
 | **表格转 JSON** | `.xlsx` / `.csv` / `.tsv` → JSON 数组或 SQL `INSERT`，全程在浏览器里解析 |
 | **图片 Base64** | 图片 → DataURI / 纯 Base64 / CSS / HTML / Markdown，Base64（带前缀或裸串）→ 图片 |
+| **代码生成** | 一段 JSON 示例或 `CREATE TABLE` → TypeScript / Go / Java / Python 模型，嵌套结构自动拆成独立类型 |
 
 ## 格式转换
 
@@ -57,9 +58,19 @@
 
 ![图片转 Base64 页](docs/screen-image.png)
 
+## 代码生成
+
+- 左边贴一段 **JSON 示例**，右边立刻出模型：嵌套对象与对象数组自动拆成独立类型（依赖先于使用者输出），同名结构合并、只有部分样本出现的字段自动变可选。
+- 也可以切到 **SQL DDL**：粘一条 `CREATE TABLE`（MySQL 反引号、PostgreSQL 双引号 / `serial` 都认），直接出对应模型。列名转小驼峰、表注释与列注释带进代码、`t_` / `tb_` 这类表名前缀不进类型名、主键与索引约束不会变成字段；多条 `CREATE TABLE` 一次出多个类型。
+- 四种语言随时切：**TypeScript** 接口、**Go** struct（带 `json` tag 与 `omitempty`）、**Java** POJO（包装类型 + getter/setter）、**Python** dataclass（snake_case + `Optional`）。切换不用重新输入。
+- 根类型名可以自己填，留空就按输入自动命名；填了脏字符串（含空格、数字开头、中文）也会清洗成合法标识符，不会生成编译不过的代码。
+- 纯前端推断，不联网、不 `eval`；输入超过 1 M 字符、超大数组、超深嵌套都会在入口降级或拦下，不会把宿主卡死。
+
+![代码生成页](docs/screen-code.png)
+
 ## 通用
 
-- **国际化**——14 种语言：zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。切换器里列出前三种，其余随宿主 locale 自动匹配；格式转换、对比、SQL、表格、图片五页的文案都已覆盖全部 14 种，缺一条会退回英文而不是中文。
+- **国际化**——14 种语言：zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。切换器里列出前三种，其余随宿主 locale 自动匹配；格式转换、对比、SQL、表格、图片、代码生成六页的文案都已覆盖全部 14 种，缺一条会退回英文而不是中文。
 - **主题适配**——跟随 DBX 宿主主题与 shadcn/ui 设计令牌，宿主只下发主题信息（不写 `data-dbx-theme`）或自定义调色板同样生效。首屏按宿主主题直接落定、不闪白底，明暗切换有 300 ms 整页过渡，`prefers-reduced-motion` 下自动关掉。
 - **剪贴板**——通过 DBX Host API 一键复制，没有宿主时走浏览器降级方案。
 - **离线**——无后端、无 CDN、无遥测；CodeMirror 与 YAML 库都打在包里。

@@ -8,23 +8,39 @@
 *   **SVG 也算图片**：`.svg` 文件可以编码（`image/svg+xml`），裸 Base64 或 DataURI 形式的 SVG 能解回图片；矢量图本来就是文本，所以连**SVG 源码**都能直接贴进解码框——自动按 UTF-8 编码成 `data:image/svg+xml;base64,…` 再渲染，提示标「SVG 源码」。嗅探会跳过 BOM、`<?xml>`、`<!DOCTYPE svg>` 和注释，`<svg>` 落在头 4 KB 里就能认出；HTML 里恰好嵌了个 `<svg>` 不会被误判成图片。
 *   **体积上限与不卡界面**：单张图 10 MB、Base64 文本 14 M 字符，超了在入口就拦下并说明上限；编码按 3 字节对齐分块（1 MB 让出一次主线程），进度条实时走、切文件 / 清空用 token 取消旧任务；输出预览最多 200 K 字符，**预览截断时「复制」会提示改用导出**（10 MB 图解码后是 1300 万字符，塞剪贴板既慢又容易失败），导出走宿主的 `fileTransfer` 分片写文件，没有宿主才回退浏览器下载。
 *   **导出跟着输出格式走**：编码页导出 `.txt`（选「纯 Base64」时是 `.base64.txt`，内容就是裸字符串，能被解码框原样吃回去）；解码页导出图片本体（`.png` / `.jpg` / `.svg` / `.bin`），按钮上直接写后缀，鼠标悬停能看到这次导的是什么格式。
+*   **代码生成页（JSON / SQL DDL → 多语言模型）**：导航栏新增「代码生成」入口。左边贴一段 **JSON 示例**，右边立刻出模型——嵌套对象与对象数组自动拆成独立类型（依赖先于使用者输出）、同名结构合并、只有部分样本出现的字段自动变可选，根类型名可以自己填也可以留空自动命名。
+*   **SQL `CREATE TABLE` → 模型**：页签切到「SQL DDL 转模型」，粘一条建表语句直接出模型。MySQL 的反引号、PostgreSQL 的双引号与 `serial` 都认，多条 `CREATE TABLE` 一次出多个类型；列名转小驼峰、`t_` / `tb_` 这类表名前缀不进类型名、表注释与列注释带进代码、`PRIMARY KEY` 与索引约束不会变成字段；可空列在 TypeScript 里是 `?`、在 Go 里是指针、在 Python 里是 `Optional`。
+*   **四种语言随时切**：**TypeScript** 接口、**Go** struct（带 `json` tag 与 `omitempty`）、**Java** POJO（包装类型 + getter/setter）、**Python** dataclass（snake_case + `Optional`）。切换语言不用重新输入，导出文件名跟着语言走（`.ts` / `.go` / `.java` / `.py`）；Go 的 tag 仍用原始列名，不会把 `user_name` 变成 `userName`。
+*   **14 种语言全覆盖**：代码生成页的 24 条文案（`GEN_I18N`）一次性补齐到 14 种，与其余五页一致。
 
 ### 🔧 修复 (Fixes)
 
 *   **暗色主题下 Base64 输入 / 输出框是白底黑字**：两个 `<textarea>` 用的是 `background: transparent`，可滚动文本框会被浏览器提升成独立合成层，暗色下这一层按白底光栅化——整页都黑了，只有这一块刺眼。改成显式 `background-color: var(--bg-card)`，跟面板同色，深浅主题都不再错位。
 *   **其余 11 种语言的表格页 / 图片页文案是中文**：`SHEET_I18N` 与 `IMG_I18N` 之前只写了 zh-CN / zh-TW / en 三份，宿主 locale 是 ja / ko / ru / es… 时这两页会退到调用处的中文兜底——导航和通用按钮换了语言，页面正文还是中文。现在两张表补齐到 14 种语言（表格 56 键、图片 53 键），三张表的取值也统一成「当前语言 → 英文 → 主字典 → 中文兜底」，万一再缺键至少回退到英文。顺带把转换页的错误定位「第 N 行 第 M 列」从硬编码模板改成主字典里的 `errorLocLine` / `errorLocCol`，英文下显示 `line 3, column 5`、日文下是 `3 行目 5 列目`；英文 `sheetTipLimited` 少写了一个 `{n}`（“导出同样是 N 条”那半句没数字）也一并补上。
 *   **图片页的「粘贴」按钮会弹出英文 Paste 气泡 —— 按钮已去掉**：那个气泡不是插件的提示，而是 macOS WebView 的剪贴板授权 UI——页面一调 `navigator.clipboard.read()`，WebView 就在按钮旁边浮一个自己的 Paste 按钮让用户再点一次，中文界面里格外突兀，还压住旁边的「选择图片」。这条 API 在宿主 WebView 里既拿不到图也不可控，索性把按钮删掉：贴图改走 `Ctrl/Cmd+V`（`paste` 事件直接拿到文件，无授权弹窗）或拖拽，两条路都完整可用，空状态提示里也是这么写的。删按钮同时顺带解决上一版「点粘贴被带到解码页」的跳页问题——不再有会自己换页签的入口。
+*   **Go 输出没有 `package` 声明**：之前只有 `type X struct {...}`，粘进 `.go` 文件直接编译不过。现在固定输出 `package model`。
+*   **Java 用基础类型接不住 null**：`long` / `double` / `boolean` 遇到数据库里的 NULL 会炸；改成一律用包装类型（`Long` / `Double` / `Boolean`），并且补上 getter/setter——之前只有 `private` 字段，光有字段没有访问器，Jackson / MyBatis 都读不到。
+*   **DDL 列名没有转成小驼峰**：`user_name` 原样进了 TypeScript / Java 字段，生成的模型不像是手写的。现在代码里是小驼峰，原始列名只留给 Go 的 `json` tag。
+*   **DDL 可空列写成 `string | null`**：`?` 已经表达了「可能没有」，再挂 `| null` 只是噪音，TypeScript 侧改成 `email?: string`。
+*   **混合标量数组退化成 `any[]`**：`[1, "a"]` 之前直接放弃推断，现在 TypeScript 侧能表达成 `(number | string)[]`；Go / Java / Python 没有对应语法，仍退成 `interface{}` / `Object` / `Any`。
+*   **Python 缺 `from __future__ import annotations`**：补上，避免后定义的类被前面的类引用时报错。
+*   **转换按钮的快捷键提示是空的**：`data-i18n-title="convertShortcut"` 这一个键从来没写进主字典，鼠标悬停在「执行转换」上什么都没有（宿主 WebView 下会露出宿主自己的词）。14 种语言一并补上。
 
 ### 🛠 工程化 (Internal)
 
 *   新增 `ui/js/imgconv.js`（纯函数，无 DOM）：`sniffMime()` 魔数嗅探、`normalizeBase64()` 规范化、`parseInput()` 识别 DataURI / 裸 Base64、`bytesToBase64(Async)()` / `base64ToBytes(Async)()` 分块编解码、`buildText()` 五种输出格式、`previewText()` 预览截断、`looksLikeSvgText()` / `svgTextToBase64()` SVG 源码；上限集中在 `LIMITS`。
 *   编码从「每组 4 字符 push 进数组再 join」改成「预分配 `Uint8Array` 写码点 + 8 KB 一段 `fromCharCode`」：8 MB 从 1758 ms 降到 130 ms 上下（解码同步优化到 190 ms 左右），并且异步分块结果与同步结果逐字节相同。
 *   加载与使用时都按「别把宿主拖崩」来做：Base64 超过 2 M 字符时**不再拼出完整输出串**，预览只拼 200 K 字符的切片（`imgState.text = ''`、另存真实长度），导出时才临时拼一次、写完立刻释放；预览图改用 `URL.createObjectURL(file)` 而不是把上千万字符的 data URI 塞进 `<img>`，并在清空 / 换图 / 卸载时 `revokeObjectURL`；`normalizeBase64()` 增加快路径（干净且长度 4 对齐的输入直接返回，躲开 8 次全量正则替换），9.33 MB 干净 Base64 规范化 27 ms、`parseInput` 39 ms；`encodeUtf8()` 预分配 `len*3` 缓冲再 `subarray`。进图片页 29 ms、示例编码 38 ms。
-*   四张字典补齐到 14 种语言后，`ui/index.html` 从 6.5 k 行涨到 7.9 k 行（+23 KB，打包 258 → 281 KB）：冷启动 `DOMContentLoaded` 从约 500 ms 到约 590 ms（`domInteractive` 476 ms），JS 堆仍 9.5 MB、535 节点，进图片页 64 ms，8 MB 图编码 409 ms 且编码后堆不涨（`imgState.text` 为空，只留 200 000 字符预览），反复进出页面 5 次堆与节点数完全不变。语言表是纯字面量，不参与运行时计算，体积换的是「宿主 locale 是日语时不会露出中文」。
+*   五张字典补齐到 14 种语言后，`ui/index.html` 从 6.5 k 行涨到 8.5 k 行（+23 KB，打包 258 → 281 KB）：冷启动 `DOMContentLoaded` 从约 500 ms 到约 590 ms（`domInteractive` 476 ms），JS 堆仍 9.5 MB、535 节点，进图片页 64 ms，8 MB 图编码 409 ms 且编码后堆不涨（`imgState.text` 为空，只留 200 000 字符预览），反复进出页面 5 次堆与节点数完全不变。语言表是纯字面量，不参与运行时计算，体积换的是「宿主 locale 是日语时不会露出中文」。
 *   新增 `tests/i18n.test.js`（19 条）：直接从 `ui/index.html` 源码里解析四张字典与 `languageConfigs`，断言语言集合一致（14 种）、每张表的键集合与 zh-CN 完全对齐、没有空译文、占位符（`{n}` / `{size}` / `{e}` …）在各语言里都保留。`npm test` 与 `scripts/build.sh` 一并纳入——以后新增文案漏语言会直接失败，而不是等到用户切到日语才发现。
-*   新增 `tests/imgconv.test.js`（62 条：MIME 嗅探含 BOM / DOCTYPE / `<svg>` 越过 512 字节、HTML 不误判、编解码与 `Buffer` 逐字节对齐、url-safe / 缺补位 / 换行 / 引号 / CSS 包裹、非法输入、五种格式、体积上限、**8 MB 与 10 MB 往返 + 计时**、9 MB 干净 Base64 的规范化快路径、取消与进度回调）；`npm test` 与 `scripts/build.sh test` 一并纳入。单测合计 241 条。
+*   新增 `tests/imgconv.test.js`（62 条：MIME 嗅探含 BOM / DOCTYPE / `<svg>` 越过 512 字节、HTML 不误判、编解码与 `Buffer` 逐字节对齐、url-safe / 缺补位 / 换行 / 引号 / CSS 包裹、非法输入、五种格式、体积上限、**8 MB 与 10 MB 往返 + 计时**、9 MB 干净 Base64 的规范化快路径、取消与进度回调）；`npm test` 与 `scripts/build.sh test` 一并纳入；加上 codegen 的 54 条，单测合计 295 条。
 *   冒烟测试 92 → 105 项，新增图片页入口与编码/解码页互斥、格式页签与导出后缀联动、裸 Base64 自动出图并标注来源、DataURI 同样能解、普通文本不硬解、清空复位、离开页面复原、纯 Base64 输出可被原样反解，以及「粘贴按钮已移除且空状态引导 Ctrl/Cmd+V」「宿主补的 title 会被摘掉」。`tests/ui.smoke.js` 里原来那三条点粘贴按钮的用例随按钮一起删掉。
 *   文档补 `docs/screen-image.png`（1440×900 / 1x，示例为页面内置生成的图片，不含任何真实素材）。README 同时重构成「功能页一览 + 每页一节」：主图、JSON 对比、SQL 转换、表格转 JSON 四张按当前导航（已含「图片 Base64」）重拍，细节截图（滚动、弹层、暗色、窄屏等）不再进 README，24 张失效旧图一并删除，`docs/` 从 4 MB 收到 780 KB。
+*   新增 `ui/js/codegen.js`（913 行，纯函数、零 DOM，UMD 导出 `window.DBXCodegen`）：类型推断 / DDL 解析 / 四种语言渲染分离，`LIMITS` 集中管上限（1 M 字符 / 120 类型 / 800 字段 / 深度 40 / 数组抽查 200 条）——超了降级成 `any` 而不是卡死；失败只返回 `empty` / `bad-json` / `too-large` / `no-ddl` 这类可翻译的 code，文案交给 UI 层。
+*   新增 `tests/codegen.test.js`（54 条）：错误分支、四语言同输入、TS 字段与嵌套与依赖顺序、非法标识符加引号、Java 保留字改名、Go `package` 与 `json` tag 与指针、Python snake_case 与 `Optional`、DDL 的类型映射（`tinyint(1)` → 布尔、`decimal` → number、`datetime` → string）与多表与 PostgreSQL / 双引号写法，以及深层嵌套、5000 元素大数组计时、脏 rootName 不产出非法标识符。
+*   `tests/i18n.test.js` 纳入第五张字典 `GEN_I18N`（19 → 24 条），并新增「HTML 里用到的 `data-i18n` 键必须能在某张字典里找到」——这条就是 `convertShortcut` 的照妖镜，以后漏键会直接失败。
+*   冒烟测试 105 → 116 项：代码生成页的进入、自动装示例、切语言、自定义根类型名、坏 JSON 与无 `CREATE TABLE` 的错误态、DDL 小驼峰与表注释、清空复位、离开页面复原，以及导航直属项 4 → 5、「更多」菜单与溢出回收同步更新。
+*   文档补 `docs/screen-code.png`；README（中英）加「代码生成」一节与功能页一览里的一行，i18n 段改成「六页」。商店与清单描述重写成一句话说清六个页面（原段落逐页罗列太长），`.dbx-store.json` 的 tags 补 `codegen` / `typescript` / `golang` / `java` / `python` / `ddl`。
 
 ## [0.1.4]
 
