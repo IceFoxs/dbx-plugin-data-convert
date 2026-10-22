@@ -1246,6 +1246,209 @@ function check(name, fn) {
         if (doc.getElementById('navCodegen').classList.contains('active')) throw new Error('导航仍高亮');
     });
 
+    // ---------------- JSON 查询（JSONPath / jq） ----------------
+    var queryWs = doc.getElementById('queryWorkspace');
+    var queryInput = doc.getElementById('queryInput');
+    var queryOutput = doc.getElementById('queryOutput');
+    var queryExpr = doc.getElementById('queryExpr');
+    var queryTip = doc.getElementById('queryTip');
+    var queryOutBadge = doc.getElementById('queryOutBadge');
+    var queryPaths = doc.getElementById('queryPaths');
+
+    function queryEditors() {
+        return doc.querySelectorAll('#queryWorkspace .CodeMirror');
+    }
+
+    check('查询页编辑器懒创建：没进过这一页时不付代价', function () {
+        if (queryEditors().length !== 0) throw new Error('提前创建了 ' + queryEditors().length + ' 个');
+    });
+
+    check('导航可进入查询页', function () {
+        doc.getElementById('navQuery').click();
+        if (!queryWs.classList.contains('active')) throw new Error('查询页没显示');
+        if (!doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('工具栏没隐藏');
+        if (!doc.getElementById('navQuery').classList.contains('active')) throw new Error('导航没高亮');
+    });
+
+    check('空着进来装示例数据、填默认表达式并立刻出结果', function () {
+        if (queryInput.value.indexOf('"store"') < 0) throw new Error('没装示例数据');
+        if (queryExpr.value.indexOf('$') !== 0) throw new Error('表达式没填：' + queryExpr.value);
+        if (queryOutput.value.indexOf('Nigel Rees') < 0) throw new Error('没查出作者：' + queryOutput.value.slice(0, 80));
+        if (queryOutBadge.textContent !== '3') throw new Error('匹配条数徽标: ' + queryOutBadge.textContent);
+    });
+
+    check('数据 / 结果 / Schema 四块都换成 CodeMirror', function () {
+        if (queryEditors().length !== 4) throw new Error('编辑器数量 ' + queryEditors().length + '，应为 4');
+        if (!doc.querySelector('#queryWorkspace .CodeMirror-scroll')) throw new Error('CM 没初始化完');
+    });
+
+    check('匹配路径列表逐条列出，首行是第一条结果', function () {
+        if (queryPaths.hidden) throw new Error('路径列表没显示');
+        var rows = queryPaths.querySelectorAll('.query-path-row');
+        if (rows.length !== 3) throw new Error('路径行数 ' + rows.length);
+        var first = rows[0].querySelector('.p').textContent;
+        if (first !== '$.store.book[0].author') throw new Error('首行路径: ' + first);
+    });
+
+    check('点示例表达式立刻换结果', function () {
+        var chip = doc.querySelector('#querySamples .sample-chip[data-expr="$..price"]');
+        if (!chip) throw new Error('示例里没有 $..price');
+        chip.click();
+        if (queryExpr.value !== '$..price') throw new Error('表达式没进输入框');
+        if (queryOutBadge.textContent !== '4') throw new Error('价格条数 ' + queryOutBadge.textContent);
+    });
+
+    typeIn(queryExpr, '$.store.book[?(@.price < 10)].title');
+    await wait(320);
+
+    check('过滤器表达式生效', function () {
+        if (queryOutput.value.indexOf('Sayings') < 0) throw new Error('结果: ' + queryOutput.value.slice(0, 80));
+        if (queryOutBadge.textContent !== '2') throw new Error('条数 ' + queryOutBadge.textContent);
+    });
+
+    typeIn(queryExpr, '$.store.book[');
+    await wait(320);
+
+    check('表达式语法错误：输入框标红并给出提示', function () {
+        if (queryExpr.className.indexOf('is-bad') < 0) throw new Error('输入框没标红');
+        if (queryTip.textContent.indexOf('表达式') < 0) throw new Error('提示: ' + queryTip.textContent);
+        if (queryTip.className.indexOf('err') < 0) throw new Error('没标成错误态');
+    });
+
+    typeIn(queryExpr, '$.store.book[*].author');
+    typeIn(queryInput, '{oops');
+    await wait(320);
+
+    check('坏 JSON 给出提示且不产出结果', function () {
+        if (queryOutput.value !== '') throw new Error('出错还留着旧结果');
+        if (queryTip.textContent.indexOf('解析失败') < 0) throw new Error('提示: ' + queryTip.textContent);
+    });
+
+    typeIn(queryInput, '{"a":1,"b":[1,2]}');
+    await wait(320);
+
+    check('恢复合法 JSON 后重新出结果', function () {
+        if (queryTip.textContent.indexOf('没有匹配项') < 0) throw new Error('提示: ' + queryTip.textContent);
+        if (queryOutBadge.textContent !== '0') throw new Error('条数 ' + queryOutBadge.textContent);
+    });
+
+    // ---------------- JSON Schema 校验 ----------------
+    var schData = doc.getElementById('schData');
+    var schSchema = doc.getElementById('schSchema');
+    var schErrors = doc.getElementById('schErrors');
+    var schHint = doc.getElementById('schHint');
+
+    check('切到 Schema 子页：两个子页互斥显示', function () {
+        doc.querySelector('#queryTabs [data-tab="schema"]').click();
+        if (!doc.getElementById('querySchemaPane').classList.contains('active')) throw new Error('Schema 子页没显示');
+        if (doc.getElementById('queryPathPane').classList.contains('active')) throw new Error('查询子页没隐藏');
+    });
+
+    check('空着进来装一份示例并校验通过', function () {
+        if (schData.value.indexOf('"id"') < 0) throw new Error('没装示例数据');
+        if (schSchema.value.indexOf('"required"') < 0) throw new Error('没装示例 schema');
+        if (!schErrors.querySelector('.query-ok-row')) throw new Error('没显示通过行');
+        if (schHint.textContent.indexOf('通过') < 0) throw new Error('提示: ' + schHint.textContent);
+    });
+
+    typeIn(schData, '{"id":"不是数字"}');
+    await wait(420);
+
+    check('校验失败：错误列表给出路径与本地化的原因', function () {
+        var rows = schErrors.querySelectorAll('.query-error-row');
+        if (!rows.length) throw new Error('没有错误行');
+        var text = [].map.call(rows, function (r) { return r.textContent; }).join(' | ');
+        if (text.indexOf('类型应为') < 0) throw new Error('没报类型错: ' + text);
+        if (text.indexOf('缺少必填字段') < 0) throw new Error('没报缺字段: ' + text);
+        if (text.indexOf('$.id') < 0) throw new Error('没给出路径: ' + text);
+        if (schHint.textContent.indexOf('问题') < 0) throw new Error('提示没给问题数: ' + schHint.textContent);
+    });
+
+    check('生成 Schema：从数据反推并重写右栏', function () {
+        doc.getElementById('schInfer').click();
+        var parsed = JSON.parse(schSchema.value);
+        if (parsed.type !== 'object') throw new Error('推断类型: ' + parsed.type);
+        if (!parsed.properties || !parsed.properties.id) throw new Error('没有 id 属性');
+        if (parsed.properties.id.type !== 'string') throw new Error('id 类型: ' + parsed.properties.id.type);
+        if (!schErrors.querySelector('.query-ok-row')) throw new Error('反推的 schema 应当校验通过');
+    });
+
+    check('Schema 子页清空后回到待输入提示', function () {
+        doc.getElementById('queryClear').click();
+        if (schData.value !== '' || schSchema.value !== '') throw new Error('没清空');
+        if (schErrors.hidden !== true) throw new Error('错误列表没收起');
+    });
+
+    check('离开查询页后入口状态复原', function () {
+        doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
+        if (queryWs.classList.contains('active')) throw new Error('查询页仍在显示');
+        if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('工具栏仍隐藏');
+        if (doc.getElementById('navQuery').classList.contains('active')) throw new Error('导航仍高亮');
+    });
+
+    // ---------------- 转义工具集 ----------------
+    var escWs = doc.getElementById('escWorkspace');
+    var escInput = doc.getElementById('escInput');
+    var escOutput = doc.getElementById('escOutput');
+    var escTip = doc.getElementById('escTip');
+
+    check('转义页编辑器懒创建', function () {
+        if (doc.querySelectorAll('#escWorkspace .CodeMirror').length !== 0) throw new Error('提前创建了');
+    });
+
+    check('导航可进入转义页', function () {
+        doc.getElementById('navEscape').click();
+        if (!escWs.classList.contains('active')) throw new Error('转义页没显示');
+        if (!doc.getElementById('navEscape').classList.contains('active')) throw new Error('导航没高亮');
+    });
+
+    check('空着进来装示例并按 URL 编码', function () {
+        if (escInput.value.indexOf('https://') < 0) throw new Error('没装示例');
+        if (escOutput.value.indexOf('%E4%B8%AD') < 0) throw new Error('没编码中文: ' + escOutput.value.slice(0, 60));
+        if (doc.querySelectorAll('#escWorkspace .CodeMirror').length !== 2) throw new Error('编辑器应为 2 个');
+        if (doc.getElementById('escOutBadge').textContent !== 'URL') throw new Error('徽标: ' + doc.getElementById('escOutBadge').textContent);
+    });
+
+    check('八种转换类型都在选择条上', function () {
+        var kinds = [].map.call(doc.querySelectorAll('#escKinds .sample-chip'), function (c) { return c.dataset.kind; });
+        if (kinds.join(',') !== 'url,base64,html,json,unicode,hex,sql,regex') throw new Error('类型: ' + kinds.join(','));
+    });
+
+    check('切到 Base64 立刻换算法，徽标跟着走', function () {
+        doc.querySelector('#escKinds [data-kind="base64"]').click();
+        if (escOutput.value.indexOf('%') >= 0) throw new Error('还在用 URL 编码');
+        if (!/^[A-Za-z0-9+/=]+$/.test(escOutput.value)) throw new Error('输出不是 Base64: ' + escOutput.value.slice(0, 40));
+        if (doc.getElementById('escOutBadge').textContent !== 'Base64') throw new Error('徽标没跟着切');
+    });
+
+    check('对调：把结果搬回左边并转成解码，能还原原文', function () {
+        doc.getElementById('escFlip').click();
+        if (escOutput.value.indexOf('https://') !== 0) throw new Error('没解回原文: ' + escOutput.value.slice(0, 40));
+        var active = doc.querySelector('#escDirTabs .compare-tab.active');
+        if (active.dataset.dir !== 'decode') throw new Error('方向没切: ' + active.dataset.dir);
+    });
+
+    typeIn(escInput, '!!!not base64!!!');
+    await wait(320);
+
+    check('解码非法输入时给出提示且不产出结果', function () {
+        if (escOutput.value !== '') throw new Error('出错还留着旧结果');
+        if (escTip.textContent.indexOf('无法') < 0) throw new Error('提示: ' + escTip.textContent);
+        if (escTip.className.indexOf('err') < 0) throw new Error('没标成错误态');
+    });
+
+    check('转义页清空后回到待输入提示', function () {
+        doc.getElementById('escClear').click();
+        if (escInput.value !== '' || escOutput.value !== '') throw new Error('没清空');
+        if (escTip.textContent.indexOf('自动转换') < 0) throw new Error('提示没复位: ' + escTip.textContent);
+    });
+
+    check('离开转义页后入口状态复原', function () {
+        doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
+        if (escWs.classList.contains('active')) throw new Error('转义页仍在显示');
+        if (doc.getElementById('navEscape').classList.contains('active')) throw new Error('导航仍高亮');
+    });
+
     // 导航：7 个格式互转收进「格式转换」下拉，导航条上只剩 3 个单元
     var navEl = doc.getElementById('navLinks');
     var moreEl = doc.getElementById('navMore');
@@ -1263,8 +1466,8 @@ function check(name, fn) {
         if (convertMenu.querySelectorAll('a').length !== 7) {
             throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
         }
-        // 直属项：SQL 转换 / 表格转 JSON / 代码生成 / 图片 Base64 / JSON 对比
-        if (inlineNavLinks().length !== 5) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
+        // 直属项（从左到右）：JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / 代码生成 / 表格转 JSON / 查询校验
+        if (inlineNavLinks().length !== 7) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
         if (!doc.getElementById('navConvertTrigger')) throw new Error('缺少「格式转换」触发器');
         // 触发器直接显示当前这一对格式，而不是固定的「格式转换」
         var label = doc.getElementById('navConvertLabel').textContent.trim();
@@ -1313,7 +1516,7 @@ function check(name, fn) {
         if (!moreEl.classList.contains('show')) throw new Error('「更多」未出现');
         var names = [].map.call(moreMenu.querySelectorAll('a'), function (a) { return a.textContent.trim(); });
         // 收进「更多」的先后顺序取决于「非固定项先挪、固定项兜底」，这里只校验集合
-        var expect = ['SQL 转换', 'JSON 对比', '表格转 JSON', '代码生成', '图片 Base64'].sort().join('|');
+        var expect = ['SQL 转换', 'JSON 对比', '表格转 JSON', '代码生成', '图片 Base64', '查询校验', '转义工具'].sort().join('|');
         if (names.slice().sort().join('|') !== expect) {
             throw new Error('菜单项: ' + names.join(','));
         }
@@ -1337,20 +1540,20 @@ function check(name, fn) {
 
     check('「更多」里的页面入口照样能进对应页面', function () {
         var item = moreMenu.querySelector('a');
-        var label = item.textContent.trim();
+        var id = item.id;
         item.click();
-        if (label === 'SQL 转换') {
-            if (!doc.getElementById('sqlWorkspace').classList.contains('active')) throw new Error('未进入 SQL 页');
-        } else if (label === 'JSON 对比') {
-            if (!doc.getElementById('compareWorkspace').classList.contains('active')) throw new Error('未进入对比页');
-        } else if (label === '表格转 JSON') {
-            if (!doc.getElementById('sheetWorkspace').classList.contains('active')) throw new Error('未进入表格页');
-        } else if (label === '图片 Base64') {
-            if (!doc.getElementById('imageWorkspace').classList.contains('active')) throw new Error('未进入图片页');
-        } else if (label === '代码生成') {
-            if (!doc.getElementById('codeWorkspace').classList.contains('active')) throw new Error('未进入代码生成页');
-        } else {
-            throw new Error('菜单项不是页面入口: ' + label);
+        var pageOf = {
+            navSql: 'sqlWorkspace',
+            navCompare: 'compareWorkspace',
+            navSheet: 'sheetWorkspace',
+            navImage: 'imageWorkspace',
+            navCodegen: 'codeWorkspace',
+            navQuery: 'queryWorkspace',
+            navEscape: 'escWorkspace'
+        };
+        if (!pageOf[id]) throw new Error('菜单项不是页面入口: ' + item.textContent.trim());
+        if (!doc.getElementById(pageOf[id]).classList.contains('active')) {
+            throw new Error('未进入 ' + pageOf[id]);
         }
         if (moreEl.classList.contains('open')) throw new Error('选完未收起');
         // 回到转换页，后面的用例还要接着用
@@ -1365,7 +1568,7 @@ function check(name, fn) {
     check('宽度恢复后导航项全部回到导航条', function () {
         if (moreEl.classList.contains('show')) throw new Error('「更多」仍显示');
         if (moreMenu.querySelectorAll('a').length !== 0) throw new Error('菜单仍有残留');
-        if (inlineNavLinks().length !== 5) throw new Error('导航项数 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 7) throw new Error('导航项数 ' + inlineNavLinks().length);
         if (convertMenu.querySelectorAll('a').length !== 7) throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
     });
 

@@ -23,7 +23,18 @@
 *   **JSON ↔ HTML 表格**：对象数组 ⇄ `<table>`（含 `<thead>` / `<tbody>`、HTML 实体转义与反转义），没有 `<th>` 时自动生成 `column1` / `column2` 列名，偶尔要把数据贴进文档不用再手搓标签。
 *   **新格式也有语法着色**：从 CodeMirror 5.65.16 同版补了 toml / properties（给 INI）/ shell（给 `.env`）/ http（给 Headers）四个 mode，共 6.4 KB；HTML 表复用已有的 xml 模式，CSV / TSV / Query / Cookie 没有对应模式就走纯文本。输入按源格式上色、输出按目标格式上色，切一下两个下拉就换配色。
 *   **格式矩阵的错误文案也是 14 种语言**：新增第六张字典 `CONF_I18N`（26 键 × 14 语）。解析器只抛 `code` + 行列，文案由 UI 按当前语言取，超限提示里的上限数字从模块自己的 `LIMITS` 读，不写死在译文里。
+*   **查询校验页（JSONPath / jq + JSON Schema）**：导航栏新增「查询校验」入口，两个子页签——「JSON 查询」写表达式查数据，「Schema 校验」拿 Schema 验数据。查询结果单值直接输出那个值、多值输出 JSON 数组并标出命中条数，下方列出每个匹配的路径（最多 200 行），点一行即复制，查询结果顺手就能变成 JSON Pointer 或代码常量。
+*   **两种方言共用一套解析器**：JSONPath（`$` / `.key` / `['key']` / `[0]` / `[*]` / `..` 递归下降 / `[start:end:step]` 切片 / `[?(@.price < 10 && @.cat == "fiction")]` 过滤器，支持 `=~` 正则与 `&&` / `||` / `!`）与 jq 子集（`|` 管道、`,` 并集、`[]` 迭代）都认，按写法自动判定方言，不用先选模式；表达式写错会在输入框描红并在提示条里说明是「表达式写错」还是「数据不是合法 JSON」，不会静默返回空结果。
+*   **JSON Schema draft-07 子集校验**：`type` / `enum` / `const` / `format`，字符串（`minLength`、`maxLength`、`pattern`）、数字（`minimum`、`maximum`、`multipleOf`）、对象（`properties`、`required`、`additionalProperties`、`patternProperties`、`minProperties`）、数组（`items`、`contains`、`uniqueItems`、`minItems`）、`allOf` / `anyOf` / `oneOf` / `not`、`if` / `then` / `else`，以及本地 `$ref`（`#/definitions/…`，带访问栈，自引用 Schema 不会无限展开）。每条错误带实例路径、一句本地化说明和一个稳定错误码（`schema-type` / `schema-required` / `schema-format`…），最多列 200 条。
+*   **从数据反推 Schema**：一键把当前数据变成起点 Schema——类型推断、`required` 补齐、email / 日期 / UUID 猜出 `format`、数组元素跨项合并（`1` 与 `2.5` 合并成 number，混进字符串就退成不限类型），出来的东西可以直接改。
+*   **转义工具页（八种编码解码）**：导航栏新增「转义工具」入口，URL / Base64 / HTML / JSON 字符串 / `\uXXXX` / Hex / SQL 字面量 / 正则八种；「编码 / 解码」两档，一个「对调」按钮同时交换两个面板的内容和转换方向，做往返验证只要两下。
+*   **JSON 字符串转义是一等公民**：编码输出完整的 JSON 字面量（外层引号 + `\"` / `\\` / `\n` / `\t` / `\u0007` 这类控制字符），非 ASCII 保持可读而不是全变成 `\uXXXX`（要那个效果请用 Unicode 一档）；解码时带外层引号的完整字面量和裸的转义片段都认，后者才是从日志里复制出来的常见样子。
+*   **Base64 / Hex 按字节算，不经 Latin-1**：走手写的 UTF-8 编解码而不是 `btoa`，`中文` 出来是 `5Lit5paH` 而不是乱码，解回来逐字节一致、代理对也不丢；HTML / SQL / 正则只转义该转的、绝不重复转义（`O'Brien` → `O''Brien`，`[a-z]{2}` → `\[a-z\]\{2\}`），反向解码则保留其它种类的转义；输入不合法回错误码（Base64 长度不对、`\u` 后面不是四位十六进制等），不会闷头吐一串垃圾。
+*   **两张新字典也是 14 种语言**：`QUERY_I18N`（约 50 键）与 `ESC_I18N`（21 键，含 20 条 Schema 校验错误文案）一次补齐，八个页面的文案覆盖到同一水平。
 ### 🔧 修复 (Fixes)
+
+*   **Schema 子页的「校验」按钮被撑成一整行**：`.btn-primary` 带 `flex: 1`（在转换页是给整宽主按钮用的），放进选项行里就吃满整行、字也比同排的「生成 Schema」大一号，看着像表单只剩一个按钮。加一条 `.query-sub .sheet-options .btn` 的作用域规则，把这一行的按钮统一收成小胶囊，不动其它页面的主按钮。
+*   **导航项顺序重排**：之前每加一个页面都插在导航最前面，越加越乱（最近是两个新页顶在最前，`SQL 转换`、`表格转 JSON` 反而被推到中间）。现在从左到右固定为 **JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / 代码生成 / 表格转 JSON / 查询校验**；顺序仍由 `captureNavOrder()` 记在 `data-nav-idx` 上，窄屏收进「更多」的逻辑不受影响。
 
 *   **暗色主题下 Base64 输入 / 输出框是白底黑字**：两个 `<textarea>` 用的是 `background: transparent`，可滚动文本框会被浏览器提升成独立合成层，暗色下这一层按白底光栅化——整页都黑了，只有这一块刺眼。改成显式 `background-color: var(--bg-card)`，跟面板同色，深浅主题都不再错位。
 *   **其余 11 种语言的表格页 / 图片页文案是中文**：`SHEET_I18N` 与 `IMG_I18N` 之前只写了 zh-CN / zh-TW / en 三份，宿主 locale 是 ja / ko / ru / es… 时这两页会退到调用处的中文兜底——导航和通用按钮换了语言，页面正文还是中文。现在两张表补齐到 14 种语言（表格 56 键、图片 53 键），三张表的取值也统一成「当前语言 → 英文 → 主字典 → 中文兜底」，万一再缺键至少回退到英文。顺带把转换页的错误定位「第 N 行 第 M 列」从硬编码模板改成主字典里的 `errorLocLine` / `errorLocCol`，英文下显示 `line 3, column 5`、日文下是 `3 行目 5 列目`；英文 `sheetTipLimited` 少写了一个 `{n}`（“导出同样是 N 条”那半句没数字）也一并补上。
@@ -59,6 +70,14 @@
 *   `tests/i18n.test.js` 纳入第六张字典 `CONF_I18N`（24 → 28 条）。`ui.smoke.js` 118 → 129 条：两个下拉各 13 项、分组标题不可选、JSON → TOML / CSV / `.env` / Headers / HTML 的实际输出、TOML 解析失败显示译文而不是 `code`、输出编辑器 mode 跟着格式变。
 *   `.custom-select-options` 加 `max-height: 320px` + 内部滚动、`white-space: nowrap`，并新增 `.custom-option-group` 分组标题样式（小字、大写、不可点）。vendor 新增 4 个 mode（toml 1.3 KB / properties 1 KB / shell 2.8 KB / http 1.3 KB）。
 *   文档：中英 README 的「格式转换」一节重写（13 种格式逐条说明 + 双选择器）、功能页一览与目录结构同步；`docs/` 六张截图按新版本重拍。包体 307 → 328 KB（新增 confconv.js 与 4 个 mode、第六张字典）。复测冷启动 DOMContentLoaded 365 ms、JS 堆 9.5 MB、609 个节点（多出来的 74 个是下拉里新增的选项），进页面 62 ms，进出五次堆与节点数不变——新解析器不在首屏付费。
+*   新增 `ui/js/jsonpath.js`（748 行 / 27 KB，纯函数、零 DOM，UMD 导出 `window.DBXQuery`）：解析与求值一体，`parse` 出来的 plan 带方言标记，`$..a` 与 jq 的 `|`、`,`、`[]` 走同一套 `applyStep()`；结果同时带 `matches`（值）、路径（`$` 开头）与 `truncated`。`LIMITS` 集中管上限（表达式 2 000 字符 / 结果 1 000 条 / 访问 20 万节点 / 文本 2 M 字符）。过滤器内部走 `readSteps(soft)`——遇到字面量就停、把位置交还给比较运算符，否则 `@.price < 10` 里的 `10` 会被当成路径继续读下去。
+*   新增 `ui/js/schema.js`（619 行 / 25 KB，`window.DBXSchema`）：`validate()` 与 `infer()` 完全分开，前者只回 `code` + 具名参数（`{k}` 键名、`{n}` 期望、`{t}` 类型、`{v}` 值、`{p}` 模式、`{f}` 格式、`{a}` 实际、`{r}` 引用），文案交给 UI 按语言拼，加语言不用碰校验器；`$ref` 只认本地 pointer 并维护 `refStack`，自引用 / 互相引用的 Schema 直接跳过而不是爆栈；`LIMITS`（200 条错误 / 20 万节点 / 深度 64，反推 2 万节点 / 深度 12）。
+*   新增 `ui/js/escape.js`（436 行 / 16 KB，`window.DBXEscape`）：`convert(text, kind, dir)` 八种成对实现，`flip` 只换方向不换内容；`utf8Bytes()` / `bytesUtf8()` 手写按码点写、按 RFC 3629 还原（代理对拆回 UTF-16），不依赖 `btoa` / `TextEncoder`，长文本按 8 KB 一段 `fromCharCode` 拼接；失败只回 `esc-*` code，上限 2 M 字符。
+*   新增三个测试文件：`jsonpath.test.js` 51 条（两种方言、切片、递归下降、过滤器里的 `$` 与正则、路径格式、错误码、限流）、`schema.test.js` 50 条（每个关键字一组、组合与条件、`$ref`、循环数据靠深度上限收住、反推 Schema）、`escape.test.js` 36 条（八种往返、UTF-8 与 Node `Buffer` 逐字节对齐、非法输入、2 M 字符计时）。单测 574 → 646 条，`package.json` 与 `scripts/build.sh` 同步纳入。
+*   `tests/i18n.test.js` 纳入第七、第八张字典（28 → 36 条），`tests/ui.smoke.js` 129 → 154 条：查询页 12 条（进入、示例 chip、路径行可点复制、过滤器、表达式报错不落地、离开复原）、Schema 子页 5 条、转义页 8 条，导航直属项 5 → 7、「更多」菜单项集合与页面映射同步更新。
+*   性能实测（真实 Chrome，1440×900）：冷启动 `DOMContentLoaded` 513 ms、JS 堆 9.5 MB、717 节点（多出来的 108 个是两张新页的骨架），进查询页 140 ms、进转义页 96 ms；反复进出「格式转换 → 查询校验 → 转义工具」5 次，堆稳定在 9.5 MB、节点数 1 364 且从第二圈起不再增长。包体 336 → 374 KB（+38 KB，三个新模块 + 两张字典 + 两个页面）。三个模块都不在首屏付费：编辑器与示例都是进入页面时才建。
+*   文档：中英 README 加「查询校验」「转义工具」两节、功能页一览两行、目录结构三行，用例数同步成 646 / 154，i18n 段从「六页」改成「八页」；`docs/` 新增 `screen-query.png`、`screen-escape.png`，连同主图在内 7 张全部按当前导航重拍，`screen-*` 的引用与文件用脚本双向校验（无缺失、无未引用）。
+*   `manifest.json` / `.dbx-store.json`：描述改成一句话带上「JSONPath / jq 查询与 JSON Schema 校验、8 种转义工具」，tags 补 `jsonpath` / `jq` / `json-schema` / `query` / `escape` / `urlencode`（共 31 个），releaseNotes 重写。
 
 ## [0.1.4]
 

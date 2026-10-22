@@ -1,6 +1,6 @@
 # 数据转换 (Data Format Converter)
 
-一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties / TOML / INI / `.env` / CSV / TSV / Query / Headers / Cookie / HTML 共 13 种格式互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON、图片 ⇄ Base64，以及 JSON / `CREATE TABLE` 直接生成多语言模型代码。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
+一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties / TOML / INI / `.env` / CSV / TSV / Query / Headers / Cookie / HTML 共 13 种格式互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON、图片 ⇄ Base64、JSON / `CREATE TABLE` 直接生成多语言模型代码，外加 JSONPath / jq 查询、JSON Schema 校验与一组转义工具。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
 
 ![数据转换工作台](docs/screen.png)
 
@@ -14,6 +14,8 @@
 | **表格转 JSON** | `.xlsx` / `.csv` / `.tsv` → JSON 数组或 SQL `INSERT`，全程在浏览器里解析 |
 | **图片 Base64** | 图片 → DataURI / 纯 Base64 / CSS / HTML / Markdown，Base64（带前缀或裸串）→ 图片 |
 | **代码生成** | 一段 JSON 示例或 `CREATE TABLE` → TypeScript / Go / Java / Python 模型，嵌套结构自动拆成独立类型 |
+| **查询校验** | JSONPath / jq 表达式查 JSON，JSON Schema（draft-07）校验并给出路径 + 原因，还能从数据反推一份 Schema |
+| **转义工具** | URL / Base64 / HTML / JSON 字符串 / `\uXXXX` / Hex / SQL 字面量 / 正则，编码解码一键对调 |
 
 ## 格式转换
 
@@ -75,9 +77,30 @@
 
 ![代码生成页](docs/screen-code.png)
 
+## 查询校验
+
+- **两种方言共用一套解析器**——贴上文档、写个路径就行。JSONPath（`$`、`.key`、`['key']`、`[0]`、`[*]`、`..` 递归下降、`[start:end:step]` 切片、`[?(@.price < 10 && @.cat == "fiction")]` 过滤器，支持 `=~` 正则）和 jq 子集（`|` 管道、`,` 并集、`[]` 迭代）都认，按写法自动判断你用的是哪一种，不用选。
+- **结果能接着用**——只命中一个就直接输出那个值，命中多个输出 JSON 数组并标出条数。结果下方是**匹配路径列表**（最多 200 行，以 `$` 开头），点一行即复制该路径，查询结果顺手就能变成 JSON Pointer 或代码里的常量。
+- **JSON Schema 校验**——draft-07 子集：`type` / `enum` / `const` / `format`，字符串（`minLength`、`pattern` 等）、数字、对象（`properties`、`required`、`additionalProperties`、`patternProperties`）、数组（`items`、`contains`、`uniqueItems`、`minItems` 等）、`allOf` / `anyOf` / `oneOf` / `not`、`if` / `then` / `else`，以及本地 `$ref`（`#/definitions/…`，带访问栈，自引用 Schema 不会爆栈）。
+- **报错是给人读的**——每条错误都带实例路径、一句本地化说明和一个固定错误码（`schema-type`、`schema-required` 等），最多列 200 条，写错的 Schema 也能立刻给答复。
+- **反推 Schema**——一键把手上这段数据变成起点：类型推断好、`required` 补齐、邮箱 / 日期 / UUID 猜出 `format`、数组元素跨项合并。
+- 和别处一样有上限：输入 2 M 字符、结果 1 000 个节点、访问 200 000 个节点，超了就标「已截断」，不会把宿主拖住。
+
+![查询校验页](docs/screen-query.png)
+
+## 转义工具
+
+- 一页八种：**URL**、**Base64**、**HTML**、**JSON 字符串**、**`\uXXXX`**、**Hex**、**SQL 字面量**、**正则**，编码 / 解码两档，**对调**按钮一次把两个面板和方向一起换过去，随手就能做一次往返验证。
+- **JSON 字符串是一等公民**，不是格式转换的副产物：编码后是完整的 JSON 字面量，`"`、`\`、换行、制表符、控制字符（`\u0007` 这类）都会正确转义，中文保持可读而不是全变成 `\uXXXX`——要那个效果请用 **Unicode** 一档。解码时带外层引号的完整字面量和裸的转义片段都认，后者才是从日志里复制出来的常见样子。
+- **按字节算，不是 Latin-1**——Base64 与 Hex 走手写的 UTF-8 编解码而不是 `btoa`，`中文` 出来是 `5Lit5paH` 而不是乱码，解回来逐字节一致，代理对也不丢。
+- **HTML / SQL / 正则**只转义该转的、绝不重复转义（`O'Brien` → `O''Brien`，`[a-z]{2}` → `\[a-z\]\{2\}`），反向解码则保留其它种类的转义。
+- 输入不合法会回错误码（Base64 长度不对、`\u` 后面不是四位十六进制等），不会闷头吐出一串垃圾；超过 2 M 字符在入口拦下。
+
+![转义工具页](docs/screen-escape.png)
+
 ## 通用
 
-- **国际化**——14 种语言：zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。切换器里列出前三种，其余随宿主 locale 自动匹配；格式转换、对比、SQL、表格、图片、代码生成六页的文案都已覆盖全部 14 种，缺一条会退回英文而不是中文。
+- **国际化**——14 种语言：zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。切换器里列出前三种，其余随宿主 locale 自动匹配；八个页面（格式转换、对比、SQL、表格、图片、代码生成、查询校验、转义工具）的文案都已覆盖全部 14 种，连 20 条 Schema 校验错误也有译文，缺一条会退回英文而不是中文。
 - **主题适配**——跟随 DBX 宿主主题与 shadcn/ui 设计令牌，宿主只下发主题信息（不写 `data-dbx-theme`）或自定义调色板同样生效。首屏按宿主主题直接落定、不闪白底，明暗切换有 300 ms 整页过渡，`prefers-reduced-motion` 下自动关掉。
 - **剪贴板**——通过 DBX Host API 一键复制，没有宿主时走浏览器降级方案。
 - **离线**——无后端、无 CDN、无遥测；CodeMirror 与 YAML 库都打在包里。
@@ -97,12 +120,12 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## 构建与测试
 
 ```bash
-./scripts/build.sh test         # 全部用例（386 条）
+./scripts/build.sh test         # 全部用例（646 条）
 ./scripts/build.sh              # 先跑用例，再打包 dist/*.dbxp
 ./scripts/run.sh                # 等价于 build.sh dev
 
-npm test                        # 纯函数用例，无第三方依赖（386 条）
-npm install && npm run test:ui  # jsdom 页面接线冒烟（129 项）
+npm test                        # 纯函数用例，无第三方依赖（646 条）
+npm install && npm run test:ui  # jsdom 页面接线冒烟（154 项）
 ```
 
 Windows 下使用 `scripts\build.cmd`（需要 Git Bash）。
@@ -120,6 +143,9 @@ ui/js/xlsxread.js      .xlsx 读取 —— ZIP + DecompressionStream + XML 扫�
 ui/js/imgconv.js       图片 ↔ Base64 —— 魔数嗅探、规范化、SVG 源码编码
 ui/js/codegen.js       代码生成 —— 类型推断 + DDL 解析 + 四语言渲染
 ui/js/confconv.js      格式矩阵 —— TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML
+ui/js/jsonpath.js      JSONPath + jq 子集 —— 一套解析器、两种方言、匹配路径
+ui/js/schema.js        JSON Schema draft-07 子集 —— 校验错误 + 反推 Schema
+ui/js/escape.js        八种转义 —— URL / Base64 / HTML / JSON / Unicode / Hex / SQL / 正则
 tests/                 回归用例，直接 node 运行
 scripts/build.sh       package | dev | test
 ```

@@ -41,6 +41,9 @@
     <script src="js/imgconv.js"></script>
     <script src="js/codegen.js"></script>
     <script src="js/confconv.js"></script>
+    <script src="js/jsonpath.js"></script>
+    <script src="js/schema.js"></script>
+    <script src="js/escape.js"></script>
     <script>
         if (typeof xml2js === 'undefined' || typeof js2xml === 'undefined') {
             console.warn('xml-js 加载失败，将退回基础解析逻辑');
@@ -1148,11 +1151,14 @@
         }
         .compare-pane .editor-container { flex: 1 1 0; min-height: 0; }
 
-        /* ================= SQL 生成页 / 表格转 JSON 页 / 图片 Base64 页 ================= */
+        /* ================= SQL 生成页 / 表格转 JSON 页 / 图片 Base64 页
+           查询校验页 / 转义工具页 共用同一套「隐藏除非 active」的骨架 ================= */
         .sql-workspace,
         .sheet-workspace,
         .img-workspace,
-        .code-workspace {
+        .code-workspace,
+        .query-workspace,
+        .esc-workspace {
             display: none;
             flex: 1 1 0;
             flex-direction: column;
@@ -1162,7 +1168,9 @@
         .sql-workspace.active,
         .sheet-workspace.active,
         .img-workspace.active,
-        .code-workspace.active { display: flex; }
+        .code-workspace.active,
+        .query-workspace.active,
+        .esc-workspace.active { display: flex; }
         /* 选项行：引号、去重、每行一项、数字不加引号 */
         .sql-options {
             display: flex;
@@ -1216,6 +1224,144 @@
         @media (max-width: 900px) {
             .sql-options { order: 5; }
             .sql-extra { order: 6; }
+        }
+
+        /* 示例 chip 被选中时（转义页用它挑转换类型） */
+        .sample-chip.active {
+            color: var(--primary);
+            border-color: var(--primary);
+            background-color: var(--accent-bg);
+            font-weight: 500;
+        }
+
+        /* ================= JSON 查询 / Schema 校验页 ================= */
+        /* 两个子页互斥显示，各自都是「选项行 + 内容」的竖向布局 */
+        .query-sub {
+            display: none;
+            flex: 1 1 0;
+            flex-direction: column;
+            gap: 0.75rem;
+            min-height: 0;
+        }
+        .query-sub.active { display: flex; }
+        /* 选项行是工具栏不是表单：主按钮默认 flex:1 会吃掉整行，这里统一收成小胶囊 */
+        .query-sub .sheet-options .btn {
+            flex: 0 0 auto;
+            width: auto;
+            padding: 0.3rem 0.8rem;
+            font-size: 0.76rem;
+            border-radius: 999px;
+        }
+        .query-expr-input {
+            flex: 1 1 220px;
+            min-width: 150px;
+            max-width: 460px;
+            height: 26px;
+            padding: 0 0.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            color: var(--text-main);
+            background-color: var(--bg-base);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            transition: border-color 0.15s;
+        }
+        .query-expr-input::placeholder { color: var(--text-muted); }
+        .query-expr-input:focus { outline: none; border-color: var(--primary); }
+        .query-expr-input.is-bad { border-color: #b91c1c; }
+        [data-dbx-theme="dark"] .query-expr-input.is-bad { border-color: #fca5a5; }
+        /* 匹配路径列表：点一行复制路径。上限高度，长列表自己滚 */
+        .query-paths {
+            flex: 0 0 auto;
+            max-height: 30%;
+            overflow-y: auto;
+            padding: 0.3rem 0.4rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            background-color: var(--bg-card);
+        }
+        .query-paths[hidden] { display: none; }
+        .query-path-row {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+            padding: 0.12rem 0.3rem;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+        .query-path-row:hover { background-color: var(--accent-bg); }
+        .query-path-row .idx { flex: 0 0 auto; color: var(--text-muted); }
+        .query-path-row .p {
+            color: var(--text-main);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .query-path-row .v {
+            margin-left: auto;
+            max-width: 45%;
+            color: var(--text-muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        /* Schema 错误列表 */
+        .query-errors {
+            flex: 0 0 auto;
+            max-height: 30%;
+            overflow-y: auto;
+            padding: 0.3rem 0.4rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            background-color: var(--bg-card);
+        }
+        .query-errors[hidden] { display: none; }
+        .query-error-row {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+            padding: 0.12rem 0.3rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.72rem;
+        }
+        .query-error-row .path {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 40%;
+        }
+        .query-error-row .msg { color: var(--text-main); }
+        .query-error-row .code {
+            margin-left: auto;
+            flex: 0 0 auto;
+            font-family: var(--font-mono);
+            font-size: 0.66rem;
+            padding: 0 0.35rem;
+            border-radius: 999px;
+            background-color: var(--accent-bg);
+            color: var(--text-muted);
+        }
+        .query-ok-row {
+            padding: 0.3rem 0.4rem;
+            font-size: 0.74rem;
+            color: var(--text-muted);
+        }
+
+        /* ================= 转义工具页 ================= */
+        .esc-flip {
+            padding: 0.35rem 0.7rem;
+            font-size: 0.78rem;
+            border-radius: 999px;
+        }
+        @media (max-width: 900px) {
+            /* 窄屏优先保住类型选择，「对调」退到操作区后面 */
+            .esc-flip { order: 3; }
+            #escKinds { order: 2; flex: 1 1 100%; }
         }
 
         /* ================= 表格转 JSON 页 ================= */
@@ -1842,11 +1988,13 @@
         </div>
     </div>
     <nav class="nav-links" id="navLinks">
-        <a id="navSql" class="nav-sql" data-i18n="navSql">SQL 转换</a>
-        <a id="navSheet" class="nav-sheet" data-i18n="navSheet">表格转 JSON</a>
-        <a id="navCodegen" class="nav-code" data-i18n="navCodegen">代码生成</a>
-        <a id="navImage" class="nav-image" data-i18n="navImage">图片 Base64</a>
         <a id="navCompare" class="nav-compare" data-i18n="navCompare">JSON 对比</a>
+        <a id="navSql" class="nav-sql" data-i18n="navSql">SQL 转换</a>
+        <a id="navImage" class="nav-image" data-i18n="navImage">图片 Base64</a>
+        <a id="navEscape" class="nav-escape" data-i18n="navEscape">转义工具</a>
+        <a id="navCodegen" class="nav-code" data-i18n="navCodegen">代码生成</a>
+        <a id="navSheet" class="nav-sheet" data-i18n="navSheet">表格转 JSON</a>
+        <a id="navQuery" class="nav-query" data-i18n="navQuery">查询校验</a>
     </nav>
 
     <!-- 导航装不下时，多出来的项收到这里（见 layoutNav） -->
@@ -2455,6 +2603,152 @@
             </div>
         </div>
     </section>
+
+    <!-- ================= JSON 查询 / JSON Schema 校验 ================= -->
+    <section class="query-workspace" id="queryWorkspace">
+        <div class="compare-bar">
+            <div class="compare-tabs" id="queryTabs">
+                <button type="button" class="compare-tab active" data-tab="path" data-i18n="qTabPath">JSON 查询</button>
+                <button type="button" class="compare-tab" data-tab="schema" data-i18n="qTabSchema">Schema 校验</button>
+            </div>
+
+            <div class="compare-actions">
+                <button type="button" class="btn btn-outline" id="queryCopy" data-i18n="copyBtn">复制</button>
+                <button type="button" class="btn btn-outline" id="queryClear" data-i18n="clearBtn">清空</button>
+            </div>
+
+            <div class="compare-tip" id="queryTip"></div>
+        </div>
+
+        <!-- 子页 1：JSONPath / jq 表达式 -->
+        <div class="query-sub active" id="queryPathPane">
+            <div class="sheet-options">
+                <span class="compare-samples-label" data-i18n="qExprLabel">表达式</span>
+                <input id="queryExpr" class="query-expr-input" spellcheck="false" autocomplete="off" data-i18n-placeholder="qExprPlaceholder">
+                <span class="compare-samples-label" data-i18n="qSamplesLabel">示例</span>
+                <span class="compare-samples" id="querySamples"></span>
+                <span class="sheet-hint" id="queryHint"></span>
+            </div>
+
+            <div class="compare-grid">
+                <div class="compare-pane">
+                    <div class="pane-header">
+                        <div class="pane-title">
+                            <span data-i18n="qDataTitle">JSON 数据</span>
+                            <span class="pane-badge" id="queryInBadge">—</span>
+                        </div>
+                    </div>
+                    <div class="editor-container">
+                        <textarea id="queryInput" class="textarea" spellcheck="false" data-i18n-placeholder="qInputPlaceholder"></textarea>
+                    </div>
+                </div>
+
+                <div class="compare-pane">
+                    <div class="pane-header">
+                        <div class="pane-title">
+                            <span data-i18n="qResultTitle">查询结果</span>
+                            <span class="pane-badge" id="queryOutBadge">0</span>
+                        </div>
+                        <div class="pane-actions"><span class="sheet-size" id="queryOutSize"></span></div>
+                    </div>
+                    <div class="editor-container">
+                        <textarea id="queryOutput" class="textarea" readonly spellcheck="false" data-i18n-placeholder="qEmpty"></textarea>
+                    </div>
+                    <div class="query-paths" id="queryPaths" hidden></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 子页 2：JSON Schema 校验 -->
+        <div class="query-sub" id="querySchemaPane">
+            <div class="sheet-options">
+                <button type="button" class="btn btn-primary" id="schRun" data-i18n="qSchRun">校验</button>
+                <button type="button" class="btn btn-outline" id="schInfer" data-i18n="qSchInfer">生成 Schema</button>
+                <span class="compare-samples-label" data-i18n="cmpSamples">示例</span>
+                <span class="compare-samples" id="schSamples">
+                    <button type="button" class="sample-chip" data-sample="user" data-i18n="cmpSampleUser">用户信息</button>
+                    <button type="button" class="sample-chip" data-sample="api" data-i18n="cmpSampleApi">API响应</button>
+                </span>
+                <span class="sheet-hint" id="schHint"></span>
+            </div>
+
+            <div class="compare-grid">
+                <div class="compare-pane">
+                    <div class="pane-header">
+                        <div class="pane-title">
+                            <span data-i18n="qSchDataTitle">待校验数据</span>
+                            <span class="pane-badge" id="schDataBadge">—</span>
+                        </div>
+                    </div>
+                    <div class="editor-container">
+                        <textarea id="schData" class="textarea" spellcheck="false" data-i18n-placeholder="qSchDataPlaceholder"></textarea>
+                    </div>
+                </div>
+
+                <div class="compare-pane">
+                    <div class="pane-header">
+                        <div class="pane-title">
+                            <span data-i18n="qSchSchemaTitle">JSON Schema</span>
+                            <span class="pane-badge" id="schSchemaBadge">—</span>
+                        </div>
+                    </div>
+                    <div class="editor-container">
+                        <textarea id="schSchema" class="textarea" spellcheck="false" data-i18n-placeholder="qSchSchemaPlaceholder"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="query-errors" id="schErrors" hidden></div>
+        </div>
+    </section>
+
+    <!-- ================= 转义工具集 ================= -->
+    <section class="esc-workspace" id="escWorkspace">
+        <div class="compare-bar">
+            <div class="compare-tabs sql-seg" id="escDirTabs">
+                <button type="button" class="compare-tab active" data-dir="encode" data-i18n="escEncode">编码</button>
+                <button type="button" class="compare-tab" data-dir="decode" data-i18n="escDecode">解码</button>
+            </div>
+
+            <div class="compare-samples" id="escKinds"></div>
+
+            <button type="button" class="btn btn-outline esc-flip" id="escFlip" data-i18n="escFlip">对调</button>
+
+            <div class="compare-actions">
+                <button type="button" class="btn btn-outline" id="escCopy" data-i18n="copyBtn">复制</button>
+                <button type="button" class="btn btn-outline" id="escClear" data-i18n="clearBtn">清空</button>
+            </div>
+
+            <div class="compare-tip" id="escTip"></div>
+        </div>
+
+        <div class="compare-grid">
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="escInputTitle">原文</span>
+                        <span class="pane-badge" id="escInBadge">—</span>
+                    </div>
+                </div>
+                <div class="editor-container">
+                    <textarea id="escInput" class="textarea" spellcheck="false" data-i18n-placeholder="escInputPlaceholder"></textarea>
+                </div>
+            </div>
+
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span id="escOutTitle" data-i18n="escOutputTitle">结果</span>
+                        <span class="pane-badge" id="escOutBadge">URL</span>
+                    </div>
+                    <div class="pane-actions"><span class="sheet-size" id="escOutSize"></span></div>
+                </div>
+                <div class="editor-container">
+                    <textarea id="escOutput" class="textarea" readonly spellcheck="false" data-i18n-placeholder="escEmpty"></textarea>
+                </div>
+            </div>
+        </div>
+    </section>
 </main>
 
 <div id="toastContainer" class="toast-container"></div>
@@ -2903,7 +3197,9 @@
                 SQL_I18N[currentLang] || SQL_I18N.en || {},
                 SHEET_I18N[currentLang] || SHEET_I18N.en || {},
                 IMG_I18N[currentLang] || IMG_I18N.en || {},
-                GEN_I18N[currentLang] || GEN_I18N.en || {}
+                GEN_I18N[currentLang] || GEN_I18N.en || {},
+                QUERY_I18N[currentLang] || QUERY_I18N.en || {},
+                ESC_I18N[currentLang] || ESC_I18N.en || {}
             );
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
@@ -2938,6 +3234,9 @@
             if (typeof refreshImgI18n === 'function') refreshImgI18n();
             // 代码生成页的页签、占位符、统计文案同理
             if (typeof refreshCodeI18n === 'function') refreshCodeI18n();
+            // 查询页的两个子页（表达式提示、结果统计）与转义页的类型 chip
+            if (typeof refreshQueryI18n === 'function') refreshQueryI18n();
+            if (typeof refreshEscI18n === 'function') refreshEscI18n();
         }
 
         // 宿主（DBX）会给没写 title 的按钮补一个提示，用的却是宿主自己的词表：
@@ -3050,6 +3349,13 @@
         let sheetOutputEditor = null;
         let codeInputEditor = null;
         let codeOutputEditor = null;
+        // 查询页（数据 / 结果 / Schema 三块）与转义页的编辑器同样懒创建
+        let queryDataEditor = null;
+        let queryResultEditor = null;
+        let schDataEditor = null;
+        let schSchemaEditor = null;
+        let escInputEditor = null;
+        let escOutputEditor = null;
 
         // =========================================
         // CodeMirror 5 初始化 (本地离线 - 增强版)
@@ -3148,7 +3454,9 @@
         function syncEditorTheme() {
             const isDark = document.documentElement.getAttribute('data-dbx-theme') === 'dark';
             const theme = isDark ? 'material-darker' : 'default';
-            [inputEditor, outputEditor, diffLeftEditor, diffRightEditor, cmpLeftEditor, cmpRightEditor, sqlInputEditor, sqlOutputEditor, sheetOutputEditor, codeInputEditor, codeOutputEditor].forEach((cm) => {
+            [inputEditor, outputEditor, diffLeftEditor, diffRightEditor, cmpLeftEditor, cmpRightEditor,
+                sqlInputEditor, sqlOutputEditor, sheetOutputEditor, codeInputEditor, codeOutputEditor,
+                queryDataEditor, queryResultEditor, schDataEditor, schSchemaEditor, escInputEditor, escOutputEditor].forEach((cm) => {
                 if (!cm) return;
                 const switching = cm.getOption('theme') !== theme;
                 cm.setOption('theme', theme);
@@ -3310,11 +3618,23 @@
                 enterCodeMode();
                 return;
             }
+            // 「查询校验」是 JSONPath / jq 查询 + JSON Schema 校验的独立页
+            if (link.id === 'navQuery') {
+                enterQueryMode();
+                return;
+            }
+            // 「转义工具」是八种编码互转的独立页
+            if (link.id === 'navEscape') {
+                enterEscMode();
+                return;
+            }
             if (compareMode) exitCompareMode();
             if (sqlModeActive) exitSqlMode();
             if (sheetModeActive) exitSheetMode();
             if (imgModeActive) exitImageMode();
             if (codeModeActive) exitCodeMode();
+            if (queryModeActive) exitQueryMode();
+            if (escModeActive) exitEscMode();
             markConvertActive(link);
             clearTimeout(autoTimer);
             suppressAutoConvert = true;
@@ -8361,6 +8681,379 @@
             }
         };
 
+        /* JSON 查询（JSONPath / jq）与 Schema 校验页的文案。
+         * 引擎只回 code（query-* / schema-*），这里按语言取人类可读的那句。 */
+        const QUERY_I18N = {
+            'zh-CN': {
+                navQuery: '查询校验', qTabPath: 'JSON 查询', qTabSchema: 'Schema 校验',
+                qExprLabel: '表达式', qExprPlaceholder: '$.store.book[*].title', qSamplesLabel: '示例',
+                qDataTitle: 'JSON 数据', qResultTitle: '查询结果',
+                qInputPlaceholder: '粘贴 JSON，例如 {"store":{"book":[]}}',
+                qEmpty: '输入数据与表达式后自动查询',
+                qTipIdle: '输入 JSON 与表达式，即时查询', qTipOk: '匹配 {n} 项',
+                qTipEmpty: '没有匹配项', qTipTrunc: '匹配过多，仅显示前 {n} 项',
+                qErrEmpty: '请先输入 JSON 数据', qErrBadJson: 'JSON 解析失败',
+                qErrBadExpr: '表达式语法有误', qErrTooLarge: '数据超过 {n} 字符',
+                qSchDataTitle: '待校验数据', qSchSchemaTitle: 'JSON Schema',
+                qSchDataPlaceholder: '粘贴待校验的 JSON', qSchSchemaPlaceholder: '粘贴 JSON Schema',
+                qSchRun: '校验', qSchInfer: '生成 Schema',
+                qSchTipOk: '校验通过', qSchTipBad: '发现 {n} 个问题', qSchTipTrunc: '问题过多，仅显示前 {n} 个',
+                qSchEmpty: '请填写数据与 Schema', qSchBadSchema: 'Schema 解析失败', qSchBadData: '数据解析失败', 'schema-type': '类型应为 {t}，实际是 {a}', 'schema-required': '缺少必填字段 {k}', 'schema-enum': '不在允许的取值内', 'schema-const': '与常量不符', 'schema-format': '不符合 {f} 格式', 'schema-pattern': '不匹配 {p}', 'schema-min-length': '长度少于 {n}', 'schema-max-length': '长度超过 {n}', 'schema-minimum': '小于 {n}', 'schema-maximum': '大于 {n}', 'schema-min-items': '元素少于 {n}', 'schema-max-items': '元素多于 {n}', 'schema-unique-items': '存在重复元素', 'schema-additional': '未声明的字段 {k}', 'schema-anyof': '不满足任一候选', 'schema-oneof': '不满足任一候选', 'schema-oneof-multi': '同时满足多个候选', 'schema-not': '命中了禁止的约束', 'schema-bad-ref': '引用无法解析 {r}', 'schema-forbidden': '此处不允许有值'
+            },
+            'zh-TW': {
+                navQuery: '查詢校驗', qTabPath: 'JSON 查詢', qTabSchema: 'Schema 校驗',
+                qExprLabel: '運算式', qExprPlaceholder: '$.store.book[*].title', qSamplesLabel: '範例',
+                qDataTitle: 'JSON 資料', qResultTitle: '查詢結果',
+                qInputPlaceholder: '貼上 JSON，例如 {"store":{"book":[]}}',
+                qEmpty: '輸入資料與運算式後自動查詢',
+                qTipIdle: '輸入 JSON 與運算式，即時查詢', qTipOk: '符合 {n} 項',
+                qTipEmpty: '沒有符合的項目', qTipTrunc: '符合過多，僅顯示前 {n} 項',
+                qErrEmpty: '請先輸入 JSON 資料', qErrBadJson: 'JSON 解析失敗',
+                qErrBadExpr: '運算式語法有誤', qErrTooLarge: '資料超過 {n} 個字元',
+                qSchDataTitle: '待校驗資料', qSchSchemaTitle: 'JSON Schema',
+                qSchDataPlaceholder: '貼上待校驗的 JSON', qSchSchemaPlaceholder: '貼上 JSON Schema',
+                qSchRun: '校驗', qSchInfer: '產生 Schema',
+                qSchTipOk: '校驗通過', qSchTipBad: '發現 {n} 個問題', qSchTipTrunc: '問題過多，僅顯示前 {n} 個',
+                qSchEmpty: '請填寫資料與 Schema', qSchBadSchema: 'Schema 解析失敗', qSchBadData: '資料解析失敗', 'schema-type': '類型應為 {t}，實際是 {a}', 'schema-required': '缺少必填欄位 {k}', 'schema-enum': '不在允許的取值內', 'schema-const': '與常數不符', 'schema-format': '不符合 {f} 格式', 'schema-pattern': '不符合 {p}', 'schema-min-length': '長度少於 {n}', 'schema-max-length': '長度超過 {n}', 'schema-minimum': '小於 {n}', 'schema-maximum': '大於 {n}', 'schema-min-items': '元素少於 {n}', 'schema-max-items': '元素多於 {n}', 'schema-unique-items': '存在重複元素', 'schema-additional': '未宣告的欄位 {k}', 'schema-anyof': '不滿足任一候選', 'schema-oneof': '不滿足任一候選', 'schema-oneof-multi': '同時滿足多個候選', 'schema-not': '命中了禁止的約束', 'schema-bad-ref': '引用無法解析 {r}', 'schema-forbidden': '此處不允許有值'
+            },
+            'en': {
+                navQuery: 'Query', qTabPath: 'JSON query', qTabSchema: 'Schema check',
+                qExprLabel: 'Expression', qExprPlaceholder: '$.store.book[*].title', qSamplesLabel: 'Examples',
+                qDataTitle: 'JSON data', qResultTitle: 'Result',
+                qInputPlaceholder: 'Paste JSON, e.g. {"store":{"book":[]}}',
+                qEmpty: 'Add data and an expression to query',
+                qTipIdle: 'Type JSON and an expression — results update as you go', qTipOk: '{n} match(es)',
+                qTipEmpty: 'No matches', qTipTrunc: 'Too many matches — showing the first {n}',
+                qErrEmpty: 'Enter some JSON first', qErrBadJson: 'Could not parse the JSON',
+                qErrBadExpr: 'Expression syntax error', qErrTooLarge: 'Data exceeds {n} characters',
+                qSchDataTitle: 'Data', qSchSchemaTitle: 'JSON Schema',
+                qSchDataPlaceholder: 'Paste the JSON to validate', qSchSchemaPlaceholder: 'Paste a JSON Schema',
+                qSchRun: 'Validate', qSchInfer: 'Infer schema',
+                qSchTipOk: 'Valid', qSchTipBad: '{n} problem(s) found', qSchTipTrunc: 'Too many problems — showing the first {n}',
+                qSchEmpty: 'Fill in both data and schema', qSchBadSchema: 'Could not parse the schema', qSchBadData: 'Could not parse the data', 'schema-type': 'Expected {t}, got {a}', 'schema-required': 'Missing required field {k}', 'schema-enum': 'Not one of the allowed values', 'schema-const': 'Does not match the constant', 'schema-format': 'Not a valid {f}', 'schema-pattern': 'Does not match {p}', 'schema-min-length': 'Shorter than {n}', 'schema-max-length': 'Longer than {n}', 'schema-minimum': 'Less than {n}', 'schema-maximum': 'Greater than {n}', 'schema-min-items': 'Fewer than {n} items', 'schema-max-items': 'More than {n} items', 'schema-unique-items': 'Contains duplicates', 'schema-additional': 'Undeclared field {k}', 'schema-anyof': 'Matches none of the options', 'schema-oneof': 'Matches none of the options', 'schema-oneof-multi': 'Matches more than one option', 'schema-not': 'Matches a forbidden constraint', 'schema-bad-ref': 'Unresolved reference {r}', 'schema-forbidden': 'No value allowed here'
+            },
+            'az': {
+                navQuery: 'Sorğu', qTabPath: 'JSON sorğusu', qTabSchema: 'Schema yoxlaması',
+                qExprLabel: 'İfadə', qExprPlaceholder: '$.store.book[*].title', qSamplesLabel: 'Nümunələr',
+                qDataTitle: 'JSON məlumatı', qResultTitle: 'Nəticə',
+                qInputPlaceholder: 'JSON yapışdırın, məs. {"store":{"book":[]}}',
+                qEmpty: 'Sorğu üçün məlumat və ifadə daxil edin',
+                qTipIdle: 'JSON və ifadə yazın — nəticə dərhal yenilənir', qTipOk: '{n} uyğunluq',
+                qTipEmpty: 'Uyğunluq yoxdur', qTipTrunc: 'Çox uyğunluq — ilk {n} göstərilir',
+                qErrEmpty: 'Əvvəlcə JSON daxil edin', qErrBadJson: 'JSON oxunmadı',
+                qErrBadExpr: 'İfadədə sintaksis xətası', qErrTooLarge: 'Məlumat {n} simvolu aşır',
+                qSchDataTitle: 'Məlumat', qSchSchemaTitle: 'JSON Schema',
+                qSchDataPlaceholder: 'Yoxlanacaq JSON-u yapışdırın', qSchSchemaPlaceholder: 'JSON Schema yapışdırın',
+                qSchRun: 'Yoxla', qSchInfer: 'Schema yarat',
+                qSchTipOk: 'Etibarlıdır', qSchTipBad: '{n} problem tapıldı', qSchTipTrunc: 'Çox problem — ilk {n} göstərilir',
+                qSchEmpty: 'Həm məlumatı, həm schema-nı doldurun', qSchBadSchema: 'Schema oxunmadı', qSchBadData: 'Məlumat oxunmadı', 'schema-type': '{t} gözlənirdi, {a} gəldi', 'schema-required': '{k} sahəsi çatışmır', 'schema-enum': 'İcazəli dəyərlərdən deyil', 'schema-const': 'Sabitlə uyğun gəlmir', 'schema-format': '{f} formatına uyğun deyil', 'schema-pattern': '{p} ilə uyğun gəlmir', 'schema-min-length': '{n} simvoldan qısa', 'schema-max-length': '{n} simvoldan uzun', 'schema-minimum': '{n} dən kiçik', 'schema-maximum': '{n} dən böyük', 'schema-min-items': '{n} elementdən az', 'schema-max-items': '{n} elementdən çox', 'schema-unique-items': 'Təkrar element var', 'schema-additional': 'Naməlum sahə {k}', 'schema-anyof': 'Heç bir variantla uyğun gəlmir', 'schema-oneof': 'Heç bir variantla uyğun gəlmir', 'schema-oneof-multi': 'Birdən çox variantla uyğun gəlir', 'schema-not': 'Qadağan olunmuş şərtlə uyğun gəlir', 'schema-bad-ref': 'Referans açılmadı {r}', 'schema-forbidden': 'Burada dəyər olmamalıdır'
+            },
+            'es': {
+                navQuery: 'Consulta', qTabPath: 'Consulta JSON', qTabSchema: 'Validar Schema',
+                qExprLabel: 'Expresión', qExprPlaceholder: '$.store.book[*].title', qSamplesLabel: 'Ejemplos',
+                qDataTitle: 'Datos JSON', qResultTitle: 'Resultado',
+                qInputPlaceholder: 'Pega JSON, p. ej. {"store":{"book":[]}}',
+                qEmpty: 'Añade datos y una expresión para consultar',
+                qTipIdle: 'Escribe JSON y una expresión: el resultado se actualiza al instante', qTipOk: '{n} coincidencia(s)',
+                qTipEmpty: 'Sin coincidencias', qTipTrunc: 'Demasiadas coincidencias: se muestran las primeras {n}',
+                qErrEmpty: 'Introduce primero un JSON', qErrBadJson: 'No se pudo analizar el JSON',
+                qErrBadExpr: 'Error de sintaxis en la expresión', qErrTooLarge: 'Los datos superan {n} caracteres',
+                qSchDataTitle: 'Datos', qSchSchemaTitle: 'JSON Schema',
+                qSchDataPlaceholder: 'Pega el JSON a validar', qSchSchemaPlaceholder: 'Pega un JSON Schema',
+                qSchRun: 'Validar', qSchInfer: 'Generar schema',
+                qSchTipOk: 'Válido', qSchTipBad: 'Se encontraron {n} problema(s)', qSchTipTrunc: 'Demasiados problemas: se muestran los primeros {n}',
+                qSchEmpty: 'Rellena datos y schema', qSchBadSchema: 'No se pudo analizar el schema', qSchBadData: 'No se pudieron analizar los datos', 'schema-type': 'Se esperaba {t}, llegó {a}', 'schema-required': 'Falta el campo {k}', 'schema-enum': 'No está entre los valores permitidos', 'schema-const': 'No coincide con la constante', 'schema-format': 'No es un {f} válido', 'schema-pattern': 'No coincide con {p}', 'schema-min-length': 'Más corto que {n}', 'schema-max-length': 'Más largo que {n}', 'schema-minimum': 'Menor que {n}', 'schema-maximum': 'Mayor que {n}', 'schema-min-items': 'Menos de {n} elementos', 'schema-max-items': 'Más de {n} elementos', 'schema-unique-items': 'Hay elementos duplicados', 'schema-additional': 'Campo no declarado {k}', 'schema-anyof': 'No coincide con ninguna opción', 'schema-oneof': 'No coincide con ninguna opción', 'schema-oneof-multi': 'Coincide con varias opciones', 'schema-not': 'Cumple una restricción prohibida', 'schema-bad-ref': 'Referencia no resuelta {r}', 'schema-forbidden': 'Aquí no se permite ningún valor'
+            },
+            'id': {
+                navQuery: 'Query', qTabPath: 'Query JSON', qTabSchema: 'Cek Schema',
+                qExprLabel: 'Ekspresi', qExprPlaceholder: '$.store.book[*].title', qSamplesLabel: 'Contoh',
+                qDataTitle: 'Data JSON', qResultTitle: 'Hasil',
+                qInputPlaceholder: 'Tempel JSON, mis. {"store":{"book":[]}}',
+                qEmpty: 'Isi data dan ekspresi untuk mulai query',
+                qTipIdle: 'Tulis JSON dan ekspresi — hasil langsung diperbarui', qTipOk: '{n} kecocokan',
+                qTipEmpty: 'Tidak ada kecocokan', qTipTrunc: 'Terlalu banyak kecocokan — hanya {n} pertama yang ditampilkan',
+                qErrEmpty: 'Masukkan JSON terlebih dahulu', qErrBadJson: 'JSON tidak bisa diparse',
+                qErrBadExpr: 'Kesalahan sintaks ekspresi', qErrTooLarge: 'Data melebihi {n} karakter',
+                qSchDataTitle: 'Data', qSchSchemaTitle: 'JSON Schema',
+                qSchDataPlaceholder: 'Tempel JSON yang akan divalidasi', qSchSchemaPlaceholder: 'Tempel JSON Schema',
+                qSchRun: 'Validasi', qSchInfer: 'Buat schema',
+                qSchTipOk: 'Valid', qSchTipBad: 'Ditemukan {n} masalah', qSchTipTrunc: 'Terlalu banyak masalah — hanya {n} pertama ditampilkan',
+                qSchEmpty: 'Isi data dan schema', qSchBadSchema: 'Schema tidak bisa diparse', qSchBadData: 'Data tidak bisa diparse', 'schema-type': 'Seharusnya {t}, yang diberikan {a}', 'schema-required': 'Field wajib {k} tidak ada', 'schema-enum': 'Bukan salah satu nilai yang diizinkan', 'schema-const': 'Tidak sama dengan konstanta', 'schema-format': 'Bukan {f} yang valid', 'schema-pattern': 'Tidak cocok dengan {p}', 'schema-min-length': 'Kurang dari {n}', 'schema-max-length': 'Lebih dari {n}', 'schema-minimum': 'Kurang dari {n}', 'schema-maximum': 'Lebih dari {n}', 'schema-min-items': 'Kurang dari {n} elemen', 'schema-max-items': 'Lebih dari {n} elemen', 'schema-unique-items': 'Ada elemen duplikat', 'schema-additional': 'Field tak dikenal {k}', 'schema-anyof': 'Tidak cocok dengan semua opsi', 'schema-oneof': 'Tidak cocok dengan semua opsi', 'schema-oneof-multi': 'Cocok dengan lebih dari satu opsi', 'schema-not': 'Memenuhi batasan yang dilarang', 'schema-bad-ref': 'Referensi tak bisa dipecah {r}', 'schema-forbidden': 'Tidak boleh ada nilai di sini'
+            },
+            'it': {
+                navQuery: 'Query', qTabPath: 'Query JSON', qTabSchema: 'Controllo Schema',
+                qExprLabel: 'Espressione', qExprPlaceholder: '$.store.book[*].title', qSamplesLabel: 'Esempi',
+                qDataTitle: 'Dati JSON', qResultTitle: 'Risultato',
+                qInputPlaceholder: 'Incolla JSON, es. {"store":{"book":[]}}',
+                qEmpty: 'Inserisci dati ed espressione per eseguire la query',
+                qTipIdle: 'Scrivi JSON ed espressione: il risultato si aggiorna subito', qTipOk: '{n} corrispondenza/e',
+                qTipEmpty: 'Nessuna corrispondenza', qTipTrunc: 'Troppe corrispondenze — mostrate le prime {n}',
+                qErrEmpty: 'Inserisci prima un JSON', qErrBadJson: 'JSON non analizzabile',
+                qErrBadExpr: 'Errore di sintassi nell\'espressione', qErrTooLarge: 'I dati superano {n} caratteri',
+                qSchDataTitle: 'Dati', qSchSchemaTitle: 'JSON Schema',
+                qSchDataPlaceholder: 'Incolla il JSON da validare', qSchSchemaPlaceholder: 'Incolla un JSON Schema',
+                qSchRun: 'Valida', qSchInfer: 'Genera schema',
+                qSchTipOk: 'Valido', qSchTipBad: 'Trovati {n} problema/i', qSchTipTrunc: 'Troppi problemi — mostrati i primi {n}',
+                qSchEmpty: 'Compila dati e schema', qSchBadSchema: 'Schema non analizzabile', qSchBadData: 'Dati non analizzabili', 'schema-type': 'Atteso {t}, ricevuto {a}', 'schema-required': 'Manca il campo {k}', 'schema-enum': 'Non è tra i valori consentiti', 'schema-const': 'Non corrisponde alla costante', 'schema-format': 'Non è un {f} valido', 'schema-pattern': 'Non corrisponde a {p}', 'schema-min-length': 'Più corto di {n}', 'schema-max-length': 'Più lungo di {n}', 'schema-minimum': 'Minore di {n}', 'schema-maximum': 'Maggiore di {n}', 'schema-min-items': 'Meno di {n} elementi', 'schema-max-items': 'Più di {n} elementi', 'schema-unique-items': 'Contiene duplicati', 'schema-additional': 'Campo non dichiarato {k}', 'schema-anyof': 'Non corrisponde a nessuna opzione', 'schema-oneof': 'Non corrisponde a nessuna opzione', 'schema-oneof-multi': 'Corrisponde a più opzioni', 'schema-not': 'Soddisfa un vincolo vietato', 'schema-bad-ref': 'Riferimento non risolto {r}', 'schema-forbidden': 'Qui non è ammesso alcun valore'
+            },
+            'ja': {
+                navQuery: 'クエリ', qTabPath: 'JSON クエリ', qTabSchema: 'Schema 検証',
+                qExprLabel: '式', qExprPlaceholder: '$.store.book[*].title', qSamplesLabel: '例',
+                qDataTitle: 'JSON データ', qResultTitle: 'クエリ結果',
+                qInputPlaceholder: 'JSON を貼り付け（例: {"store":{"book":[]}}）',
+                qEmpty: 'データと式を入力すると自動でクエリします',
+                qTipIdle: 'JSON と式を入力するとその場で結果が出ます', qTipOk: '{n} 件ヒット',
+                qTipEmpty: 'ヒットなし', qTipTrunc: 'ヒットが多すぎるため最初の {n} 件のみ表示',
+                qErrEmpty: '先に JSON を入力してください', qErrBadJson: 'JSON を解析できません',
+                qErrBadExpr: '式の構文が正しくありません', qErrTooLarge: 'データが {n} 文字を超えています',
+                qSchDataTitle: '検証対象データ', qSchSchemaTitle: 'JSON Schema',
+                qSchDataPlaceholder: '検証する JSON を貼り付け', qSchSchemaPlaceholder: 'JSON Schema を貼り付け',
+                qSchRun: '検証', qSchInfer: 'Schema を生成',
+                qSchTipOk: '検証に合格しました', qSchTipBad: '{n} 件の問題があります', qSchTipTrunc: '問題が多すぎるため最初の {n} 件のみ表示',
+                qSchEmpty: 'データと Schema を入力してください', qSchBadSchema: 'Schema を解析できません', qSchBadData: 'データを解析できません', 'schema-type': '型が違います（期待 {t} / 実際 {a}）', 'schema-required': '必須フィールド {k} がありません', 'schema-enum': '許可された値ではありません', 'schema-const': '定数と一致しません', 'schema-format': '{f} 形式ではありません', 'schema-pattern': '{p} に一致しません', 'schema-min-length': '長さが {n} 未満です', 'schema-max-length': '長さが {n} を超えています', 'schema-minimum': '{n} より小さい', 'schema-maximum': '{n} より大きい', 'schema-min-items': '要素が {n} 個未満です', 'schema-max-items': '要素が {n} 個を超えています', 'schema-unique-items': '重複する要素があります', 'schema-additional': '未定義のフィールド {k}', 'schema-anyof': 'どの候補にも一致しません', 'schema-oneof': 'どの候補にも一致しません', 'schema-oneof-multi': '複数の候補に一致します', 'schema-not': '禁止された制約に一致します', 'schema-bad-ref': '参照を解決できません {r}', 'schema-forbidden': 'ここに値は置けません'
+            },
+            'ko': {
+                navQuery: '쿼리', qTabPath: 'JSON 쿼리', qTabSchema: '스키마 검증',
+                qExprLabel: '표현식', qExprPlaceholder: '$.store.book[*].title', qSamplesLabel: '예시',
+                qDataTitle: 'JSON 데이터', qResultTitle: '쿼리 결과',
+                qInputPlaceholder: 'JSON 붙여넣기 (예: {"store":{"book":[]}})',
+                qEmpty: '데이터와 표현식을 입력하면 자동 조회됩니다',
+                qTipIdle: 'JSON과 표현식을 입력하면 바로 결과가 나옵니다', qTipOk: '{n}건 일치',
+                qTipEmpty: '일치하는 항목 없음', qTipTrunc: '결과가 너무 많아 앞의 {n}건만 표시',
+                qErrEmpty: '먼저 JSON을 입력하세요', qErrBadJson: 'JSON을 파싱할 수 없습니다',
+                qErrBadExpr: '표현식 문법 오류', qErrTooLarge: '데이터가 {n}자를 초과했습니다',
+                qSchDataTitle: '검증할 데이터', qSchSchemaTitle: 'JSON Schema',
+                qSchDataPlaceholder: '검증할 JSON 붙여넣기', qSchSchemaPlaceholder: 'JSON Schema 붙여넣기',
+                qSchRun: '검증', qSchInfer: '스키마 생성',
+                qSchTipOk: '검증 통과', qSchTipBad: '문제 {n}건 발견', qSchTipTrunc: '문제가 너무 많아 앞의 {n}건만 표시',
+                qSchEmpty: '데이터와 스키마를 모두 입력하세요', qSchBadSchema: '스키마를 파싱할 수 없습니다', qSchBadData: '데이터를 파싱할 수 없습니다', 'schema-type': '타입이 다릅니다(기대 {t} / 실제 {a})', 'schema-required': '필수 필드 {k} 가 없습니다', 'schema-enum': '허용된 값이 아닙니다', 'schema-const': '상수와 일치하지 않습니다', 'schema-format': '{f} 형식이 아닙니다', 'schema-pattern': '{p} 와 일치하지 않습니다', 'schema-min-length': '길이가 {n} 보다 짧습니다', 'schema-max-length': '길이가 {n} 보다 깁니다', 'schema-minimum': '{n} 보다 작습니다', 'schema-maximum': '{n} 보다 큽니다', 'schema-min-items': '요소가 {n} 개보다 적습니다', 'schema-max-items': '요소가 {n} 개보다 많습니다', 'schema-unique-items': '중복된 요소가 있습니다', 'schema-additional': '선언되지 않은 필드 {k}', 'schema-anyof': '어느 후보에도 맞지 않습니다', 'schema-oneof': '어느 후보에도 맞지 않습니다', 'schema-oneof-multi': '여러 후보에 동시에 맞습니다', 'schema-not': '금지된 제약을 만족합니다', 'schema-bad-ref': '참조를 해석할 수 없습니다 {r}', 'schema-forbidden': '이 위치에는 값을 쓸 수 없습니다'
+            },
+            'pt': {
+                navQuery: 'Consulta', qTabPath: 'Consulta JSON', qTabSchema: 'Validar Schema',
+                qExprLabel: 'Expressão', qExprPlaceholder: '$.store.book[*].title', qSamplesLabel: 'Exemplos',
+                qDataTitle: 'Dados JSON', qResultTitle: 'Resultado',
+                qInputPlaceholder: 'Cole o JSON, ex. {"store":{"book":[]}}',
+                qEmpty: 'Informe os dados e uma expressão para consultar',
+                qTipIdle: 'Digite o JSON e a expressão — o resultado aparece na hora', qTipOk: '{n} correspondência(s)',
+                qTipEmpty: 'Sem correspondências', qTipTrunc: 'Muitas correspondências — mostrando as primeiras {n}',
+                qErrEmpty: 'Insira um JSON primeiro', qErrBadJson: 'Não foi possível analisar o JSON',
+                qErrBadExpr: 'Erro de sintaxe na expressão', qErrTooLarge: 'Os dados passam de {n} caracteres',
+                qSchDataTitle: 'Dados', qSchSchemaTitle: 'JSON Schema',
+                qSchDataPlaceholder: 'Cole o JSON a validar', qSchSchemaPlaceholder: 'Cole um JSON Schema',
+                qSchRun: 'Validar', qSchInfer: 'Gerar schema',
+                qSchTipOk: 'Válido', qSchTipBad: '{n} problema(s) encontrado(s)', qSchTipTrunc: 'Muitos problemas — mostrando os primeiros {n}',
+                qSchEmpty: 'Preencha dados e schema', qSchBadSchema: 'Não foi possível analisar o schema', qSchBadData: 'Não foi possível analisar os dados', 'schema-type': 'Esperado {t}, recebido {a}', 'schema-required': 'Falta o campo {k}', 'schema-enum': 'Não está entre os valores permitidos', 'schema-const': 'Não corresponde à constante', 'schema-format': 'Não é um {f} válido', 'schema-pattern': 'Não corresponde a {p}', 'schema-min-length': 'Menor que {n}', 'schema-max-length': 'Maior que {n}', 'schema-minimum': 'Menor que {n}', 'schema-maximum': 'Maior que {n}', 'schema-min-items': 'Menos de {n} itens', 'schema-max-items': 'Mais de {n} itens', 'schema-unique-items': 'Há itens duplicados', 'schema-additional': 'Campo não declarado {k}', 'schema-anyof': 'Não corresponde a nenhuma opção', 'schema-oneof': 'Não corresponde a nenhuma opção', 'schema-oneof-multi': 'Corresponde a mais de uma opção', 'schema-not': 'Satisfaz uma restrição proibida', 'schema-bad-ref': 'Referência não resolvida {r}', 'schema-forbidden': 'Nenhum valor permitido aqui'
+            },
+            'pl': {
+                navQuery: 'Zapytania', qTabPath: 'Zapytanie JSON', qTabSchema: 'Walidacja Schema',
+                qExprLabel: 'Wyrażenie', qExprPlaceholder: '$.store.book[*].title', qSamplesLabel: 'Przykłady',
+                qDataTitle: 'Dane JSON', qResultTitle: 'Wynik',
+                qInputPlaceholder: 'Wklej JSON, np. {"store":{"book":[]}}',
+                qEmpty: 'Podaj dane i wyrażenie, aby wykonać zapytanie',
+                qTipIdle: 'Wpisz JSON i wyrażenie — wynik pojawi się od razu', qTipOk: '{n} dopasowanie/a',
+                qTipEmpty: 'Brak dopasowań', qTipTrunc: 'Za dużo dopasowań — pokazano pierwsze {n}',
+                qErrEmpty: 'Najpierw wprowadź JSON', qErrBadJson: 'Nie udało się sparsować JSON-a',
+                qErrBadExpr: 'Błąd składni wyrażenia', qErrTooLarge: 'Dane przekraczają {n} znaków',
+                qSchDataTitle: 'Dane', qSchSchemaTitle: 'JSON Schema',
+                qSchDataPlaceholder: 'Wklej JSON do walidacji', qSchSchemaPlaceholder: 'Wklej JSON Schema',
+                qSchRun: 'Waliduj', qSchInfer: 'Wygeneruj schemat',
+                qSchTipOk: 'Poprawne', qSchTipBad: 'Znaleziono {n} problemów', qSchTipTrunc: 'Za dużo problemów — pokazano pierwsze {n}',
+                qSchEmpty: 'Uzupełnij dane i schemat', qSchBadSchema: 'Nie udało się sparsować schematu', qSchBadData: 'Nie udało się sparsować danych', 'schema-type': 'Oczekiwano {t}, otrzymano {a}', 'schema-required': 'Brak wymaganego pola {k}', 'schema-enum': 'Nie jest jedną z dozwolonych wartości', 'schema-const': 'Nie zgadza się ze stałą', 'schema-format': 'Nieprawidłowy format {f}', 'schema-pattern': 'Nie pasuje do {p}', 'schema-min-length': 'Krótsze niż {n}', 'schema-max-length': 'Dłuższe niż {n}', 'schema-minimum': 'Mniej niż {n}', 'schema-maximum': 'Więcej niż {n}', 'schema-min-items': 'Mniej niż {n} elementów', 'schema-max-items': 'Więcej niż {n} elementów', 'schema-unique-items': 'Zawiera duplikaty', 'schema-additional': 'Niezadeklarowane pole {k}', 'schema-anyof': 'Nie pasuje do żadnej opcji', 'schema-oneof': 'Nie pasuje do żadnej opcji', 'schema-oneof-multi': 'Pasuje do więcej niż jednej opcji', 'schema-not': 'Spełnia zabronione ograniczenie', 'schema-bad-ref': 'Nie rozwiązano referencji {r}', 'schema-forbidden': 'Tu nie może być wartości'
+            },
+            'ru': {
+                navQuery: 'Запросы', qTabPath: 'JSON-запрос', qTabSchema: 'Проверка схемы',
+                qExprLabel: 'Выражение', qExprPlaceholder: '$.store.book[*].title', qSamplesLabel: 'Примеры',
+                qDataTitle: 'JSON-данные', qResultTitle: 'Результат',
+                qInputPlaceholder: 'Вставьте JSON, напр. {"store":{"book":[]}}',
+                qEmpty: 'Введите данные и выражение для запроса',
+                qTipIdle: 'Введите JSON и выражение — результат появится сразу', qTipOk: 'Совпадений: {n}',
+                qTipEmpty: 'Совпадений нет', qTipTrunc: 'Слишком много совпадений — показаны первые {n}',
+                qErrEmpty: 'Сначала введите JSON', qErrBadJson: 'Не удалось разобрать JSON',
+                qErrBadExpr: 'Ошибка синтаксиса выражения', qErrTooLarge: 'Данные превышают {n} символов',
+                qSchDataTitle: 'Данные', qSchSchemaTitle: 'JSON Schema',
+                qSchDataPlaceholder: 'Вставьте JSON для проверки', qSchSchemaPlaceholder: 'Вставьте JSON Schema',
+                qSchRun: 'Проверить', qSchInfer: 'Создать схему',
+                qSchTipOk: 'Валидно', qSchTipBad: 'Найдено проблем: {n}', qSchTipTrunc: 'Слишком много проблем — показаны первые {n}',
+                qSchEmpty: 'Заполните данные и схему', qSchBadSchema: 'Не удалось разобрать схему', qSchBadData: 'Не удалось разобрать данные', 'schema-type': 'Ожидался тип {t}, получен {a}', 'schema-required': 'Нет обязательного поля {k}', 'schema-enum': 'Нет среди допустимых значений', 'schema-const': 'Не совпадает с константой', 'schema-format': 'Не соответствует формату {f}', 'schema-pattern': 'Не совпадает с {p}', 'schema-min-length': 'Короче {n}', 'schema-max-length': 'Длиннее {n}', 'schema-minimum': 'Меньше {n}', 'schema-maximum': 'Больше {n}', 'schema-min-items': 'Меньше {n} элементов', 'schema-max-items': 'Больше {n} элементов', 'schema-unique-items': 'Есть повторяющиеся элементы', 'schema-additional': 'Необъявленное поле {k}', 'schema-anyof': 'Не подходит ни под один вариант', 'schema-oneof': 'Не подходит ни под один вариант', 'schema-oneof-multi': 'Подходит под несколько вариантов', 'schema-not': 'Удовлетворяет запрещённому условию', 'schema-bad-ref': 'Ссылка не раскрывается {r}', 'schema-forbidden': 'Здесь не должно быть значения'
+            },
+            'th': {
+                navQuery: 'คิวรี', qTabPath: 'คิวรี JSON', qTabSchema: 'ตรวจสอบ Schema',
+                qExprLabel: 'นิพจน์', qExprPlaceholder: '$.store.book[*].title', qSamplesLabel: 'ตัวอย่าง',
+                qDataTitle: 'ข้อมูล JSON', qResultTitle: 'ผลลัพธ์',
+                qInputPlaceholder: 'วาง JSON เช่น {"store":{"book":[]}}',
+                qEmpty: 'ใส่ข้อมูลและนิพจน์เพื่อเริ่มคิวรี',
+                qTipIdle: 'พิมพ์ JSON และนิพจน์ —ผลลัพธ์อัปเดตทันที', qTipOk: 'ตรงกัน {n} รายการ',
+                qTipEmpty: 'ไม่พบรายการที่ตรงกัน', qTipTrunc: 'ตรงกันมากเกินไป — แสดง {n} รายการแรก',
+                qErrEmpty: 'กรุณาใส่ JSON ก่อน', qErrBadJson: 'แยกวิเคราะห์ JSON ไม่ได้',
+                qErrBadExpr: 'นิพจน์มีข้อผิดพลาดทางไวยากรณ์', qErrTooLarge: 'ข้อมูลเกิน {n} ตัวอักษร',
+                qSchDataTitle: 'ข้อมูล', qSchSchemaTitle: 'JSON Schema',
+                qSchDataPlaceholder: 'วาง JSON ที่ต้องการตรวจสอบ', qSchSchemaPlaceholder: 'วาง JSON Schema',
+                qSchRun: 'ตรวจสอบ', qSchInfer: 'สร้าง Schema',
+                qSchTipOk: 'ผ่านการตรวจสอบ', qSchTipBad: 'พบปัญหา {n} จุด', qSchTipTrunc: 'ปัญหามากเกินไป — แสดง {n} จุดแรก',
+                qSchEmpty: 'กรุณากรอกข้อมูลและ Schema', qSchBadSchema: 'แยกวิเคราะห์ Schema ไม่ได้', qSchBadData: 'แยกวิเคราะห์ข้อมูลไม่ได้', 'schema-type': 'ควรเป็น {t} แต่เป็น {a}', 'schema-required': 'ขาดฟิลด์ที่บังคับ {k}', 'schema-enum': 'ไม่ใช่ค่าที่อนุญาต', 'schema-const': 'ไม่ตรงกับค่าคงที่', 'schema-format': 'ไม่ตรงรูปแบบ {f}', 'schema-pattern': 'ไม่ตรงกับ {p}', 'schema-min-length': 'สั้นกว่า {n}', 'schema-max-length': 'ยาวกว่า {n}', 'schema-minimum': 'น้อยกว่า {n}', 'schema-maximum': 'มากกว่า {n}', 'schema-min-items': 'น้อยกว่า {n} รายการ', 'schema-max-items': 'มากกว่า {n} รายการ', 'schema-unique-items': 'มีรายการซ้ำกัน', 'schema-additional': 'ฟิลด์ที่ไม่ได้ประกาศ {k}', 'schema-anyof': 'ไม่ตรงกับตัวเลือกใดเลย', 'schema-oneof': 'ไม่ตรงกับตัวเลือกใดเลย', 'schema-oneof-multi': 'ตรงกับมากกว่าหนึ่งตัวเลือก', 'schema-not': 'ตรงตามเงื่อนไขที่ห้าม', 'schema-bad-ref': 'ไม่สามารถอ้างอิงได้ {r}', 'schema-forbidden': 'ไม่อนุญาตให้มีค่าที่นี่'
+            },
+            'tr': {
+                navQuery: 'Sorgu', qTabPath: 'JSON sorgusu', qTabSchema: 'Şema doğrulama',
+                qExprLabel: 'İfade', qExprPlaceholder: '$.store.book[*].title', qSamplesLabel: 'Örnekler',
+                qDataTitle: 'JSON verisi', qResultTitle: 'Sonuç',
+                qInputPlaceholder: 'JSON yapıştırın, ör. {"store":{"book":[]}}',
+                qEmpty: 'Sorgu için veri ve ifade girin',
+                qTipIdle: 'JSON ve ifadeyi yazın — sonuç anında güncellenir', qTipOk: '{n} eşleşme',
+                qTipEmpty: 'Eşleşme yok', qTipTrunc: 'Çok fazla eşleşme — ilk {n} gösteriliyor',
+                qErrEmpty: 'Önce JSON girin', qErrBadJson: 'JSON ayrıştırılamadı',
+                qErrBadExpr: 'İfadede sözdizimi hatası', qErrTooLarge: 'Veri {n} karakteri aşıyor',
+                qSchDataTitle: 'Veri', qSchSchemaTitle: 'JSON Schema',
+                qSchDataPlaceholder: 'Doğrulanacak JSON\'u yapıştırın', qSchSchemaPlaceholder: 'JSON Schema yapıştırın',
+                qSchRun: 'Doğrula', qSchInfer: 'Şema oluştur',
+                qSchTipOk: 'Geçerli', qSchTipBad: '{n} sorun bulundu', qSchTipTrunc: 'Çok fazla sorun — ilk {n} gösteriliyor',
+                qSchEmpty: 'Veri ve şemayı doldurun', qSchBadSchema: 'Şema ayrıştırılamadı', qSchBadData: 'Veri ayrıştırılamadı', 'schema-type': 'Beklenen {t}, gelen {a}', 'schema-required': 'Zorunlu alan eksik {k}', 'schema-enum': 'İzin verilen değerlerden değil', 'schema-const': 'Sabit ile uyuşmuyor', 'schema-format': 'Geçerli bir {f} değil', 'schema-pattern': '{p} ile uyuşmuyor', 'schema-min-length': '{n} karakterden kısa', 'schema-max-length': '{n} karakterden uzun', 'schema-minimum': '{n} değerinden küçük', 'schema-maximum': '{n} değerinden büyük', 'schema-min-items': '{n} öğeden az', 'schema-max-items': '{n} öğeden fazla', 'schema-unique-items': 'Yinelenen öğe var', 'schema-additional': 'Bildirilmeyen alan {k}', 'schema-anyof': 'Seçeneklerin hiçbiriyle uyuşmuyor', 'schema-oneof': 'Seçeneklerin hiçbiriyle uyuşmuyor', 'schema-oneof-multi': 'Birden fazla seçenekle uyuşuyor', 'schema-not': 'Yasaklanan kısıtı karşılıyor', 'schema-bad-ref': 'Referans çözülemedi {r}', 'schema-forbidden': 'Burada değer olamaz'
+            }
+        };
+
+        /* 转义工具页的文案。escape.js 只回 esc-* 的 code，这里按语言取。 */
+        const ESC_I18N = {
+            'zh-CN': {
+                navEscape: '转义工具', escKindUrl: 'URL', escKindBase64: 'Base64', escKindHtml: 'HTML',
+                escKindJson: 'JSON', escKindUnicode: 'Unicode', escKindHex: 'Hex', escKindSql: 'SQL', escKindRegex: '正则',
+                escEncode: '编码', escDecode: '解码', escFlip: '对调',
+                escInputTitle: '原文', escOutputTitle: '结果',
+                escInputPlaceholder: '输入要转换的文本',
+                escEmpty: '输入内容后自动转换',
+                escTipIdle: '输入内容后自动转换', escTipOk: '转换完成 · {n} 字符',
+                escErrBad: '无法按当前方式转换', escErrTooLarge: '内容超过 {n} 字符'
+            },
+            'zh-TW': {
+                navEscape: '轉義工具', escKindUrl: 'URL', escKindBase64: 'Base64', escKindHtml: 'HTML',
+                escKindJson: 'JSON', escKindUnicode: 'Unicode', escKindHex: 'Hex', escKindSql: 'SQL', escKindRegex: '正則',
+                escEncode: '編碼', escDecode: '解碼', escFlip: '對調',
+                escInputTitle: '原文', escOutputTitle: '結果',
+                escInputPlaceholder: '輸入要轉換的文字',
+                escEmpty: '輸入內容後自動轉換',
+                escTipIdle: '輸入內容後自動轉換', escTipOk: '轉換完成 · {n} 個字元',
+                escErrBad: '無法用目前的方式轉換', escErrTooLarge: '內容超過 {n} 個字元'
+            },
+            'en': {
+                navEscape: 'Escaping', escKindUrl: 'URL', escKindBase64: 'Base64', escKindHtml: 'HTML',
+                escKindJson: 'JSON', escKindUnicode: 'Unicode', escKindHex: 'Hex', escKindSql: 'SQL', escKindRegex: 'Regex',
+                escEncode: 'Encode', escDecode: 'Decode', escFlip: 'Swap',
+                escInputTitle: 'Source', escOutputTitle: 'Result',
+                escInputPlaceholder: 'Type or paste text to convert',
+                escEmpty: 'Converted output appears here',
+                escTipIdle: 'Type on the left — output updates as you go', escTipOk: 'Converted · {n} characters',
+                escErrBad: 'Cannot convert with the current mode', escErrTooLarge: 'Input exceeds {n} characters'
+            },
+            'az': {
+                navEscape: 'Escaping', escKindUrl: 'URL', escKindBase64: 'Base64', escKindHtml: 'HTML',
+                escKindJson: 'JSON', escKindUnicode: 'Unicode', escKindHex: 'Hex', escKindSql: 'SQL', escKindRegex: 'Regex',
+                escEncode: 'Kodla', escDecode: 'Dekodla', escFlip: 'Dəyiş',
+                escInputTitle: 'Mənbə', escOutputTitle: 'Nəticə',
+                escInputPlaceholder: 'Çevirmək üçün mətn daxil edin',
+                escEmpty: 'Nəticə burada görünəcək',
+                escTipIdle: 'Solda yazın — nəticə dərhal yenilənir', escTipOk: 'Çevrildi · {n} simvol',
+                escErrBad: 'Bu rejimdə çevirmək mümkün deyil', escErrTooLarge: 'Mətn {n} simvolu aşır'
+            },
+            'es': {
+                navEscape: 'Escape', escKindUrl: 'URL', escKindBase64: 'Base64', escKindHtml: 'HTML',
+                escKindJson: 'JSON', escKindUnicode: 'Unicode', escKindHex: 'Hex', escKindSql: 'SQL', escKindRegex: 'Regex',
+                escEncode: 'Codificar', escDecode: 'Decodificar', escFlip: 'Intercambiar',
+                escInputTitle: 'Original', escOutputTitle: 'Resultado',
+                escInputPlaceholder: 'Escribe o pega el texto a convertir',
+                escEmpty: 'Aquí aparecerá el resultado',
+                escTipIdle: 'Escribe a la izquierda: el resultado se actualiza al instante', escTipOk: 'Convertido · {n} caracteres',
+                escErrBad: 'No se puede convertir con el modo actual', escErrTooLarge: 'El texto supera {n} caracteres'
+            },
+            'id': {
+                navEscape: 'Escape', escKindUrl: 'URL', escKindBase64: 'Base64', escKindHtml: 'HTML',
+                escKindJson: 'JSON', escKindUnicode: 'Unicode', escKindHex: 'Hex', escKindSql: 'SQL', escKindRegex: 'Regex',
+                escEncode: 'Encode', escDecode: 'Decode', escFlip: 'Tukar',
+                escInputTitle: 'Sumber', escOutputTitle: 'Hasil',
+                escInputPlaceholder: 'Ketik atau tempel teks yang akan dikonversi',
+                escEmpty: 'Hasil konversi muncul di sini',
+                escTipIdle: 'Ketik di kiri — hasil langsung diperbarui', escTipOk: 'Dikonversi · {n} karakter',
+                escErrBad: 'Tidak bisa dikonversi dengan mode ini', escErrTooLarge: 'Teks melebihi {n} karakter'
+            },
+            'it': {
+                navEscape: 'Escape', escKindUrl: 'URL', escKindBase64: 'Base64', escKindHtml: 'HTML',
+                escKindJson: 'JSON', escKindUnicode: 'Unicode', escKindHex: 'Hex', escKindSql: 'SQL', escKindRegex: 'Regex',
+                escEncode: 'Codifica', escDecode: 'Decodifica', escFlip: 'Scambia',
+                escInputTitle: 'Originale', escOutputTitle: 'Risultato',
+                escInputPlaceholder: 'Scrivi o incolla il testo da convertire',
+                escEmpty: 'Il risultato apparirà qui',
+                escTipIdle: 'Scrivi a sinistra: il risultato si aggiorna subito', escTipOk: 'Convertito · {n} caratteri',
+                escErrBad: 'Impossibile convertire con la modalità corrente', escErrTooLarge: 'Il testo supera {n} caratteri'
+            },
+            'ja': {
+                navEscape: 'エスケープ', escKindUrl: 'URL', escKindBase64: 'Base64', escKindHtml: 'HTML',
+                escKindJson: 'JSON', escKindUnicode: 'Unicode', escKindHex: 'Hex', escKindSql: 'SQL', escKindRegex: '正規表現',
+                escEncode: 'エンコード', escDecode: 'デコード', escFlip: '入れ替え',
+                escInputTitle: '原文', escOutputTitle: '結果',
+                escInputPlaceholder: '変換するテキストを入力または貼り付け',
+                escEmpty: '変換結果はここに表示されます',
+                escTipIdle: '左側に入力するとすぐ変換されます', escTipOk: '変換完了 · {n} 文字',
+                escErrBad: '現在のモードでは変換できません', escErrTooLarge: 'テキストが {n} 文字を超えています'
+            },
+            'ko': {
+                navEscape: '이스케이프', escKindUrl: 'URL', escKindBase64: 'Base64', escKindHtml: 'HTML',
+                escKindJson: 'JSON', escKindUnicode: 'Unicode', escKindHex: 'Hex', escKindSql: 'SQL', escKindRegex: '정규식',
+                escEncode: '인코딩', escDecode: '디코딩', escFlip: '맞바꾸기',
+                escInputTitle: '원문', escOutputTitle: '결과',
+                escInputPlaceholder: '변환할 텍스트를 입력하거나 붙여넣기',
+                escEmpty: '변환 결과가 여기에 표시됩니다',
+                escTipIdle: '왼쪽에 입력하면 바로 변환됩니다', escTipOk: '변환 완료 · {n}자',
+                escErrBad: '현재 방식으로는 변환할 수 없습니다', escErrTooLarge: '내용이 {n}자를 초과했습니다'
+            },
+            'pt': {
+                navEscape: 'Escape', escKindUrl: 'URL', escKindBase64: 'Base64', escKindHtml: 'HTML',
+                escKindJson: 'JSON', escKindUnicode: 'Unicode', escKindHex: 'Hex', escKindSql: 'SQL', escKindRegex: 'Regex',
+                escEncode: 'Codificar', escDecode: 'Decodificar', escFlip: 'Trocar',
+                escInputTitle: 'Original', escOutputTitle: 'Resultado',
+                escInputPlaceholder: 'Digite ou cole o texto a converter',
+                escEmpty: 'O resultado aparecerá aqui',
+                escTipIdle: 'Digite à esquerda — o resultado sai na hora', escTipOk: 'Convertido · {n} caracteres',
+                escErrBad: 'Não é possível converter neste modo', escErrTooLarge: 'O texto passa de {n} caracteres'
+            },
+            'pl': {
+                navEscape: 'Escaping', escKindUrl: 'URL', escKindBase64: 'Base64', escKindHtml: 'HTML',
+                escKindJson: 'JSON', escKindUnicode: 'Unicode', escKindHex: 'Hex', escKindSql: 'SQL', escKindRegex: 'Regex',
+                escEncode: 'Koduj', escDecode: 'Dekoduj', escFlip: 'Zamień',
+                escInputTitle: 'Wejście', escOutputTitle: 'Wynik',
+                escInputPlaceholder: 'Wpisz lub wklej tekst do konwersji',
+                escEmpty: 'Tu pojawi się wynik',
+                escTipIdle: 'Pisz po lewej — wynik aktualizuje się na bieżąco', escTipOk: 'Przekonwertowano · {n} znaków',
+                escErrBad: 'Nie można przekonwertować w tym trybie', escErrTooLarge: 'Tekst przekracza {n} znaków'
+            },
+            'ru': {
+                navEscape: 'Экранирование', escKindUrl: 'URL', escKindBase64: 'Base64', escKindHtml: 'HTML',
+                escKindJson: 'JSON', escKindUnicode: 'Unicode', escKindHex: 'Hex', escKindSql: 'SQL', escKindRegex: 'Рег. выр.',
+                escEncode: 'Кодировать', escDecode: 'Декодировать', escFlip: 'Поменять',
+                escInputTitle: 'Исходный текст', escOutputTitle: 'Результат',
+                escInputPlaceholder: 'Введите или вставьте текст для преобразования',
+                escEmpty: 'Здесь появится результат',
+                escTipIdle: 'Пишите слева — результат обновляется сразу', escTipOk: 'Готово · {n} символов',
+                escErrBad: 'В этом режиме преобразовать нельзя', escErrTooLarge: 'Текст превышает {n} символов'
+            },
+            'th': {
+                navEscape: 'Escape', escKindUrl: 'URL', escKindBase64: 'Base64', escKindHtml: 'HTML',
+                escKindJson: 'JSON', escKindUnicode: 'Unicode', escKindHex: 'Hex', escKindSql: 'SQL', escKindRegex: 'Regex',
+                escEncode: 'เข้ารหัส', escDecode: 'ถอดรหัส', escFlip: 'สลับ',
+                escInputTitle: 'ต้นฉบับ', escOutputTitle: 'ผลลัพธ์',
+                escInputPlaceholder: 'พิมพ์หรือวางข้อความที่ต้องการแปลง',
+                escEmpty: 'ผลลัพธ์จะแสดงที่นี่',
+                escTipIdle: 'พิมพ์ด้านซ้าย — ผลลัพธ์อัปเดตทันที', escTipOk: 'แปลงแล้ว · {n} ตัวอักษร',
+                escErrBad: 'ไม่สามารถแปลงด้วยโหมดนี้ได้', escErrTooLarge: 'ข้อความเกิน {n} ตัวอักษร'
+            },
+            'tr': {
+                navEscape: 'Kaçış', escKindUrl: 'URL', escKindBase64: 'Base64', escKindHtml: 'HTML',
+                escKindJson: 'JSON', escKindUnicode: 'Unicode', escKindHex: 'Hex', escKindSql: 'SQL', escKindRegex: 'Regex',
+                escEncode: 'Kodla', escDecode: 'Kodu çöz', escFlip: 'Takas',
+                escInputTitle: 'Kaynak', escOutputTitle: 'Sonuç',
+                escInputPlaceholder: 'Dönüştürülecek metni yazın veya yapıştırın',
+                escEmpty: 'Sonuç burada görünecek',
+                escTipIdle: 'Sola yazın — sonuç anında güncellenir', escTipOk: 'Dönüştürüldü · {n} karakter',
+                escErrBad: 'Bu modda dönüştürülemiyor', escErrTooLarge: 'Metin {n} karakteri aşıyor'
+            }
+        };
+
         /* 格式矩阵（TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML）
          * 的错误文案。confconv.js 只抛 code + 行列，文案在这里按语言取。 */
         const CONF_I18N = {
@@ -9073,6 +9766,759 @@
             codeSampleText = '';
             codeApplySourceUi();
             codeIdle();
+        });
+
+        // =========================================
+        // 10. JSON 查询 / Schema 校验 与 转义工具
+        // =========================================
+        // 两张小表只装这两页自己的词：取不到再退到代码生成页的表，最后退主字典。
+        // 这样 genTipChars（"{n} 字符"）这类通用说法不用再翻一遍。
+        function qT(key, fallback) {
+            const table = QUERY_I18N[currentLang] || {};
+            const gen = GEN_I18N[currentLang] || {};
+            return table[key] || QUERY_I18N.en[key] || gen[key] || GEN_I18N.en[key] ||
+                (currentDict && currentDict[key]) || fallback || key;
+        }
+
+        function eT(key, fallback) {
+            const table = ESC_I18N[currentLang] || {};
+            const gen = GEN_I18N[currentLang] || {};
+            return table[key] || ESC_I18N.en[key] || gen[key] || GEN_I18N.en[key] ||
+                (currentDict && currentDict[key]) || fallback || key;
+        }
+
+        /** 把 {k} / {n} 这类具名 token 换成错误里的实际参数 */
+        function fillTokens(tpl, params) {
+            return String(tpl).replace(/\{(\w+)\}/g, (m, k) => (
+                params && params[k] !== undefined ? String(params[k]) : m
+            ));
+        }
+
+        const queryWorkspaceEl = document.getElementById('queryWorkspace');
+        const navQueryLink = document.getElementById('navQuery');
+        const queryTabs = document.getElementById('queryTabs');
+        const queryPathPane = document.getElementById('queryPathPane');
+        const querySchemaPane = document.getElementById('querySchemaPane');
+        const queryExpr = document.getElementById('queryExpr');
+        const querySamples = document.getElementById('querySamples');
+        const queryHint = document.getElementById('queryHint');
+        const queryInput = document.getElementById('queryInput');
+        const queryOutput = document.getElementById('queryOutput');
+        const queryInBadge = document.getElementById('queryInBadge');
+        const queryOutBadge = document.getElementById('queryOutBadge');
+        const queryOutSize = document.getElementById('queryOutSize');
+        const queryPaths = document.getElementById('queryPaths');
+        const queryTip = document.getElementById('queryTip');
+        const schData = document.getElementById('schData');
+        const schSchema = document.getElementById('schSchema');
+        const schDataBadge = document.getElementById('schDataBadge');
+        const schSchemaBadge = document.getElementById('schSchemaBadge');
+        const schErrors = document.getElementById('schErrors');
+        const schHint = document.getElementById('schHint');
+        const schSamples = document.getElementById('schSamples');
+
+        const escWorkspaceEl = document.getElementById('escWorkspace');
+        const navEscapeLink = document.getElementById('navEscape');
+        const escDirTabs = document.getElementById('escDirTabs');
+        const escKinds = document.getElementById('escKinds');
+        const escInput = document.getElementById('escInput');
+        const escOutput = document.getElementById('escOutput');
+        const escInBadge = document.getElementById('escInBadge');
+        const escOutBadge = document.getElementById('escOutBadge');
+        const escOutSize = document.getElementById('escOutSize');
+        const escTip = document.getElementById('escTip');
+
+        let queryModeActive = false;
+        let queryTab = 'path';
+        let queryTimer = null;
+        let escModeActive = false;
+        let escKind = 'url';
+        let escDir = 'encode';
+        let escTimer = null;
+        let querySampleText = '';
+        let schSampleText = '';
+
+        // 经典 bookstore：够复杂，能试出过滤、切片、递归下降
+        const QUERY_SAMPLE = JSON.stringify({
+            store: {
+                book: [
+                    { category: 'reference', author: 'Nigel Rees', title: 'Sayings of the Century', price: 8.95 },
+                    { category: 'fiction', author: 'Evelyn Waugh', title: 'Sword of Honour', price: 12.99 },
+                    { category: 'fiction', author: 'Herman Melville', title: 'Moby Dick', isbn: '0-553-21311-3', price: 8.99 }
+                ],
+                bicycle: { color: 'red', price: 19.95 }
+            },
+            expensive: 10
+        }, null, 2);
+
+        const SCH_SAMPLES = {
+            user: {
+                data: '{\n  "id": 1024,\n  "name": "Ada Lovelace",\n  "email": "ada@example.com",\n  "age": 36,\n  "active": true,\n  "tags": ["vip", "beta"]\n}',
+                schema: '{\n  "$schema": "http://json-schema.org/draft-07/schema#",\n  "type": "object",\n  "required": ["id", "name", "email"],\n  "properties": {\n    "id": { "type": "integer" },\n    "name": { "type": "string", "minLength": 1 },\n    "email": { "type": "string", "format": "email" },\n    "age": { "type": "integer", "minimum": 0 },\n    "active": { "type": "boolean" },\n    "tags": { "type": "array", "items": { "type": "string" } }\n  }\n}'
+            },
+            api: {
+                data: '{\n  "code": 0,\n  "message": "ok",\n  "data": {\n    "total": 2,\n    "list": [\n      { "id": 1, "title": "First", "published": true },\n      { "id": 2, "title": "Second", "published": false }\n    ]\n  }\n}',
+                schema: '{\n  "$schema": "http://json-schema.org/draft-07/schema#",\n  "type": "object",\n  "required": ["code", "data"],\n  "properties": {\n    "code": { "type": "integer" },\n    "message": { "type": "string" },\n    "data": {\n      "type": "object",\n      "required": ["total", "list"],\n      "properties": {\n        "total": { "type": "integer", "minimum": 0 },\n        "list": {\n          "type": "array",\n          "items": {\n            "type": "object",\n            "required": ["id", "title"],\n            "properties": {\n              "id": { "type": "integer" },\n              "title": { "type": "string" },\n              "published": { "type": "boolean" }\n            }\n          }\n        }\n      }\n    }\n  }\n}'
+            }
+        };
+
+        const ESC_SAMPLE = 'https://dbx.test/api?q=中文关键词&page=1';
+
+        /* ----------------------------- 查询子页 ----------------------------- */
+
+        function querySetTip(text, cls) {
+            queryTip.textContent = text || '';
+            queryTip.className = 'compare-tip' + (cls ? ' ' + cls : '');
+        }
+
+        function queryPreview(value) {
+            if (value === null) return 'null';
+            if (typeof value === 'object') {
+                const s = JSON.stringify(value);
+                return s.length > 48 ? s.slice(0, 48) + '…' : s;
+            }
+            const s = String(value);
+            return s.length > 48 ? s.slice(0, 48) + '…' : s;
+        }
+
+        // 路径列表最多渲染 200 行：再多也看不过来，DOM 却会实打实地涨
+        function queryRenderPaths(matches) {
+            queryPaths.innerHTML = '';
+            if (!matches.length) {
+                queryPaths.hidden = true;
+                return;
+            }
+            queryPaths.hidden = false;
+            const frag = document.createDocumentFragment();
+            const limit = Math.min(matches.length, 200);
+            for (let i = 0; i < limit; i++) {
+                const m = matches[i];
+                const row = document.createElement('div');
+                row.className = 'query-path-row';
+                const idx = document.createElement('span');
+                idx.className = 'idx';
+                idx.textContent = (i + 1) + '.';
+                const p = document.createElement('span');
+                p.className = 'p';
+                p.textContent = m.path;
+                const v = document.createElement('span');
+                v.className = 'v';
+                v.textContent = queryPreview(m.value);
+                row.appendChild(idx);
+                row.appendChild(p);
+                row.appendChild(v);
+                row.title = m.path;
+                row.addEventListener('click', async () => {
+                    try {
+                        await writeClipboardText(m.path);
+                        showToast(qT('toastCopySuccess', 'Copied'));
+                    } catch (err) {
+                        showToast(qT('toastCopyError', 'Copy failed'), 'error');
+                    }
+                });
+                frag.appendChild(row);
+            }
+            queryPaths.appendChild(frag);
+        }
+
+        function queryIdle() {
+            queryOutput.value = '';
+            queryOutSize.textContent = '';
+            queryOutBadge.textContent = '0';
+            queryRenderPaths([]);
+        }
+
+        function queryRun() {
+            const text = queryInput.value;
+            if (!text.trim()) {
+                queryIdle();
+                queryInBadge.textContent = '—';
+                querySetTip(qT('qTipIdle'));
+                return;
+            }
+            const limit = window.DBXQuery ? window.DBXQuery.LIMITS.text : 2 * 1024 * 1024;
+            if (text.length > limit) {
+                queryIdle();
+                querySetTip(qT('qErrTooLarge').replace('{n}', limit.toLocaleString()), 'err');
+                return;
+            }
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                queryIdle();
+                queryInBadge.textContent = '—';
+                queryTip.title = e && e.message ? e.message : '';
+                querySetTip(qT('qErrBadJson'), 'err');
+                return;
+            }
+            queryInBadge.textContent = 'JSON';
+            queryTip.title = '';
+            const expr = queryExpr.value;
+            if (!expr.trim()) {
+                queryIdle();
+                queryExpr.classList.remove('is-bad');
+                querySetTip(qT('qTipIdle'));
+                return;
+            }
+            let res;
+            try {
+                res = window.DBXQuery.query(data, expr);
+            } catch (e) {
+                queryIdle();
+                queryExpr.classList.add('is-bad');
+                querySetTip(qT('qErrBadExpr'), 'err');
+                return;
+            }
+            queryExpr.classList.remove('is-bad');
+            const values = res.matches.map((m) => m.value);
+            // 单值直接给值，多值给数组——一眼能看出"取到了什么"
+            const out = values.length === 1
+                ? JSON.stringify(values[0], null, 2)
+                : JSON.stringify(values, null, 2);
+            queryOutput.value = out;
+            queryOutBadge.textContent = String(res.count);
+            queryOutSize.textContent = qT('genTipChars').replace('{n}', out.length.toLocaleString());
+            queryRenderPaths(res.matches);
+            if (!res.count) {
+                querySetTip(qT('qTipEmpty'));
+            } else if (res.truncated) {
+                querySetTip(qT('qTipTrunc').replace('{n}', String(res.count)), 'diff');
+            } else {
+                querySetTip(qT('qTipOk').replace('{n}', String(res.count)), 'ok');
+            }
+        }
+
+        function querySchedule() {
+            clearTimeout(queryTimer);
+            queryTimer = setTimeout(queryRun, 220);
+        }
+
+        function queryRenderSamples() {
+            querySamples.innerHTML = '';
+            if (!window.DBXQuery) return;
+            window.DBXQuery.SAMPLES.forEach((expr) => {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'sample-chip';
+                chip.textContent = expr;
+                chip.dataset.expr = expr;
+                querySamples.appendChild(chip);
+            });
+        }
+
+        /* --------------------------- Schema 子页 --------------------------- */
+
+        function schSetTip(text, cls) {
+            schHint.textContent = text || '';
+            schHint.className = 'sheet-hint' + (cls ? ' compare-tip ' + cls : '');
+        }
+
+        function schMessage(err) {
+            const key = err.code;
+            const table = QUERY_I18N[currentLang] || {};
+            const tpl = table[key] || QUERY_I18N.en[key];
+            // 没翻译的 code 直接露出来：开发看 code 反而更快定位
+            if (!tpl) return err.code;
+            return fillTokens(tpl, err);
+        }
+
+        function schRender(errors, truncated) {
+            schErrors.innerHTML = '';
+            if (!errors || !errors.length) {
+                schErrors.hidden = false;
+                const ok = document.createElement('div');
+                ok.className = 'query-ok-row';
+                ok.textContent = qT('qSchTipOk');
+                schErrors.appendChild(ok);
+                return;
+            }
+            schErrors.hidden = false;
+            const frag = document.createDocumentFragment();
+            errors.forEach((err) => {
+                const row = document.createElement('div');
+                row.className = 'query-error-row';
+                const path = document.createElement('span');
+                path.className = 'path';
+                path.textContent = err.path || '$';
+                const msg = document.createElement('span');
+                msg.className = 'msg';
+                msg.textContent = schMessage(err);
+                const code = document.createElement('span');
+                code.className = 'code';
+                code.textContent = err.code;
+                row.appendChild(path);
+                row.appendChild(msg);
+                row.appendChild(code);
+                frag.appendChild(row);
+            });
+            schErrors.appendChild(frag);
+        }
+
+        function schClearResult() {
+            schErrors.innerHTML = '';
+            schErrors.hidden = true;
+        }
+
+        function schRun() {
+            const dataText = schData.value.trim();
+            const schemaText = schSchema.value.trim();
+            if (!dataText || !schemaText) {
+                schClearResult();
+                schDataBadge.textContent = dataText ? 'JSON' : '—';
+                schSchemaBadge.textContent = schemaText ? 'JSON' : '—';
+                schSetTip(qT('qSchEmpty'));
+                return;
+            }
+            let data;
+            let schema;
+            try {
+                data = JSON.parse(dataText);
+            } catch (e) {
+                schClearResult();
+                schDataBadge.textContent = '—';
+                schSetTip(qT('qSchBadData'), ' compare-tip err');
+                return;
+            }
+            try {
+                schema = JSON.parse(schemaText);
+            } catch (e) {
+                schClearResult();
+                schSchemaBadge.textContent = '—';
+                schSetTip(qT('qSchBadSchema'), ' compare-tip err');
+                return;
+            }
+            schDataBadge.textContent = 'JSON';
+            schSchemaBadge.textContent = 'JSON';
+            const res = window.DBXSchema.validate(data, schema);
+            schRender(res.errors, res.truncated);
+            if (res.ok) {
+                schSetTip(qT('qSchTipOk'), ' compare-tip ok');
+            } else if (res.truncated) {
+                schSetTip(qT('qSchTipTrunc').replace('{n}', String(res.errors.length)), ' compare-tip err');
+            } else {
+                schSetTip(qT('qSchTipBad').replace('{n}', String(res.errors.length)), ' compare-tip err');
+            }
+        }
+
+        function schInfer() {
+            const text = schData.value.trim();
+            if (!text) {
+                schSetTip(qT('qSchEmpty'));
+                return;
+            }
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                schSetTip(qT('qSchBadData'), ' compare-tip err');
+                return;
+            }
+            schSchema.value = JSON.stringify(window.DBXSchema.infer(data), null, 2);
+            schSchemaBadge.textContent = 'JSON';
+            schRun();
+        }
+
+        function schSchedule() {
+            clearTimeout(schTimer);
+            schTimer = setTimeout(schRun, 300);
+        }
+        let schTimer = null;
+
+        function schLoadSample(name) {
+            const pair = SCH_SAMPLES[name] || SCH_SAMPLES.user;
+            schSampleText = pair.data;
+            schData.value = pair.data;
+            schSchema.value = pair.schema;
+            schRun();
+        }
+
+        /* ----------------------------- 转义子页 ----------------------------- */
+
+        function escSetTip(text, cls) {
+            escTip.textContent = text || '';
+            escTip.className = 'compare-tip' + (cls ? ' ' + cls : '');
+        }
+
+        function escKindLabel(id) {
+            return eT('escKind' + id.charAt(0).toUpperCase() + id.slice(1), id);
+        }
+
+        function escRenderKinds() {
+            escKinds.innerHTML = '';
+            if (!window.DBXEscape) return;
+            window.DBXEscape.KINDS.forEach((k) => {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'sample-chip' + (k.id === escKind ? ' active' : '');
+                chip.textContent = escKindLabel(k.id);
+                chip.dataset.kind = k.id;
+                escKinds.appendChild(chip);
+            });
+        }
+
+        function escRun() {
+            const text = escInput.value;
+            escInBadge.textContent = text ? text.length.toLocaleString() : '—';
+            if (!text) {
+                escOutput.value = '';
+                escOutSize.textContent = '';
+                escSetTip(eT('escTipIdle'));
+                return;
+            }
+            const res = window.DBXEscape.convert(text, escKind, escDir);
+            if (!res.ok) {
+                escOutput.value = '';
+                escOutSize.textContent = '';
+                escSetTip(res.code === 'esc-too-large'
+                    ? eT('escErrTooLarge').replace('{n}', window.DBXEscape.LIMITS.chars.toLocaleString())
+                    : eT('escErrBad'), 'err');
+                return;
+            }
+            escOutput.value = res.text;
+            escOutSize.textContent = qT('genTipChars').replace('{n}', res.text.length.toLocaleString());
+            escSetTip(eT('escTipOk').replace('{n}', res.text.length.toLocaleString()), 'ok');
+        }
+
+        function escSchedule() {
+            clearTimeout(escTimer);
+            escTimer = setTimeout(escRun, 200);
+        }
+
+        function escSetKind(kind) {
+            if (!window.DBXEscape || window.DBXEscape.KIND_IDS.indexOf(kind) < 0) return;
+            escKind = kind;
+            escOutBadge.textContent = escKindLabel(kind);
+            escRenderKinds();
+            escRun();
+        }
+
+        function escSetDir(dir) {
+            if (dir !== 'encode' && dir !== 'decode') return;
+            escDir = dir;
+            escDirTabs.querySelectorAll('.compare-tab').forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.dir === dir);
+            });
+            escRun();
+        }
+
+        function escFlipSides() {
+            // 对调 = 把结果搬回左边并换个方向，正好用来验证「编回去是不是原文」
+            if (!escOutput.value) return;
+            escInput.value = escOutput.value;
+            escDir = window.DBXEscape ? window.DBXEscape.flip(escDir) : (escDir === 'encode' ? 'decode' : 'encode');
+            escDirTabs.querySelectorAll('.compare-tab').forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.dir === escDir);
+            });
+            escRun();
+        }
+
+        /* ----------------------------- 编辑器与页面切换 ----------------------------- */
+
+        function editorConfig(mode, placeholder, onRun) {
+            return Object.assign({}, commonConfig, {
+                mode: mode,
+                placeholder: placeholder || '',
+                extraKeys: Object.assign({}, commonConfig.extraKeys, {
+                    'Cmd-Enter': () => onRun(),
+                    'Ctrl-Enter': () => onRun()
+                })
+            });
+        }
+
+        // 查询页四个编辑器一次性建好：这一页的输入上限只有 2 M 字符，
+        // 且两栏同屏可见，拆成两次懒创建没有收益，只让切换时多一次布局抖动
+        function ensureQueryEditors() {
+            if (queryDataEditor) return;
+            queryDataEditor = CodeMirror.fromTextArea(queryInput, editorConfig('application/json', queryInput.placeholder, queryRun));
+            queryResultEditor = CodeMirror.fromTextArea(queryOutput, Object.assign(
+                editorConfig('application/json', queryOutput.placeholder, queryRun), { readOnly: true }));
+            schDataEditor = CodeMirror.fromTextArea(schData, editorConfig('application/json', schData.placeholder, schRun));
+            schSchemaEditor = CodeMirror.fromTextArea(schSchema, editorConfig('application/json', schSchema.placeholder, schRun));
+            queryDataEditor.on('change', () => {
+                const next = queryDataEditor.getValue();
+                if (queryInput.value !== next) queryInput.value = next;
+                querySchedule();
+            });
+            schDataEditor.on('change', () => {
+                const next = schDataEditor.getValue();
+                if (schData.value !== next) schData.value = next;
+                schSchedule();
+            });
+            schSchemaEditor.on('change', () => {
+                const next = schSchemaEditor.getValue();
+                if (schSchema.value !== next) schSchema.value = next;
+                schSchedule();
+            });
+            linkTextareaToEditor(queryInput, queryDataEditor);
+            linkTextareaToEditor(queryOutput, queryResultEditor);
+            linkTextareaToEditor(schData, schDataEditor);
+            linkTextareaToEditor(schSchema, schSchemaEditor);
+            syncEditorTheme();
+        }
+
+        function ensureEscEditors() {
+            if (escInputEditor) return;
+            escInputEditor = CodeMirror.fromTextArea(escInput, editorConfig('text/plain', escInput.placeholder, escRun));
+            escOutputEditor = CodeMirror.fromTextArea(escOutput, Object.assign(
+                editorConfig('text/plain', escOutput.placeholder, escRun), { readOnly: true }));
+            escInputEditor.on('change', () => {
+                const next = escInputEditor.getValue();
+                if (escInput.value !== next) escInput.value = next;
+                escSchedule();
+            });
+            linkTextareaToEditor(escInput, escInputEditor);
+            linkTextareaToEditor(escOutput, escOutputEditor);
+            syncEditorTheme();
+        }
+
+        function escSyncPlaceholders() {
+            if (!escInputEditor) return;
+            escInputEditor.setOption('placeholder', escInput.placeholder || '');
+            escOutputEditor.setOption('placeholder', escOutput.placeholder || '');
+        }
+
+        function querySyncPlaceholders() {
+            if (!queryDataEditor) return;
+            queryDataEditor.setOption('placeholder', queryInput.placeholder || '');
+            queryResultEditor.setOption('placeholder', queryOutput.placeholder || '');
+            schDataEditor.setOption('placeholder', schData.placeholder || '');
+            schSchemaEditor.setOption('placeholder', schSchema.placeholder || '');
+            queryExpr.placeholder = qT('qExprPlaceholder');
+        }
+
+        function queryApplyTab() {
+            queryTabs.querySelectorAll('.compare-tab').forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.tab === queryTab);
+            });
+            queryPathPane.classList.toggle('active', queryTab === 'path');
+            querySchemaPane.classList.toggle('active', queryTab === 'schema');
+            if (queryTab === 'path') {
+                querySetTip(queryInput.value.trim() ? queryTip.textContent : qT('qTipIdle'));
+            } else {
+                querySetTip(schHint.textContent || '');
+            }
+            requestAnimationFrame(() => {
+                if (queryDataEditor) {
+                    queryDataEditor.refresh();
+                    queryResultEditor.refresh();
+                    schDataEditor.refresh();
+                    schSchemaEditor.refresh();
+                }
+            });
+        }
+
+        function querySetTab(tab) {
+            if (tab !== 'path' && tab !== 'schema') return;
+            if (tab === queryTab) return;
+            queryTab = tab;
+            queryApplyTab();
+            if (tab === 'schema' && !schData.value.trim() && !schSchema.value.trim()) {
+                schLoadSample('user');
+            }
+        }
+
+        // 进入独立页前先收起「对比」内嵌视图——它挂在转换页的工作区上，不收会两页叠着显示
+        function exitDiffIfActive() {
+            if (!isDiffMode) return;
+            isDiffMode = false;
+            diffReport.classList.remove('show');
+            diffWorkspace.classList.remove('active');
+            toggleDiffBtn.textContent = currentDict.diffBtn || '对比差异';
+            toggleDiffBtn.classList.remove('btn-diff');
+        }
+
+        function enterQueryMode() {
+            if (isDiffMode) exitDiffIfActive();
+            if (compareMode) exitCompareMode();
+            if (sqlModeActive) exitSqlMode();
+            if (sheetModeActive) exitSheetMode();
+            if (imgModeActive) exitImageMode();
+            if (codeModeActive) exitCodeMode();
+            if (escModeActive) exitEscMode();
+            queryModeActive = true;
+            markConvertActive(null);
+            mainWorkspace.classList.add('hidden');
+            toolbarEl.classList.add('hidden');
+            ensureQueryEditors();
+            queryWorkspaceEl.classList.add('active');
+            navQueryLink.classList.add('active');
+            queryApplyTab();
+            if (!queryInput.value.trim()) {
+                querySampleText = QUERY_SAMPLE;
+                queryInput.value = QUERY_SAMPLE;
+                queryExpr.value = window.DBXQuery ? window.DBXQuery.SAMPLES[0] : '$.store.book[*].title';
+                queryRun();
+            } else {
+                queryRun();
+            }
+            requestAnimationFrame(() => {
+                queryDataEditor.refresh();
+                queryResultEditor.refresh();
+                schDataEditor.refresh();
+                schSchemaEditor.refresh();
+            });
+        }
+
+        function exitQueryMode() {
+            if (!queryModeActive) return;
+            queryModeActive = false;
+            clearTimeout(queryTimer);
+            clearTimeout(schTimer);
+            queryWorkspaceEl.classList.remove('active');
+            navQueryLink.classList.remove('active');
+            toolbarEl.classList.remove('hidden');
+            mainWorkspace.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                inputEditor.refresh();
+                outputEditor.refresh();
+            });
+        }
+
+        function enterEscMode() {
+            if (isDiffMode) exitDiffIfActive();
+            if (compareMode) exitCompareMode();
+            if (sqlModeActive) exitSqlMode();
+            if (sheetModeActive) exitSheetMode();
+            if (imgModeActive) exitImageMode();
+            if (codeModeActive) exitCodeMode();
+            if (queryModeActive) exitQueryMode();
+            escModeActive = true;
+            markConvertActive(null);
+            mainWorkspace.classList.add('hidden');
+            toolbarEl.classList.add('hidden');
+            ensureEscEditors();
+            escWorkspaceEl.classList.add('active');
+            navEscapeLink.classList.add('active');
+            escRenderKinds();
+            escOutBadge.textContent = escKindLabel(escKind);
+            if (!escInput.value.trim()) {
+                escInput.value = ESC_SAMPLE;
+                escRun();
+            } else {
+                escRun();
+            }
+            requestAnimationFrame(() => {
+                escInputEditor.refresh();
+                escOutputEditor.refresh();
+            });
+        }
+
+        function exitEscMode() {
+            if (!escModeActive) return;
+            escModeActive = false;
+            clearTimeout(escTimer);
+            escWorkspaceEl.classList.remove('active');
+            navEscapeLink.classList.remove('active');
+            toolbarEl.classList.remove('hidden');
+            mainWorkspace.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                inputEditor.refresh();
+                outputEditor.refresh();
+            });
+        }
+
+        function refreshQueryI18n() {
+            queryRenderSamples();
+            querySyncPlaceholders();
+            queryExpr.placeholder = qT('qExprPlaceholder');
+            if (queryModeActive) {
+                queryRun();
+                schRun();
+            }
+        }
+
+        function refreshEscI18n() {
+            escRenderKinds();
+            escOutBadge.textContent = escKindLabel(escKind);
+            escInput.placeholder = eT('escInputPlaceholder');
+            escOutput.placeholder = eT('escEmpty');
+            escSyncPlaceholders();
+            if (escModeActive) escRun();
+        }
+
+        queryTabs.addEventListener('click', (e) => {
+            const tab = e.target.closest('.compare-tab');
+            if (tab) querySetTab(tab.dataset.tab);
+        });
+        querySamples.addEventListener('click', (e) => {
+            const chip = e.target.closest('.sample-chip');
+            if (!chip) return;
+            queryExpr.value = chip.dataset.expr;
+            queryRun();
+        });
+        queryExpr.addEventListener('input', querySchedule);
+        queryExpr.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') queryRun();
+        });
+        schSamples.addEventListener('click', (e) => {
+            const chip = e.target.closest('.sample-chip');
+            if (chip) schLoadSample(chip.dataset.sample);
+        });
+        document.getElementById('schRun').addEventListener('click', schRun);
+        document.getElementById('schInfer').addEventListener('click', schInfer);
+        document.getElementById('queryCopy').addEventListener('click', async () => {
+            // 复制右侧那一栏：查询子页是结果，Schema 子页是 Schema
+            const text = queryTab === 'path' ? queryOutput.value : schSchema.value;
+            if (!text.trim()) {
+                showToast(qT('toastCopyError', 'Nothing to copy'), 'error');
+                return;
+            }
+            try {
+                await writeClipboardText(text);
+                showToast(qT('toastCopySuccess', 'Copied'));
+            } catch (err) {
+                showToast(qT('toastCopyError', 'Copy failed'), 'error');
+            }
+        });
+        document.getElementById('queryClear').addEventListener('click', () => {
+            clearTimeout(queryTimer);
+            clearTimeout(schTimer);
+            if (queryTab === 'path') {
+                queryInput.value = '';
+                querySampleText = '';
+                queryIdle();
+                queryInBadge.textContent = '—';
+                querySetTip(qT('qTipIdle'));
+            } else {
+                schData.value = '';
+                schSchema.value = '';
+                schSampleText = '';
+                schDataBadge.textContent = '—';
+                schSchemaBadge.textContent = '—';
+                schClearResult();
+                schSetTip(qT('qSchEmpty'));
+            }
+        });
+
+        escDirTabs.addEventListener('click', (e) => {
+            const tab = e.target.closest('.compare-tab');
+            if (tab) escSetDir(tab.dataset.dir);
+        });
+        escKinds.addEventListener('click', (e) => {
+            const chip = e.target.closest('.sample-chip');
+            if (chip) escSetKind(chip.dataset.kind);
+        });
+        document.getElementById('escFlip').addEventListener('click', escFlipSides);
+        document.getElementById('escCopy').addEventListener('click', async () => {
+            if (!escOutput.value.trim()) {
+                showToast(eT('toastCopyError', 'Nothing to copy'), 'error');
+                return;
+            }
+            try {
+                await writeClipboardText(escOutput.value);
+                showToast(eT('toastCopySuccess', 'Copied'));
+            } catch (err) {
+                showToast(eT('toastCopyError', 'Copy failed'), 'error');
+            }
+        });
+        document.getElementById('escClear').addEventListener('click', () => {
+            clearTimeout(escTimer);
+            escInput.value = '';
+            escOutput.value = '';
+            escOutSize.textContent = '';
+            escInBadge.textContent = '—';
+            escSetTip(eT('escTipIdle'));
         });
 
         renderLangMenu();

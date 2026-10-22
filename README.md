@@ -1,6 +1,6 @@
 # 数据转换 (Data Format Converter)
 
-A [DBX](https://dbxio.com) plugin that moves data between formats without leaving the workbench: JSON / YAML / XML / Properties conversion, a field-level diff, a batch-value SQL builder, Excel / CSV → JSON, Image ⇄ Base64, and JSON / `CREATE TABLE` straight into model code. Built from the **frontend-only (universal)** template — one cross-platform `.dbxp`, no native backend, no network calls, works offline.
+A [DBX](https://dbxio.com) plugin that moves data between formats without leaving the workbench: JSON / YAML / XML / Properties conversion, a field-level diff, a batch-value SQL builder, Excel / CSV → JSON, Image ⇄ Base64, JSON / `CREATE TABLE` straight into model code, JSONPath / jq queries with JSON Schema validation, and an escape toolbox. Built from the **frontend-only (universal)** template — one cross-platform `.dbxp`, no native backend, no network calls, works offline.
 
 ![Data Format Converter workbench](docs/screen.png)
 
@@ -16,6 +16,8 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 | **Sheet to JSON** | `.xlsx` / `.csv` / `.tsv` → JSON array or SQL `INSERT`, parsed entirely in the browser |
 | **Image ⇄ Base64** | Image → DataURI / raw Base64 / CSS / HTML / Markdown, and Base64 (prefixed or bare) back into a picture |
 | **Code Gen** | A JSON sample or a `CREATE TABLE` → TypeScript / Go / Java / Python models, nested structures split into their own types |
+| **Query & Validate** | JSONPath / jq expressions over a JSON document, JSON Schema (draft-07) validation with path + reason per error, one-click schema inference from data |
+| **Escape** | URL / Base64 / HTML / JSON string / `\uXXXX` / hex / SQL literal / regex — encode and decode, with a one-click direction flip |
 
 ## Convert
 
@@ -77,9 +79,30 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 ![Code generation page](docs/screen-code.png)
 
+## Query & Validate
+
+- **Two dialects, one parser** — paste a document, type a path. JSONPath (`$`, `.key`, `['key']`, `[0]`, `[*]`, `..` recursive descent, `[start:end:step]` slices, `[?(@.price < 10 && @.cat == "fiction")]` filters with `=~` regex) and a jq subset (`|` pipes, `,` unions, `[]` iteration) both work; which one you meant is detected from the syntax, so there is nothing to configure.
+- **Results you can act on** — a single match prints the value itself, several print as a JSON array with the match count on the badge. Under the result sits a **path list** (up to 200 rows, `$`-rooted), and clicking a row copies that path — handy for turning a query into a JSON Pointer or a code constant.
+- **JSON Schema validation** — draft-07 subset: `type` / `enum` / `const` / `format`, string (`minLength`, `pattern`…), number, object (`properties`, `required`, `additionalProperties`, `patternProperties`), array (`items`, `contains`, `uniqueItems`, `minItems`…), `allOf` / `anyOf` / `oneOf` / `not`, `if` / `then` / `else`, and local `$ref` (`#/definitions/…`, with a visited stack so a self-referencing schema cannot explode).
+- **Errors are readable, not a wall of text** — every error carries the instance path, a localized sentence and a stable code chip (`schema-type`, `schema-required`…), capped at 200 so a hopeless schema still answers instantly.
+- **Schema inference** — one click turns the data you already have into a starting-point schema: types inferred, `required` filled in, `format` guessed for emails / dates / UUIDs, array items merged across elements.
+- Bounded like everything else: 2 M characters of input, 1 000 result nodes, 200 000 visited nodes — past that the answer is marked truncated instead of the host stalling.
+
+![Query and validate page](docs/screen-query.png)
+
+## Escape toolbox
+
+- Eight kinds in one page — **URL**, **Base64**, **HTML**, **JSON string**, **`\uXXXX`**, **hex**, **SQL literal**, **regex** — with an encode / decode switch and a **flip** button that swaps the two panes and the direction in one click, so a round-trip check takes two clicks.
+- **JSON string** is a first-class kind, not a side effect of the converter: encoding wraps the text in a JSON literal and escapes `"`, `\` and control characters (`\n`, `\t`, `\u0007`…), leaving CJK and other non-ASCII readable instead of turning everything into `\uXXXX` — that is what the **Unicode** kind is for. Decoding accepts both a full literal (with the outer quotes) and a bare escaped fragment, which is what you usually have after copying from a log line.
+- **Encoding is byte-correct, not Latin-1** — Base64 and hex go through a hand-written UTF-8 encoder / decoder rather than `btoa`, so `中文` comes back as `5Lit5paH` instead of mojibake, and decoding restores the text exactly, surrogate pairs included.
+- **HTML / SQL / regex** escape only what has to be escaped and never double-escape (`O'Brien` → `O''Brien`, `[a-z]{2}` → `\[a-z\]\{2\}`), while the decoders leave other kinds of escapes intact.
+- Invalid input fails with a code (a bad Base64 length, a `\u` without four hex digits…) instead of silently producing garbage, and inputs beyond 2 M characters are rejected up front.
+
+![Escape toolbox page](docs/screen-escape.png)
+
 ## Everywhere
 
-- **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az. Every page (convert, compare, SQL, sheet, image, code gen) is translated into all 14.
+- **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az. Every page (convert, compare, SQL, sheet, image, code gen, query, escape) is translated into all 14, including the 20 schema-validation messages.
 - **Theme adaptability** — follows the DBX host theme and shadcn/ui tokens, including hosts that only send theme metadata (no `data-dbx-theme`) and custom palettes. First paint already matches the host, theme switches cross-fade over 300 ms, and `prefers-reduced-motion` turns the animation off.
 - **Clipboard** — one-click copy through the DBX host API, with a browser fallback.
 - **Offline** — no backend, no CDN, no telemetry; CodeMirror and the YAML library ship inside the package.
@@ -99,12 +122,12 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## Build & test
 
 ```bash
-./scripts/build.sh test         # all suites (386 cases)
+./scripts/build.sh test         # all suites (646 cases)
 ./scripts/build.sh              # run tests, then package dist/*.dbxp
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
-npm test                        # pure-function suites, no dependencies (386 cases)
-npm install && npm run test:ui  # jsdom smoke test of the UI wiring (129 checks)
+npm test                        # pure-function suites, no dependencies (646 cases)
+npm install && npm run test:ui  # jsdom smoke test of the UI wiring (154 checks)
 ```
 
 On Windows use `scripts\build.cmd` instead (requires Git Bash).
@@ -122,6 +145,9 @@ ui/js/xlsxread.js      .xlsx reader — ZIP + DecompressionStream + XML scan, no
 ui/js/imgconv.js       image ↔ Base64 — magic-byte sniffing, normalisation, SVG text
 ui/js/codegen.js       code gen — type inference + DDL parsing + 4-language renderers
 ui/js/confconv.js      format matrix — TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML
+ui/js/jsonpath.js      JSONPath + jq subset — one parser, two dialects, result paths
+ui/js/schema.js        JSON Schema draft-07 subset — validation errors + inference
+ui/js/escape.js        8 escape kinds — URL / Base64 / HTML / JSON / Unicode / hex / SQL / regex
 tests/                 regression suite, run with plain node
 scripts/build.sh       package | dev | test
 ```
