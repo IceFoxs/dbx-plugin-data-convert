@@ -60,9 +60,20 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 ![Image to Base64 page](docs/screen-image.png)
 
+## Code generation
+
+- Paste a **JSON sample** on the left and the model appears on the right: nested objects and arrays of objects become their own types (dependencies are emitted first), duplicate shapes merge, and fields missing from some samples turn optional.
+- Or switch to **SQL DDL**: paste a `CREATE TABLE` (MySQL backticks, PostgreSQL double quotes / `serial` all understood) and get the matching model. Column names become lower camel case, table and column comments are carried into the code, table prefixes like `t_` / `tb_` are dropped from type names, and primary keys or index clauses never become fields. Several `CREATE TABLE` statements produce several types at once.
+- Switch language at any time: **TypeScript** interfaces, **Go** structs (with `json` tags and `omitempty`), **Java** POJOs (boxed types + getter/setter), **Python** dataclasses (snake_case + `Optional`). No need to re-paste anything.
+- The root type name is editable; leave it empty and it is inferred. Messy input (spaces, leading digits, CJK) is sanitised into a legal identifier instead of emitting code that will not compile.
+- Inference is pure frontend — no network, no `eval`. Inputs beyond 1M characters, very large arrays and deeply nested values degrade or stop at the door, so the host never locks up.
+- Both panes are real editors (CodeMirror): line numbers, syntax highlighting, bracket matching, code folding and active-line highlight. The input is coloured by source format (JSON / SQL DDL) and the output by target language (TypeScript / Go / Java / Python), switching with the tabs; `⌘ / Ctrl + Enter` re-runs in place.
+
+![Code generation page](docs/screen-code.png)
+
 ## Everywhere
 
-- **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az.
+- **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az. Every page (convert, compare, SQL, sheet, image, code gen) is translated into all 14.
 - **Theme adaptability** — follows the DBX host theme and shadcn/ui tokens, including hosts that only send theme metadata (no `data-dbx-theme`) and custom palettes. First paint already matches the host, theme switches cross-fade over 300 ms, and `prefers-reduced-motion` turns the animation off.
 - **Clipboard** — one-click copy through the DBX host API, with a browser fallback.
 - **Offline** — no backend, no CDN, no telemetry; CodeMirror and the YAML library ship inside the package.
@@ -82,12 +93,12 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## Build & test
 
 ```bash
-./scripts/build.sh test         # all suites (222 cases)
+./scripts/build.sh test         # all suites (295 cases)
 ./scripts/build.sh              # run tests, then package dist/*.dbxp
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
-npm test                        # pure-function suites, no dependencies (222 cases)
-npm install && npm run test:ui  # jsdom smoke test of the UI wiring (103 checks)
+npm test                        # pure-function suites, no dependencies (295 cases)
+npm install && npm run test:ui  # jsdom smoke test of the UI wiring (118 checks)
 ```
 
 On Windows use `scripts\build.cmd` instead (requires Git Bash).
@@ -103,6 +114,7 @@ ui/js/sqlgen.js        SQL generator — batch-text parsing + IN/NOT IN/INSERT r
 ui/js/sheetconv.js     CSV/TSV → records → JSON — delimiter sniffing, types, limits
 ui/js/xlsxread.js      .xlsx reader — ZIP + DecompressionStream + XML scan, no deps
 ui/js/imgconv.js       image ↔ Base64 — magic-byte sniffing, normalisation, SVG text
+ui/js/codegen.js       code gen — type inference + DDL parsing + 4-language renderers
 tests/                 regression suite, run with plain node
 scripts/build.sh       package | dev | test
 ```

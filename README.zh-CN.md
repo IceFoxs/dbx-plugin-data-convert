@@ -65,6 +65,7 @@
 - 四种语言随时切：**TypeScript** 接口、**Go** struct（带 `json` tag 与 `omitempty`）、**Java** POJO（包装类型 + getter/setter）、**Python** dataclass（snake_case + `Optional`）。切换不用重新输入。
 - 根类型名可以自己填，留空就按输入自动命名；填了脏字符串（含空格、数字开头、中文）也会清洗成合法标识符，不会生成编译不过的代码。
 - 纯前端推断，不联网、不 `eval`；输入超过 1 M 字符、超大数组、超深嵌套都会在入口降级或拦下，不会把宿主卡死。
+- 输入输出都是真正的编辑器（CodeMirror）：行号、语法着色、括号自动配对、代码折叠、当前行高亮。输入按源格式上色（JSON / SQL DDL），输出跟着目标语言走（TypeScript / Go / Java / Python），切页签即换配色；`⌘ / Ctrl + Enter` 就地重跑。
 
 ![代码生成页](docs/screen-code.png)
 
@@ -90,12 +91,12 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## 构建与测试
 
 ```bash
-./scripts/build.sh test         # 全部用例（222 条）
+./scripts/build.sh test         # 全部用例（295 条）
 ./scripts/build.sh              # 先跑用例，再打包 dist/*.dbxp
 ./scripts/run.sh                # 等价于 build.sh dev
 
-npm test                        # 纯函数用例，无第三方依赖（222 条）
-npm install && npm run test:ui  # jsdom 页面接线冒烟（103 项）
+npm test                        # 纯函数用例，无第三方依赖（295 条）
+npm install && npm run test:ui  # jsdom 页面接线冒烟（118 项）
 ```
 
 Windows 下使用 `scripts\build.cmd`（需要 Git Bash）。
@@ -111,6 +112,7 @@ ui/js/sqlgen.js        SQL 生成 —— 批量文本拆值 + IN/NOT IN/INSERT �
 ui/js/sheetconv.js     表格文本 → 记录 → JSON —— 分隔符嗅探、类型推断、限流
 ui/js/xlsxread.js      .xlsx 读取 —— ZIP + DecompressionStream + XML 扫描，零依赖
 ui/js/imgconv.js       图片 ↔ Base64 —— 魔数嗅探、规范化、SVG 源码编码
+ui/js/codegen.js       代码生成 —— 类型推断 + DDL 解析 + 四语言渲染
 tests/                 回归用例，直接 node 运行
 scripts/build.sh       package | dev | test
 ```

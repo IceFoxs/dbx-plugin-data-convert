@@ -56,10 +56,16 @@
     <script src="vendor/codemirror/mode/yaml.min.js"></script>
     <script src="vendor/codemirror/mode/xml.min.js"></script>
     <script src="vendor/codemirror/mode/sql.min.js"></script>
+    <!-- 代码生成页要吐这四种语言：TypeScript 复用 javascript 模式（text/typescript），其余三个单独带 -->
+    <script src="vendor/codemirror/mode/clike.min.js"></script>
+    <script src="vendor/codemirror/mode/go.min.js"></script>
+    <script src="vendor/codemirror/mode/python.min.js"></script>
 
     <!-- 基础辅助功能 -->
     <script src="vendor/codemirror/addon/edit/matchbrackets.min.js"></script>
     <script src="vendor/codemirror/addon/edit/closebrackets.min.js"></script>
+    <!-- CodeMirror 不渲染 textarea 的 placeholder，空态提示靠这个 addon 补回来 -->
+    <script src="vendor/codemirror/addon/display/placeholder.min.js"></script>
 
     <!-- ================= 新增优化插件 ================= -->
     <!-- 当前行高亮 -->
@@ -704,6 +710,10 @@
         }
         .editor-container .CodeMirror-linenumber {
             color: var(--text-muted);
+        }
+        /* placeholder addon 自带的是灰色硬编码，跟着主题走一下 */
+        .editor-container .CodeMirror-placeholder {
+            color: var(--text-muted) !important;
         }
         #outputEditorWrap .CodeMirror {
             background-color: var(--accent-bg);
@@ -2986,6 +2996,8 @@
         let sqlInputEditor = null;
         let sqlOutputEditor = null;
         let sheetOutputEditor = null;
+        let codeInputEditor = null;
+        let codeOutputEditor = null;
 
         // =========================================
         // CodeMirror 5 初始化 (本地离线 - 增强版)
@@ -3067,7 +3079,7 @@
         function syncEditorTheme() {
             const isDark = document.documentElement.getAttribute('data-dbx-theme') === 'dark';
             const theme = isDark ? 'material-darker' : 'default';
-            [inputEditor, outputEditor, diffLeftEditor, diffRightEditor, cmpLeftEditor, cmpRightEditor, sqlInputEditor, sqlOutputEditor, sheetOutputEditor].forEach((cm) => {
+            [inputEditor, outputEditor, diffLeftEditor, diffRightEditor, cmpLeftEditor, cmpRightEditor, sqlInputEditor, sqlOutputEditor, sheetOutputEditor, codeInputEditor, codeOutputEditor].forEach((cm) => {
                 if (!cm) return;
                 const switching = cm.getOption('theme') !== theme;
                 cm.setOption('theme', theme);
@@ -8263,6 +8275,15 @@
 
         const CODE_LANG_LABEL = { ts: 'TypeScript', go: 'Go', java: 'Java', python: 'Python' };
         const CODE_EXT = { ts: '.ts', go: '.go', java: '.java', python: '.py' };
+        // 输入 / 输出都走 CodeMirror：这一页的输入上限才 1 M 字符，不存在图片页那种 MB 级字符串，
+        // 没有退回纯 textarea 的理由。TypeScript 复用 javascript 模式的 text/typescript 分支。
+        const CODE_INPUT_MODE = { json: 'application/json', ddl: 'text/x-sql' };
+        const CODE_OUTPUT_MODE = {
+            ts: 'text/typescript',
+            go: 'text/x-go',
+            java: 'text/x-java',
+            python: 'text/x-python'
+        };
         const codeWorkspace = document.getElementById('codeWorkspace');
         const navCodegenLink = document.getElementById('navCodegen');
         const codeInput = document.getElementById('codeInput');
@@ -8293,6 +8314,46 @@
 
         const CODE_DDL_SAMPLE = 'CREATE TABLE `t_user` (\n  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT \'用户 ID\',\n  `user_name` varchar(64) NOT NULL COMMENT \'登录名\',\n  `email` varchar(128) DEFAULT NULL COMMENT \'邮箱\',\n  `age` tinyint(4) DEFAULT NULL,\n  `enabled` tinyint(1) NOT NULL DEFAULT 1,\n  `balance` decimal(12,2) NOT NULL DEFAULT 0.00,\n  `created_at` datetime NOT NULL COMMENT \'创建时间\',\n  PRIMARY KEY (`id`),\n  KEY `idx_user_name` (`user_name`)\n) ENGINE=InnoDB COMMENT=\'用户表\';';
 
+        // 编辑器懒创建：第一次进这一页才初始化，冷启动不为用不到的页面付代价。
+        // 用 linkTextareaToEditor 桥接 .value，既有逻辑（含冒烟用例）不用改成 getValue/setValue。
+        function ensureCodeEditors() {
+            if (codeInputEditor) return;
+            const config = Object.assign({}, commonConfig, {
+                mode: CODE_INPUT_MODE[codeSource],
+                placeholder: codeInput.placeholder || '',
+                // 沿用其他页面的约定：⌘/Ctrl + Enter 就地重跑，不做格式转换
+                extraKeys: Object.assign({}, commonConfig.extraKeys, {
+                    'Cmd-Enter': () => codeRegen(),
+                    'Ctrl-Enter': () => codeRegen()
+                })
+            });
+            codeInputEditor = CodeMirror.fromTextArea(codeInput, config);
+            codeOutputEditor = CodeMirror.fromTextArea(codeOutput, Object.assign({}, config, {
+                readOnly: true,
+                placeholder: codeOutput.placeholder || '',
+                mode: CODE_OUTPUT_MODE[codeLang]
+            }));
+            codeInputEditor.on('change', () => {
+                const next = codeInputEditor.getValue();
+                if (codeInput.value !== next) codeInput.value = next;
+                codeSchedule();
+            });
+            linkTextareaToEditor(codeInput, codeInputEditor);
+            linkTextareaToEditor(codeOutput, codeOutputEditor);
+            // 懒创建时主题可能已经切过，补一次，避免新编辑器停在亮色主题
+            syncEditorTheme();
+        }
+
+        // 源格式决定输入的高亮语言，目标语言决定输出的高亮语言；
+        // 顺便把空态提示同步过去——CodeMirror 不认 textarea 的 placeholder 属性
+        function codeSyncModes() {
+            if (!codeInputEditor) return;
+            codeInputEditor.setOption('mode', CODE_INPUT_MODE[codeSource] || 'text/plain');
+            codeOutputEditor.setOption('mode', CODE_OUTPUT_MODE[codeLang] || 'text/plain');
+            codeInputEditor.setOption('placeholder', codeInput.placeholder || '');
+            codeOutputEditor.setOption('placeholder', codeOutput.placeholder || '');
+        }
+
         function codeErrorText(res) {
             if (res.code === 'empty') return genT('genErrEmpty');
             if (res.code === 'too-large') return genT('genErrTooLarge');
@@ -8320,6 +8381,7 @@
             codeRoot.placeholder = genT('genRootPlaceholder');
             codeInBadge.textContent = codeSource === 'json' ? 'JSON' : 'DDL';
             codeOutBadge.textContent = CODE_LANG_LABEL[codeLang];
+            codeSyncModes();
             if (codeLast) {
                 codeSetTip(genT('genTipOk')
                     .replace('{t}', String(codeLast.types))
@@ -8406,6 +8468,7 @@
             codeLangTabs.querySelectorAll('.compare-tab').forEach((tab) => {
                 tab.classList.toggle('active', tab.dataset.lang === lang);
             });
+            codeSyncModes();
             codeRegen();
         }
 
@@ -8434,11 +8497,17 @@
             markConvertActive(null);
             mainWorkspace.classList.add('hidden');
             toolbarEl.classList.add('hidden');
+            // 先建编辑器再加 active：CM 在隐藏容器里量不到高度，会留一条“空条”给后续 refresh 收拾
+            ensureCodeEditors();
             codeWorkspace.classList.add('active');
             navCodegenLink.classList.add('active');
             codeApplySourceUi();
             if (!codeInput.value.trim()) codeLoadSample('user');
             else codeRegen();
+            requestAnimationFrame(() => {
+                codeInputEditor.refresh();
+                codeOutputEditor.refresh();
+            });
         }
 
         function exitCodeMode() {

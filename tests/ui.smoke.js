@@ -1028,6 +1028,14 @@ function check(name, fn) {
     var codeOutBadge = doc.getElementById('codeOutBadge');
     var codeInBadge = doc.getElementById('codeInBadge');
 
+    function codeEditors() {
+        return doc.querySelectorAll('#codeWorkspace .CodeMirror');
+    }
+
+    check('编辑器懒创建：没进过这一页时不付代价', function () {
+        if (codeEditors().length !== 0) throw new Error('还没进页面就已经有 ' + codeEditors().length + ' 个编辑器');
+    });
+
     function typeIn(el, value) {
         el.value = value;
         el.dispatchEvent(new win.Event('input', { bubbles: true }));
@@ -1051,6 +1059,15 @@ function check(name, fn) {
         if (langs.join(',') !== 'ts,go,java,python') throw new Error('语言页签: ' + langs.join(','));
         if (codeOutBadge.textContent !== 'TypeScript') throw new Error('输出徽标: ' + codeOutBadge.textContent);
         if (codeInBadge.textContent !== 'JSON') throw new Error('输入徽标: ' + codeInBadge.textContent);
+    });
+
+    check('输入输出都换成 CodeMirror 编辑器', function () {
+        if (codeEditors().length !== 2) throw new Error('编辑器数量 ' + codeEditors().length + '，应当有输入 + 输出两个');
+        if (!doc.querySelector('#codeWorkspace .CodeMirror-scroll')) throw new Error('没有滚动层，CM 没初始化完');
+        if (codeInput.style.display === '' && codeInput.parentElement.querySelector('.CodeMirror')) {
+            // CM 会把原 textarea 藏起来，别再指望靠它显示内容
+            throw new Error('原 textarea 没被隐藏，会出现两坨内容');
+        }
     });
 
     check('切语言即时重新生成，徽标跟着走', function () {

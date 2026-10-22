@@ -11,6 +11,7 @@
 *   **代码生成页（JSON / SQL DDL → 多语言模型）**：导航栏新增「代码生成」入口。左边贴一段 **JSON 示例**，右边立刻出模型——嵌套对象与对象数组自动拆成独立类型（依赖先于使用者输出）、同名结构合并、只有部分样本出现的字段自动变可选，根类型名可以自己填也可以留空自动命名。
 *   **SQL `CREATE TABLE` → 模型**：页签切到「SQL DDL 转模型」，粘一条建表语句直接出模型。MySQL 的反引号、PostgreSQL 的双引号与 `serial` 都认，多条 `CREATE TABLE` 一次出多个类型；列名转小驼峰、`t_` / `tb_` 这类表名前缀不进类型名、表注释与列注释带进代码、`PRIMARY KEY` 与索引约束不会变成字段；可空列在 TypeScript 里是 `?`、在 Go 里是指针、在 Python 里是 `Optional`。
 *   **四种语言随时切**：**TypeScript** 接口、**Go** struct（带 `json` tag 与 `omitempty`）、**Java** POJO（包装类型 + getter/setter）、**Python** dataclass（snake_case + `Optional`）。切换语言不用重新输入，导出文件名跟着语言走（`.ts` / `.go` / `.java` / `.py`）；Go 的 tag 仍用原始列名，不会把 `user_name` 变成 `userName`。
+*   **代码生成页两侧是真的编辑器**：输入与输出都用 CodeMirror（行号、语法着色、括号自动配对、代码折叠、当前行高亮），输入按源格式上色（JSON / SQL DDL 两套），输出跟着目标语言走（TypeScript / Go / Java / Python 四套），切页签即换配色；⌘／Ctrl + Enter 就地重跑，清空之后空态提示照样在。编辑器是第一次进这一页才创建，首屏不为用不到的页面付费。
 *   **14 种语言全覆盖**：代码生成页的 24 条文案（`GEN_I18N`）一次性补齐到 14 种，与其余五页一致。
 
 ### 🔧 修复 (Fixes)
@@ -40,6 +41,8 @@
 *   新增 `tests/codegen.test.js`（54 条）：错误分支、四语言同输入、TS 字段与嵌套与依赖顺序、非法标识符加引号、Java 保留字改名、Go `package` 与 `json` tag 与指针、Python snake_case 与 `Optional`、DDL 的类型映射（`tinyint(1)` → 布尔、`decimal` → number、`datetime` → string）与多表与 PostgreSQL / 双引号写法，以及深层嵌套、5000 元素大数组计时、脏 rootName 不产出非法标识符。
 *   `tests/i18n.test.js` 纳入第五张字典 `GEN_I18N`（19 → 24 条），并新增「HTML 里用到的 `data-i18n` 键必须能在某张字典里找到」——这条就是 `convertShortcut` 的照妖镜，以后漏键会直接失败。
 *   冒烟测试 105 → 116 项：代码生成页的进入、自动装示例、切语言、自定义根类型名、坏 JSON 与无 `CREATE TABLE` 的错误态、DDL 小驼峰与表注释、清空复位、离开页面复原，以及导航直属项 4 → 5、「更多」菜单与溢出回收同步更新。
+*   `ui/vendor/codemirror/` 补齐 `mode/clike.min.js`（Java）、`mode/go.min.js`、`mode/python.min.js` 与 `addon/display/placeholder.min.js`，全部取自 CodeMirror **5.65.16**（与仓库里已有的核心同版，避免 mode 与内核 API 错位）、用 esbuild 压缩，四项合计 32 KB，包体 273 → 307 KB。TypeScript 不额外引 mode，直接用 `javascript.min.js` 里的 `text/typescript` 分支。实测四种语言都真的着上了色（Go 19 个 keyword / 3 条注释 / 14 个字符串，Java 25 个 keyword，Python 11 个，TS 6 个），DDL 输入走 `text/x-sql` 有 7 个 keyword——不是「配了 mode 但悄悄退成纯文本」。
+*   代码生成页的编辑器与原生 textarea 之间用既有的 `linkTextareaToEditor()` 桥接 `.value`：页面逻辑与冒烟用例一行没改就继续成立，`.value` 的读写自动落到 `getValue()` / `setValue()`，也顺手保住了「程序化写入不触发重新生成」的老行为。冒烟 116 → 118 项，新增「没进过这一页时不存在 CodeMirror 实例」（防止以后把编辑器改成启动即建、白付首屏开销）与「输入输出各一个 CM 实例、原 textarea 已隐藏」。
 *   文档补 `docs/screen-code.png`；README（中英）加「代码生成」一节与功能页一览里的一行，i18n 段改成「六页」。商店与清单描述重写成一句话说清六个页面（原段落逐页罗列太长），`.dbx-store.json` 的 tags 补 `codegen` / `typescript` / `golang` / `java` / `python` / `ddl`。
 
 ## [0.1.4]
