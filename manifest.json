@@ -3,7 +3,7 @@
   "manifest_version": 1,
   "id": "io.github.icefoxs.data-convert",
   "name": "数据转换工具",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "icefoxs",
   "description": "🛠️ 全能数据格式互转工具：支持 JSON、YAML、XML、Properties 之间的无缝互转，也能把批量文本一键变成 SQL 的 IN / NOT IN / INSERT 语句。纯前端实现，支持零网络依赖离线运行，内置智能容错与代码格式化；另含 Excel / CSV 转 JSON 或 SQL Insert（本地解析、大文件限流、条数限制、一键导出）。",
   "source": "https://github.com/IceFoxs/dbx-plugin-data-convert",

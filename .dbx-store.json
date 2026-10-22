@@ -20,7 +20,7 @@
     "host.clipboard:read",
     "host.workbench"
   ],
-  "source": "https://github.com/IceFoxs/dbx-plugin-data-convert/tree/v0.1.4",
+  "source": "https://github.com/IceFoxs/dbx-plugin-data-convert/tree/v0.1.5",
   "homepage": "https://github.com/IceFoxs/dbx-plugin-data-convert",
   "license": "MIT",
   "releaseNotes": "0.1.4 (update): a new Sheet to JSON page — drop in .xlsx / .csv / .tsv and get a JSON array or SQL INSERT statements. Header detection, delimiter sniffing, number/boolean inference, real Excel dates, ZIP64 xlsx support, a preview table and a Max-records cap (All / 100 / 500 / 1k / 5k / 10k). The preview table now scrolls horizontally with a persistent scrollbar and double-clicking a cell opens a detail card with the full value plus the whole row. An optional \"row 2 is a note\" toggle skips a description row under the header (suggested, never applied silently). Output can be switched between JSON (formatted or compact) and SQL Insert (table name editable, 500 rows per statement); exports go through the host fileTransfer channel so they actually save inside DBX. Large files are capped (20 MB per file, 100k rows) and parsed in chunks so the panel stays responsive.",
