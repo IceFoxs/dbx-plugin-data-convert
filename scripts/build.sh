@@ -26,6 +26,8 @@ run_tests() {
     node "$ROOT/tests/jsonpath.test.js"
     node "$ROOT/tests/schema.test.js"
     node "$ROOT/tests/escape.test.js"
+    node "$ROOT/tests/bytes.test.js"
+    node "$ROOT/tests/flow.test.js"
     node "$ROOT/tests/i18n.test.js"
   else
     echo "==> node not found, skip unit tests" >&2

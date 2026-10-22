@@ -5,7 +5,7 @@
   "type": "commonjs",
   "description": "DBX 数据格式互转插件（纯前端 universal 包）",
   "scripts": {
-    "test": "node tests/converters.test.js && node tests/diff.test.js && node tests/objdiff.test.js && node tests/sqlgen.test.js && node tests/sheetconv.test.js && node tests/xlsxread.test.js && node tests/imgconv.test.js && node tests/codegen.test.js && node tests/confconv.test.js && node tests/jsonpath.test.js && node tests/schema.test.js && node tests/escape.test.js && node tests/i18n.test.js",
+    "test": "node tests/converters.test.js && node tests/diff.test.js && node tests/objdiff.test.js && node tests/sqlgen.test.js && node tests/sheetconv.test.js && node tests/xlsxread.test.js && node tests/imgconv.test.js && node tests/codegen.test.js && node tests/confconv.test.js && node tests/jsonpath.test.js && node tests/schema.test.js && node tests/escape.test.js && node tests/bytes.test.js && node tests/flow.test.js && node tests/i18n.test.js",
     "test:ui": "node tests/ui.smoke.js",
     "test:all": "npm test && node tests/ui.smoke.js",
     "dev": "./scripts/build.sh dev",

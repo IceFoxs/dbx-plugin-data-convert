@@ -44,6 +44,8 @@
     <script src="js/jsonpath.js"></script>
     <script src="js/schema.js"></script>
     <script src="js/escape.js"></script>
+    <script src="js/bytes.js"></script>
+    <script src="js/flow.js"></script>
     <script>
         if (typeof xml2js === 'undefined' || typeof js2xml === 'undefined') {
             console.warn('xml-js 加载失败，将退回基础解析逻辑');
@@ -1152,12 +1154,13 @@
         .compare-pane .editor-container { flex: 1 1 0; min-height: 0; }
 
         /* ================= SQL 生成页 / 表格转 JSON 页 / 图片 Base64 页
-           查询校验页 / 转义工具页 共用同一套「隐藏除非 active」的骨架 ================= */
+           查询校验页 / 转义工具页 / 字节转换页 共用同一套「隐藏除非 active」的骨架 ================= */
         .sql-workspace,
         .sheet-workspace,
         .img-workspace,
         .code-workspace,
         .query-workspace,
+        .bytes-workspace,
         .esc-workspace {
             display: none;
             flex: 1 1 0;
@@ -1170,6 +1173,7 @@
         .img-workspace.active,
         .code-workspace.active,
         .query-workspace.active,
+        .bytes-workspace.active,
         .esc-workspace.active { display: flex; }
         /* 选项行：引号、去重、每行一项、数字不加引号 */
         .sql-options {
@@ -1358,11 +1362,186 @@
             font-size: 0.78rem;
             border-radius: 999px;
         }
+        /* 收起按钮只有图标，别被 .btn 的内边距撑成方块 */
         @media (max-width: 900px) {
             /* 窄屏优先保住类型选择，「对调」退到操作区后面 */
             .esc-flip { order: 3; }
             #escKinds { order: 2; flex: 1 1 100%; }
         }
+
+        /* ================= 字节转换页 ================= */
+        /* 左输入右结果，结果侧是一条汇总 + 批量表格 + 三种写法，所以给右栏多一点宽度 */
+        .bytes-workspace .compare-grid {
+            grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1.28fr);
+        }
+        .bytes-panel {
+            flex: 1 1 0;
+            min-height: 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.7rem;
+            padding: 0.1rem 2px 0.4rem 0;
+        }
+        .bytes-summary {
+            display: flex;
+            gap: 0.55rem;
+            flex-wrap: wrap;
+        }
+        .bytes-figure {
+            flex: 1 1 130px;
+            min-width: 0;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.5rem 0.7rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            background-color: var(--bg-card);
+        }
+        .bytes-figure strong {
+            font-size: 1rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            word-break: break-all;
+        }
+        .bytes-figure span { font-size: 0.68rem; color: var(--text-muted); }
+        /* 每个换算值都能单独复制：数字本身可点，旁边还有一个明确的「复制」 */
+        .bytes-value {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.1rem;
+            margin: 0 0 0 -0.28rem;
+            padding: 0 0.28rem;
+            border: 0;
+            border-radius: 4px;
+            background: none;
+            color: inherit;
+            font: inherit;
+            text-align: left;
+            cursor: copy;
+        }
+        .bytes-value:hover { background-color: var(--accent-bg); }
+        .bytes-value:active { background-color: var(--accent-hover); }
+        .bytes-value:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+        .bytes-value strong { pointer-events: none; min-width: 0; }
+        .bytes-value-copy {
+            flex: none;
+            align-self: center;
+            padding: 0.08rem 0.42rem;
+            border: 1px solid var(--border-light);
+            border-radius: 999px;
+            background: none;
+            color: var(--text-muted);
+            font: inherit;
+            font-size: 0.68rem;
+            line-height: 1.7;
+            cursor: pointer;
+        }
+        .bytes-value-copy:hover {
+            color: var(--text-main);
+            border-color: var(--accent-hover);
+            background-color: var(--accent-bg);
+        }
+        .bytes-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+        .bytes-table th,
+        .bytes-table td {
+            padding: 0.3rem 0.42rem;
+            border-bottom: 1px solid var(--border-light);
+            text-align: left;
+            white-space: nowrap;
+        }
+        .bytes-table th {
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+        .bytes-table td.num { text-align: right; font-variant-numeric: tabular-nums; cursor: copy; }
+        .bytes-table td.num:hover { background-color: var(--accent-bg); }
+        .bytes-table td.in {
+            max-width: 210px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: var(--font-mono);
+        }
+        .bytes-table tr.bad td { color: #b91c1c; }
+        [data-dbx-theme="dark"] .bytes-table tr.bad td { color: #fca5a5; }
+        .bytes-table tfoot td { font-weight: 600; }
+        .bytes-form {
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            background-color: var(--bg-card);
+            overflow: hidden;
+        }
+        .bytes-form header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            padding: 0.35rem 0.55rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .bytes-form header span { font-size: 0.73rem; font-weight: 600; }
+        .bytes-form header .btn {
+            padding: 0.1rem 0.55rem;
+            font-size: 0.7rem;
+            line-height: 1.6;
+        }
+        .bytes-form pre {
+            margin: 0;
+            padding: 0.5rem 0.55rem;
+            font-family: var(--font-mono);
+            font-size: 0.73rem;
+            line-height: 1.5;
+            white-space: pre;
+            overflow: auto;
+            max-height: 150px;
+        }
+        .bytes-empty {
+            font-size: 0.74rem;
+            line-height: 1.5;
+            color: var(--text-muted);
+            padding: 0.15rem 0.1rem;
+        }
+        .bytes-empty[hidden] { display: none; }
+        .bytes-decimals { min-width: 5.6rem; }
+
+        /* ================= 全局拖放蒙层 ================= */
+        /* 整个窗口都是投放区：拖进来时给一层提示，但别挡住下面的投放区事件（pointer-events:none） */
+        .drop-veil {
+            position: fixed;
+            inset: 0;
+            z-index: 70;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            background-color: rgba(15, 23, 42, 0.07);
+        }
+        .drop-veil[hidden] { display: none; }
+        .drop-veil-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 1.5rem 2.2rem;
+            border: 2px dashed var(--primary);
+            border-radius: var(--radius-lg);
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            box-shadow: 0 16px 40px -18px rgba(0, 0, 0, 0.45);
+        }
+        .drop-veil-card svg { width: 26px; height: 26px; color: var(--primary); }
+        .drop-veil-card strong { font-size: 0.9rem; font-weight: 600; }
+        .drop-veil-card span { font-size: 0.76rem; color: var(--text-muted); }
 
         /* ================= 表格转 JSON 页 ================= */
         /* 选项行：表头、分隔符、数字/布尔识别、上限提示 */
@@ -1992,6 +2171,7 @@
         <a id="navSql" class="nav-sql" data-i18n="navSql">SQL 转换</a>
         <a id="navImage" class="nav-image" data-i18n="navImage">图片 Base64</a>
         <a id="navEscape" class="nav-escape" data-i18n="navEscape">转义工具</a>
+        <a id="navBytes" class="nav-bytes" data-i18n="navBytes">字节转换</a>
         <a id="navCodegen" class="nav-code" data-i18n="navCodegen">代码生成</a>
         <a id="navSheet" class="nav-sheet" data-i18n="navSheet">表格转 JSON</a>
         <a id="navQuery" class="nav-query" data-i18n="navQuery">查询校验</a>
@@ -2749,6 +2929,81 @@
             </div>
         </div>
     </section>
+
+    <!-- ================= 字节转换 ================= -->
+    <section class="bytes-workspace" id="bytesWorkspace">
+        <div class="compare-bar">
+            <div class="sql-options">
+                <span class="compare-samples-label" data-i18n="bytesDecimals">小数位</span>
+                <select class="select bytes-decimals" id="bytesDecimals">
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2" selected>2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="6">6</option>
+                </select>
+            </div>
+
+            <div class="compare-actions">
+                <button type="button" class="btn btn-outline" id="bytesCopy" data-i18n="copyBtn">复制</button>
+                <button type="button" class="btn btn-outline" id="bytesClear" data-i18n="clearBtn">清空</button>
+            </div>
+
+            <div class="compare-tip" id="bytesTip"></div>
+        </div>
+
+        <div class="compare-grid">
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="bytesInputTitle">字节数 / 字节序列</span>
+                        <span class="pane-badge" id="bytesInBadge">—</span>
+                    </div>
+                </div>
+                <div class="editor-container">
+                    <textarea id="bytesInput" class="textarea" spellcheck="false" data-i18n-placeholder="bytesInputPlaceholder"></textarea>
+                </div>
+            </div>
+
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="bytesOutputTitle">换算结果</span>
+                        <span class="pane-badge" id="bytesOutBadge">B</span>
+                    </div>
+                    <div class="pane-actions"><span class="sheet-size" id="bytesOutSize"></span></div>
+                </div>
+                <div class="bytes-panel" id="bytesPanel">
+                    <div class="bytes-summary">
+                        <div class="bytes-figure">
+                            <button type="button" class="bytes-value" data-copy-id="bytesExactValue" data-i18n-title="bytesCopyValue">
+                                <strong id="bytesExactValue">—</strong>
+                                <span data-i18n="bytesExact">精确值</span>
+                            </button>
+                            <button type="button" class="bytes-value-copy" data-copy-id="bytesExactValue" data-i18n-title="bytesCopyValue" data-i18n="copyBtn">复制</button>
+                        </div>
+                        <div class="bytes-figure">
+                            <button type="button" class="bytes-value" data-copy-id="bytesHuman1000" data-i18n-title="bytesCopyValue">
+                                <strong id="bytesHuman1000">—</strong>
+                                <span data-i18n="bytesUnits1000">1000 进制</span>
+                            </button>
+                            <button type="button" class="bytes-value-copy" data-copy-id="bytesHuman1000" data-i18n-title="bytesCopyValue" data-i18n="copyBtn">复制</button>
+                        </div>
+                        <div class="bytes-figure">
+                            <button type="button" class="bytes-value" data-copy-id="bytesHuman1024" data-i18n-title="bytesCopyValue">
+                                <strong id="bytesHuman1024">—</strong>
+                                <span data-i18n="bytesUnits1024">1024 进制</span>
+                            </button>
+                            <button type="button" class="bytes-value-copy" data-copy-id="bytesHuman1024" data-i18n-title="bytesCopyValue" data-i18n="copyBtn">复制</button>
+                        </div>
+                    </div>
+                    <table class="bytes-table" id="bytesTable"></table>
+                    <div class="bytes-forms" id="bytesForms"></div>
+                </div>
+            </div>
+        </div>
+    </section>
 </main>
 
 <div id="toastContainer" class="toast-container"></div>
@@ -3171,20 +3426,20 @@
         // =========================================
         // 导航「格式转换」下拉的标题：14 种语言的小表，同样由 applyI18n 合并查询
         const NAV_I18N = {
-            'zh-CN': { navConvert: '格式转换' },
-            'zh-TW': { navConvert: '格式轉換' },
-            en: { navConvert: 'Convert' },
-            az: { navConvert: 'Format' },
-            es: { navConvert: 'Formato' },
-            id: { navConvert: 'Format' },
-            it: { navConvert: 'Formato' },
-            ja: { navConvert: '形式変換' },
-            ko: { navConvert: '형식 변환' },
-            pt: { navConvert: 'Formato' },
-            pl: { navConvert: 'Format' },
-            ru: { navConvert: 'Формат' },
-            th: { navConvert: 'รูปแบบ' },
-            tr: { navConvert: 'Format' }
+            'zh-CN': { navConvert: '格式转换', navBytes: '字节转换' },
+            'zh-TW': { navConvert: '格式轉換', navBytes: '位元組轉換' },
+            en: { navConvert: 'Convert', navBytes: 'Bytes' },
+            az: { navConvert: 'Format', navBytes: 'Bayt' },
+            es: { navConvert: 'Formato', navBytes: 'Bytes' },
+            id: { navConvert: 'Format', navBytes: 'Byte' },
+            it: { navConvert: 'Formato', navBytes: 'Byte' },
+            ja: { navConvert: '形式変換', navBytes: 'バイト変換' },
+            ko: { navConvert: '형식 변환', navBytes: '바이트 변환' },
+            pt: { navConvert: 'Formato', navBytes: 'Bytes' },
+            pl: { navConvert: 'Format', navBytes: 'Bajty' },
+            ru: { navConvert: 'Формат', navBytes: 'Байты' },
+            th: { navConvert: 'รูปแบบ', navBytes: 'ไบต์' },
+            tr: { navConvert: 'Format', navBytes: 'Bayt' }
         };
 
         function applyI18n() {
@@ -3199,7 +3454,9 @@
                 IMG_I18N[currentLang] || IMG_I18N.en || {},
                 GEN_I18N[currentLang] || GEN_I18N.en || {},
                 QUERY_I18N[currentLang] || QUERY_I18N.en || {},
-                ESC_I18N[currentLang] || ESC_I18N.en || {}
+                ESC_I18N[currentLang] || ESC_I18N.en || {},
+                BYTES_I18N[currentLang] || BYTES_I18N.en || {},
+                FLOW_I18N[currentLang] || FLOW_I18N.en || {}
             );
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
@@ -3237,6 +3494,8 @@
             // 查询页的两个子页（表达式提示、结果统计）与转义页的类型 chip
             if (typeof refreshQueryI18n === 'function') refreshQueryI18n();
             if (typeof refreshEscI18n === 'function') refreshEscI18n();
+            // 字节转换页的列头、三种写法标题、提示语
+            if (typeof refreshBytesI18n === 'function') refreshBytesI18n();
         }
 
         // 宿主（DBX）会给没写 title 的按钮补一个提示，用的却是宿主自己的词表：
@@ -3356,6 +3615,7 @@
         let schSchemaEditor = null;
         let escInputEditor = null;
         let escOutputEditor = null;
+        let bytesEditor = null;
 
         // =========================================
         // CodeMirror 5 初始化 (本地离线 - 增强版)
@@ -3456,7 +3716,8 @@
             const theme = isDark ? 'material-darker' : 'default';
             [inputEditor, outputEditor, diffLeftEditor, diffRightEditor, cmpLeftEditor, cmpRightEditor,
                 sqlInputEditor, sqlOutputEditor, sheetOutputEditor, codeInputEditor, codeOutputEditor,
-                queryDataEditor, queryResultEditor, schDataEditor, schSchemaEditor, escInputEditor, escOutputEditor].forEach((cm) => {
+                queryDataEditor, queryResultEditor, schDataEditor, schSchemaEditor, escInputEditor, escOutputEditor,
+                bytesEditor].forEach((cm) => {
                 if (!cm) return;
                 const switching = cm.getOption('theme') !== theme;
                 cm.setOption('theme', theme);
@@ -3628,12 +3889,18 @@
                 enterEscMode();
                 return;
             }
+            // 「字节转换」是单位换算 + 字节序列写法的独立页
+            if (link.id === 'navBytes') {
+                enterBytesMode();
+                return;
+            }
             if (compareMode) exitCompareMode();
             if (sqlModeActive) exitSqlMode();
             if (sheetModeActive) exitSheetMode();
             if (imgModeActive) exitImageMode();
             if (codeModeActive) exitCodeMode();
             if (queryModeActive) exitQueryMode();
+            if (bytesModeActive) exitBytesMode();
             if (escModeActive) exitEscMode();
             markConvertActive(link);
             clearTimeout(autoTimer);
@@ -4665,11 +4932,36 @@
             idleCompareTip();
         }
 
+        // 每进一个页面先退出其它页面。以前是每个 enter*Mode 里手写一串
+        // `if (xxxMode) exitXxxMode()`，后来加的页面（查询校验 / 转义工具）
+        // 没人回头补，于是「转义页 → JSON 对比」会两层叠在一起。
+        // 现在只在这里维护一张表，新增页面加一行即可，不会再漏。
+        function exitOtherModes(keep) {
+            if (keep !== 'diff' && isDiffMode) exitDiffIfActive();
+            if (keep !== 'compare' && compareMode) exitCompareMode();
+            if (keep !== 'sql' && sqlModeActive) exitSqlMode();
+            if (keep !== 'sheet' && sheetModeActive) exitSheetMode();
+            if (keep !== 'image' && imgModeActive) exitImageMode();
+            if (keep !== 'code' && codeModeActive) exitCodeMode();
+            if (keep !== 'query' && queryModeActive) exitQueryMode();
+            if (keep !== 'bytes' && bytesModeActive) exitBytesMode();
+            if (keep !== 'esc' && escModeActive) exitEscMode();
+        }
+
+        // 当前停在哪一页（关掉快捷页时用来回原处），'' 表示格式转换页
+        function currentPageId() {
+            if (compareMode) return 'navCompare';
+            if (sqlModeActive) return 'navSql';
+            if (sheetModeActive) return 'navSheet';
+            if (imgModeActive) return 'navImage';
+            if (codeModeActive) return 'navCodegen';
+            if (queryModeActive) return 'navQuery';
+            if (bytesModeActive) return 'navBytes';
+            return '';
+        }
+
         function enterCompareMode() {
-            if (sqlModeActive) exitSqlMode();
-            if (sheetModeActive) exitSheetMode();
-            if (imgModeActive) exitImageMode();
-            if (codeModeActive) exitCodeMode();
+            exitOtherModes('compare');
             if (isDiffMode) {
                 isDiffMode = false;
                 diffReport.classList.remove('show');
@@ -4878,6 +5170,7 @@
         }
 
         function enterSqlMode() {
+            exitOtherModes('sql');
             if (isDiffMode) {
                 isDiffMode = false;
                 diffReport.classList.remove('show');
@@ -4885,10 +5178,6 @@
                 toggleDiffBtn.textContent = currentDict.diffBtn || '对比差异';
                 toggleDiffBtn.classList.remove('btn-diff');
             }
-            if (compareMode) exitCompareMode();
-            if (sheetModeActive) exitSheetMode();
-            if (imgModeActive) exitImageMode();
-            if (codeModeActive) exitCodeMode();
             sqlModeActive = true;
             markConvertActive(null);
             mainWorkspace.classList.add('hidden');
@@ -5866,7 +6155,9 @@
             sql: '',
             truncated: false,
             // 第二行「疑似说明」：只用来提示，不改输出；用户点了才真的跳过
-            noteSuggested: false
+            noteSuggested: false,
+            // 批量：一次拖进多个文件时，这里存合并后的结果（null 表示单文件模式）
+            batch: null
         };
 
         // 「第二行为注释」只有在有表头时才有意义（没表头就没有第一行列名可比）
@@ -6114,6 +6405,8 @@
         function setSheetOutputMode(mode) {
             const next = mode === 'sql' ? 'sql' : 'json';
             if (next === sheetOutputMode) return;
+            // 批量结果是「多文件合并的 JSON」，切成 SQL 没有对应语义，直接退回单文件预览
+            if (next === 'sql') sheetState.batch = null;
             sheetOutputMode = next;
             applySheetOutputModeUi();
             if (sheetState.records.length) sheetReserialize();
@@ -6186,6 +6479,8 @@
         }
 
         async function sheetRebuild() {
+            // 批量模式下选项变了：拿还留着的文件重新解析一遍，而不是从空 rows 重建
+            if (sheetState.batch && sheetState.batch.files) return openSheetBatch(sheetState.batch.files);
             const token = ++sheetJob;
             ensureSheetEditor();
             if (!sheetState.kind) {
@@ -6248,6 +6543,13 @@
 
         // 只改输出方式 / 格式 / 表名时不用重新解析，拿缓存的记录重排就行
         async function sheetReserialize() {
+            if (sheetState.batch) {
+                const text = buildBatchText();
+                ensureSheetEditor();
+                sheetState.json = text;
+                renderSheetOutput(text, sheetState.batch.keys.reduce((n, k) => n + k.count, 0));
+                return;
+            }
             if (!sheetState.records.length) return;
             const token = ++sheetJob;
             ensureSheetEditor();
@@ -6309,6 +6611,7 @@
             sheetState.sql = '';
             sheetState.truncated = false;
             sheetState.noteSuggested = false;
+            sheetState.batch = null;
             applySheetNoteUi();
             closeSheetCellPop();
             sheetHScroll.hidden = true;
@@ -6506,7 +6809,7 @@
                 return;
             }
             const text = currentSheetText();
-            if (!text || !sheetState.records.length) {
+            if (!text || (!sheetState.records.length && !sheetState.batch)) {
                 showToast(sheetT('sheetToastEmpty', '还没有可导出的内容'), 'error');
                 return;
             }
@@ -6549,6 +6852,7 @@
         }
 
         function enterSheetMode() {
+            exitOtherModes('sheet');
             if (isDiffMode) {
                 isDiffMode = false;
                 diffReport.classList.remove('show');
@@ -6556,10 +6860,6 @@
                 toggleDiffBtn.textContent = currentDict.diffBtn || '对比差异';
                 toggleDiffBtn.classList.remove('btn-diff');
             }
-            if (compareMode) exitCompareMode();
-            if (sqlModeActive) exitSqlMode();
-            if (imgModeActive) exitImageMode();
-            if (codeModeActive) exitCodeMode();
             sheetModeActive = true;
             markConvertActive(null);
             mainWorkspace.classList.add('hidden');
@@ -7955,6 +8255,7 @@
         }
 
         function enterImageMode() {
+            exitOtherModes('image');
             if (isDiffMode) {
                 isDiffMode = false;
                 diffReport.classList.remove('show');
@@ -7962,10 +8263,6 @@
                 toggleDiffBtn.textContent = currentDict.diffBtn || '对比差异';
                 toggleDiffBtn.classList.remove('btn-diff');
             }
-            if (compareMode) exitCompareMode();
-            if (sqlModeActive) exitSqlMode();
-            if (sheetModeActive) exitSheetMode();
-            if (codeModeActive) exitCodeMode();
             imgModeActive = true;
             markConvertActive(null);
             mainWorkspace.classList.add('hidden');
@@ -9054,6 +9351,322 @@
             }
         };
 
+        // 字节转换页的文案：单位、列头、三种写法，19 键 × 14 语
+        const BYTES_I18N = {
+            'zh-CN': {
+                bytesInputTitle: '字节数 / 字节序列',
+                bytesInputPlaceholder: '1234567890 · 1.15 GiB · 1f 8b 08 · [0x1f, 0x8b]',
+                bytesOutputTitle: '换算结果', bytesExact: '精确值',
+                bytesUnits1000: '1000 进制', bytesUnits1024: '1024 进制', bytesDecimals: '小数位',
+                bytesColInput: '输入', bytesColBytes: '字节', bytesTotal: '合计', bytesCopyValue: '复制此值',
+                bytesHexDump: 'Hex dump', bytesByteArray: '字节数组', bytesBinaryString: '二进制串',
+                bytesSeqNeeded: '贴一行字节序列（如 1f 8b 08）就能转成这三种写法',
+                bytesEmpty: '输入字节数或一段字节序列，每行一条',
+                bytesErrBad: '看不懂这个输入', bytesErrTooLarge: '超过 {n} 上限',
+                bytesErrTooMany: '最多 {n} 个字节', bytesTipOk: '{n} 行 · {total}'
+            },
+            'zh-TW': {
+                bytesInputTitle: '位元組數 / 位元組序列',
+                bytesInputPlaceholder: '1234567890 · 1.15 GiB · 1f 8b 08 · [0x1f, 0x8b]',
+                bytesOutputTitle: '換算結果', bytesExact: '精確值',
+                bytesUnits1000: '1000 進位', bytesUnits1024: '1024 進位', bytesDecimals: '小數位',
+                bytesColInput: '輸入', bytesColBytes: '位元組', bytesTotal: '合計', bytesCopyValue: '複製此值',
+                bytesHexDump: 'Hex dump', bytesByteArray: '位元組陣列', bytesBinaryString: '二進位字串',
+                bytesSeqNeeded: '貼一行位元組序列（如 1f 8b 08）就能轉成這三種寫法',
+                bytesEmpty: '輸入位元組數或一段位元組序列，每行一筆',
+                bytesErrBad: '看不懂這個輸入', bytesErrTooLarge: '超過 {n} 上限',
+                bytesErrTooMany: '最多 {n} 個位元組', bytesTipOk: '{n} 列 · {total}'
+            },
+            en: {
+                bytesInputTitle: 'Bytes / byte sequence',
+                bytesInputPlaceholder: '1234567890 · 1.15 GiB · 1f 8b 08 · [0x1f, 0x8b]',
+                bytesOutputTitle: 'Result', bytesExact: 'Exact',
+                bytesUnits1000: 'Base 1000', bytesUnits1024: 'Base 1024', bytesDecimals: 'Decimals',
+                bytesColInput: 'Input', bytesColBytes: 'Bytes', bytesTotal: 'Total', bytesCopyValue: 'Copy value',
+                bytesHexDump: 'Hex dump', bytesByteArray: 'Byte array', bytesBinaryString: 'Binary string',
+                bytesSeqNeeded: 'Paste a byte sequence (e.g. 1f 8b 08) to get these three forms',
+                bytesEmpty: 'Enter a size or a byte sequence, one per line',
+                bytesErrBad: 'Cannot parse this input', bytesErrTooLarge: 'Over the {n} limit',
+                bytesErrTooMany: 'At most {n} bytes', bytesTipOk: '{n} rows · {total}'
+            },
+            az: {
+                bytesInputTitle: 'Bayt / bayt ardıcıllığı',
+                bytesInputPlaceholder: '1234567890 · 1.15 GiB · 1f 8b 08 · [0x1f, 0x8b]',
+                bytesOutputTitle: 'Nəticə', bytesExact: 'Dəqiq dəyər',
+                bytesUnits1000: 'Baza 1000', bytesUnits1024: 'Baza 1024', bytesDecimals: 'Onluq rəqəmlər',
+                bytesColInput: 'Giriş', bytesColBytes: 'Bayt', bytesTotal: 'Cəmi', bytesCopyValue: 'Dəyəri kopyala',
+                bytesHexDump: 'Hex dump', bytesByteArray: 'Bayt massivi', bytesBinaryString: 'İkili sətir',
+                bytesSeqNeeded: 'Bu üç format üçün bayt ardıcıllığı yapışdırın (məs. 1f 8b 08)',
+                bytesEmpty: 'Bayt sayı və ya ardıcıllıq daxil edin, hər sətirdə bir',
+                bytesErrBad: 'Bu girişi oxumaq olmur', bytesErrTooLarge: '{n} limitini aşır',
+                bytesErrTooMany: 'Ən çox {n} bayt', bytesTipOk: '{n} sətir · {total}'
+            },
+            es: {
+                bytesInputTitle: 'Bytes / secuencia de bytes',
+                bytesInputPlaceholder: '1234567890 · 1.15 GiB · 1f 8b 08 · [0x1f, 0x8b]',
+                bytesOutputTitle: 'Resultado', bytesExact: 'Valor exacto',
+                bytesUnits1000: 'Base 1000', bytesUnits1024: 'Base 1024', bytesDecimals: 'Decimales',
+                bytesColInput: 'Entrada', bytesColBytes: 'Bytes', bytesTotal: 'Total', bytesCopyValue: 'Copiar valor',
+                bytesHexDump: 'Volcado hex', bytesByteArray: 'Matriz de bytes', bytesBinaryString: 'Cadena binaria',
+                bytesSeqNeeded: 'Pega una secuencia de bytes (p. ej. 1f 8b 08) para obtener estas tres formas',
+                bytesEmpty: 'Introduce un tamaño o una secuencia de bytes, una por línea',
+                bytesErrBad: 'No se puede interpretar esta entrada', bytesErrTooLarge: 'Supera el límite de {n}',
+                bytesErrTooMany: 'Como máximo {n} bytes', bytesTipOk: '{n} filas · {total}'
+            },
+            id: {
+                bytesInputTitle: 'Byte / urutan byte',
+                bytesInputPlaceholder: '1234567890 · 1.15 GiB · 1f 8b 08 · [0x1f, 0x8b]',
+                bytesOutputTitle: 'Hasil', bytesExact: 'Nilai tepat',
+                bytesUnits1000: 'Basis 1000', bytesUnits1024: 'Basis 1024', bytesDecimals: 'Desimal',
+                bytesColInput: 'Input', bytesColBytes: 'Byte', bytesTotal: 'Total', bytesCopyValue: 'Salin nilai',
+                bytesHexDump: 'Hex dump', bytesByteArray: 'Array byte', bytesBinaryString: 'String biner',
+                bytesSeqNeeded: 'Tempel urutan byte (mis. 1f 8b 08) untuk mendapatkan tiga bentuk ini',
+                bytesEmpty: 'Masukkan ukuran atau urutan byte, satu per baris',
+                bytesErrBad: 'Tidak bisa membaca input ini', bytesErrTooLarge: 'Melebihi batas {n}',
+                bytesErrTooMany: 'Maksimal {n} byte', bytesTipOk: '{n} baris · {total}'
+            },
+            it: {
+                bytesInputTitle: 'Byte / sequenza di byte',
+                bytesInputPlaceholder: '1234567890 · 1.15 GiB · 1f 8b 08 · [0x1f, 0x8b]',
+                bytesOutputTitle: 'Risultato', bytesExact: 'Valore esatto',
+                bytesUnits1000: 'Base 1000', bytesUnits1024: 'Base 1024', bytesDecimals: 'Decimali',
+                bytesColInput: 'Input', bytesColBytes: 'Byte', bytesTotal: 'Totale', bytesCopyValue: 'Copia valore',
+                bytesHexDump: 'Hex dump', bytesByteArray: 'Array di byte', bytesBinaryString: 'Stringa binaria',
+                bytesSeqNeeded: 'Incolla una sequenza di byte (es. 1f 8b 08) per ottenere queste tre forme',
+                bytesEmpty: 'Inserisci una dimensione o una sequenza di byte, una per riga',
+                bytesErrBad: 'Impossibile interpretare questo input', bytesErrTooLarge: 'Supera il limite di {n}',
+                bytesErrTooMany: 'Al massimo {n} byte', bytesTipOk: '{n} righe · {total}'
+            },
+            ja: {
+                bytesInputTitle: 'バイト数 / バイト列',
+                bytesInputPlaceholder: '1234567890 · 1.15 GiB · 1f 8b 08 · [0x1f, 0x8b]',
+                bytesOutputTitle: '換算結果', bytesExact: '正確な値',
+                bytesUnits1000: '1000 進法', bytesUnits1024: '1024 進法', bytesDecimals: '小数桁',
+                bytesColInput: '入力', bytesColBytes: 'バイト', bytesTotal: '合計', bytesCopyValue: 'この値をコピー',
+                bytesHexDump: 'Hex ダンプ', bytesByteArray: 'バイト配列', bytesBinaryString: '2 進数文字列',
+                bytesSeqNeeded: 'バイト列（例: 1f 8b 08）を貼るとこの 3 つの形式に変換できます',
+                bytesEmpty: 'バイト数またはバイト列を入力（1 行に 1 件）',
+                bytesErrBad: 'この入力は解釈できません', bytesErrTooLarge: '{n} の上限を超えています',
+                bytesErrTooMany: '最大 {n} バイト', bytesTipOk: '{n} 行 · {total}'
+            },
+            ko: {
+                bytesInputTitle: '바이트 / 바이트 시퀀스',
+                bytesInputPlaceholder: '1234567890 · 1.15 GiB · 1f 8b 08 · [0x1f, 0x8b]',
+                bytesOutputTitle: '변환 결과', bytesExact: '정확한 값',
+                bytesUnits1000: '1000 진법', bytesUnits1024: '1024 진법', bytesDecimals: '소수 자릿수',
+                bytesColInput: '입력', bytesColBytes: '바이트', bytesTotal: '합계', bytesCopyValue: '이 값 복사',
+                bytesHexDump: 'Hex 덤프', bytesByteArray: '바이트 배열', bytesBinaryString: '이진 문자열',
+                bytesSeqNeeded: '바이트 시퀀스(예: 1f 8b 08)를 붙여넣으면 세 가지 형식으로 변환됩니다',
+                bytesEmpty: '바이트 수 또는 바이트 시퀀스를 입력하세요. 한 줄에 하나',
+                bytesErrBad: '이 입력을 해석할 수 없습니다', bytesErrTooLarge: '{n} 한도를 초과했습니다',
+                bytesErrTooMany: '최대 {n} 바이트', bytesTipOk: '{n}행 · {total}'
+            },
+            pt: {
+                bytesInputTitle: 'Bytes / sequência de bytes',
+                bytesInputPlaceholder: '1234567890 · 1.15 GiB · 1f 8b 08 · [0x1f, 0x8b]',
+                bytesOutputTitle: 'Resultado', bytesExact: 'Valor exato',
+                bytesUnits1000: 'Base 1000', bytesUnits1024: 'Base 1024', bytesDecimals: 'Decimais',
+                bytesColInput: 'Entrada', bytesColBytes: 'Bytes', bytesTotal: 'Total', bytesCopyValue: 'Copiar valor',
+                bytesHexDump: 'Hex dump', bytesByteArray: 'Array de bytes', bytesBinaryString: 'String binária',
+                bytesSeqNeeded: 'Cole uma sequência de bytes (ex.: 1f 8b 08) para obter estas três formas',
+                bytesEmpty: 'Informe um tamanho ou uma sequência de bytes, um por linha',
+                bytesErrBad: 'Não foi possível interpretar esta entrada', bytesErrTooLarge: 'Acima do limite de {n}',
+                bytesErrTooMany: 'No máximo {n} bytes', bytesTipOk: '{n} linhas · {total}'
+            },
+            pl: {
+                bytesInputTitle: 'Bajty / sekwencja bajtów',
+                bytesInputPlaceholder: '1234567890 · 1.15 GiB · 1f 8b 08 · [0x1f, 0x8b]',
+                bytesOutputTitle: 'Wynik', bytesExact: 'Dokładna wartość',
+                bytesUnits1000: 'Podstawa 1000', bytesUnits1024: 'Podstawa 1024', bytesDecimals: 'Miejsca dziesiętne',
+                bytesColInput: 'Wejście', bytesColBytes: 'Bajty', bytesTotal: 'Razem', bytesCopyValue: 'Kopiuj wartość',
+                bytesHexDump: 'Zrzut hex', bytesByteArray: 'Tablica bajtów', bytesBinaryString: 'Ciąg binarny',
+                bytesSeqNeeded: 'Wklej sekwencję bajtów (np. 1f 8b 08), aby otrzymać te trzy postacie',
+                bytesEmpty: 'Podaj rozmiar lub sekwencję bajtów, po jednej w wierszu',
+                bytesErrBad: 'Nie można odczytać tego wejścia', bytesErrTooLarge: 'Przekracza limit {n}',
+                bytesErrTooMany: 'Maksymalnie {n} bajtów', bytesTipOk: '{n} wierszy · {total}'
+            },
+            ru: {
+                bytesInputTitle: 'Байты / последовательность байтов',
+                bytesInputPlaceholder: '1234567890 · 1.15 GiB · 1f 8b 08 · [0x1f, 0x8b]',
+                bytesOutputTitle: 'Результат', bytesExact: 'Точное значение',
+                bytesUnits1000: 'Основание 1000', bytesUnits1024: 'Основание 1024', bytesDecimals: 'Знаков после запятой',
+                bytesColInput: 'Ввод', bytesColBytes: 'Байты', bytesTotal: 'Итого', bytesCopyValue: 'Копировать значение',
+                bytesHexDump: 'Hex-дамп', bytesByteArray: 'Массив байтов', bytesBinaryString: 'Двоичная строка',
+                bytesSeqNeeded: 'Вставьте последовательность байтов (например, 1f 8b 08), чтобы получить эти три формы',
+                bytesEmpty: 'Введите размер или последовательность байтов, по одной в строке',
+                bytesErrBad: 'Не удалось разобрать этот ввод', bytesErrTooLarge: 'Превышен предел {n}',
+                bytesErrTooMany: 'Не более {n} байтов', bytesTipOk: 'Строк: {n} · {total}'
+            },
+            th: {
+                bytesInputTitle: 'ไบต์ / ลำดับไบต์',
+                bytesInputPlaceholder: '1234567890 · 1.15 GiB · 1f 8b 08 · [0x1f, 0x8b]',
+                bytesOutputTitle: 'ผลลัพธ์', bytesExact: 'ค่าที่แน่นอน',
+                bytesUnits1000: 'ฐาน 1000', bytesUnits1024: 'ฐาน 1024', bytesDecimals: 'ตำแหน่งทศนิยม',
+                bytesColInput: 'อินพุต', bytesColBytes: 'ไบต์', bytesTotal: 'รวม', bytesCopyValue: 'คัดลอกค่านี้',
+                bytesHexDump: 'Hex dump', bytesByteArray: 'อาร์เรย์ไบต์', bytesBinaryString: 'สตริงไบนารี',
+                bytesSeqNeeded: 'วางลำดับไบต์ (เช่น 1f 8b 08) เพื่อแปลงเป็นสามรูปแบบนี้',
+                bytesEmpty: 'ป้อนจำนวนไบต์หรือลำดับไบต์ บรรทัดละหนึ่งรายการ',
+                bytesErrBad: 'อ่านอินพุตนี้ไม่ได้', bytesErrTooLarge: 'เกินขีดจำกัด {n}',
+                bytesErrTooMany: 'ไม่เกิน {n} ไบต์', bytesTipOk: '{n} แถว · {total}'
+            },
+            tr: {
+                bytesInputTitle: 'Bayt / bayt dizisi',
+                bytesInputPlaceholder: '1234567890 · 1.15 GiB · 1f 8b 08 · [0x1f, 0x8b]',
+                bytesOutputTitle: 'Sonuç', bytesExact: 'Kesin değer',
+                bytesUnits1000: 'Taban 1000', bytesUnits1024: 'Taban 1024', bytesDecimals: 'Ondalık basamak',
+                bytesColInput: 'Giriş', bytesColBytes: 'Bayt', bytesTotal: 'Toplam', bytesCopyValue: 'Bu değeri kopyala',
+                bytesHexDump: 'Hex dökümü', bytesByteArray: 'Bayt dizisi', bytesBinaryString: 'İkili dize',
+                bytesSeqNeeded: 'Bu üç biçimi görmek için bir bayt dizisi yapıştırın (örn. 1f 8b 08)',
+                bytesEmpty: 'Bir boyut veya bayt dizisi girin, her satıra bir tane',
+                bytesErrBad: 'Bu giriş okunamıyor', bytesErrTooLarge: '{n} sınırını aşıyor',
+                bytesErrTooMany: 'En fazla {n} bayt', bytesTipOk: '{n} satır · {total}'
+            }
+        };
+
+        // 工作流（全局拖放 / 批量）的文案，同样走独立小表
+        const FLOW_I18N = {
+            'zh-CN': {
+                flowDropTitle: '松手即可导入',
+                flowDropHint: '图片、表格、文本会按类型自动打开对应页面',
+                flowDropBad: '不支持的文件类型：{e}',
+                flowDropMany: '一次最多 {n} 个文件',
+                flowBatchTip: '{n} 个文件 · {m} 条记录，已合并成一个 JSON',
+                flowBatchOne: '批量处理中，左侧先预览 {f}',
+                flowDropTooBig: '文件太大：{name}（{size}），上限 {max}',
+                flowDropFail: '读取失败：{name}'
+            },
+            'zh-TW': {
+                flowDropTitle: '放開即可匯入',
+                flowDropHint: '圖片、表格、文字會依類型自動開啟對應頁面',
+                flowDropBad: '不支援的檔案類型：{e}',
+                flowDropMany: '一次最多 {n} 個檔案',
+                flowBatchTip: '{n} 個檔案 · {m} 筆記錄，已合併成一個 JSON',
+                flowBatchOne: '批次處理中，左側先預覽 {f}',
+                flowDropTooBig: '檔案太大：{name}（{size}），上限 {max}',
+                flowDropFail: '讀取失敗：{name}'
+            },
+            'en': {
+                flowDropTitle: 'Drop to import',
+                flowDropHint: 'Images, sheets and text files open the matching page automatically',
+                flowDropBad: 'Unsupported file type: {e}',
+                flowDropMany: 'Up to {n} files at a time',
+                flowBatchTip: '{n} files · {m} records, merged into one JSON',
+                flowBatchOne: 'Batch in progress — previewing {f}',
+                flowDropTooBig: 'File too large: {name} ({size}), limit {max}',
+                flowDropFail: 'Failed to read {name}'
+            },
+            'az': {
+                flowDropTitle: 'İdxal üçün buraxın',
+                flowDropHint: 'Şəkillər, cədvəllər və mətnlər uyğun səhifəni avtomatik açır',
+                flowDropBad: 'Dəstəklənməyən fayl növü: {e}',
+                flowDropMany: 'Bir dəfəyə ən çox {n} fayl',
+                flowBatchTip: '{n} fayl · {m} qeyd bir JSON-da birləşdirildi',
+                flowBatchOne: 'Toplu emal — {f} önizləmə',
+                flowDropTooBig: 'Fayl çox böyükdür: {name} ({size}), limit {max}',
+                flowDropFail: '{name} oxunmadı'
+            },
+            'es': {
+                flowDropTitle: 'Suelta para importar',
+                flowDropHint: 'Las imágenes, tablas y textos abren su página automáticamente',
+                flowDropBad: 'Tipo de archivo no admitido: {e}',
+                flowDropMany: 'Máximo {n} archivos a la vez',
+                flowBatchTip: '{n} archivos · {m} registros, unidos en un JSON',
+                flowBatchOne: 'Procesando por lotes: vista previa de {f}',
+                flowDropTooBig: 'Archivo demasiado grande: {name} ({size}), límite {max}',
+                flowDropFail: 'No se pudo leer {name}'
+            },
+            'id': {
+                flowDropTitle: 'Lepas untuk mengimpor',
+                flowDropHint: 'Gambar, tabel, dan teks membuka halaman yang sesuai otomatis',
+                flowDropBad: 'Jenis file tidak didukung: {e}',
+                flowDropMany: 'Maksimal {n} file sekaligus',
+                flowBatchTip: '{n} file · {m} catatan, digabung jadi satu JSON',
+                flowBatchOne: 'Memproses batch — pratinjau {f}',
+                flowDropTooBig: 'File terlalu besar: {name} ({size}), batas {max}',
+                flowDropFail: 'Gagal membaca {name}'
+            },
+            'it': {
+                flowDropTitle: 'Rilascia per importare',
+                flowDropHint: 'Immagini, tabelle e testi aprono la pagina corrispondente',
+                flowDropBad: 'Tipo di file non supportato: {e}',
+                flowDropMany: 'Massimo {n} file alla volta',
+                flowBatchTip: '{n} file · {m} record, uniti in un solo JSON',
+                flowBatchOne: 'Elaborazione batch — anteprima di {f}',
+                flowDropTooBig: 'File troppo grande: {name} ({size}), limite {max}',
+                flowDropFail: 'Lettura di {name} non riuscita'
+            },
+            'ja': {
+                flowDropTitle: 'ドロップで読み込み',
+                flowDropHint: '画像・表・テキストは種類に応じて対応ページを開きます',
+                flowDropBad: '未対応のファイル形式：{e}',
+                flowDropMany: '一度に最大 {n} ファイル',
+                flowBatchTip: '{n} ファイル · {m} 件のレコードを 1 つの JSON に統合しました',
+                flowBatchOne: 'バッチ処理中 — {f} を表示',
+                flowDropTooBig: 'ファイルが大きすぎます：{name}（{size}）、上限 {max}',
+                flowDropFail: '{name} を読み取れませんでした'
+            },
+            'ko': {
+                flowDropTitle: '놓으면 가져옵니다',
+                flowDropHint: '이미지·표·텍스트는 종류에 따라 해당 페이지가 열립니다',
+                flowDropBad: '지원하지 않는 파일 형식: {e}',
+                flowDropMany: '한 번에 최대 {n}개 파일',
+                flowBatchTip: '{n}개 파일 · {m}개 레코드를 하나의 JSON으로 합쳤습니다',
+                flowBatchOne: '일괄 처리 중 — {f} 미리보기',
+                flowDropTooBig: '파일이 너무 큽니다: {name} ({size}), 최대 {max}',
+                flowDropFail: '{name}을(를) 읽지 못했습니다'
+            },
+            'pt': {
+                flowDropTitle: 'Solte para importar',
+                flowDropHint: 'Imagens, tabelas e textos abrem a página correspondente',
+                flowDropBad: 'Tipo de arquivo não suportado: {e}',
+                flowDropMany: 'No máximo {n} arquivos por vez',
+                flowBatchTip: '{n} arquivos · {m} registros, unidos em um JSON',
+                flowBatchOne: 'Processando em lote — visualizando {f}',
+                flowDropTooBig: 'Arquivo muito grande: {name} ({size}), limite {max}',
+                flowDropFail: 'Falha ao ler {name}'
+            },
+            'pl': {
+                flowDropTitle: 'Upuść, aby zaimportować',
+                flowDropHint: 'Obrazy, tabele i teksty otwierają odpowiednią stronę',
+                flowDropBad: 'Nieobsługiwany typ pliku: {e}',
+                flowDropMany: 'Maksymalnie {n} plików naraz',
+                flowBatchTip: '{n} plików · {m} rekordów scalonych w jeden JSON',
+                flowBatchOne: 'Przetwarzanie wsadowe — podgląd {f}',
+                flowDropTooBig: 'Plik jest za duży: {name} ({size}), limit {max}',
+                flowDropFail: 'Nie udało się odczytać {name}'
+            },
+            'ru': {
+                flowDropTitle: 'Отпустите для импорта',
+                flowDropHint: 'Изображения, таблицы и текст открывают нужную страницу',
+                flowDropBad: 'Неподдерживаемый тип файла: {e}',
+                flowDropMany: 'Не более {n} файлов за раз',
+                flowBatchTip: '{n} файлов · {m} записей объединены в один JSON',
+                flowBatchOne: 'Пакетная обработка — предпросмотр {f}',
+                flowDropTooBig: 'Файл слишком большой: {name} ({size}), предел {max}',
+                flowDropFail: 'Не удалось прочитать {name}'
+            },
+            'th': {
+                flowDropTitle: 'ปล่อยเพื่อนำเข้า',
+                flowDropHint: 'รูปภาพ ตาราง และข้อความจะเปิดหน้าที่ตรงกันโดยอัตโนมัติ',
+                flowDropBad: 'ชนิดไฟล์ที่ไม่รองรับ: {e}',
+                flowDropMany: 'ครั้งละไม่เกิน {n} ไฟล์',
+                flowBatchTip: '{n} ไฟล์ · {m} ระเบียน รวมเป็น JSON เดียว',
+                flowBatchOne: 'กำลังประมวลผลเป็นชุด — ดูตัวอย่าง {f}',
+                flowDropTooBig: 'ไฟล์ใหญ่เกินไป: {name} ({size}) จำกัด {max}',
+                flowDropFail: 'อ่าน {name} ไม่สำเร็จ'
+            },
+            'tr': {
+                flowDropTitle: 'İçe aktarmak için bırakın',
+                flowDropHint: 'Görseller, tablolar ve metinler ilgili sayfayı açar',
+                flowDropBad: 'Desteklenmeyen dosya türü: {e}',
+                flowDropMany: 'Tek seferde en fazla {n} dosya',
+                flowBatchTip: '{n} dosya · {m} kayıt tek bir JSON\'da birleştirildi',
+                flowBatchOne: 'Toplu işleniyor — {f} önizleniyor',
+                flowDropTooBig: 'Dosya çok büyük: {name} ({size}), sınır {max}',
+                flowDropFail: '{name} okunamadı'
+            }
+        };
+
         /* 格式矩阵（TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML）
          * 的错误文案。confconv.js 只抛 code + 行列，文案在这里按语言取。 */
         const CONF_I18N = {
@@ -9666,6 +10279,7 @@
         }
 
         function enterCodeMode() {
+            exitOtherModes('code');
             if (isDiffMode) {
                 isDiffMode = false;
                 diffReport.classList.remove('show');
@@ -9673,10 +10287,6 @@
                 toggleDiffBtn.textContent = currentDict.diffBtn || '对比差异';
                 toggleDiffBtn.classList.remove('btn-diff');
             }
-            if (compareMode) exitCompareMode();
-            if (sqlModeActive) exitSqlMode();
-            if (sheetModeActive) exitSheetMode();
-            if (imgModeActive) exitImageMode();
             codeModeActive = true;
             markConvertActive(null);
             mainWorkspace.classList.add('hidden');
@@ -9828,6 +10438,21 @@
         const escOutSize = document.getElementById('escOutSize');
         const escTip = document.getElementById('escTip');
 
+        const bytesWorkspaceEl = document.getElementById('bytesWorkspace');
+        const navBytesLink = document.getElementById('navBytes');
+        const bytesInput = document.getElementById('bytesInput');
+        const bytesPanel = document.getElementById('bytesPanel');
+        const bytesInBadge = document.getElementById('bytesInBadge');
+        const bytesOutBadge = document.getElementById('bytesOutBadge');
+        const bytesOutSize = document.getElementById('bytesOutSize');
+        const bytesTip = document.getElementById('bytesTip');
+        const bytesTableEl = document.getElementById('bytesTable');
+        const bytesFormsEl = document.getElementById('bytesForms');
+        const bytesExactValue = document.getElementById('bytesExactValue');
+        const bytesHuman1000 = document.getElementById('bytesHuman1000');
+        const bytesHuman1024 = document.getElementById('bytesHuman1024');
+        const bytesDecimalsSelect = document.getElementById('bytesDecimals');
+
         let queryModeActive = false;
         let queryTab = 'path';
         let queryTimer = null;
@@ -9835,6 +10460,10 @@
         let escKind = 'url';
         let escDir = 'encode';
         let escTimer = null;
+        let bytesModeActive = false;
+        let bytesTimer = null;
+        let bytesDecimals = 2;
+        let bytesCopyPayload = '';
         let querySampleText = '';
         let schSampleText = '';
 
@@ -9863,6 +10492,14 @@
         };
 
         const ESC_SAMPLE = 'https://dbx.test/api?q=中文关键词&page=1';
+
+        // 示例故意混着四种输入：纯数字、带单位、1024 制、字节序列（最后一行能出三种写法）
+        const BYTES_SAMPLE = [
+            '1234567890',
+            '1.5 GB',
+            '734003200',
+            '1f 8b 08 00 00 00 00 00 00 03'
+        ].join('\n');
 
         /* ----------------------------- 查询子页 ----------------------------- */
 
@@ -10329,13 +10966,7 @@
         }
 
         function enterQueryMode() {
-            if (isDiffMode) exitDiffIfActive();
-            if (compareMode) exitCompareMode();
-            if (sqlModeActive) exitSqlMode();
-            if (sheetModeActive) exitSheetMode();
-            if (imgModeActive) exitImageMode();
-            if (codeModeActive) exitCodeMode();
-            if (escModeActive) exitEscMode();
+            exitOtherModes('query');
             queryModeActive = true;
             markConvertActive(null);
             mainWorkspace.classList.add('hidden');
@@ -10375,14 +11006,10 @@
             });
         }
 
+        // 转义工具是独立页面（和对比 / SQL / 表格一样），进来就留着，换页即离开
         function enterEscMode() {
-            if (isDiffMode) exitDiffIfActive();
-            if (compareMode) exitCompareMode();
-            if (sqlModeActive) exitSqlMode();
-            if (sheetModeActive) exitSheetMode();
-            if (imgModeActive) exitImageMode();
-            if (codeModeActive) exitCodeMode();
-            if (queryModeActive) exitQueryMode();
+            if (escModeActive) return;
+            exitOtherModes('esc');
             escModeActive = true;
             markConvertActive(null);
             mainWorkspace.classList.add('hidden');
@@ -10436,6 +11063,317 @@
             escSyncPlaceholders();
             if (escModeActive) escRun();
         }
+
+        /* ----------------------------- 字节转换页 ----------------------------- */
+
+        function bT(key, fallback) {
+            const table = BYTES_I18N[currentLang] || {};
+            return table[key] || (BYTES_I18N.en || {})[key] || (BYTES_I18N['zh-CN'] || {})[key] || fallback || key;
+        }
+
+        function bytesSetTip(text, cls) {
+            bytesTip.textContent = text || '';
+            bytesTip.className = 'compare-tip' + (cls ? ' ' + cls : '');
+        }
+
+        // 数值一律不带千分位：这些值经常要直接贴进代码 / 命令行 / 配置，
+        // 逗号在那里是语法错误；要读位数就看下面的 1000/1024 进制。
+        function bytesFmt(n) {
+            const v = Number(n);
+            return isFinite(v) ? String(v) : '—';
+        }
+
+        // 单个值复制：卡片点一下、表格里某个数值点一下都走这里
+        async function bytesCopyOne(text) {
+            const value = String(text == null ? '' : text).trim();
+            if (!value || value === '—') {
+                showToast(qT('toastCopyError', 'Nothing to copy'), 'error');
+                return;
+            }
+            try {
+                await writeClipboardText(value);
+                showToast(qT('toastCopySuccess', 'Copied'));
+            } catch (err) {
+                showToast(qT('toastCopyError', 'Copy failed'), 'error');
+            }
+        }
+
+        function ensureBytesEditor() {
+            if (bytesEditor) return;
+            bytesEditor = CodeMirror.fromTextArea(bytesInput, editorConfig('text/plain', bytesInput.placeholder, bytesRun));
+            bytesEditor.on('change', () => {
+                const next = bytesEditor.getValue();
+                if (bytesInput.value !== next) bytesInput.value = next;
+                bytesSchedule();
+            });
+            linkTextareaToEditor(bytesInput, bytesEditor);
+            syncEditorTheme();
+        }
+
+        function bytesSchedule() {
+            clearTimeout(bytesTimer);
+            bytesTimer = setTimeout(bytesRun, 180);
+        }
+
+        // 表格：每行一条输入，末尾给合计（多行才有意义，单行不重复一遍）
+        function bytesRenderTable(result) {
+            const B = window.DBXBytes;
+            const frag = document.createDocumentFragment();
+
+            const thead = document.createElement('thead');
+            const headRow = document.createElement('tr');
+            ['#', bT('bytesColInput'), bT('bytesColBytes'), bT('bytesUnits1000'), bT('bytesUnits1024')]
+                .forEach((label) => {
+                    const th = document.createElement('th');
+                    th.textContent = label;
+                    headRow.appendChild(th);
+                });
+            thead.appendChild(headRow);
+            frag.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            result.rows.forEach((row, i) => {
+                const tr = document.createElement('tr');
+                if (!row.ok) tr.className = 'bad';
+                const cell = (text, cls, copyable) => {
+                    const td = document.createElement('td');
+                    if (cls) td.className = cls;
+                    // 数值列点一下就复制这一个值（提示走 i18n，不用图标）
+                    if (copyable) td.title = bT('bytesCopyValue');
+                    td.textContent = text;
+                    tr.appendChild(td);
+                    return td;
+                };
+                cell(String(row.line || i + 1));
+                const inCell = cell(row.input || '', 'in');
+                inCell.title = row.input || '';
+                if (row.ok) {
+                    cell(bytesFmt(row.bytes), 'num', true);
+                    cell(B.human(row.bytes, bytesDecimals, 1000), 'num', true);
+                    cell(B.human(row.bytes, bytesDecimals, 1024), 'num', true);
+                } else {
+                    const msg = row.code === 'too-large'
+                        ? bT('bytesErrTooLarge').replace('{n}', B.human(B.LIMITS.maxBytes, 0, 1024))
+                        : (row.code === 'too-many'
+                            ? bT('bytesErrTooMany').replace('{n}', String(B.LIMITS.maxSeq))
+                            : bT('bytesErrBad'));
+                    const err = cell(msg);
+                    err.colSpan = 3;
+                }
+                tbody.appendChild(tr);
+            });
+            frag.appendChild(tbody);
+
+            if (result.rows.length > 1 && result.okCount) {
+                const tfoot = document.createElement('tfoot');
+                const tr = document.createElement('tr');
+                const total = (text, cls, copyable) => {
+                    const td = document.createElement('td');
+                    if (cls) td.className = cls;
+                    if (copyable) td.title = bT('bytesCopyValue');
+                    td.textContent = text;
+                    tr.appendChild(td);
+                };
+                total('');
+                total(bT('bytesTotal'));
+                total(bytesFmt(result.total), 'num', true);
+                total(B.human(result.total, bytesDecimals, 1000), 'num', true);
+                total(B.human(result.total, bytesDecimals, 1024), 'num', true);
+                tfoot.appendChild(tr);
+                frag.appendChild(tfoot);
+            }
+
+            bytesTableEl.innerHTML = '';
+            bytesTableEl.appendChild(frag);
+        }
+
+        // 三种写法：只有拿到真实字节（即某行是字节序列）时才出内容
+        function bytesRenderForms(data) {
+            const B = window.DBXBytes;
+            bytesFormsEl.innerHTML = '';
+            if (!data || !data.length) {
+                const empty = document.createElement('div');
+                empty.className = 'bytes-empty';
+                empty.textContent = bT('bytesSeqNeeded');
+                bytesFormsEl.appendChild(empty);
+                return;
+            }
+            const set = B.forms(data);
+            [['hexDump', 'bytesHexDump'], ['byteArray', 'bytesByteArray'], ['binary', 'bytesBinaryString']]
+                .forEach((pair) => {
+                    const box = document.createElement('div');
+                    box.className = 'bytes-form';
+                    const head = document.createElement('header');
+                    const title = document.createElement('span');
+                    title.textContent = bT(pair[1]);
+                    const copyBtn = document.createElement('button');
+                    copyBtn.type = 'button';
+                    copyBtn.className = 'btn btn-outline';
+                    copyBtn.textContent = currentDict.copyBtn || '复制';
+                    copyBtn.dataset.copyForm = pair[0];
+                    copyBtn.dataset.copyText = set[pair[0]].full;
+                    head.appendChild(title);
+                    head.appendChild(copyBtn);
+                    const pre = document.createElement('pre');
+                    pre.textContent = set[pair[0]].preview + (set[pair[0]].clipped ? '\n…' : '');
+                    box.appendChild(head);
+                    box.appendChild(pre);
+                    bytesFormsEl.appendChild(box);
+                });
+        }
+
+        function bytesTsv(result) {
+            const B = window.DBXBytes;
+            const rows = [[bT('bytesColInput'), bT('bytesColBytes'), bT('bytesUnits1000'), bT('bytesUnits1024')].join('\t')];
+            result.rows.forEach((row) => {
+                if (!row.ok) {
+                    rows.push([row.input || '', '', '', ''].join('\t'));
+                    return;
+                }
+                rows.push([
+                    row.input || '',
+                    String(row.bytes),
+                    B.human(row.bytes, bytesDecimals, 1000),
+                    B.human(row.bytes, bytesDecimals, 1024)
+                ].join('\t'));
+            });
+            if (result.rows.length > 1 && result.okCount) {
+                rows.push([
+                    bT('bytesTotal'),
+                    String(result.total),
+                    B.human(result.total, bytesDecimals, 1000),
+                    B.human(result.total, bytesDecimals, 1024)
+                ].join('\t'));
+            }
+            return rows.join('\n');
+        }
+
+        function bytesRun() {
+            const B = window.DBXBytes;
+            if (!B) return;
+            const text = bytesInput.value;
+            const result = B.parse(text);
+            const lineCount = result.rows.length;
+
+            bytesInBadge.textContent = lineCount ? String(lineCount) : '—';
+
+            if (!lineCount) {
+                bytesExactValue.textContent = '—';
+                bytesHuman1000.textContent = '—';
+                bytesHuman1024.textContent = '—';
+                bytesOutSize.textContent = '';
+                bytesOutBadge.textContent = 'B';
+                bytesTableEl.innerHTML = '';
+                bytesRenderForms(null);
+                bytesCopyPayload = '';
+                bytesSetTip(bT('bytesEmpty'));
+                return;
+            }
+
+            bytesRenderTable(result);
+            const first = result.rows.filter((r) => r.ok)[0] || null;
+            bytesExactValue.textContent = first ? bytesFmt(first.bytes) + ' B' : '—';
+            bytesHuman1000.textContent = first ? B.human(first.bytes, bytesDecimals, 1000) : '—';
+            bytesHuman1024.textContent = first ? B.human(first.bytes, bytesDecimals, 1024) : '—';
+            bytesOutSize.textContent = first ? bytesFmt(first.bytes) + ' B' : '';
+            bytesOutBadge.textContent = first && first.seqBase ? first.seqBase.toUpperCase() : 'B';
+            bytesRenderForms(result.firstData);
+            bytesCopyPayload = bytesTsv(result);
+
+            if (result.okCount) {
+                const totalText = result.rows.length > 1
+                    ? B.human(result.total, bytesDecimals, 1024) + ' / ' + B.human(result.total, bytesDecimals, 1000)
+                    : B.human(first.bytes, bytesDecimals, 1024);
+                bytesSetTip(bT('bytesTipOk')
+                    .replace('{n}', String(result.rows.length))
+                    .replace('{total}', totalText), 'ok');
+            } else {
+                bytesSetTip(bT('bytesErrBad'), 'err');
+            }
+        }
+
+        function enterBytesMode() {
+            if (bytesModeActive) return;
+            exitOtherModes('bytes');
+            bytesModeActive = true;
+            markConvertActive(null);
+            mainWorkspace.classList.add('hidden');
+            toolbarEl.classList.add('hidden');
+            ensureBytesEditor();
+            bytesWorkspaceEl.classList.add('active');
+            navBytesLink.classList.add('active');
+            if (!bytesInput.value.trim()) {
+                bytesInput.value = BYTES_SAMPLE;
+                bytesEditor.setValue(BYTES_SAMPLE);
+            }
+            bytesRun();
+            requestAnimationFrame(() => bytesEditor.refresh());
+        }
+
+        function exitBytesMode() {
+            if (!bytesModeActive) return;
+            bytesModeActive = false;
+            clearTimeout(bytesTimer);
+            bytesWorkspaceEl.classList.remove('active');
+            navBytesLink.classList.remove('active');
+            toolbarEl.classList.remove('hidden');
+            mainWorkspace.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                inputEditor.refresh();
+                outputEditor.refresh();
+            });
+        }
+
+        function refreshBytesI18n() {
+            if (!bytesEditor) return;
+            bytesEditor.setOption('placeholder', bytesInput.placeholder || '');
+            if (bytesModeActive) bytesRun();
+        }
+
+        bytesDecimalsSelect.addEventListener('change', () => {
+            const value = Number(bytesDecimalsSelect.value);
+            bytesDecimals = isFinite(value) ? value : 2;
+            bytesRun();
+        });
+        document.getElementById('bytesCopy').addEventListener('click', async () => {
+            if (!bytesCopyPayload) {
+                showToast(qT('toastCopyError', 'Nothing to copy'), 'error');
+                return;
+            }
+            try {
+                await writeClipboardText(bytesCopyPayload);
+                showToast(qT('toastCopySuccess', 'Copied'));
+            } catch (err) {
+                showToast(qT('toastCopyError', 'Copy failed'), 'error');
+            }
+        });
+        document.getElementById('bytesClear').addEventListener('click', () => {
+            clearTimeout(bytesTimer);
+            bytesInput.value = '';
+            if (bytesEditor) bytesEditor.setValue('');
+            bytesRun();
+        });
+        // 单个值复制：汇总卡片的数字（或它旁边的「复制」）与表格里每个换算结果
+        bytesPanel.addEventListener('click', (e) => {
+            const figure = e.target.closest('[data-copy-id]');
+            if (figure) {
+                const target = document.getElementById(figure.dataset.copyId || '');
+                bytesCopyOne(target ? target.textContent : '');
+                return;
+            }
+            const cell = e.target.closest('#bytesTable td.num');
+            if (cell) bytesCopyOne(cell.textContent);
+        });
+        bytesFormsEl.addEventListener('click', async (e) => {
+            const btn = e.target.closest('[data-copy-form]');
+            if (!btn) return;
+            try {
+                await writeClipboardText(btn.dataset.copyText || '');
+                showToast(qT('toastCopySuccess', 'Copied'));
+            } catch (err) {
+                showToast(qT('toastCopyError', 'Copy failed'), 'error');
+            }
+        });
 
         queryTabs.addEventListener('click', (e) => {
             const tab = e.target.closest('.compare-tab');
@@ -10521,6 +11459,395 @@
             escSetTip(eT('escTipIdle'));
         });
 
+        // =========================================
+        // 13. 工作流：全局拖放 + 批量
+        // =========================================
+        // 任何位置松手都按扩展名路由：图片进图片页、xlsx/csv 进表格页、文本进格式转换页；
+        // 一次拖多个表格文件则合并成一个 JSON（批量），判断规则都在 flow.js 里。
+        function fT(key, fallback) {
+            const cur = FLOW_I18N[currentLang] || {};
+            return cur[key] || (FLOW_I18N.en || {})[key] || (FLOW_I18N['zh-CN'] || {})[key] || fallback || key;
+        }
+
+        // ---------- 全局拖放 ----------
+        // DBX 是 Tauri 应用：原生文件拖放被宿主在 WebView 层接管（wry 的 drag-drop-enabled），
+        // HTML5 的 dragenter/drop 根本进不到页面里，所以先走宿主给的口子
+        // dbxPlugin.fileTransfer（onDragState / onDrop / read），浏览器事件只作兜底。
+        const dropVeil = document.getElementById('dropVeil');
+        let dragDepth = 0;
+        let lastDropAt = 0;
+        let lastDropSource = '';
+
+        function hostFT() {
+            return (window.dbxPlugin && window.dbxPlugin.fileTransfer) || null;
+        }
+        function hostFTCap(name) {
+            const caps = (window.dbxPlugin && window.dbxPlugin.capabilities) || {};
+            return (caps.fileTransfer || {})[name];
+        }
+        function hostDropAvailable() {
+            const ft = hostFT();
+            if (!ft || typeof ft.onDrop !== 'function') return false;
+            return hostFTCap('drop') !== false;
+        }
+
+        function showDropVeil(visible) {
+            if (dropVeil) dropVeil.hidden = !visible;
+        }
+        // 宿主与 HTML5 两条路偶尔会同时派发同一份文件，先到的那条算数；
+        // 同一个来源连着拖两次不受影响（用户就是要拖两次）
+        function claimDrop(source) {
+            const now = Date.now();
+            if (lastDropSource && lastDropSource !== source && now - lastDropAt < 800) return false;
+            lastDropSource = source;
+            lastDropAt = now;
+            return true;
+        }
+
+        function dragHasFiles(e) {
+            const dt = e.dataTransfer;
+            if (!dt) return false;
+            const types = dt.types ? Array.prototype.slice.call(dt.types) : [];
+            if (types.indexOf('Files') >= 0) return true;
+            // 从某些应用（文件树 / 压缩包预览）拖出来时 types 里是 uri-list 而不是 Files
+            if (dt.items && dt.items.length) {
+                for (let i = 0; i < dt.items.length; i++) {
+                    if (dt.items[i] && dt.items[i].kind === 'file') return true;
+                }
+            }
+            return false;
+        }
+
+        // ---------- 宿主路径：handleId -> 字节 ----------
+        const HOST_CHUNK = 256 * 1024;              // 单次读多少，避免大文件一次性撑出巨型 base64
+        const HOST_DROP_BUDGET = 40 * 1024 * 1024;  // 一次拖入的总字节预算
+
+        function dropTooBig(name, size, max) {
+            return fT('flowDropTooBig', '文件太大：{name}（{size}），上限 {max}')
+                .replace('{name}', name || '—')
+                .replace('{size}', DBXImg.formatBytes(size || 0))
+                .replace('{max}', DBXImg.formatBytes(max || 0));
+        }
+
+        async function readHandleBytes(handleId, limitBytes) {
+            const ft = hostFT();
+            if (!ft || typeof ft.read !== 'function') throw new Error('host-read-missing');
+            const parts = [];
+            let size = 0;
+            for (;;) {
+                const res = await ft.read(handleId, size, HOST_CHUNK);
+                if (!res || !res.dataBase64) break;
+                const bin = atob(res.dataBase64);
+                const chunk = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) chunk[i] = bin.charCodeAt(i);
+                parts.push(chunk);
+                size += chunk.length;
+                if (limitBytes && size > limitBytes) {
+                    const err = new Error('too-big');
+                    err.size = size;
+                    throw err;
+                }
+                if (res.eof === true) break;
+            }
+            const merged = new Uint8Array(size);
+            let pos = 0;
+            for (let i = 0; i < parts.length; i++) { merged.set(parts[i], pos); pos += parts[i].length; }
+            return merged;
+        }
+
+        // 宿主只给 handleId；转成 File 之后图片页 / 表格页 / 文本页的既有逻辑直接复用
+        async function hostEntryToFile(entry, limitBytes) {
+            const name = entry.name || 'file';
+            const declared = Number(entry.size || 0);
+            if (limitBytes && declared > limitBytes) {
+                const err = new Error('too-big');
+                err.size = declared;
+                throw err;
+            }
+            const bytes = await readHandleBytes(entry.handleId, limitBytes);
+            return new File([bytes], name, { type: entry.contentType || '' });
+        }
+
+        // 不用的句柄要还给宿主，否则拖十次就在宿主侧攒十个打开的文件
+        function releaseEntry(entry) {
+            const ft = hostFT();
+            if (!entry || !entry.handleId) return;
+            if (!ft || typeof ft.cancel !== 'function') return;
+            try { ft.cancel(entry.handleId); } catch (err) { /* 句柄可能已回收 */ }
+        }
+
+        async function handleHostDrop(entries) {
+            const flow = window.DBXFlow;
+            if (!flow || !entries || !entries.length) return;
+            showDropVeil(false);
+            const max = flow.LIMITS.batchFiles;
+            let list = entries;
+            if (list.length > max) {
+                showToast(fT('flowDropMany', '一次最多 {n} 个文件').replace('{n}', String(max)), 'error');
+                list.slice(max).forEach(releaseEntry);
+                list = list.slice(0, max);
+            }
+            const route = flow.routeBatch(list.map((e) => (e && e.name) || ''));
+            if (route.kind === 'none') {
+                list.forEach(releaseEntry);
+                showToast(fT('flowDropBad', '不支持的文件类型：{e}')
+                    .replace('{e}', flow.extOf((list[0] && list[0].name) || '') || '—'), 'error');
+                return;
+            }
+            const perFile = route.kind === 'image' ? DBXImg.LIMITS.maxImageBytes
+                : (route.kind === 'sheet' ? SHEET_LIMITS.maxFileBytes : flow.LIMITS.hostText);
+
+            // 图片页、文本页一次只处理一个文件，多拖的没必要读进内存
+            const need = route.kind === 'sheet' ? list.length : 1;
+            if (list.length > need) list.slice(need).forEach(releaseEntry);
+            const files = [];
+            let used = 0;
+            for (let i = 0; i < list.length && i < need; i++) {
+                const entry = list[i] || {};
+                const declared = Number(entry.size || 0);
+                if (declared && used + declared > HOST_DROP_BUDGET) {
+                    releaseEntry(entry);
+                    showToast(dropTooBig(entry.name, declared, HOST_DROP_BUDGET), 'error');
+                    break;
+                }
+                try {
+                    const file = await hostEntryToFile(entry, perFile);
+                    used += file.size;
+                    files.push(file);
+                } catch (err) {
+                    releaseEntry(entry);
+                    if (err && err.message === 'too-big') {
+                        showToast(dropTooBig(entry.name, err.size || declared, perFile), 'error');
+                    } else {
+                        showToast(fT('flowDropFail', '读取失败：{name}').replace('{name}', entry.name || '—'), 'error');
+                    }
+                }
+            }
+            if (!files.length) return;
+
+            if (route.kind === 'image') {
+                enterImageMode();
+                imgOpenFile(files[0]);
+                return;
+            }
+            if (route.kind === 'sheet') {
+                enterSheetMode();
+                if (files.length > 1) openSheetBatch(files);
+                else openSheetFile(files[0]);
+                return;
+            }
+            loadTextFileIntoConvert(files[0], route.items[0] && route.items[0].format);
+        }
+
+        function setupHostDrop() {
+            const ft = hostFT();
+            try {
+                ft.onDrop((files) => {
+                    if (!claimDrop('host')) return;
+                    showDropVeil(false);
+                    handleHostDrop(files).catch((err) => {
+                        console.error('[flow] host drop failed', err);
+                        showToast(fT('flowDropFail', '读取失败：{name}').replace('{name}', '—'), 'error');
+                    });
+                });
+            } catch (err) {
+                console.error('[flow] onDrop 注册失败', err);
+            }
+            if (typeof ft.onDragState === 'function') {
+                try {
+                    ft.onDragState((dragging) => showDropVeil(!!dragging));
+                } catch (err) { /* 老版本宿主没有这个能力，蒙层不显示而已 */ }
+            }
+        }
+
+        // ---------- 浏览器兜底（开发预览 / 宿主没给 fileTransfer 时） ----------
+        function setupBrowserDrop() {
+            // 进/出只负责蒙层与阻止导航，用捕获阶段兜住任何层级的 stopPropagation
+            window.addEventListener('dragenter', (e) => {
+                if (!dragHasFiles(e)) return;
+                e.preventDefault();
+                dragDepth++;
+                showDropVeil(true);
+            }, true);
+            window.addEventListener('dragover', (e) => {
+                // 不拦的话 WebView 会把文件当导航打开，等于离开插件；页内拖文本 / 拖行不干预
+                if (!dragHasFiles(e)) return;
+                e.preventDefault();
+                if (e.dataTransfer) {
+                    try { e.dataTransfer.dropEffect = 'copy'; } catch (err) { /* 只读属性，忽略 */ }
+                }
+            }, true);
+            window.addEventListener('dragleave', (e) => {
+                if (!dragHasFiles(e)) return;
+                dragDepth = Math.max(0, dragDepth - 1);
+                if (!dragDepth) showDropVeil(false);
+            }, true);
+            // 松手只收蒙层：真正的处理留给冒泡，页面自己的投放区（图片页 / 表格页）优先
+            window.addEventListener('drop', () => {
+                dragDepth = 0;
+                showDropVeil(false);
+            }, true);
+            document.addEventListener('drop', (e) => {
+                if (e.defaultPrevented) return;
+                const files = e.dataTransfer && e.dataTransfer.files;
+                if (!files || !files.length) return;
+                e.preventDefault();
+                if (!claimDrop('browser')) return;
+                handleDroppedFiles([].slice.call(files));
+            });
+        }
+
+        // 浏览器兜底先挂上：开发预览直接打开 index.html 时靠它
+        setupBrowserDrop();
+        // 宿主的 fileTransfer 要等 ready 之后才挂好，太早读只会拿到 undefined
+        function initHostDrop() {
+            if (hostDropAvailable()) setupHostDrop();
+        }
+        if (window.dbxPlugin && window.dbxPlugin.ready && typeof window.dbxPlugin.ready.then === 'function') {
+            window.dbxPlugin.ready.then(initHostDrop).catch(() => { /* 老宿主没有 ready，忽略 */ });
+        } else {
+            initHostDrop();
+        }
+
+        function readFileText(file) {
+            if (typeof file.text === 'function') return file.text();
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result || ''));
+                reader.onerror = () => reject(reader.error);
+                reader.readAsText(file);
+            });
+        }
+
+        async function loadTextFileIntoConvert(file, format) {
+            const text = await readFileText(file);
+            const src = format || (window.DBXFlow ? DBXFlow.guessFormat(text) : 'json');
+            exitOtherModes('');
+            toolbarEl.classList.remove('hidden');
+            mainWorkspace.classList.remove('hidden');
+            markConvertActive(null);
+            clearTimeout(autoTimer);
+            suppressAutoConvert = true;
+            inputText.value = text;
+            suppressAutoConvert = false;
+            currentDataObj = null;
+            clearError();
+            const tgt = targetFormat.value === src ? (src === 'json' ? 'yaml' : 'json') : targetFormat.value;
+            handleFormatChange(src, tgt);
+        }
+
+        // 一个表格文件 → 记录（批量与单文件共用同一套选项）
+        async function parseSheetRecords(file) {
+            const ext = (/\.([^.]+)$/.exec(file.name || '') || [null, ''])[1].toLowerCase();
+            if (file.size > SHEET_LIMITS.maxFileBytes) throw new Error('too-big');
+            if (ext === 'xls') throw new Error('old-xls');
+            const isXlsx = ext === 'xlsx' || ext === 'xlsm';
+            if (!isXlsx && ['csv', 'tsv', 'txt'].indexOf(ext) === -1) throw new Error('bad-type');
+
+            let rows;
+            if (isXlsx) {
+                if (!window.DBXXlsx) throw new Error('xlsx missing');
+                const buffer = await file.arrayBuffer();
+                rows = (await window.DBXXlsx.read(buffer, { maxRows: SHEET_LIMITS.maxRows })).rows;
+            } else {
+                const text = await readSheetText(file);
+                rows = DBXSheet.parse(text, {
+                    delimiter: sheetDelimiter,
+                    maxRows: SHEET_LIMITS.maxRows,
+                    maxCols: SHEET_LIMITS.maxCols
+                }).rows;
+            }
+            const built = DBXSheet.buildRecords(rows, {
+                hasHeader: sheetHeaderBox.checked,
+                numbers: sheetNumbersBox.checked,
+                booleans: sheetBoolsBox.checked,
+                skipNote: sheetSkipNoteValue(),
+                maxRecords: sheetLimitValue()
+            });
+            return { name: file.name, records: built.records, headers: built.headers };
+        }
+
+        // 批量：多个文件合并成一个 { 文件名: 记录[] } 的 JSON，只出 JSON
+        async function openSheetBatch(files) {
+            const flow = window.DBXFlow;
+            if (!flow) return;
+            resetSheetState();
+            ensureSheetEditor();
+            sheetBusy = true;
+            sheetProgressSet(0);
+            const entries = [];
+            for (let i = 0; i < files.length; i++) {
+                sheetProgressSet(i / files.length);
+                setSheetTip(sheetT('sheetTipParsing', '解析中…'));
+                try {
+                    entries.push(await parseSheetRecords(files[i]));
+                } catch (err) {
+                    entries.push({ name: files[i].name, error: true });
+                }
+            }
+            const merged = flow.mergeFiles(entries);
+            sheetBusy = false;
+            sheetProgressSet(null);
+            if (!merged.ok) {
+                renderSheetOutput('', 0);
+                setSheetTip(sheetT('sheetTipEmpty', '没有解析到数据，检查一下分隔符或表头设置'), 'err');
+                return;
+            }
+
+            const first = entries.filter((e) => !e.error)[0] || { records: [], headers: [] };
+            sheetState.kind = 'rows';
+            sheetState.rows = [];
+            sheetState.records = first.records;
+            sheetState.headers = first.headers || [];
+            sheetState.available = first.records.length;
+            sheetState.fileName = flow.batchFileName(merged.keys);
+            sheetState.fileSize = 0;
+            sheetState.batch = { keys: merged.keys, data: merged.data, preview: first.name, files: files };
+            updateSheetFileInfo();
+            const text = buildBatchText();
+            sheetState.json = text;
+            sheetState.sql = '';
+            renderSheetTable();
+            const total = merged.keys.reduce((n, k) => n + k.count, 0);
+            renderSheetOutput(text, total);
+            setSheetTip(fT('flowBatchTip', '{n} 个文件 · {m} 条记录，已合并成一个 JSON')
+                .replace('{n}', String(merged.keys.length))
+                .replace('{m}', String(total)), 'ok');
+        }
+
+        function buildBatchText() {
+            const data = sheetState.batch ? sheetState.batch.data : {};
+            return sheetFormat === 'compact' ? JSON.stringify(data) : JSON.stringify(data, null, 2);
+        }
+
+        function handleDroppedFiles(files) {
+            const flow = window.DBXFlow;
+            if (!flow || !files.length) return;
+            const max = flow.LIMITS.batchFiles;
+            let list = files;
+            if (list.length > max) {
+                showToast(fT('flowDropMany', '一次最多 {n} 个文件').replace('{n}', String(max)), 'error');
+                list = list.slice(0, max);
+            }
+            const route = flow.routeBatch(list.map((f) => f.name));
+            if (route.kind === 'none') {
+                showToast(fT('flowDropBad', '不支持的文件类型：{e}').replace('{e}', flow.extOf(list[0].name) || '—'), 'error');
+                return;
+            }
+            if (route.kind === 'image') {
+                enterImageMode();
+                imgOpenFile(list[0]);
+                return;
+            }
+            if (route.kind === 'sheet') {
+                enterSheetMode();
+                if (list.length > 1) openSheetBatch(list);
+                else openSheetFile(list[0]);
+                return;
+            }
+            loadTextFileIntoConvert(list[0], route.items[0].format);
+        }
+
         renderLangMenu();
         applyI18n();
         stripHostTooltips();
@@ -10535,5 +11862,14 @@
         });
     });
 </script>
+
+<!-- 全局拖放提示：拖文件进来时浮在最上层，松手后按扩展名路由 -->
+<div class="drop-veil" id="dropVeil" hidden>
+    <div class="drop-veil-card">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <strong data-i18n="flowDropTitle">松手即可导入</strong>
+        <span data-i18n="flowDropHint">图片、表格、文本会按类型自动打开对应页面</span>
+    </div>
+</div>
 </body>
 </html>

@@ -52,8 +52,12 @@ var dom = new JSDOM(html, {
         window.Range.prototype.getClientRects = emptyRects;
         window.Element.prototype.getBoundingClientRect = zeroRect;
         window.Element.prototype.getClientRects = emptyRects;
+        window.__clip = [];
         Object.defineProperty(window.navigator, 'clipboard', {
-            value: { readText: async function () { return ''; }, writeText: async function () {} },
+            value: {
+                readText: async function () { return ''; },
+                writeText: async function (text) { window.__clip.push(String(text)); }
+            },
             configurable: true
         });
     }
@@ -1396,6 +1400,11 @@ function check(name, fn) {
         if (doc.querySelectorAll('#escWorkspace .CodeMirror').length !== 0) throw new Error('提前创建了');
     });
 
+    check('转义页默认是关着的', function () {
+        if (escWs.classList.contains('active')) throw new Error('默认就显示了');
+        if (doc.getElementById('navEscape').classList.contains('active')) throw new Error('导航默认就高亮');
+    });
+
     check('导航可进入转义页', function () {
         doc.getElementById('navEscape').click();
         if (!escWs.classList.contains('active')) throw new Error('转义页没显示');
@@ -1449,6 +1458,277 @@ function check(name, fn) {
         if (doc.getElementById('navEscape').classList.contains('active')) throw new Error('导航仍高亮');
     });
 
+    // 回归：曾经的 bug —— 转义页开着时点「JSON 对比」，两页会上下叠在一起
+    check('转义页 → 对比页：只留对比页（回归）', function () {
+        var compareWs = doc.getElementById('compareWorkspace');
+        doc.getElementById('navEscape').click();
+        if (!escWs.classList.contains('active')) throw new Error('转义页没开');
+        doc.getElementById('navCompare').click();
+        if (escWs.classList.contains('active')) throw new Error('转义页没被收起');
+        if (!compareWs.classList.contains('active')) throw new Error('对比页没显示');
+        if (doc.getElementById('navEscape').classList.contains('active')) throw new Error('转义导航仍高亮');
+    });
+
+    check('对比页 → 转义页：对比页收起来（回归）', function () {
+        var compareWs = doc.getElementById('compareWorkspace');
+        doc.getElementById('navEscape').click();
+        if (!escWs.classList.contains('active')) throw new Error('转义页没开');
+        if (compareWs.classList.contains('active')) throw new Error('对比页还在显示');
+        if (doc.getElementById('navCompare').classList.contains('active')) throw new Error('对比导航仍高亮');
+    });
+
+    check('转义工具是独立页：再点一次不会收起自己', function () {
+        doc.getElementById('navEscape').click();
+        if (!escWs.classList.contains('active')) throw new Error('转义页没开');
+        doc.getElementById('navEscape').click();
+        if (!escWs.classList.contains('active')) throw new Error('点第二下把页面关了');
+        if (!doc.getElementById('navEscape').classList.contains('active')) throw new Error('导航没高亮');
+    });
+
+    check('转义页没有「收起」按钮（不是抽屉）', function () {
+        if (doc.getElementById('escClose')) throw new Error('关闭按钮还在');
+    });
+
+    check('转义页按 Esc 不会离开', function () {
+        doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        if (!escWs.classList.contains('active')) throw new Error('Esc 把页面关了');
+    });
+
+    check('全部页面两两不共存：点一圈只剩当前页', function () {
+        var pages = [
+            ['navCompare', 'compareWorkspace'],
+            ['navSql', 'sqlWorkspace'],
+            ['navSheet', 'sheetWorkspace'],
+            ['navImage', 'imageWorkspace'],
+            ['navCodegen', 'codeWorkspace'],
+            ['navQuery', 'queryWorkspace'],
+            ['navEscape', 'escWorkspace'],
+            ['navBytes', 'bytesWorkspace']
+        ];
+        pages.forEach(function (pair) {
+            doc.getElementById(pair[0]).click();
+            pages.forEach(function (other) {
+                var on = doc.getElementById(other[1]).classList.contains('active');
+                if (other[1] === pair[1] && !on) throw new Error(pair[1] + ' 没打开');
+                if (other[1] !== pair[1] && on) throw new Error('进 ' + pair[1] + ' 时 ' + other[1] + ' 还开着');
+            });
+        });
+        // 收尾：回到格式转换页，后面的用例还要用
+        doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
+    });
+
+    // ---------------- 字节转换页 ----------------
+    var bytesWs = doc.getElementById('bytesWorkspace');
+
+    doc.getElementById('navBytes').click();
+    await wait(350);
+
+    function bytesSetInput(text) {
+        var wrap = doc.getElementById('bytesInput').nextElementSibling;
+        if (wrap && wrap.CodeMirror) wrap.CodeMirror.setValue(text);
+        else doc.getElementById('bytesInput').value = text;
+    }
+
+    function bytesRows() {
+        return [].slice.call(doc.querySelectorAll('#bytesTable tbody tr'));
+    }
+
+    function bytesCellText(id) {
+        var el = doc.getElementById(id);
+        return el ? el.textContent.trim() : '';
+    }
+
+    check('点导航进字节页：只在页里，输入框换成了编辑器', function () {
+        if (!bytesWs.classList.contains('active')) throw new Error('没进字节页');
+        // 右侧是 HTML 结果面板（汇总 + 表格 + 三种写法），只有左侧一个编辑器
+        if (doc.querySelectorAll('#bytesWorkspace .CodeMirror').length !== 1) {
+            throw new Error('编辑器数量 ' + doc.querySelectorAll('#bytesWorkspace .CodeMirror').length);
+        }
+        if (!doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('转换页工具栏没藏');
+        if (doc.getElementById('escWorkspace').classList.contains('active')) throw new Error('转义页还开着');
+    });
+
+    check('默认示例：4 行、有合计、最后一行是序列所以出三种写法', function () {
+        if (bytesRows().length !== 4) throw new Error('行数 ' + bytesRows().length);
+        if (!doc.querySelector('#bytesTable tfoot')) throw new Error('多行没有合计行');
+        var forms = doc.querySelectorAll('#bytesForms .bytes-form');
+        if (forms.length !== 3) throw new Error('三种写法数量 ' + forms.length);
+    });
+
+    bytesSetInput('1234567890');
+    await wait(300);
+
+    check('单行：精确值 + 两套进制分开算（1234567890 → 1.23 GB / 1.15 GiB）', function () {
+        // 精确值不带千分位：这些数字要能直接贴进代码 / 命令行
+        if (bytesCellText('bytesExactValue') !== '1234567890 B') {
+            throw new Error('精确值 ' + bytesCellText('bytesExactValue'));
+        }
+        if (bytesCellText('bytesHuman1000') !== '1.23 GB') throw new Error('1000 制 ' + bytesCellText('bytesHuman1000'));
+        if (bytesCellText('bytesHuman1024') !== '1.15 GiB') throw new Error('1024 制 ' + bytesCellText('bytesHuman1024'));
+        if (bytesRows().length !== 1) throw new Error('单行不该有合计行');
+        if (doc.querySelector('#bytesTable tfoot')) throw new Error('单行还画了合计');
+    });
+
+    win.__clip.length = 0;
+    doc.querySelector('.bytes-value[data-copy-id="bytesExactValue"]').click();
+    doc.querySelector('.bytes-value[data-copy-id="bytesHuman1024"]').click();
+    doc.querySelector('.bytes-value-copy[data-copy-id="bytesHuman1000"]').click();
+    doc.querySelector('#bytesTable td.num').click();
+    await wait(80);
+
+    check('每个换算值都能单独复制：卡片、卡片上的复制按钮、表格数值', function () {
+        if (win.__clip.length !== 4) throw new Error('复制次数 ' + win.__clip.length);
+        if (win.__clip[0] !== '1234567890 B') throw new Error('精确值复制 ' + win.__clip[0]);
+        if (win.__clip[1] !== '1.15 GiB') throw new Error('1024 制复制 ' + win.__clip[1]);
+        if (win.__clip[2] !== '1.23 GB') throw new Error('复制按钮给了 ' + win.__clip[2]);
+        if (win.__clip[3] !== '1234567890') throw new Error('表格字节列复制 ' + win.__clip[3]);
+    });
+
+    check('复制出来的值一个逗号都没有', function () {
+        win.__clip.forEach(function (text) {
+            if (text.indexOf(',') >= 0) throw new Error('带千分位: ' + text);
+        });
+        [].slice.call(doc.querySelectorAll('#bytesTable td.num')).forEach(function (td) {
+            if (td.textContent.indexOf(',') >= 0) throw new Error('表格显示带千分位: ' + td.textContent);
+        });
+    });
+
+    check('单行是数量时不出三种写法，只给一句提示', function () {
+        if (doc.querySelectorAll('#bytesForms .bytes-form').length !== 0) throw new Error('数量不该有写法');
+        var hint = doc.querySelector('#bytesForms .bytes-empty');
+        if (!hint || hint.textContent.indexOf('字节序列') < 0) throw new Error('缺少提示');
+    });
+
+    bytesSetInput('1.5 GB\n734003200\n1f 8b 08');
+    await wait(300);
+
+    check('批量：逐行换算 + 末尾合计', function () {
+        var rows = bytesRows();
+        if (rows.length !== 3) throw new Error('行数 ' + rows.length);
+        var foot = doc.querySelector('#bytesTable tfoot');
+        if (!foot) throw new Error('没有合计行');
+        var total = foot.querySelectorAll('td')[2].textContent;
+        if (total !== String(1500000000 + 734003200 + 3)) {
+            throw new Error('合计 ' + total);
+        }
+    });
+
+    check('批量里夹一行字节序列：三种写法按那 3 个字节出', function () {
+        var forms = doc.querySelectorAll('#bytesForms .bytes-form');
+        if (forms.length !== 3) throw new Error('没有写法');
+        var arr = forms[1].querySelector('pre').textContent;
+        if (arr.indexOf('0x1f') < 0 || arr.indexOf('0x8b') < 0) throw new Error('字节数组 ' + arr);
+    });
+
+    bytesSetInput('100\nzzz\n200');
+    await wait(300);
+
+    check('坏行单独标红，不影响其它行', function () {
+        var rows = bytesRows();
+        if (rows.length !== 3) throw new Error('行数 ' + rows.length);
+        if (!rows[1].classList.contains('bad')) throw new Error('坏行没标出来');
+        if (rows[1].textContent.indexOf('看不懂') < 0) throw new Error('坏行没写原因');
+        if (rows[0].classList.contains('bad')) throw new Error('好行被误标');
+    });
+
+    doc.getElementById('bytesDecimals').value = '0';
+    doc.getElementById('bytesDecimals').dispatchEvent(new win.Event('change'));
+    await wait(200);
+
+    check('小数位切到 0：人类可读不再带小数', function () {
+        var human = bytesCellText('bytesHuman1024');
+        if (human.indexOf('.') >= 0) throw new Error('还有小数: ' + human);
+    });
+
+    doc.getElementById('bytesDecimals').value = '2';
+    doc.getElementById('bytesDecimals').dispatchEvent(new win.Event('change'));
+    await wait(150);
+
+    doc.getElementById('bytesClear').click();
+    await wait(250);
+
+    check('清空后回到空态：表格与写法都收起来', function () {
+        if (bytesRows().length !== 0) throw new Error('表格没清');
+        if (bytesCellText('bytesExactValue') !== '—') throw new Error('精确值没重置');
+        if (doc.querySelectorAll('#bytesForms .bytes-form').length !== 0) throw new Error('写法没清');
+    });
+
+    // 收尾：回到格式转换页，后面的用例还要用
+    doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
+    await wait(200);
+
+    // ---------------- 全局拖放 ----------------
+    // 表格输出走 CodeMirror，读 textarea.value 拿不到内容
+    function cmText(id) {
+        var el = doc.getElementById(id);
+        var wrap = el && el.nextElementSibling;
+        if (wrap && wrap.CodeMirror) return wrap.CodeMirror.getValue();
+        return el ? el.value : '';
+    }
+
+    function dropFiles(entries, target) {
+        var files = entries.map(function (e) {
+            return new win.File([e.text], e.name, { type: e.type || 'text/plain' });
+        });
+        var ev = new win.Event('drop', { bubbles: true, cancelable: true });
+        Object.defineProperty(ev, 'dataTransfer', { value: { files: files, types: ['Files'] } });
+        (target || doc.body).dispatchEvent(ev);
+        return ev;
+    }
+
+    dropFiles([{ name: 'data.json', text: '{"a":1,"b":[1,2]}' }]);
+    await wait(500);
+
+    check('拖入 JSON 文件：切到格式转换页并认出源格式', function () {
+        if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('没回到转换页');
+        if (input.value.indexOf('"a"') < 0) throw new Error('内容没载入');
+        var src = doc.querySelector('#sourceSelect .custom-select-trigger .label').textContent.trim().toLowerCase();
+        if (src !== 'json') throw new Error('源格式是 ' + src);
+        if (!output.value.trim()) throw new Error('没有自动转换');
+    });
+
+    dropFiles([{ name: 'users.csv', text: 'id,name\n1,Ada\n2,Bob\n' }]);
+    await wait(900);
+
+    check('拖入 CSV：进表格页并解析出记录', function () {
+        if (!doc.getElementById('sheetWorkspace').classList.contains('active')) throw new Error('没进表格页');
+        if (cmText('sheetOutputText').indexOf('Ada') < 0) throw new Error('没解析出数据');
+    });
+
+    dropFiles([
+        { name: 'a.csv', text: 'id,name\n1,Ada\n' },
+        { name: 'b.csv', text: 'id,name\n2,Bob\n3,Cid\n' }
+    ]);
+    await wait(1500);
+
+    check('一次拖两个 CSV：合并成一个 JSON（批量）', function () {
+        var out = cmText('sheetOutputText');
+        if (out.indexOf('"a.csv"') < 0 || out.indexOf('"b.csv"') < 0) throw new Error('没按文件名分组: ' + out.slice(0, 120));
+        if (out.indexOf('Ada') < 0 || out.indexOf('Cid') < 0) throw new Error('数据没合并进来');
+        if (doc.getElementById('sheetTip').textContent.indexOf('2') < 0) throw new Error('提示没写文件数');
+        if (doc.getElementById('sheetFileInfo').textContent.indexOf('batch') < 0) throw new Error('文件名没切成批量名');
+    });
+
+    doc.querySelector('#sheetFormat [data-format="compact"]').click();
+    await wait(300);
+
+    check('批量结果能切换紧凑格式，仍然是合并 JSON', function () {
+        var out = cmText('sheetOutputText');
+        if (out.split('\n').length > 3) throw new Error('紧凑模式还是多行');
+        if (out.indexOf('"b.csv"') < 0) throw new Error('紧凑后丢了文件');
+    });
+
+    doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
+    await wait(200);
+    dropFiles([{ name: 'weird.zzz', text: 'x' }]);
+    await wait(400);
+
+    check('拖入不支持的扩展名：报错且不切页', function () {
+        var toasts = [].map.call(doc.querySelectorAll('.toast'), function (t) { return t.textContent; }).join('|');
+        if (toasts.indexOf('zzz') < 0 && toasts.indexOf('不支持') < 0) throw new Error('没有报错提示: ' + toasts);
+        if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('被切页了');
+    });
+
     // 导航：7 个格式互转收进「格式转换」下拉，导航条上只剩 3 个单元
     var navEl = doc.getElementById('navLinks');
     var moreEl = doc.getElementById('navMore');
@@ -1466,8 +1746,8 @@ function check(name, fn) {
         if (convertMenu.querySelectorAll('a').length !== 7) {
             throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
         }
-        // 直属项（从左到右）：JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / 代码生成 / 表格转 JSON / 查询校验
-        if (inlineNavLinks().length !== 7) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
+        // 直属项（从左到右）：JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / 字节转换 / 代码生成 / 表格转 JSON / 查询校验
+        if (inlineNavLinks().length !== 8) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
         if (!doc.getElementById('navConvertTrigger')) throw new Error('缺少「格式转换」触发器');
         // 触发器直接显示当前这一对格式，而不是固定的「格式转换」
         var label = doc.getElementById('navConvertLabel').textContent.trim();
@@ -1516,7 +1796,7 @@ function check(name, fn) {
         if (!moreEl.classList.contains('show')) throw new Error('「更多」未出现');
         var names = [].map.call(moreMenu.querySelectorAll('a'), function (a) { return a.textContent.trim(); });
         // 收进「更多」的先后顺序取决于「非固定项先挪、固定项兜底」，这里只校验集合
-        var expect = ['SQL 转换', 'JSON 对比', '表格转 JSON', '代码生成', '图片 Base64', '查询校验', '转义工具'].sort().join('|');
+        var expect = ['SQL 转换', 'JSON 对比', '表格转 JSON', '代码生成', '图片 Base64', '查询校验', '转义工具', '字节转换'].sort().join('|');
         if (names.slice().sort().join('|') !== expect) {
             throw new Error('菜单项: ' + names.join(','));
         }
@@ -1549,7 +1829,8 @@ function check(name, fn) {
             navImage: 'imageWorkspace',
             navCodegen: 'codeWorkspace',
             navQuery: 'queryWorkspace',
-            navEscape: 'escWorkspace'
+            navEscape: 'escWorkspace',
+            navBytes: 'bytesWorkspace'
         };
         if (!pageOf[id]) throw new Error('菜单项不是页面入口: ' + item.textContent.trim());
         if (!doc.getElementById(pageOf[id]).classList.contains('active')) {
@@ -1568,7 +1849,7 @@ function check(name, fn) {
     check('宽度恢复后导航项全部回到导航条', function () {
         if (moreEl.classList.contains('show')) throw new Error('「更多」仍显示');
         if (moreMenu.querySelectorAll('a').length !== 0) throw new Error('菜单仍有残留');
-        if (inlineNavLinks().length !== 7) throw new Error('导航项数 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 8) throw new Error('导航项数 ' + inlineNavLinks().length);
         if (convertMenu.querySelectorAll('a').length !== 7) throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
     });
 
@@ -1703,6 +1984,178 @@ function check(name, fn) {
             if (doc.documentElement.getAttribute('data-dbx-theme') !== 'light') throw new Error('主题没切');
         });
         calmDom.window.close();
+    })();
+
+    // ---------------- 宿主 fileTransfer 路径 ----------------
+    // DBX 是 Tauri 应用，原生拖放被 WebView 层接管，页面里收不到 HTML5 drop，
+    // 只能吃 dbxPlugin.fileTransfer.onDrop 给的 handleId。这里模拟宿主把文件塞进来。
+    await (async function () {
+        var buffers = {};
+        var seq = 0;
+        var dropCb = null;
+        var dragCb = null;
+
+        function stubLayout(window) {
+            window.matchMedia = function () {
+                return { matches: false, addEventListener: function () {}, removeEventListener: function () {} };
+            };
+            var zeroRect = function () {
+                return { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0 };
+            };
+            var emptyRects = function () {
+                return { length: 0, item: function () { return null; }, [Symbol.iterator]: function* () {} };
+            };
+            window.Range.prototype.getBoundingClientRect = zeroRect;
+            window.Range.prototype.getClientRects = emptyRects;
+            window.Element.prototype.getBoundingClientRect = zeroRect;
+            window.Element.prototype.getClientRects = emptyRects;
+        }
+
+        var dom2 = new JSDOM(html, {
+            url: 'file://' + path.join(ROOT, 'ui/index.html'),
+            runScripts: 'dangerously',
+            resources: 'usable',
+            pretendToBeVisual: true,
+            virtualConsole: new (require('jsdom').VirtualConsole)(),
+            beforeParse: function (window) {
+                stubLayout(window);
+                // 宿主只有在 ready 之后才挂 fileTransfer，跟真实运行时一致
+                window.dbxPlugin = {
+                    ready: Promise.resolve({}),
+                    locale: 'zh-CN',
+                    theme: { appearance: 'light', tokens: {} },
+                    capabilities: { fileTransfer: { drop: true } },
+                    fileTransfer: {
+                        onDrop: function (cb) { dropCb = cb; },
+                        onDragState: function (cb) { dragCb = cb; },
+                        read: function (handleId, offset, len) {
+                            var buf = buffers[handleId];
+                            if (!buf) return Promise.reject(new Error('bad handle'));
+                            var end = Math.min(offset + len, buf.length);
+                            return Promise.resolve({
+                                dataBase64: Buffer.from(buf.slice(offset, end)).toString('base64'),
+                                eof: end >= buf.length
+                            });
+                        }
+                    }
+                };
+            }
+        });
+        var w2 = dom2.window;
+        var d2 = w2.document;
+        await new Promise(function (resolve) {
+            w2.addEventListener('load', resolve, { once: true });
+        });
+        await wait(300);
+
+        // 投喂：{ name, text, size? } -> 走宿主 onDrop 的 entry 形状
+        function feed(entries) {
+            var list = entries.map(function (e) {
+                var id = 'h' + (++seq);
+                var bytes = Buffer.from(e.text || '', 'utf8');
+                buffers[id] = new Uint8Array(bytes);
+                return {
+                    name: e.name,
+                    handleId: e.handleId === null ? undefined : id,
+                    size: e.size != null ? e.size : bytes.length,
+                    contentType: e.type || 'text/plain'
+                };
+            });
+            return dropCb(list);
+        }
+        function toastText() {
+            return [].map.call(d2.querySelectorAll('.toast'), function (t) { return t.textContent; }).join('|');
+        }
+        function cmText2(id) {
+            var el = d2.getElementById(id);
+            var wrap = el && el.nextElementSibling;
+            if (wrap && wrap.CodeMirror) return wrap.CodeMirror.getValue();
+            return el ? el.value : '';
+        }
+
+        check('宿主 ready 后注册了 onDrop / onDragState', function () {
+            if (typeof dropCb !== 'function') throw new Error('没注册 onDrop');
+            if (typeof dragCb !== 'function') throw new Error('没注册 onDragState');
+        });
+
+        check('宿主拖入时显示蒙层，离开后收起', function () {
+            dragCb(true);
+            if (d2.getElementById('dropVeil').hidden) throw new Error('拖入没显示蒙层');
+            dragCb(false);
+            if (!d2.getElementById('dropVeil').hidden) throw new Error('离开没收起蒙层');
+        });
+
+        await feed([{ name: 'data.json', text: '{"a":1,"b":[1,2]}' }]);
+        await wait(600);
+
+        check('宿主拖入 JSON：切到格式转换页、认出源格式并自动转换', function () {
+            var input = d2.getElementById('inputText');
+            if (!input || input.value.indexOf('"a"') < 0) throw new Error('内容没载入');
+            if (d2.querySelector('.toolbar').classList.contains('hidden')) throw new Error('没回到转换页');
+            var src = d2.querySelector('#sourceSelect .custom-select-trigger .label').textContent.trim().toLowerCase();
+            if (src !== 'json') throw new Error('源格式是 ' + src);
+            if (!d2.getElementById('outputText').value.trim()) throw new Error('没有自动转换');
+        });
+
+        await feed([{ name: 'users.csv', text: 'id,name\n1,Ada\n2,Bob\n' }]);
+        await wait(900);
+
+        check('宿主拖入 CSV：进表格页并解析出记录', function () {
+            if (!d2.getElementById('sheetWorkspace').classList.contains('active')) throw new Error('没进表格页');
+            if (cmText2('sheetOutputText').indexOf('Ada') < 0) throw new Error('没解析出数据');
+        });
+
+        await feed([
+            { name: 'a.csv', text: 'id,name\n1,Ada\n' },
+            { name: 'b.csv', text: 'id,name\n2,Bob\n3,Cid\n' }
+        ]);
+        await wait(1500);
+
+        check('宿主一次拖两个 CSV：合并成一个 JSON', function () {
+            var out = cmText2('sheetOutputText');
+            if (out.indexOf('"a.csv"') < 0 || out.indexOf('"b.csv"') < 0) throw new Error('没按文件名分组: ' + out.slice(0, 120));
+            if (out.indexOf('Cid') < 0) throw new Error('数据没合并进来');
+        });
+
+        d2.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
+        await wait(200);
+        await feed([{ name: 'weird.zzz', text: 'x' }]);
+        await wait(400);
+
+        check('宿主拖入不支持的扩展名：报错且不切页', function () {
+            var msg = toastText();
+            if (msg.indexOf('zzz') < 0 && msg.indexOf('不支持') < 0) throw new Error('没有报错提示: ' + msg);
+            if (d2.querySelector('.toolbar').classList.contains('hidden')) throw new Error('被切页了');
+        });
+
+        await feed([{ name: 'huge.json', text: '{}', size: 999 * 1024 * 1024 }]);
+        await wait(400);
+
+        check('宿主拖入超过上限的文件：提示大小并放弃', function () {
+            var msg = toastText();
+            if (msg.indexOf('huge.json') < 0) throw new Error('提示里没有文件名: ' + msg);
+            if (msg.indexOf('MB') < 0 && msg.indexOf('GB') < 0) throw new Error('提示里没有大小: ' + msg);
+        });
+
+        await feed([{ name: 'broken.json', text: '{"a":1}', handleId: null }]);
+        await wait(400);
+
+        check('宿主给的 handle 读不出来：提示读取失败，不抛到页面', function () {
+            var msg = toastText();
+            if (msg.indexOf('broken.json') < 0) throw new Error('提示里没有文件名: ' + msg);
+        });
+
+        var many = [];
+        for (var i = 0; i < 12; i++) many.push({ name: 'f' + i + '.json', text: '{"i":' + i + '}' });
+        await feed(many);
+        await wait(700);
+
+        check('宿主一次拖 12 个：只收前 10 个并提示', function () {
+            var msg = toastText();
+            if (msg.indexOf('10') < 0) throw new Error('没提示数量上限: ' + msg);
+        });
+
+        dom2.window.close();
     })();
 
     results.forEach(function (r) {

@@ -1,6 +1,6 @@
 # 数据转换 (Data Format Converter)
 
-一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties / TOML / INI / `.env` / CSV / TSV / Query / Headers / Cookie / HTML 共 13 种格式互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON、图片 ⇄ Base64、JSON / `CREATE TABLE` 直接生成多语言模型代码，外加 JSONPath / jq 查询、JSON Schema 校验与一组转义工具。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
+一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties / TOML / INI / `.env` / CSV / TSV / Query / Headers / Cookie / HTML 共 13 种格式互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON、图片 ⇄ Base64、JSON / `CREATE TABLE` 直接生成多语言模型代码，外加 JSONPath / jq 查询、JSON Schema 校验、一组转义工具与字节换算（1000 / 1024 两套进制）。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
 
 ![数据转换工作台](docs/screen.png)
 
@@ -16,6 +16,7 @@
 | **代码生成** | 一段 JSON 示例或 `CREATE TABLE` → TypeScript / Go / Java / Python 模型，嵌套结构自动拆成独立类型 |
 | **查询校验** | JSONPath / jq 表达式查 JSON，JSON Schema（draft-07）校验并给出路径 + 原因，还能从数据反推一份 Schema |
 | **转义工具** | URL / Base64 / HTML / JSON 字符串 / `\uXXXX` / Hex / SQL 字面量 / 正则，编码解码一键对调 |
+| **字节转换** | B / KB / MB / GB / TB / PB 两套进制（1000 与 1024）互算、精确值 ⇄ 人类可读、批量求和、hex dump / 字节数组 / 二进制串三种字节写法，每个值都能单独复制且不带千分位 |
 
 ## 格式转换
 
@@ -91,6 +92,7 @@
 ## 转义工具
 
 - 一页八种：**URL**、**Base64**、**HTML**、**JSON 字符串**、**`\uXXXX`**、**Hex**、**SQL 字面量**、**正则**，编码 / 解码两档，**对调**按钮一次把两个面板和方向一起换过去，随手就能做一次往返验证。
+- **和其它页面一样的独立页**：从导航进入后一直留着，不会自己收起，长时间来回转义也不和工作台里别的页面抢位置；导航像别的页一样高亮，转换 / 对比 / SQL 页在它开着时不受影响。
 - **JSON 字符串是一等公民**，不是格式转换的副产物：编码后是完整的 JSON 字面量，`"`、`\`、换行、制表符、控制字符（`\u0007` 这类）都会正确转义，中文保持可读而不是全变成 `\uXXXX`——要那个效果请用 **Unicode** 一档。解码时带外层引号的完整字面量和裸的转义片段都认，后者才是从日志里复制出来的常见样子。
 - **按字节算，不是 Latin-1**——Base64 与 Hex 走手写的 UTF-8 编解码而不是 `btoa`，`中文` 出来是 `5Lit5paH` 而不是乱码，解回来逐字节一致，代理对也不丢。
 - **HTML / SQL / 正则**只转义该转的、绝不重复转义（`O'Brien` → `O''Brien`，`[a-z]{2}` → `\[a-z\]\{2\}`），反向解码则保留其它种类的转义。
@@ -98,9 +100,27 @@
 
 ![转义工具页](docs/screen-escape.png)
 
+## 字节转换
+
+- **单位换算，两套进制分开列**：B / KB / MB / GB / TB / PB 走 1000 进制，B / KiB / MiB / GiB / TiB / PiB 走 1024 进制，同一行并排显示，不会把 1.5 MB 和 1.5 MiB 当成一个数。小数位 0–6 随时切。
+- **两种写法互转**：输入 `1234567890` 出 `1.23 GB` 与 `1.15 GiB`；反过来贴 `1.15 GiB` 也能算出 `1234567890` 字节。带单位、纯数字、`700M` 这类简写都认，大小写不敏感。
+- **批量**：一行一条，`1234567890` / `1.5 GB` / `734003200` 混着贴，逐行给出两套换算并在末尾汇总合计——把一堆文件大小粘进来直接求和是常用姿势；某一行看不懂只标那一行，不影响其它行。复制出来是 TSV，粘进 Excel 正好是四列。
+- **字节的其它写法**：贴一段字节序列（`1f 8b 08`、`1f8b08`、`[0x1f, 0x8b]`、`0x1f 0x8b`、二进制 `00011111 10001011`，或整段 `xxd` 输出）就能拿到 **Hex dump**（xxd 风格，带偏移与 ASCII 列）、**字节数组**、**二进制串**三种形式，各自可复制。和「转义工具」里的 Hex 分工不同：那边转的是字符串编码，这边是数值与字节表示。
+- **每个值单独可复制**：三张汇总卡（精确值 / 1000 进制 / 1024 进制）各有自己的「复制」，表格里每个换算结果点一下就进剪贴板；复制出来只有数字或「数字 + 单位」，**不带千分位逗号**，可以直接贴进代码、命令行或配置文件。整体复制仍是那个 TSV。
+- 认不出的输入只报错不猜（`zzz` 不会被当成十六进制）；单行序列上限 8 KB、单条数值上限 1 EiB 量级，超出就说明上限，不会让页面卡住。
+
+![字节转换页](docs/screen-bytes.png)
+
+## 工作流
+
+- **文件拖到哪都行**：整个窗口都是投放区，不只是图片页 / 表格页那两块。拖进来时浮一层提示，松手后按扩展名分流——图片直接进「图片 Base64」并开始编码，`.xlsx` / `.csv` / `.tsv` 进「表格转 JSON」并开始解析，`.json` / `.yaml` / `.xml` / `.toml` / `.ini` / `.env` / `.log` / `.md` 进「格式转换」并自动设好源格式、直接把结果算出来。不认识的扩展名会提示一句，不会把二进制塞进编辑器。
+- **一次拖多个表格**：最多 10 个文件，按当前选项解析后合并成**一个以文件名为键的 JSON**（`{"a.csv": [...], "b.csv": [...]}`），重名自动变成 `a (2).csv`。预览区显示第一个文件，复制 / 导出针对合并结果（`batch-2.json`）。
+- 页面自己的投放区优先：往图片页拖图仍然只走图片页那一套——页面级处理器先跑，全局处理器看到事件已被处理就让开。
+- 拖放走的是宿主通道：DBX 窗口是 Tauri / WebView，系统文件拖放由宿主先接管，页面里收不到原生 `drop`；插件用 `dbxPlugin.fileTransfer.onDrop` 拿句柄（`handleId`）再按 256 KB 分片读回内容，蒙层跟 `onDragState` 走。直接打开 `index.html` 预览时自动退回浏览器事件，两条路都能拖。
+
 ## 通用
 
-- **国际化**——14 种语言：zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。切换器里列出前三种，其余随宿主 locale 自动匹配；八个页面（格式转换、对比、SQL、表格、图片、代码生成、查询校验、转义工具）的文案都已覆盖全部 14 种，连 20 条 Schema 校验错误也有译文，缺一条会退回英文而不是中文。
+- **国际化**——14 种语言：zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。切换器里列出前三种，其余随宿主 locale 自动匹配；九个页面（格式转换、对比、SQL、表格、图片、代码生成、查询校验、转义工具、字节转换）的文案都已覆盖全部 14 种，连 20 条 Schema 校验错误也有译文，缺一条会退回英文而不是中文。
 - **主题适配**——跟随 DBX 宿主主题与 shadcn/ui 设计令牌，宿主只下发主题信息（不写 `data-dbx-theme`）或自定义调色板同样生效。首屏按宿主主题直接落定、不闪白底，明暗切换有 300 ms 整页过渡，`prefers-reduced-motion` 下自动关掉。
 - **剪贴板**——通过 DBX Host API 一键复制，没有宿主时走浏览器降级方案。
 - **离线**——无后端、无 CDN、无遥测；CodeMirror 与 YAML 库都打在包里。
@@ -120,12 +140,12 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## 构建与测试
 
 ```bash
-./scripts/build.sh test         # 全部用例（646 条）
+./scripts/build.sh test         # 全部用例（691 条）
 ./scripts/build.sh              # 先跑用例，再打包 dist/*.dbxp
 ./scripts/run.sh                # 等价于 build.sh dev
 
-npm test                        # 纯函数用例，无第三方依赖（646 条）
-npm install && npm run test:ui  # jsdom 页面接线冒烟（154 项）
+npm test                        # 纯函数用例，无第三方依赖（691 条）
+npm install && npm run test:ui  # jsdom 页面接线冒烟（166 项）
 ```
 
 Windows 下使用 `scripts\build.cmd`（需要 Git Bash）。
@@ -146,6 +166,7 @@ ui/js/confconv.js      格式矩阵 —— TOML / INI / .env / CSV / TSV / Query
 ui/js/jsonpath.js      JSONPath + jq 子集 —— 一套解析器、两种方言、匹配路径
 ui/js/schema.js        JSON Schema draft-07 子集 —— 校验错误 + 反推 Schema
 ui/js/escape.js        八种转义 —— URL / Base64 / HTML / JSON / Unicode / Hex / SQL / 正则
+ui/js/flow.js          工作流 —— 拖放路由、批量合并、最近使用、宿主选区
 tests/                 回归用例，直接 node 运行
 scripts/build.sh       package | dev | test
 ```

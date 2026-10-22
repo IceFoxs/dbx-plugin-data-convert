@@ -70,7 +70,9 @@ var tables = {
     GEN_I18N: readLiteral(html, 'GEN_I18N'),
     CONF_I18N: readLiteral(html, 'CONF_I18N'),
     QUERY_I18N: readLiteral(html, 'QUERY_I18N'),
-    ESC_I18N: readLiteral(html, 'ESC_I18N')
+    ESC_I18N: readLiteral(html, 'ESC_I18N'),
+    BYTES_I18N: readLiteral(html, 'BYTES_I18N'),
+    FLOW_I18N: readLiteral(html, 'FLOW_I18N')
 };
 
 var langCodes = languageConfigs.map(function (l) { return l.code; });

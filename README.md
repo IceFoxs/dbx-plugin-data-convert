@@ -1,6 +1,6 @@
 # 数据转换 (Data Format Converter)
 
-A [DBX](https://dbxio.com) plugin that moves data between formats without leaving the workbench: JSON / YAML / XML / Properties conversion, a field-level diff, a batch-value SQL builder, Excel / CSV → JSON, Image ⇄ Base64, JSON / `CREATE TABLE` straight into model code, JSONPath / jq queries with JSON Schema validation, and an escape toolbox. Built from the **frontend-only (universal)** template — one cross-platform `.dbxp`, no native backend, no network calls, works offline.
+A [DBX](https://dbxio.com) plugin that moves data between formats without leaving the workbench: JSON / YAML / XML / Properties conversion, a field-level diff, a batch-value SQL builder, Excel / CSV → JSON, Image ⇄ Base64, JSON / `CREATE TABLE` straight into model code, JSONPath / jq queries with JSON Schema validation, an escape toolbox and byte conversion (1000 and 1024 scales). Built from the **frontend-only (universal)** template — one cross-platform `.dbxp`, no native backend, no network calls, works offline.
 
 ![Data Format Converter workbench](docs/screen.png)
 
@@ -18,6 +18,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 | **Code Gen** | A JSON sample or a `CREATE TABLE` → TypeScript / Go / Java / Python models, nested structures split into their own types |
 | **Query & Validate** | JSONPath / jq expressions over a JSON document, JSON Schema (draft-07) validation with path + reason per error, one-click schema inference from data |
 | **Escape** | URL / Base64 / HTML / JSON string / `\uXXXX` / hex / SQL literal / regex — encode and decode, with a one-click direction flip |
+| **Byte converter** | B / KB / MB / GB / TB / PB on both the 1000 and 1024 scales, exact value ⇄ human readable, batch totals, hex dump / byte array / binary string forms, and every value copies on its own without thousands separators |
 
 ## Convert
 
@@ -93,6 +94,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 ## Escape toolbox
 
 - Eight kinds in one page — **URL**, **Base64**, **HTML**, **JSON string**, **`\uXXXX`**, **hex**, **SQL literal**, **regex** — with an encode / decode switch and a **flip** button that swaps the two panes and the direction in one click, so a round-trip check takes two clicks.
+- **Its own page, like the others** — it opens from the nav and stays there until you switch pages, so a long escape session never fights with the rest of the workbench. The nav item highlights like any other page, and the convert / compare / SQL pages are untouched while it is open.
 - **JSON string** is a first-class kind, not a side effect of the converter: encoding wraps the text in a JSON literal and escapes `"`, `\` and control characters (`\n`, `\t`, `\u0007`…), leaving CJK and other non-ASCII readable instead of turning everything into `\uXXXX` — that is what the **Unicode** kind is for. Decoding accepts both a full literal (with the outer quotes) and a bare escaped fragment, which is what you usually have after copying from a log line.
 - **Encoding is byte-correct, not Latin-1** — Base64 and hex go through a hand-written UTF-8 encoder / decoder rather than `btoa`, so `中文` comes back as `5Lit5paH` instead of mojibake, and decoding restores the text exactly, surrogate pairs included.
 - **HTML / SQL / regex** escape only what has to be escaped and never double-escape (`O'Brien` → `O''Brien`, `[a-z]{2}` → `\[a-z\]\{2\}`), while the decoders leave other kinds of escapes intact.
@@ -100,9 +102,27 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 ![Escape toolbox page](docs/screen-escape.png)
 
+## Byte converter
+
+- **Unit conversion with both bases side by side** — B / KB / MB / GB / TB / PB on the 1000 scale and B / KiB / MiB / GiB / TiB / PiB on the 1024 scale, shown on the same row so 1.5 MB and 1.5 MiB never get mixed up. Decimals adjustable from 0 to 6.
+- **Both directions** — type `1234567890` and get `1.23 GB` and `1.15 GiB`; paste `1.15 GiB` and get `1234567890` bytes back. Bare numbers, values with units and shorthands like `700M` all parse, case-insensitively.
+- **Batch** — one value per line: mix `1234567890`, `1.5 GB` and `734003200`, and every row gets both conversions with a total at the bottom, which is how you add up a pile of file sizes. A line that cannot be parsed is flagged on its own row and leaves the others alone. Copy produces TSV, so it pastes into Excel as four clean columns.
+- **The other ways to write bytes** — paste a byte sequence (`1f 8b 08`, `1f8b08`, `[0x1f, 0x8b]`, `0x1f 0x8b`, binary `00011111 10001011`, or a whole `xxd` dump) and get **hex dump** (xxd style, offsets and ASCII column included), **byte array** and **binary string**, each with its own copy button. This is a different job from the hex kind in the escape toolbox: that one encodes strings, this one is about numbers and byte representations.
+- **Every value copies on its own** — each of the three summary cards (exact / base 1000 / base 1024) has its own copy button, and every number in the table is one click away from the clipboard. What lands there is just the number, or the number plus its unit — **never with thousands separators**, so it drops straight into code, a shell command or a config file. The one overall copy button still gives you the TSV.
+- Input that makes no sense is rejected rather than guessed at (`zzz` is not read as hex), a single sequence is capped at 8 KB and a value at roughly 1 EiB, and hitting a limit says so instead of freezing the page.
+
+![Byte converter page](docs/screen-bytes.png)
+
+## Workflow
+
+- **Drop a file anywhere** — the whole window is a drop target, not just the image or sheet pane. A veil tells you it is armed, and on release the file is routed by extension: images open the Image page and encode immediately, `.xlsx` / `.csv` / `.tsv` open Sheet → JSON and start parsing, `.json` / `.yaml` / `.xml` / `.toml` / `.ini` / `.env` / `.log` / `.md` open Convert with the source format already set and the conversion run. Unknown extensions are refused with a toast instead of dumping binary into an editor.
+- **Drop several sheets at once** — up to 10 files are parsed with the current options and merged into **one JSON object keyed by file name** (`{"a.csv": [...], "b.csv": [...]}`), with duplicate names numbered `a (2).csv`. The preview table shows the first file, and Copy / Export work on the merged result (`batch-2.json`).
+- Each page keeps its own drop zone first: dropping an image onto the Image page still does exactly what it did before, because page-level handlers run before the global one and the global handler steps aside when the event was already handled.
+- Drops go through the host channel: the DBX window is a Tauri / WebView host, which takes system file drops before the page ever sees a native `drop` event. The plugin uses `dbxPlugin.fileTransfer.onDrop` to get a `handleId`, reads the content back in 256 KB chunks, and drives the overlay from `onDragState`. Opening `index.html` directly falls back to browser events, so both paths work.
+
 ## Everywhere
 
-- **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az. Every page (convert, compare, SQL, sheet, image, code gen, query, escape) is translated into all 14, including the 20 schema-validation messages.
+- **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az. Every page (convert, compare, SQL, sheet, image, code gen, query, escape, bytes) is translated into all 14, including the 20 schema-validation messages.
 - **Theme adaptability** — follows the DBX host theme and shadcn/ui tokens, including hosts that only send theme metadata (no `data-dbx-theme`) and custom palettes. First paint already matches the host, theme switches cross-fade over 300 ms, and `prefers-reduced-motion` turns the animation off.
 - **Clipboard** — one-click copy through the DBX host API, with a browser fallback.
 - **Offline** — no backend, no CDN, no telemetry; CodeMirror and the YAML library ship inside the package.
@@ -122,12 +142,12 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## Build & test
 
 ```bash
-./scripts/build.sh test         # all suites (646 cases)
+./scripts/build.sh test         # all suites (691 cases)
 ./scripts/build.sh              # run tests, then package dist/*.dbxp
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
-npm test                        # pure-function suites, no dependencies (646 cases)
-npm install && npm run test:ui  # jsdom smoke test of the UI wiring (154 checks)
+npm test                        # pure-function suites, no dependencies (691 cases)
+npm install && npm run test:ui  # jsdom smoke test of the UI wiring (166 checks)
 ```
 
 On Windows use `scripts\build.cmd` instead (requires Git Bash).
@@ -148,6 +168,7 @@ ui/js/confconv.js      format matrix — TOML / INI / .env / CSV / TSV / Query /
 ui/js/jsonpath.js      JSONPath + jq subset — one parser, two dialects, result paths
 ui/js/schema.js        JSON Schema draft-07 subset — validation errors + inference
 ui/js/escape.js        8 escape kinds — URL / Base64 / HTML / JSON / Unicode / hex / SQL / regex
+ui/js/flow.js          workflow — drop routing, batch merge, recent list, host selection
 tests/                 regression suite, run with plain node
 scripts/build.sh       package | dev | test
 ```

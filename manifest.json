@@ -5,7 +5,7 @@
   "name": "数据转换工具",
   "version": "0.1.5",
   "publisher": "icefoxs",
-  "description": "🛠️ 一个面板搞定数据搬运：13 种格式（JSON / YAML / XML / Properties / TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML）任意互转、JSONPath / jq 查询与 JSON Schema 校验、8 种转义工具、批量文本生成 SQL、Excel / CSV 转 JSON、图片 ↔ Base64，以及 JSON 或 CREATE TABLE 直接生成 TypeScript / Go / Java / Python 模型。纯前端、不联网、可离线。",
+  "description": "🛠️ 一个面板搞定数据搬运：13 种格式（JSON / YAML / XML / Properties / TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML）任意互转、JSONPath / jq 查询与 JSON Schema 校验、8 种转义工具、字节换算（1000 / 1024 两套进制）、批量文本生成 SQL、Excel / CSV 转 JSON、图片 ↔ Base64，以及 JSON 或 CREATE TABLE 直接生成 TypeScript / Go / Java / Python 模型。纯前端、不联网、可离线。",
   "source": "https://github.com/IceFoxs/dbx-plugin-data-convert",
   "homepage": "https://github.com/IceFoxs/dbx-plugin-data-convert",
   "icon": "assets/plugin.svg",
@@ -45,7 +45,7 @@
     },
     "zh-TW": {
       "name": "資料轉換",
-      "description": "🛠️ 一個面板搞定資料搬運：13 種格式（JSON / YAML / XML / Properties / TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML）任意互轉、JSONPath / jq 查詢與 JSON Schema 校驗、8 種轉義工具、批次文字產生 SQL、Excel / CSV 轉 JSON、圖片 ↔ Base64，以及 JSON 或 CREATE TABLE 直接產生 TypeScript / Go / Java / Python 模型。純前端、不連網、可離線。",
+      "description": "🛠️ 一個面板搞定資料搬運：13 種格式（JSON / YAML / XML / Properties / TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML）任意互轉、JSONPath / jq 查詢與 JSON Schema 校驗、8 種轉義工具、位元組換算（1000 / 1024 兩套進位）、批次文字產生 SQL、Excel / CSV 轉 JSON、圖片 ↔ Base64，以及 JSON 或 CREATE TABLE 直接產生 TypeScript / Go / Java / Python 模型。純前端、不連網、可離線。",
       "contributions": {
         "io.github.icefoxs.data-convert.workbench": {
           "label": "資料轉換",
@@ -55,7 +55,7 @@
     },
     "en": {
       "name": "Data Converter",
-      "description": "🛠️ One panel for all your data plumbing: 13 formats (JSON / YAML / XML / Properties / TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML) convertible into each other, JSONPath / jq queries with JSON Schema validation, eight escape / un-escape tools, batch text to SQL, Excel / CSV to JSON, Image ⇄ Base64, and JSON or CREATE TABLE straight into TypeScript / Go / Java / Python models. Pure frontend, no network, works offline.",
+      "description": "🛠️ One panel for all your data plumbing: 13 formats (JSON / YAML / XML / Properties / TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML) convertible into each other, JSONPath / jq queries with JSON Schema validation, eight escape / un-escape tools, byte conversion on both the 1000 and 1024 scales, batch text to SQL, Excel / CSV to JSON, Image ⇄ Base64, and JSON or CREATE TABLE straight into TypeScript / Go / Java / Python models. Pure frontend, no network, works offline.",
       "contributions": {
         "io.github.icefoxs.data-convert.workbench": {
           "label": "Data Converter",
