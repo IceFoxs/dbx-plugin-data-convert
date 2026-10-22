@@ -1,6 +1,6 @@
 {
   "name": "Data Converter",
-  "description": "Convert data in one DBX workbench panel: JSON / YAML / XML / Properties, batch text to SQL (IN / NOT IN / INSERT), .xlsx / .csv / .tsv to JSON, and Image ⇄ Base64. A Code Gen page turns a JSON sample or a CREATE TABLE into TypeScript / Go / Java / Python models. Pure frontend, no backend, works offline.",
+  "description": "Convert anything in one DBX workbench panel: 13 formats (JSON / YAML / XML / Properties / TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML) in any combination, batch text to SQL (IN / NOT IN / INSERT), .xlsx / .csv / .tsv to JSON, and Image ⇄ Base64. A Code Gen page turns a JSON sample or a CREATE TABLE into TypeScript / Go / Java / Python models. Pure frontend, no backend, works offline.",
   "icon": "assets/plugin.svg",
   "tags": [
     "data-convert",
@@ -23,7 +23,11 @@
     "golang",
     "java",
     "python",
-    "ddl"
+    "ddl",
+    "toml",
+    "ini",
+    "tsv",
+    "env"
   ],
   "permissions": [
     "host.clipboard:read",
@@ -32,19 +36,19 @@
   "source": "https://github.com/IceFoxs/dbx-plugin-data-convert/tree/v0.1.5",
   "homepage": "https://github.com/IceFoxs/dbx-plugin-data-convert",
   "license": "MIT",
-  "releaseNotes": "0.1.5 (update): a new Image ↔ Base64 page (DataURI / raw Base64 / CSS / HTML / Markdown output, bare Base64 decoded straight back into a picture, SVG and pasted SVG source included) and a new Code Gen page. Code Gen turns a JSON sample or a CREATE TABLE into TypeScript interfaces, Go structs, Java POJOs or Python dataclasses, splitting nested structures into their own types, camel-casing column names and carrying comments into the code. All six pages are translated into every one of the 14 supported languages, and the panel stays bounded: chunked work, hard limits on size and depth, no network and no eval.",
+  "releaseNotes": "0.1.5 (update): the Convert page now handles 13 formats in any source/target combination — TOML, INI, .env, CSV, TSV, query strings, HTTP headers, cookie strings and HTML tables join JSON / YAML / XML / Properties. TOML understands tables, arrays of tables, inline tables, dotted keys, multi-line strings and datetimes; CSV / TSV flatten nested JSON to address.city and read back into nesting plus numbers and booleans; query strings turn repeated keys into arrays, header parsing skips request/status lines, and HTML objects round-trip through tables. A Code Gen page and an Image ⇄ Base64 page round out the panel. All six pages are translated into 14 languages, and everything runs locally: no network, no eval, with hard limits on size, rows and columns.",
   "localizations": {
     "zh-CN": {
       "name": "数据转换",
-      "description": "在 DBX 工作台里完成 JSON / YAML / XML / Properties 互转、批量文本生成 SQL（IN / NOT IN / INSERT）、.xlsx / .csv / .tsv 转 JSON，以及图片 ↔ Base64；「代码生成」页把一段 JSON 示例或一条 CREATE TABLE 直接变成 TypeScript / Go / Java / Python 模型。纯前端、无后端、可离线运行。"
+      "description": "在 DBX 工作台里一次转完：JSON / YAML / XML / Properties / TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML 共 13 种格式任意互转、批量文本生成 SQL（IN / NOT IN / INSERT）、.xlsx / .csv / .tsv 转 JSON，以及图片 ↔ Base64；「代码生成」页把一段 JSON 示例或一条 CREATE TABLE 直接变成 TypeScript / Go / Java / Python 模型。纯前端、无后端、可离线运行。"
     },
     "zh-TW": {
       "name": "資料轉換",
-      "description": "在 DBX 工作台裡完成 JSON / YAML / XML / Properties 互轉、批次文字產生 SQL（IN / NOT IN / INSERT）、.xlsx / .csv / .tsv 轉 JSON，以及圖片 ↔ Base64；「程式碼產生」頁把一段 JSON 範例或一條 CREATE TABLE 直接變成 TypeScript / Go / Java / Python 模型。純前端、無後端、可離線執行。"
+      "description": "在 DBX 工作台裡一次轉完：JSON / YAML / XML / Properties / TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML 共 13 種格式任意互轉、批次文字產生 SQL（IN / NOT IN / INSERT）、.xlsx / .csv / .tsv 轉 JSON，以及圖片 ↔ Base64；「程式碼產生」頁把一段 JSON 範例或一條 CREATE TABLE 直接變成 TypeScript / Go / Java / Python 模型。純前端、無後端、可離線執行。"
     },
     "en": {
       "name": "Data Converter",
-      "description": "Convert data in one DBX workbench panel: JSON / YAML / XML / Properties, batch text to SQL (IN / NOT IN / INSERT), .xlsx / .csv / .tsv to JSON, and Image ⇄ Base64. A Code Gen page turns a JSON sample or a CREATE TABLE into TypeScript / Go / Java / Python models. Pure frontend, no backend, works offline."
+      "description": "Convert anything in one DBX workbench panel: 13 formats (JSON / YAML / XML / Properties / TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML) in any combination, batch text to SQL (IN / NOT IN / INSERT), .xlsx / .csv / .tsv to JSON, and Image ⇄ Base64. A Code Gen page turns a JSON sample or a CREATE TABLE into TypeScript / Go / Java / Python models. Pure frontend, no backend, works offline."
     }
   }
 }

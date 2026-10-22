@@ -22,6 +22,7 @@ run_tests() {
     node "$ROOT/tests/xlsxread.test.js"
     node "$ROOT/tests/imgconv.test.js"
     node "$ROOT/tests/codegen.test.js"
+    node "$ROOT/tests/confconv.test.js"
     node "$ROOT/tests/i18n.test.js"
   else
     echo "==> node not found, skip unit tests" >&2

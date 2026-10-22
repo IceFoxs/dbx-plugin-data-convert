@@ -16,7 +16,10 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
 
-    var FORMATS = ['json', 'yaml', 'xml', 'properties'];
+    var FORMATS = ['json', 'yaml', 'xml', 'properties', 'toml', 'ini', 'env', 'csv', 'tsv', 'query', 'headers', 'cookie', 'html'];
+
+    /* 后 9 种由 confconv.js 负责（TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML） */
+    var CONF_FORMATS = ['toml', 'ini', 'env', 'csv', 'tsv', 'query', 'headers', 'cookie', 'html'];
 
     function globalLib(name) {
         return typeof globalThis !== 'undefined' ? globalThis[name] : undefined;
@@ -30,6 +33,12 @@
 
     function parseData(text, format) {
         var raw = stripBom(text);
+        if (CONF_FORMATS.indexOf(format) >= 0) {
+            var confParse = globalLib('DBXConf');
+            if (!confParse) throw new Error('confconv 未加载');
+            // 抛出的错误带 code + mark，UI 层翻译、locateError 定位
+            return confParse.parseData(raw, format);
+        }
         if (format === 'json') {
             try {
                 return JSON.parse(raw);
@@ -66,6 +75,11 @@
     /* ------------------------------------------------------------ serialize */
 
     function serializeData(obj, format) {
+        if (CONF_FORMATS.indexOf(format) >= 0) {
+            var confSer = globalLib('DBXConf');
+            if (!confSer) throw new Error('confconv 未加载');
+            return confSer.serializeData(obj, format);
+        }
         if (format === 'json') {
             // 一律用原生 2 空格缩进：转换器/格式化按钮的输出要能和其它工具逐字对齐，
             // 早先引入的 pretty-compact 写法会把短对象压成 {"a": 1, "b": {...}} 一行，
@@ -188,7 +202,28 @@
         return nodeToObjInner(doc.documentElement);
     }
 
+    /**
+     * JSON 的键可以是任何字符串（"tags[0]"、"meta.active"、"2fa"、含空格…），
+     * 直接当 XML 元素名会生成解析不了的文档。这里统一洗成合法的 XML 名。
+     */
+    function xmlSafeName(name) {
+        var safe = String(name).replace(/[^A-Za-z0-9_.-]/g, '_');
+        if (!/^[A-Za-z_]/.test(safe)) safe = '_' + safe;
+        return safe;
+    }
+
+    function xmlSafeKeys(value) {
+        if (Array.isArray(value)) return value.map(xmlSafeKeys);
+        if (value === null || typeof value !== 'object') return value;
+        var out = {};
+        Object.keys(value).forEach(function (key) {
+            out[xmlSafeName(key)] = xmlSafeKeys(value[key]);
+        });
+        return out;
+    }
+
     function objToXml(obj) {
+        obj = xmlSafeKeys(obj);
         var js2xml = globalLib('js2xml');
         if (typeof js2xml === 'function') {
             try {
@@ -356,6 +391,7 @@
 
     return {
         FORMATS: FORMATS,
+        CONF_FORMATS: CONF_FORMATS,
         parseData: parseData,
         serializeData: serializeData,
         convert: convert,

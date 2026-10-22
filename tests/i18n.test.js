@@ -2,7 +2,7 @@
  * i18n 完整性测试 —— 只在源码层面解析 ui/index.html，不需要浏览器。
  *
  * 目的：新增文案时最容易犯的错是「只补了 zh-CN / zh-TW / en 三种」，
- * 其余 11 种语言悄悄回退到英文或中文兜底。这里把各张字典全量对齐：
+ * 其余 11 种语言悄悄回退到英文或中文兜底。这里把六张字典全量对齐：
  *   1. 语言集合必须和 languageConfigs 一致（14 种）；
  *   2. 每张表的键集合必须和 zh-CN 完全一致（不缺、不多）；
  *   3. 不允许空字符串；
@@ -67,7 +67,8 @@ var tables = {
     SQL_I18N: readLiteral(html, 'SQL_I18N'),
     SHEET_I18N: readLiteral(html, 'SHEET_I18N'),
     IMG_I18N: readLiteral(html, 'IMG_I18N'),
-    GEN_I18N: readLiteral(html, 'GEN_I18N')
+    GEN_I18N: readLiteral(html, 'GEN_I18N'),
+    CONF_I18N: readLiteral(html, 'CONF_I18N')
 };
 
 var langCodes = languageConfigs.map(function (l) { return l.code; });

@@ -14,6 +14,15 @@
 *   **代码生成页两侧是真的编辑器**：输入与输出都用 CodeMirror（行号、语法着色、括号自动配对、代码折叠、当前行高亮），输入按源格式上色（JSON / SQL DDL 两套），输出跟着目标语言走（TypeScript / Go / Java / Python 四套），切页签即换配色；⌘／Ctrl + Enter 就地重跑，清空之后空态提示照样在。编辑器是第一次进这一页才创建，首屏不为用不到的页面付费。
 *   **14 种语言全覆盖**：代码生成页的 24 条文案（`GEN_I18N`）一次性补齐到 14 种，与其余五页一致。
 
+*   **格式矩阵扩到 13 种，源 × 目标任意配**：「格式转换」页原本 4 种格式、7 对固定互转，现在两个选择器各列 13 项——结构化一组（JSON / YAML / XML / Properties / TOML / INI / `.env`）、表格与文本一组（CSV / TSV / Query / Headers / Cookie / HTML），169 种组合全部可转，下拉分组显示、超高时内部滚动，不再往下拉里硬塞条目。
+*   **TOML ↔ JSON**：`[db]` 表、`[[items]]` 数组表、inline table、dotted key、""" 与 ''' 多行字符串、十六进制 / 八进制 / 二进制 / 带下划线的数字、`inf` / `nan`、RFC3339 日期时间都认（日期按字符串往返，JSON 没有日期类型）；重复定义同一张表会在错误条里指出行号。反过来输出时自动把标量排在子表前、对象数组出 `[[x]]`、TOML 表达不了的 `null` 直接跳过（TOML 没有 null）。
+*   **INI ↔ JSON**：`[section]` 是平级的（`[a]` 之后再写 `[b]` 不会嵌进 a——这是写解析器时最容易错的一处）、也支持 `[a.b]` 嵌套写法；`;` / `#` 注释、`key: value` 冒号分隔都吃。输出时标量一定排在子节前面，否则后面的键会被 `[子节]` 吃掉。
+*   **`.env` ↔ JSON**：`export` 前缀、双引号转义（`\n`）、单引号字面、未加引号值里的 `#` 注释、空值都处理；嵌套 JSON 拍平成 `db.host`，需要时自动加引号。
+*   **JSON → CSV / TSV**：之前只有「表格 → JSON」，转不回去。现在数组直接出表格，嵌套对象拍平成 `address.city`、数组变成 `tags[0]` / `tags[1]`，列是各行键的并集（按首次出现顺序）；反向读回来会还原嵌套、并把 `1` / `true` 认成数字与布尔（`007`、超长编号仍留字符串）。空格子不写键——CSV 区分不了 `null` 和空串，硬写会让其它行的同一个键变成 `{0: '', 1: ''}` 这种怪结构。
+*   **Query / Headers / Cookie ↔ JSON**：抓包粘一段就变结构化。Query 的重复键变数组（`a=1&a=2` → `["1","2"]`）、`+` 认作空格、dotted key 展开成嵌套；Headers 会跳过 `GET /x HTTP/1.1` 与 `HTTP/1.1 200 OK` 这两行、重复头（`Set-Cookie`）合成数组、输出时数组再拆回多行；Cookie 里 `HttpOnly` / `Secure` 这类裸标记记成 `true`，序列化时又变回只有键名。
+*   **JSON ↔ HTML 表格**：对象数组 ⇄ `<table>`（含 `<thead>` / `<tbody>`、HTML 实体转义与反转义），没有 `<th>` 时自动生成 `column1` / `column2` 列名，偶尔要把数据贴进文档不用再手搓标签。
+*   **新格式也有语法着色**：从 CodeMirror 5.65.16 同版补了 toml / properties（给 INI）/ shell（给 `.env`）/ http（给 Headers）四个 mode，共 6.4 KB；HTML 表复用已有的 xml 模式，CSV / TSV / Query / Cookie 没有对应模式就走纯文本。输入按源格式上色、输出按目标格式上色，切一下两个下拉就换配色。
+*   **格式矩阵的错误文案也是 14 种语言**：新增第六张字典 `CONF_I18N`（26 键 × 14 语）。解析器只抛 `code` + 行列，文案由 UI 按当前语言取，超限提示里的上限数字从模块自己的 `LIMITS` 读，不写死在译文里。
 ### 🔧 修复 (Fixes)
 
 *   **暗色主题下 Base64 输入 / 输出框是白底黑字**：两个 `<textarea>` 用的是 `background: transparent`，可滚动文本框会被浏览器提升成独立合成层，暗色下这一层按白底光栅化——整页都黑了，只有这一块刺眼。改成显式 `background-color: var(--bg-card)`，跟面板同色，深浅主题都不再错位。
@@ -27,6 +36,7 @@
 *   **Python 缺 `from __future__ import annotations`**：补上，避免后定义的类被前面的类引用时报错。
 *   **转换按钮的快捷键提示是空的**：`data-i18n-title="convertShortcut"` 这一个键从来没写进主字典，鼠标悬停在「执行转换」上什么都没有（宿主 WebView 下会露出宿主自己的词）。14 种语言一并补上。
 
+*   **JSON 的键含 `.` `[` `]`、数字开头或空格时，转 XML 会生成解析不了的文档**：`{"tags[0]": "a"}` 直接拼成 `<tags[0]>a</tags[0]>`，而 `[` 不是合法的 XML 元素名，粘进任何解析器都报错。新增 `xmlSafeKeys()`，在序列化前把所有键洗成合法元素名（非法字符换 `_`、非字母开头补 `_`）。这个问题是被「13 × 13 全矩阵」单测逼出来的——TOML / `.env` 解析出来的 dotted key 正好撞上。
 ### 🛠 工程化 (Internal)
 
 *   新增 `ui/js/imgconv.js`（纯函数，无 DOM）：`sniffMime()` 魔数嗅探、`normalizeBase64()` 规范化、`parseInput()` 识别 DataURI / 裸 Base64、`bytesToBase64(Async)()` / `base64ToBytes(Async)()` 分块编解码、`buildText()` 五种输出格式、`previewText()` 预览截断、`looksLikeSvgText()` / `svgTextToBase64()` SVG 源码；上限集中在 `LIMITS`。
@@ -44,6 +54,11 @@
 *   `ui/vendor/codemirror/` 补齐 `mode/clike.min.js`（Java）、`mode/go.min.js`、`mode/python.min.js` 与 `addon/display/placeholder.min.js`，全部取自 CodeMirror **5.65.16**（与仓库里已有的核心同版，避免 mode 与内核 API 错位）、用 esbuild 压缩，四项合计 32 KB，包体 273 → 307 KB。TypeScript 不额外引 mode，直接用 `javascript.min.js` 里的 `text/typescript` 分支。实测四种语言都真的着上了色（Go 19 个 keyword / 3 条注释 / 14 个字符串，Java 25 个 keyword，Python 11 个，TS 6 个），DDL 输入走 `text/x-sql` 有 7 个 keyword——不是「配了 mode 但悄悄退成纯文本」。
 *   代码生成页的编辑器与原生 textarea 之间用既有的 `linkTextareaToEditor()` 桥接 `.value`：页面逻辑与冒烟用例一行没改就继续成立，`.value` 的读写自动落到 `getValue()` / `setValue()`，也顺手保住了「程序化写入不触发重新生成」的老行为。冒烟 116 → 118 项，新增「没进过这一页时不存在 CodeMirror 实例」（防止以后把编辑器改成启动即建、白付首屏开销）与「输入输出各一个 CM 实例、原 textarea 已隐藏」。
 *   文档补 `docs/screen-code.png`；README（中英）加「代码生成」一节与功能页一览里的一行，i18n 段改成「六页」。商店与清单描述重写成一句话说清六个页面（原段落逐页罗列太长），`.dbx-store.json` 的 tags 补 `codegen` / `typescript` / `golang` / `java` / `python` / `ddl`。
+*   新增 `ui/js/confconv.js`（约 1100 行，纯函数、零 DOM，UMD 导出 `window.DBXConf`）：TOML 用递归下降解析器（多行字符串、行尾续行、`\uXXXX` / `\UXXXXXXXX` 转义、数组与内联表跨行、表重复定义检测），INI / `.env` / CSV / TSV / Query / Headers / Cookie / HTML 各自独立；错误只回 `code` + `mark: {line, column}`，`locateError` 直接能用。`LIMITS` 集中管入口上限（2 M 字符 / 5 万行 / 500 列 / 50 万单元格）。
+*   新增 `tests/confconv.test.js`（91 条）：每种格式的解析、往返、错误码与行列，另有一条「任意源 → 任意目标」矩阵抽查。`converters.test.js` 的两两互转从 4×4 扩到 13×13（169 条，单测合计 386 条）。
+*   `tests/i18n.test.js` 纳入第六张字典 `CONF_I18N`（24 → 28 条）。`ui.smoke.js` 118 → 129 条：两个下拉各 13 项、分组标题不可选、JSON → TOML / CSV / `.env` / Headers / HTML 的实际输出、TOML 解析失败显示译文而不是 `code`、输出编辑器 mode 跟着格式变。
+*   `.custom-select-options` 加 `max-height: 320px` + 内部滚动、`white-space: nowrap`，并新增 `.custom-option-group` 分组标题样式（小字、大写、不可点）。vendor 新增 4 个 mode（toml 1.3 KB / properties 1 KB / shell 2.8 KB / http 1.3 KB）。
+*   文档：中英 README 的「格式转换」一节重写（13 种格式逐条说明 + 双选择器）、功能页一览与目录结构同步；`docs/` 六张截图按新版本重拍。包体 307 → 328 KB（新增 confconv.js 与 4 个 mode、第六张字典）。复测冷启动 DOMContentLoaded 365 ms、JS 堆 9.5 MB、609 个节点（多出来的 74 个是下拉里新增的选项），进页面 62 ms，进出五次堆与节点数不变——新解析器不在首屏付费。
 
 ## [0.1.4]
 

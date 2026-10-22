@@ -10,7 +10,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 | Page | What it does |
 | --- | --- |
-| **Convert** | All 7 pairs between JSON / YAML / XML / Properties, instant conversion, validation + formatting, mock data |
+| **Convert** | Any of 13 formats into any other (JSON / YAML / XML / Properties / TOML / INI / `.env` / CSV / TSV / Query / Headers / Cookie / HTML), instant conversion, validation + formatting, mock data |
 | **Compare** | Field-level JSON diff by JSON Pointer, or a line-level text diff for anything else |
 | **SQL** | Paste values → `IN` / `NOT IN` / value list / `INSERT`; pasted SQL fragments parse back into clean values |
 | **Sheet to JSON** | `.xlsx` / `.csv` / `.tsv` → JSON array or SQL `INSERT`, parsed entirely in the browser |
@@ -19,8 +19,14 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 ## Convert
 
-- The seven format pairs live in one dropdown and the trigger shows the pair in use (`yaml转properties`); the active pair is highlighted, `Esc` or a click outside closes it. Whatever does not fit folds into "More", so the nav never grows a horizontal scrollbar.
+- **Source × target selectors** — 13 formats in any combination, grouped in the dropdown (structured: JSON / YAML / XML / Properties / TOML / INI / `.env`; table & text: CSV / TSV / Query / Headers / Cookie / HTML), with internal scrolling so a long list never spills off screen.
+- **TOML** — `[db]` tables, `[[items]]` arrays of tables, inline tables, dotted keys, triple-quoted strings, hex / octal / binary / underscored numbers, `inf` / `nan` and datetimes (carried as strings) are all understood; defining the same table twice reports the line it happened on.
+- **INI / `.env`** — flat `[section]` blocks (a later section never nests into the previous one), `export` prefix, quoted escapes and trailing `#` comments; nested `.env` keys flatten to `db.host`.
+- **CSV / TSV** — a JSON array becomes a table, with nested objects flattened to `address.city` and arrays to `tags[0]` / `tags[1]`; reading it back restores the nesting plus numbers and booleans. Empty cells are skipped, since CSV cannot tell `null` from an empty string.
+- **Query / Headers / Cookie** — paste a captured request and get structure: repeated query keys become arrays (`a=1&a=2` → `["1","2"]`), header parsing skips the request/status line, and bare cookie flags such as `HttpOnly` become `true`.
+- **HTML** — an array of objects ⇄ `<table>` with `<thead>` / `<tbody>` and HTML escaping; column names are generated when there is no `<th>`.
 - Auto-formatting for JSON / YAML / XML, validation errors that point at the problem, and a mock-data generator for quick schema tests.
+- Both panes keep line numbers and syntax colours — TOML, `.env` (shell), Headers (HTTP) and INI (properties) each get their own.
 - Everything runs locally: paste → convert happens inside the panel, nothing is uploaded.
 
 ## Compare
@@ -93,12 +99,12 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## Build & test
 
 ```bash
-./scripts/build.sh test         # all suites (295 cases)
+./scripts/build.sh test         # all suites (386 cases)
 ./scripts/build.sh              # run tests, then package dist/*.dbxp
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
-npm test                        # pure-function suites, no dependencies (295 cases)
-npm install && npm run test:ui  # jsdom smoke test of the UI wiring (118 checks)
+npm test                        # pure-function suites, no dependencies (386 cases)
+npm install && npm run test:ui  # jsdom smoke test of the UI wiring (129 checks)
 ```
 
 On Windows use `scripts\build.cmd` instead (requires Git Bash).
@@ -115,6 +121,7 @@ ui/js/sheetconv.js     CSV/TSV → records → JSON — delimiter sniffing, type
 ui/js/xlsxread.js      .xlsx reader — ZIP + DecompressionStream + XML scan, no deps
 ui/js/imgconv.js       image ↔ Base64 — magic-byte sniffing, normalisation, SVG text
 ui/js/codegen.js       code gen — type inference + DDL parsing + 4-language renderers
+ui/js/confconv.js      format matrix — TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML
 tests/                 regression suite, run with plain node
 scripts/build.sh       package | dev | test
 ```

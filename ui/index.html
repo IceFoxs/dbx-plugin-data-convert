@@ -40,6 +40,7 @@
     <script src="js/xlsxread.js"></script>
     <script src="js/imgconv.js"></script>
     <script src="js/codegen.js"></script>
+    <script src="js/confconv.js"></script>
     <script>
         if (typeof xml2js === 'undefined' || typeof js2xml === 'undefined') {
             console.warn('xml-js 加载失败，将退回基础解析逻辑');
@@ -60,6 +61,12 @@
     <script src="vendor/codemirror/mode/clike.min.js"></script>
     <script src="vendor/codemirror/mode/go.min.js"></script>
     <script src="vendor/codemirror/mode/python.min.js"></script>
+    <!-- 格式矩阵新增的四种：TOML、INI（借 properties 模式）、.env（借 shell 模式）、HTTP 头；
+         CSV / TSV / Query / Cookie 没有对应模式，HTML 表复用已有的 xml 模式，都不额外带文件 -->
+    <script src="vendor/codemirror/mode/toml.min.js"></script>
+    <script src="vendor/codemirror/mode/properties.min.js"></script>
+    <script src="vendor/codemirror/mode/shell.min.js"></script>
+    <script src="vendor/codemirror/mode/http.min.js"></script>
 
     <!-- 基础辅助功能 -->
     <script src="vendor/codemirror/addon/edit/matchbrackets.min.js"></script>
@@ -538,6 +545,9 @@
             left: 50%;
             transform: translateX(-50%) scaleY(0.95);
             min-width: 130px;
+            /* 格式矩阵扩到 13 项后一列会顶出屏幕，超出就内部滚动 */
+            max-height: 320px;
+            overflow-y: auto;
             background-color: var(--bg-card);
             border: 1px solid var(--border-light);
             border-radius: var(--radius-md);
@@ -562,6 +572,7 @@
             color: var(--text-main);
             transition: background-color 0.1s ease;
             font-weight: 500;
+            white-space: nowrap;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -569,6 +580,17 @@
         .custom-option:hover { background-color: var(--accent-hover); }
         .custom-option.selected { background-color: var(--accent-bg); color: var(--primary); font-weight: 600; }
         .custom-option.selected::after { content: '✓'; font-size: 0.9rem; }
+        /* 分组标题只是分隔提示，不参与选择（没有 data-value，点击逻辑自然忽略） */
+        .custom-option-group {
+            padding: 0.35rem 0.75rem 0.2rem;
+            font-size: 0.7rem;
+            letter-spacing: 0.04em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            cursor: default;
+            white-space: nowrap;
+        }
+        .custom-option-group:hover { background-color: transparent; }
         .swap-btn {
             display: flex;
             align-items: center;
@@ -1856,10 +1878,21 @@
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
                 <div class="custom-select-options">
+                    <div class="custom-option-group" data-i18n="fmtGroupStructured">结构化</div>
                     <div class="custom-option selected" data-value="json">JSON</div>
                     <div class="custom-option" data-value="yaml">YAML</div>
                     <div class="custom-option" data-value="xml">XML</div>
                     <div class="custom-option" data-value="properties">Properties</div>
+                    <div class="custom-option" data-value="toml">TOML</div>
+                    <div class="custom-option" data-value="ini">INI</div>
+                    <div class="custom-option" data-value="env">.env</div>
+                    <div class="custom-option-group" data-i18n="fmtGroupTable">表格与文本</div>
+                    <div class="custom-option" data-value="csv">CSV</div>
+                    <div class="custom-option" data-value="tsv">TSV</div>
+                    <div class="custom-option" data-value="query">Query</div>
+                    <div class="custom-option" data-value="headers">Headers</div>
+                    <div class="custom-option" data-value="cookie">Cookie</div>
+                    <div class="custom-option" data-value="html">HTML</div>
                 </div>
             </div>
         </div>
@@ -1876,10 +1909,21 @@
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
                 <div class="custom-select-options">
+                    <div class="custom-option-group" data-i18n="fmtGroupStructured">结构化</div>
                     <div class="custom-option" data-value="json">JSON</div>
                     <div class="custom-option selected" data-value="yaml">YAML</div>
                     <div class="custom-option" data-value="xml">XML</div>
                     <div class="custom-option" data-value="properties">Properties</div>
+                    <div class="custom-option" data-value="toml">TOML</div>
+                    <div class="custom-option" data-value="ini">INI</div>
+                    <div class="custom-option" data-value="env">.env</div>
+                    <div class="custom-option-group" data-i18n="fmtGroupTable">表格与文本</div>
+                    <div class="custom-option" data-value="csv">CSV</div>
+                    <div class="custom-option" data-value="tsv">TSV</div>
+                    <div class="custom-option" data-value="query">Query</div>
+                    <div class="custom-option" data-value="headers">Headers</div>
+                    <div class="custom-option" data-value="cookie">Cookie</div>
+                    <div class="custom-option" data-value="html">HTML</div>
                 </div>
             </div>
         </div>
@@ -2421,20 +2465,20 @@
         // 1. 国际化 (I18n) 字典配置 (全量语言)
         // =========================================
         const languageConfigs = [
-            { code: 'zh-CN', name: '简体中文', flag: '🇨🇳', dict: { brand: '转换工具', navYamlJson: 'yaml转json', navYamlProps: 'yaml转properties', navJsonProps: 'json转properties', navJsonXml: 'json转xml', navXmlYaml: 'xml转yaml', navJsonYaml: 'json转yaml', navYamlXml: 'yaml转xml', fromLabel: '从', toLabel: '转为', swapTitle: '互换格式', inputLabel: '输入内容', outputLabel: '输出结果', formatBtn: '格式化', mockBtn: '模拟数据', clearBtn: '清空', convertShortcut: 'Ctrl / ⌘ + Enter 执行转换', convertBtn: '执行转换', copyBtn: '复制', pasteBtn: '粘贴', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '已生成模拟数据', toastFormatInput: '输入格式化成功', toastFormatOutput: '输出格式化成功', toastFormatError: '格式化失败', toastConvertSuccess: '转换成功', toastConvertError: '转换失败', toastCopySuccess: '已复制', toastCopyError: '复制失败', toastPasteSuccess: '已粘贴', toastPasteError: '读取剪贴板失败', toastPasteUnsupported: '当前环境不支持读取剪贴板，请手动粘贴', toastEmptyInput: '请输入内容', toastSameFormat: '格式相同', diffBtn: '对比差异', diffExitBtn: '退出对比', diffLeftTitle: '原始版本 (输入)', diffRightTitle: '修改版本 (输出)', diffLarge: '文件较大，已切换为快速对比（行级高亮可能不够精确）', diffReportTitle: '结构化差异 {n} 处', diffChange: '修改', diffAdd: '新增', diffRemove: '删除', diffSame: '两版内容一致', diffSameHint: '未发现字段级差异', navCompare: 'JSON 对比', navMore: '更多', cmpTabText: '任意文本', cmpSamples: '示例 JSON:', cmpSampleUser: '用户信息', cmpSampleProduct: '商品数据', cmpSampleConfig: '配置选项', cmpSampleApi: 'API响应', cmpTextSamples: '示例文本:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '配置文件', cmpSampleHtml: 'HTML片段', cmpSampleLog: '日志输出', cmpBeautify: '美化', cmpClear: '清空', cmpRun: '对比', cmpTipIdle: '粘贴两侧内容后点击「对比」', cmpTipJson: '两侧 JSON 比对完成，共有 {n} 处不一致！', cmpTipSame: '两侧内容完全一致', cmpTipText: '两侧文本比对完成，共有 {n} 行不同', cmpTipUseJson: '两侧都是 JSON，切到「JSON 对比」可精确到字段', cmpTipError: '解析失败', cmpLeftSide: '左侧', cmpRightSide: '右侧', errorLocLine: '第 {n} 行', errorLocCol: ' 第 {n} 列' } },
-            { code: 'zh-TW', name: '繁體中文', flag: '繁', dict: { brand: '轉換工具', navYamlJson: 'yaml轉json', navYamlProps: 'yaml轉properties', navJsonProps: 'json轉properties', navJsonXml: 'json轉xml', navXmlYaml: 'xml轉yaml', navJsonYaml: 'json轉yaml', navYamlXml: 'yaml轉xml', fromLabel: '從', toLabel: '轉為', swapTitle: '互換格式', inputLabel: '輸入內容', outputLabel: '輸出結果', formatBtn: '格式化', mockBtn: '模擬數據', clearBtn: '清空', convertShortcut: 'Ctrl / ⌘ + Enter 執行轉換', convertBtn: '執行轉換', copyBtn: '複製', pasteBtn: '粘貼', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '已生成模擬數據', toastFormatInput: '輸入格式化成功', toastFormatOutput: '輸出格式化成功', toastFormatError: '格式化失敗', toastConvertSuccess: '轉換成功', toastConvertError: '轉換失敗', toastCopySuccess: '已複製', toastCopyError: '複製失敗', toastPasteSuccess: '已粘貼', toastPasteError: '讀取剪貼板失敗', toastPasteUnsupported: '當前環境不支持讀取剪貼板，請手動粘貼', toastEmptyInput: '請輸入內容', toastSameFormat: '格式相同', diffBtn: '對比差異', diffExitBtn: '退出對比', diffLeftTitle: '原始版本 (輸入)', diffRightTitle: '修改版本 (輸出)', diffLarge: '檔案較大，已切換為快速對比（行級標記可能不夠精確）', diffReportTitle: '結構化差異 {n} 處', diffChange: '修改', diffAdd: '新增', diffRemove: '刪除', diffSame: '兩版內容一致', diffSameHint: '未發現欄位級差異', navCompare: 'JSON 對比', navMore: '更多', cmpTabText: '任意文字', cmpSamples: '範例 JSON:', cmpSampleUser: '使用者資訊', cmpSampleProduct: '商品資料', cmpSampleConfig: '設定選項', cmpSampleApi: 'API 回應', cmpTextSamples: '範例文字:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '設定檔', cmpSampleHtml: 'HTML 片段', cmpSampleLog: '日誌輸出', cmpBeautify: '美化', cmpClear: '清空', cmpRun: '對比', cmpTipIdle: '貼上兩側內容後點擊「對比」', cmpTipJson: '兩側 JSON 比對完成，共有 {n} 處不一致！', cmpTipSame: '兩側內容完全一致', cmpTipText: '兩側文字比對完成，共有 {n} 行不同', cmpTipUseJson: '兩側都是 JSON，切到「JSON 對比」可精確到欄位', cmpTipError: '解析失敗', cmpLeftSide: '左側', cmpRightSide: '右側', errorLocLine: '第 {n} 行', errorLocCol: ' 第 {n} 欄' } },
-            { code: 'en', name: 'English', flag: '🇺🇸', dict: { brand: 'Converter', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock Data', clearBtn: 'Clear', convertShortcut: 'Ctrl / ⌘ + Enter to convert', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here, please paste manually', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)', diffLarge: 'Large input — switched to fast diff, highlights may be less precise', diffReportTitle: 'Structured changes: {n}', diffChange: 'Modified', diffAdd: 'Added', diffRemove: 'Deleted', diffSame: 'No differences', diffSameHint: 'No field-level changes found', navCompare: 'JSON Compare', navMore: 'More', cmpTabText: 'Any text', cmpSamples: 'Examples:', cmpSampleUser: 'User', cmpSampleProduct: 'Product', cmpSampleConfig: 'Config', cmpSampleApi: 'API response', cmpTextSamples: 'Examples:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Config file', cmpSampleHtml: 'HTML snippet', cmpSampleLog: 'Log output', cmpBeautify: 'Beautify', cmpClear: 'Clear', cmpRun: 'Compare', cmpTipIdle: 'Paste both sides, then click Compare', cmpTipJson: 'JSON compared — {n} difference(s) found', cmpTipSame: 'Both sides are identical', cmpTipText: 'Text compared — {n} different line(s)', cmpTipUseJson: 'Both sides look like JSON — switch to JSON compare for a field-level diff', cmpTipError: 'Parse failed', cmpLeftSide: 'left side', cmpRightSide: 'right side', errorLocLine: 'line {n}', errorLocCol: ', column {n}' } },
-            { code: 'az', name: 'Azərbaycan', flag: '🇦🇿', dict: { brand: 'Alətlər', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock', clearBtn: 'Clear', convertShortcut: 'Çevirmək üçün Ctrl / ⌘ + Enter', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)', diffLarge: 'Giriş böyükdür — sürətli müqayisəyə keçildi', diffReportTitle: 'Struktur fərqlər: {n}', diffChange: 'Dəyişdi', diffAdd: 'Əlavə', diffRemove: 'Silindi', diffSame: 'Fərq yoxdur', diffSameHint: 'Sahə səviyyəsində fərq tapılmadı', navCompare: 'JSON müqayisə', navMore: 'Daha çox', cmpTabText: 'İstənilən mətn', cmpSamples: 'Nümunə:', cmpSampleUser: 'İstifadəçi', cmpSampleProduct: 'Məhsul', cmpSampleConfig: 'Konfiq', cmpSampleApi: 'API cavabı', cmpTextSamples: 'Nümunə mətn:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Konfiq faylı', cmpSampleHtml: 'HTML fraqmenti', cmpSampleLog: 'Jurnal çıxışı', cmpBeautify: 'Formatla', cmpClear: 'Təmizlə', cmpRun: 'Müqayisə et', cmpTipIdle: 'Hər iki tərəfi yerləşdirin və «Müqayisə et» basın', cmpTipJson: 'JSON müqayisə bitdi, {n} fərq', cmpTipSame: 'Hər iki tərəf eynidir', cmpTipText: 'Mətn müqayisəsi bitdi, {n} sətir fərqli', cmpTipUseJson: 'Hər iki tərəf JSON-dur — sahə səviyyəsində müqayisə üçün «JSON müqayisə»yə keçin', cmpTipError: 'Analiz alınmadı', cmpLeftSide: 'sol tərəf', cmpRightSide: 'sağ tərəf', errorLocLine: '{n}-ci sətir', errorLocCol: ', {n}-ci sütun' } },
-            { code: 'es', name: 'Español', flag: '🇪🇸', dict: { brand: 'Herramientas', navYamlJson: 'YAML a JSON', navYamlProps: 'YAML a Props', navJsonProps: 'JSON a Props', navJsonXml: 'JSON a XML', navXmlYaml: 'XML a YAML', navJsonYaml: 'JSON a YAML', navYamlXml: 'YAML a XML', fromLabel: 'De', toLabel: 'A', swapTitle: 'Intercambiar', inputLabel: 'Entrada', outputLabel: 'Salida', formatBtn: 'Formatear', mockBtn: 'Simular', clearBtn: 'Limpiar', convertShortcut: 'Ctrl / ⌘ + Enter para convertir', convertBtn: 'Convertir', copyBtn: 'Copiar', pasteBtn: 'Pegar', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulado generado', toastFormatInput: 'Entrada formateada', toastFormatOutput: 'Salida formateada', toastFormatError: 'Error de formato', toastConvertSuccess: 'Convertido', toastConvertError: 'Error de conversión', toastCopySuccess: 'Copiado', toastCopyError: 'Error al copiar', toastPasteSuccess: 'Pegado', toastPasteError: 'Error al leer el portapapeles', toastPasteUnsupported: 'Lectura del portapapeles no soportada', toastEmptyInput: 'Entrada vacía', toastSameFormat: 'Mismo formato', diffBtn: 'Comparar', diffExitBtn: 'Salir', diffLeftTitle: 'Original (Entrada)', diffRightTitle: 'Modificado (Salida)', diffLarge: 'Entrada grande: se cambió a comparación rápida', diffReportTitle: 'Cambios estructurados: {n}', diffChange: 'Modificado', diffAdd: 'Añadido', diffRemove: 'Eliminado', diffSame: 'Sin diferencias', diffSameHint: 'No se encontraron cambios', navCompare: 'Comparar JSON', navMore: 'Más', cmpTabText: 'Texto libre', cmpSamples: 'Ejemplos:', cmpSampleUser: 'Usuario', cmpSampleProduct: 'Producto', cmpSampleConfig: 'Config', cmpSampleApi: 'Respuesta API', cmpTextSamples: 'Ejemplos:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Archivo de configuración', cmpSampleHtml: 'Fragmento HTML', cmpSampleLog: 'Salida de log', cmpBeautify: 'Formatear', cmpClear: 'Limpiar', cmpRun: 'Comparar', cmpTipIdle: 'Pega ambos lados y pulsa Comparar', cmpTipJson: 'JSON comparado: {n} diferencia(s)', cmpTipSame: 'Ambos lados son idénticos', cmpTipText: 'Texto comparado: {n} línea(s) distinta(s)', cmpTipUseJson: 'Ambos lados son JSON: cambia a «Comparar JSON» para ver diferencias por campo', cmpTipError: 'Error de análisis', cmpLeftSide: 'lado izquierdo', cmpRightSide: 'lado derecho', errorLocLine: 'línea {n}', errorLocCol: ', columna {n}' } },
-            { code: 'id', name: 'Bahasa Indonesia', flag: '🇮🇩', dict: { brand: 'Alat', navYamlJson: 'YAML ke JSON', navYamlProps: 'YAML ke Props', navJsonProps: 'JSON ke Props', navJsonXml: 'JSON ke XML', navXmlYaml: 'XML ke YAML', navJsonYaml: 'JSON ke YAML', navYamlXml: 'YAML ke XML', fromLabel: 'Dari', toLabel: 'Ke', swapTitle: 'Tukar', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock', clearBtn: 'Hapus', convertShortcut: 'Ctrl / ⌘ + Enter untuk mengonversi', convertBtn: 'Konversi', copyBtn: 'Salin', pasteBtn: 'Tempel', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock dibuat', toastFormatInput: 'Input diformat', toastFormatOutput: 'Output diformat', toastFormatError: 'Format gagal', toastConvertSuccess: 'Dikonversi', toastConvertError: 'Konversi gagal', toastCopySuccess: 'Disalin', toastCopyError: 'Gagal menyalin', toastPasteSuccess: 'Ditempel', toastPasteError: 'Gagal membaca clipboard', toastPasteUnsupported: 'Baca clipboard tidak didukung', toastEmptyInput: 'Input kosong', toastSameFormat: 'Format sama', diffBtn: 'Bandingkan', diffExitBtn: 'Keluar', diffLeftTitle: 'Asli (Input)', diffRightTitle: 'Diubah (Output)', diffLarge: 'Input besar — beralih ke perbandingan cepat', diffReportTitle: 'Perubahan terstruktur: {n}', diffChange: 'Diubah', diffAdd: 'Ditambah', diffRemove: 'Dihapus', diffSame: 'Tidak ada perbedaan', diffSameHint: 'Tidak ada perubahan pada field', navCompare: 'Bandingkan JSON', navMore: 'Lainnya', cmpTabText: 'Teks bebas', cmpSamples: 'Contoh:', cmpSampleUser: 'Pengguna', cmpSampleProduct: 'Produk', cmpSampleConfig: 'Konfigurasi', cmpSampleApi: 'Respons API', cmpTextSamples: 'Contoh teks:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Berkas konfigurasi', cmpSampleHtml: 'Cuplikan HTML', cmpSampleLog: 'Keluaran log', cmpBeautify: 'Rapikan', cmpClear: 'Hapus', cmpRun: 'Bandingkan', cmpTipIdle: 'Tempel kedua sisi lalu klik Bandingkan', cmpTipJson: 'JSON dibandingkan: {n} perbedaan', cmpTipSame: 'Kedua sisi identik', cmpTipText: 'Teks dibandingkan: {n} baris berbeda', cmpTipUseJson: 'Kedua sisi JSON — beralih ke «Bandingkan JSON» untuk diff per field', cmpTipError: 'Gagal mengurai', cmpLeftSide: 'sisi kiri', cmpRightSide: 'sisi kanan', errorLocLine: 'baris {n}', errorLocCol: ', kolom {n}' } },
-            { code: 'it', name: 'Italiano', flag: '🇮🇹', dict: { brand: 'Strumenti', navYamlJson: 'YAML in JSON', navYamlProps: 'YAML in Props', navJsonProps: 'JSON in Props', navJsonXml: 'JSON in XML', navXmlYaml: 'XML in YAML', navJsonYaml: 'JSON in YAML', navYamlXml: 'YAML in XML', fromLabel: 'Da', toLabel: 'A', swapTitle: 'Scambia', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Formatta', mockBtn: 'Simula', clearBtn: 'Pulisci', convertShortcut: 'Ctrl / ⌘ + Enter per convertire', convertBtn: 'Converti', copyBtn: 'Copia', pasteBtn: 'Incolla', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulazione creata', toastFormatInput: 'Input formattato', toastFormatOutput: 'Output formattato', toastFormatError: 'Formato fallito', toastConvertSuccess: 'Convertito', toastConvertError: 'Conversione fallita', toastCopySuccess: 'Copiato', toastCopyError: 'Copia fallita', toastPasteSuccess: 'Incollato', toastPasteError: 'Lettura appunti fallita', toastPasteUnsupported: 'Lettura appunti non supportata', toastEmptyInput: 'Input vuoto', toastSameFormat: 'Stesso formato', diffBtn: 'Confronta', diffExitBtn: 'Esci', diffLeftTitle: 'Originale (Input)', diffRightTitle: 'Modificato (Output)', diffLarge: 'Input grande: confronto rapido attivato', diffReportTitle: 'Modifiche strutturate: {n}', diffChange: 'Modificato', diffAdd: 'Aggiunto', diffRemove: 'Rimosso', diffSame: 'Nessuna differenza', diffSameHint: 'Nessuna modifica a livello di campo', navCompare: 'Confronta JSON', navMore: 'Altro', cmpTabText: 'Testo libero', cmpSamples: 'Esempi:', cmpSampleUser: 'Utente', cmpSampleProduct: 'Prodotto', cmpSampleConfig: 'Config', cmpSampleApi: 'Risposta API', cmpTextSamples: 'Esempi:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'File di configurazione', cmpSampleHtml: 'Snippet HTML', cmpSampleLog: 'Output di log', cmpBeautify: 'Formatta', cmpClear: 'Pulisci', cmpRun: 'Confronta', cmpTipIdle: 'Incolla entrambi i lati e premi Confronta', cmpTipJson: 'JSON confrontato: {n} differenze', cmpTipSame: 'I due lati sono identici', cmpTipText: 'Testo confrontato: {n} righe diverse', cmpTipUseJson: 'Entrambi i lati sono JSON — passa a «Confronta JSON» per il diff per campo', cmpTipError: 'Analisi non riuscita', cmpLeftSide: 'lato sinistro', cmpRightSide: 'lato destro', errorLocLine: 'riga {n}', errorLocCol: ', colonna {n}' } },
-            { code: 'ja', name: '日本語', flag: '🇯🇵', dict: { brand: '変換ツール', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '変換元', toLabel: '変換先', swapTitle: '入れ替え', inputLabel: '入力', outputLabel: '出力', formatBtn: '整形', mockBtn: 'モック', clearBtn: 'クリア', convertShortcut: 'Ctrl / ⌘ + Enter で変換', convertBtn: '変換', copyBtn: 'コピー', pasteBtn: '貼り付け', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'モック生成完了', toastFormatInput: '入力整形完了', toastFormatOutput: '出力整形完了', toastFormatError: '整形失敗', toastConvertSuccess: '変換完了', toastConvertError: '変換失敗', toastCopySuccess: 'コピーしました', toastCopyError: 'コピー失敗', toastPasteSuccess: '貼り付けました', toastPasteError: 'クリップボードの読み取りに失敗', toastPasteUnsupported: 'クリップボードの読み取り非対応', toastEmptyInput: '入力が空です', toastSameFormat: '同じ形式です', diffBtn: '比較', diffExitBtn: '終了', diffLeftTitle: '元のバージョン (入力)', diffRightTitle: '変更後 (出力)', diffLarge: '入力が大きいため高速比較に切り替えました', diffReportTitle: '構造化差分 {n} 件', diffChange: '変更', diffAdd: '追加', diffRemove: '削除', diffSame: '差分なし', diffSameHint: 'フィールド単位の差分はありません', navCompare: 'JSON 比較', navMore: 'その他', cmpTabText: '任意テキスト', cmpSamples: 'サンプル:', cmpSampleUser: 'ユーザー情報', cmpSampleProduct: '商品データ', cmpSampleConfig: '設定', cmpSampleApi: 'API レスポンス', cmpTextSamples: 'サンプルテキスト:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '設定ファイル', cmpSampleHtml: 'HTML 断片', cmpSampleLog: 'ログ出力', cmpBeautify: '整形', cmpClear: 'クリア', cmpRun: '比較', cmpTipIdle: '両側に貼り付けて「比較」を押してください', cmpTipJson: 'JSON の比較完了、相違 {n} 件', cmpTipSame: '両側は完全に一致しています', cmpTipText: 'テキスト比較完了、{n} 行の違い', cmpTipUseJson: '両側とも JSON です。「JSON 比較」に切り替えるとフィールド単位で比較できます', cmpTipError: '解析失敗', cmpLeftSide: '左側', cmpRightSide: '右側', errorLocLine: '{n} 行目', errorLocCol: ' {n} 列目' } },
-            { code: 'ko', name: '한국어', flag: '🇰🇷', dict: { brand: '변환 도구', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '변환 전', toLabel: '변환 후', swapTitle: '교체', inputLabel: '입력', outputLabel: '출력', formatBtn: '포맷', mockBtn: '모의', clearBtn: '지우기', convertShortcut: 'Ctrl / ⌘ + Enter로 변환', convertBtn: '변환', copyBtn: '복사', pasteBtn: '붙여넣기', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '모의 생성됨', toastFormatInput: '입력 포맷됨', toastFormatOutput: '출력 포맷됨', toastFormatError: '포맷 실패', toastConvertSuccess: '변환됨', toastConvertError: '변환 실패', toastCopySuccess: '복사됨', toastCopyError: '복사 실패', toastPasteSuccess: '붙여넣음', toastPasteError: '클립보드 읽기 실패', toastPasteUnsupported: '클립보드 읽기 미지원', toastEmptyInput: '입력이 비어있음', toastSameFormat: '같은 형식', diffBtn: '비교', diffExitBtn: '종료', diffLeftTitle: '원본 (입력)', diffRightTitle: '수정됨 (출력)', diffLarge: '입력이 커서 빠른 비교로 전환했습니다', diffReportTitle: '구조화 차이 {n}건', diffChange: '수정', diffAdd: '추가', diffRemove: '삭제', diffSame: '차이 없음', diffSameHint: '필드 단위 차이가 없습니다', navCompare: 'JSON 비교', navMore: '더보기', cmpTabText: '임의 텍스트', cmpSamples: '예시:', cmpSampleUser: '사용자 정보', cmpSampleProduct: '상품 데이터', cmpSampleConfig: '설정', cmpSampleApi: 'API 응답', cmpTextSamples: '예시 텍스트:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '설정 파일', cmpSampleHtml: 'HTML 조각', cmpSampleLog: '로그 출력', cmpBeautify: '정리', cmpClear: '지우기', cmpRun: '비교', cmpTipIdle: '양쪽에 붙여넣고 「비교」를 누르세요', cmpTipJson: 'JSON 비교 완료, {n}곳 다름', cmpTipSame: '양쪽이 완전히 동일합니다', cmpTipText: '텍스트 비교 완료, {n}줄 다름', cmpTipUseJson: '양쪽 모두 JSON입니다. 「JSON 비교」로 전환하면 필드 단위로 비교됩니다', cmpTipError: '구문 분석 실패', cmpLeftSide: '왼쪽', cmpRightSide: '오른쪽', errorLocLine: '{n}행', errorLocCol: ', {n}열' } },
-            { code: 'pt', name: 'Português', flag: '🇧🇷', dict: { brand: 'Ferramentas', navYamlJson: 'YAML para JSON', navYamlProps: 'YAML para Props', navJsonProps: 'JSON para Props', navJsonXml: 'JSON para XML', navXmlYaml: 'XML para YAML', navJsonYaml: 'JSON para YAML', navYamlXml: 'YAML para XML', fromLabel: 'De', toLabel: 'Para', swapTitle: 'Trocar', inputLabel: 'Entrada', outputLabel: 'Saída', formatBtn: 'Formatar', mockBtn: 'Simular', clearBtn: 'Limpar', convertShortcut: 'Ctrl / ⌘ + Enter para converter', convertBtn: 'Converter', copyBtn: 'Copiar', pasteBtn: 'Colar', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulação criada', toastFormatInput: 'Entrada formatada', toastFormatOutput: 'Saída formatada', toastFormatError: 'Falha na formatação', toastConvertSuccess: 'Convertido', toastConvertError: 'Falha na conversão', toastCopySuccess: 'Copiado', toastCopyError: 'Falha ao copiar', toastPasteSuccess: 'Colado', toastPasteError: 'Falha ao ler a área de transferência', toastPasteUnsupported: 'Leitura da área de transferência não suportada', toastEmptyInput: 'Entrada vazia', toastSameFormat: 'Mesmo formato', diffBtn: 'Comparar', diffExitBtn: 'Sair', diffLeftTitle: 'Original (Entrada)', diffRightTitle: 'Modificado (Saída)', diffLarge: 'Entrada grande — comparação rápida ativada', diffReportTitle: 'Alterações estruturadas: {n}', diffChange: 'Modificado', diffAdd: 'Adicionado', diffRemove: 'Removido', diffSame: 'Sem diferenças', diffSameHint: 'Nenhuma alteração em campos', navCompare: 'Comparar JSON', navMore: 'Mais', cmpTabText: 'Texto livre', cmpSamples: 'Exemplos:', cmpSampleUser: 'Usuário', cmpSampleProduct: 'Produto', cmpSampleConfig: 'Config', cmpSampleApi: 'Resposta API', cmpTextSamples: 'Exemplos:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Arquivo de configuração', cmpSampleHtml: 'Trecho HTML', cmpSampleLog: 'Saída de log', cmpBeautify: 'Formatar', cmpClear: 'Limpar', cmpRun: 'Comparar', cmpTipIdle: 'Cole os dois lados e clique em Comparar', cmpTipJson: 'JSON comparado: {n} diferença(s)', cmpTipSame: 'Os dois lados são idênticos', cmpTipText: 'Texto comparado: {n} linha(s) diferente(s)', cmpTipUseJson: 'Ambos os lados são JSON — mude para «Comparar JSON» para diff por campo', cmpTipError: 'Falha ao analisar', cmpLeftSide: 'lado esquerdo', cmpRightSide: 'lado direito', errorLocLine: 'linha {n}', errorLocCol: ', coluna {n}' } },
-            { code: 'pl', name: 'Polski', flag: '🇵🇱', dict: { brand: 'Narzędzia', navYamlJson: 'YAML na JSON', navYamlProps: 'YAML na Props', navJsonProps: 'JSON na Props', navJsonXml: 'JSON na XML', navXmlYaml: 'XML na YAML', navJsonYaml: 'JSON na YAML', navYamlXml: 'YAML na XML', fromLabel: 'Z', toLabel: 'Na', swapTitle: 'Zamień', inputLabel: 'Wejście', outputLabel: 'Wyjście', formatBtn: 'Formatuj', mockBtn: 'Mock', clearBtn: 'Wyczyść', convertShortcut: 'Ctrl / ⌘ + Enter, aby przekonwertować', convertBtn: 'Konwertuj', copyBtn: 'Kopiuj', pasteBtn: 'Wklej', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock utworzony', toastFormatInput: 'Wejście sformatowane', toastFormatOutput: 'Wyjście sformatowane', toastFormatError: 'Błąd formatowania', toastConvertSuccess: 'Przekonwertowano', toastConvertError: 'Błąd konwersji', toastCopySuccess: 'Skopiowano', toastCopyError: 'Błąd kopiowania', toastPasteSuccess: 'Wklejono', toastPasteError: 'Błąd odczytu schowka', toastPasteUnsupported: 'Odczyt schowka nieobsługiwany', toastEmptyInput: 'Brak danych', toastSameFormat: 'Ten sam format', diffBtn: 'Porównaj', diffExitBtn: 'Wyjdź', diffLeftTitle: 'Oryginał (Wejście)', diffRightTitle: 'Zmodyfikowany (Wyjście)', diffLarge: 'Duży plik — włączono szybkie porównanie', diffReportTitle: 'Zmiany strukturalne: {n}', diffChange: 'Zmieniono', diffAdd: 'Dodano', diffRemove: 'Usunięto', diffSame: 'Brak różnic', diffSameHint: 'Brak zmian na poziomie pól', navCompare: 'Porównaj JSON', navMore: 'Więcej', cmpTabText: 'Dowolny tekst', cmpSamples: 'Przykłady:', cmpSampleUser: 'Użytkownik', cmpSampleProduct: 'Produkt', cmpSampleConfig: 'Konfiguracja', cmpSampleApi: 'Odpowiedź API', cmpTextSamples: 'Przykłady:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Plik konfiguracyjny', cmpSampleHtml: 'Fragment HTML', cmpSampleLog: 'Wyjście logu', cmpBeautify: 'Formatuj', cmpClear: 'Wyczyść', cmpRun: 'Porównaj', cmpTipIdle: 'Wklej obie strony i kliknij Porównaj', cmpTipJson: 'Porównano JSON: {n} różnic', cmpTipSame: 'Obie strony są identyczne', cmpTipText: 'Porównano tekst: {n} różnych linii', cmpTipUseJson: 'Obie strony to JSON — przełącz na «Porównaj JSON», aby porównać pola', cmpTipError: 'Błąd analizy', cmpLeftSide: 'lewa strona', cmpRightSide: 'prawa strona', errorLocLine: 'wiersz {n}', errorLocCol: ', kolumna {n}' } },
-            { code: 'ru', name: 'Русский', flag: '🇷🇺', dict: { brand: 'Инструменты', navYamlJson: 'YAML в JSON', navYamlProps: 'YAML в Props', navJsonProps: 'JSON в Props', navJsonXml: 'JSON в XML', navXmlYaml: 'XML в YAML', navJsonYaml: 'JSON в YAML', navYamlXml: 'YAML в XML', fromLabel: 'Из', toLabel: 'В', swapTitle: 'Поменять', inputLabel: 'Вход', outputLabel: 'Выход', formatBtn: 'Формат', mockBtn: 'Мок', clearBtn: 'Очистить', convertShortcut: 'Ctrl / ⌘ + Enter для преобразования', convertBtn: 'Конверт', copyBtn: 'Копия', pasteBtn: 'Вставить', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Мок создан', toastFormatInput: 'Вход отформатирован', toastFormatOutput: 'Выход отформатирован', toastFormatError: 'Ошибка формата', toastConvertSuccess: 'Конвертировано', toastConvertError: 'Ошибка конвертации', toastCopySuccess: 'Скопировано', toastCopyError: 'Ошибка копии', toastPasteSuccess: 'Вставлено', toastPasteError: 'Ошибка чтения буфера обмена', toastPasteUnsupported: 'Чтение буфера обмена не поддерживается', toastEmptyInput: 'Пустой ввод', toastSameFormat: 'Тот же формат', diffBtn: 'Сравнить', diffExitBtn: 'Выйти', diffLeftTitle: 'Оригинал (Вход)', diffRightTitle: 'Изменено (Выход)', diffLarge: 'Большой файл — включено быстрое сравнение', diffReportTitle: 'Структурные изменения: {n}', diffChange: 'Изменено', diffAdd: 'Добавлено', diffRemove: 'Удалено', diffSame: 'Различий нет', diffSameHint: 'Изменений на уровне полей нет', navCompare: 'Сравнить JSON', navMore: 'Ещё', cmpTabText: 'Любой текст', cmpSamples: 'Примеры:', cmpSampleUser: 'Пользователь', cmpSampleProduct: 'Товар', cmpSampleConfig: 'Конфиг', cmpSampleApi: 'Ответ API', cmpTextSamples: 'Примеры:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Файл конфигурации', cmpSampleHtml: 'Фрагмент HTML', cmpSampleLog: 'Вывод журнала', cmpBeautify: 'Формат', cmpClear: 'Очистить', cmpRun: 'Сравнить', cmpTipIdle: 'Вставьте обе стороны и нажмите «Сравнить»', cmpTipJson: 'JSON сравнён: различий {n}', cmpTipSame: 'Обе стороны идентичны', cmpTipText: 'Текст сравнён: {n} строк отличаются', cmpTipUseJson: 'Обе стороны — JSON. Переключитесь на «Сравнить JSON» для сравнения по полям', cmpTipError: 'Ошибка разбора', cmpLeftSide: 'левая сторона', cmpRightSide: 'правая сторона', errorLocLine: 'строка {n}', errorLocCol: ', столбец {n}' } },
-            { code: 'th', name: 'ภาษาไทย', flag: '🇹🇭', dict: { brand: 'เครื่องมือ', navYamlJson: 'YAML เป็น JSON', navYamlProps: 'YAML เป็น Props', navJsonProps: 'JSON เป็น Props', navJsonXml: 'JSON เป็น XML', navXmlYaml: 'XML เป็น YAML', navJsonYaml: 'JSON เป็น YAML', navYamlXml: 'YAML เป็น XML', fromLabel: 'จาก', toLabel: 'เป็น', swapTitle: 'สลับ', inputLabel: 'อินพุต', outputLabel: 'เอาต์พุต', formatBtn: 'จัดรูปแบบ', mockBtn: 'จำลอง', clearBtn: 'ล้าง', convertShortcut: 'Ctrl / ⌘ + Enter เพื่อแปลง', convertBtn: 'แปลง', copyBtn: 'คัดลอก', pasteBtn: 'วาง', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'สร้างจำลองแล้ว', toastFormatInput: 'จัดรูปแบบอินพุตแล้ว', toastFormatOutput: 'จัดรูปแบบเอาต์พุตแล้ว', toastFormatError: 'จัดรูปแบบล้มเหลว', toastConvertSuccess: 'แปลงแล้ว', toastConvertError: 'แปลงล้มเหลว', toastCopySuccess: 'คัดลอกแล้ว', toastCopyError: 'คัดลอกล้มเหลว', toastPasteSuccess: 'วางแล้ว', toastPasteError: 'อ่านคลิปบอร์ดล้มเหลว', toastPasteUnsupported: 'ไม่รองรับการอ่านคลิปบอร์ด', toastEmptyInput: 'ไม่มีข้อมูล', toastSameFormat: 'รูปแบบเดียวกัน', diffBtn: 'เปรียบเทียบ', diffExitBtn: 'ออก', diffLeftTitle: 'ต้นฉบับ (อินพุต)', diffRightTitle: 'แก้ไขแล้ว (เอาต์พุต)', diffLarge: 'ข้อมูลขนาดใหญ่ เปลี่ยนไปใช้การเปรียบเทียบแบบเร็ว', diffReportTitle: 'ความแตกต่างเชิงโครงสร้าง {n} จุด', diffChange: 'แก้ไข', diffAdd: 'เพิ่ม', diffRemove: 'ลบ', diffSame: 'ไม่พบความแตกต่าง', diffSameHint: 'ไม่พบการเปลี่ยนแปลงระดับฟิลด์', navCompare: 'เปรียบเทียบ JSON', navMore: 'เพิ่มเติม', cmpTabText: 'ข้อความใดก็ได้', cmpSamples: 'ตัวอย่าง:', cmpSampleUser: 'ผู้ใช้', cmpSampleProduct: 'สินค้า', cmpSampleConfig: 'การตั้งค่า', cmpSampleApi: 'การตอบกลับ API', cmpTextSamples: 'ตัวอย่างข้อความ:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'ไฟล์กำหนดค่า', cmpSampleHtml: 'ส่วน HTML', cmpSampleLog: 'บันทึกผลลัพธ์', cmpBeautify: 'จัดรูปแบบ', cmpClear: 'ล้าง', cmpRun: 'เปรียบเทียบ', cmpTipIdle: 'วางทั้งสองด้านแล้วกดเปรียบเทียบ', cmpTipJson: 'เปรียบเทียบ JSON แล้ว พบ {n} จุดต่าง', cmpTipSame: 'ทั้งสองด้านเหมือนกันทุกประการ', cmpTipText: 'เปรียบเทียบข้อความแล้ว ต่างกัน {n} บรรทัด', cmpTipUseJson: 'ทั้งสองด้านเป็น JSON — สลับไปที่ «เปรียบเทียบ JSON» เพื่อเทียบระดับฟิลด์', cmpTipError: 'แยกวิเคราะห์ไม่สำเร็จ', cmpLeftSide: 'ด้านซ้าย', cmpRightSide: 'ด้านขวา', errorLocLine: 'บรรทัด {n}', errorLocCol: ' คอลัมน์ {n}' } },
-            { code: 'tr', name: 'Türkçe', flag: '🇹🇷', dict: { brand: 'Araçlar', navYamlJson: 'YAML -> JSON', navYamlProps: 'YAML -> Props', navJsonProps: 'JSON -> Props', navJsonXml: 'JSON -> XML', navXmlYaml: 'XML -> YAML', navJsonYaml: 'JSON -> YAML', navYamlXml: 'YAML -> XML', fromLabel: 'Kimden', toLabel: 'Kime', swapTitle: 'Değiştir', inputLabel: 'Giriş', outputLabel: 'Çıkış', formatBtn: 'Biçimlendir', mockBtn: 'Mock', clearBtn: 'Temizle', convertShortcut: 'Dönüştürmek için Ctrl / ⌘ + Enter', convertBtn: 'Dönüştür', copyBtn: 'Kopyala', pasteBtn: 'Yapıştır', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock oluşturuldu', toastFormatInput: 'Giriş biçimlendirildi', toastFormatOutput: 'Çıkış biçimlendirildi', toastFormatError: 'Biçimlendirme hatası', toastConvertSuccess: 'Dönüştürüldü', toastConvertError: 'Dönüştürme hatası', toastCopySuccess: 'Kopyalandı', toastCopyError: 'Kopyalama hatası', toastPasteSuccess: 'Yapıştırıldı', toastPasteError: 'Pano okunamadı', toastPasteUnsupported: 'Pano okuma desteklenmiyor', toastEmptyInput: 'Giriş boş', toastSameFormat: 'Aynı format', diffBtn: 'Karşılaştır', diffExitBtn: 'Çıkış', diffLeftTitle: 'Orijinal (Giriş)', diffRightTitle: 'Değiştirilmiş (Çıkış)', diffLarge: 'Girdi büyük — hızlı karşılaştırmaya geçildi', diffReportTitle: 'Yapısal değişiklikler: {n}', diffChange: 'Değişti', diffAdd: 'Eklendi', diffRemove: 'Silindi', diffSame: 'Fark yok', diffSameHint: 'Alan düzeyinde değişiklik yok', navCompare: 'JSON Karşılaştır', navMore: 'Daha fazla', cmpTabText: 'Serbest metin', cmpSamples: 'Örnekler:', cmpSampleUser: 'Kullanıcı', cmpSampleProduct: 'Ürün', cmpSampleConfig: 'Yapılandırma', cmpSampleApi: 'API yanıtı', cmpTextSamples: 'Örnek metin:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Yapılandırma dosyası', cmpSampleHtml: 'HTML parçası', cmpSampleLog: 'Günlük çıktısı', cmpBeautify: 'Biçimlendir', cmpClear: 'Temizle', cmpRun: 'Karşılaştır', cmpTipIdle: 'İki tarafı yapıştırıp Karşılaştır’a basın', cmpTipJson: 'JSON karşılaştırıldı: {n} fark', cmpTipSame: 'İki taraf birebir aynı', cmpTipText: 'Metin karşılaştırıldı: {n} satır farklı', cmpTipUseJson: 'İki taraf da JSON — alan bazında karşılaştırma için «JSON Karşılaştır»a geçin', cmpTipError: 'Ayrıştırma başarısız', cmpLeftSide: 'sol taraf', cmpRightSide: 'sağ taraf', errorLocLine: 'satır {n}', errorLocCol: ', sütun {n}' } },
+            { code: 'zh-CN', name: '简体中文', flag: '🇨🇳', dict: { brand: '转换工具', navYamlJson: 'yaml转json', navYamlProps: 'yaml转properties', navJsonProps: 'json转properties', navJsonXml: 'json转xml', navXmlYaml: 'xml转yaml', navJsonYaml: 'json转yaml', navYamlXml: 'yaml转xml', fromLabel: '从', toLabel: '转为', swapTitle: '互换格式', inputLabel: '输入内容', outputLabel: '输出结果', formatBtn: '格式化', mockBtn: '模拟数据', clearBtn: '清空', fmtGroupStructured: '结构化', fmtGroupTable: '表格与文本', convertShortcut: 'Ctrl / ⌘ + Enter 执行转换', convertBtn: '执行转换', copyBtn: '复制', pasteBtn: '粘贴', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '已生成模拟数据', toastFormatInput: '输入格式化成功', toastFormatOutput: '输出格式化成功', toastFormatError: '格式化失败', toastConvertSuccess: '转换成功', toastConvertError: '转换失败', toastCopySuccess: '已复制', toastCopyError: '复制失败', toastPasteSuccess: '已粘贴', toastPasteError: '读取剪贴板失败', toastPasteUnsupported: '当前环境不支持读取剪贴板，请手动粘贴', toastEmptyInput: '请输入内容', toastSameFormat: '格式相同', diffBtn: '对比差异', diffExitBtn: '退出对比', diffLeftTitle: '原始版本 (输入)', diffRightTitle: '修改版本 (输出)', diffLarge: '文件较大，已切换为快速对比（行级高亮可能不够精确）', diffReportTitle: '结构化差异 {n} 处', diffChange: '修改', diffAdd: '新增', diffRemove: '删除', diffSame: '两版内容一致', diffSameHint: '未发现字段级差异', navCompare: 'JSON 对比', navMore: '更多', cmpTabText: '任意文本', cmpSamples: '示例 JSON:', cmpSampleUser: '用户信息', cmpSampleProduct: '商品数据', cmpSampleConfig: '配置选项', cmpSampleApi: 'API响应', cmpTextSamples: '示例文本:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '配置文件', cmpSampleHtml: 'HTML片段', cmpSampleLog: '日志输出', cmpBeautify: '美化', cmpClear: '清空', cmpRun: '对比', cmpTipIdle: '粘贴两侧内容后点击「对比」', cmpTipJson: '两侧 JSON 比对完成，共有 {n} 处不一致！', cmpTipSame: '两侧内容完全一致', cmpTipText: '两侧文本比对完成，共有 {n} 行不同', cmpTipUseJson: '两侧都是 JSON，切到「JSON 对比」可精确到字段', cmpTipError: '解析失败', cmpLeftSide: '左侧', cmpRightSide: '右侧', errorLocLine: '第 {n} 行', errorLocCol: ' 第 {n} 列' } },
+            { code: 'zh-TW', name: '繁體中文', flag: '繁', dict: { brand: '轉換工具', navYamlJson: 'yaml轉json', navYamlProps: 'yaml轉properties', navJsonProps: 'json轉properties', navJsonXml: 'json轉xml', navXmlYaml: 'xml轉yaml', navJsonYaml: 'json轉yaml', navYamlXml: 'yaml轉xml', fromLabel: '從', toLabel: '轉為', swapTitle: '互換格式', inputLabel: '輸入內容', outputLabel: '輸出結果', formatBtn: '格式化', mockBtn: '模擬數據', clearBtn: '清空', fmtGroupStructured: '結構化', fmtGroupTable: '表格與文字', convertShortcut: 'Ctrl / ⌘ + Enter 執行轉換', convertBtn: '執行轉換', copyBtn: '複製', pasteBtn: '粘貼', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '已生成模擬數據', toastFormatInput: '輸入格式化成功', toastFormatOutput: '輸出格式化成功', toastFormatError: '格式化失敗', toastConvertSuccess: '轉換成功', toastConvertError: '轉換失敗', toastCopySuccess: '已複製', toastCopyError: '複製失敗', toastPasteSuccess: '已粘貼', toastPasteError: '讀取剪貼板失敗', toastPasteUnsupported: '當前環境不支持讀取剪貼板，請手動粘貼', toastEmptyInput: '請輸入內容', toastSameFormat: '格式相同', diffBtn: '對比差異', diffExitBtn: '退出對比', diffLeftTitle: '原始版本 (輸入)', diffRightTitle: '修改版本 (輸出)', diffLarge: '檔案較大，已切換為快速對比（行級標記可能不夠精確）', diffReportTitle: '結構化差異 {n} 處', diffChange: '修改', diffAdd: '新增', diffRemove: '刪除', diffSame: '兩版內容一致', diffSameHint: '未發現欄位級差異', navCompare: 'JSON 對比', navMore: '更多', cmpTabText: '任意文字', cmpSamples: '範例 JSON:', cmpSampleUser: '使用者資訊', cmpSampleProduct: '商品資料', cmpSampleConfig: '設定選項', cmpSampleApi: 'API 回應', cmpTextSamples: '範例文字:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '設定檔', cmpSampleHtml: 'HTML 片段', cmpSampleLog: '日誌輸出', cmpBeautify: '美化', cmpClear: '清空', cmpRun: '對比', cmpTipIdle: '貼上兩側內容後點擊「對比」', cmpTipJson: '兩側 JSON 比對完成，共有 {n} 處不一致！', cmpTipSame: '兩側內容完全一致', cmpTipText: '兩側文字比對完成，共有 {n} 行不同', cmpTipUseJson: '兩側都是 JSON，切到「JSON 對比」可精確到欄位', cmpTipError: '解析失敗', cmpLeftSide: '左側', cmpRightSide: '右側', errorLocLine: '第 {n} 行', errorLocCol: ' 第 {n} 欄' } },
+            { code: 'en', name: 'English', flag: '🇺🇸', dict: { brand: 'Converter', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock Data', clearBtn: 'Clear', fmtGroupStructured: 'Structured', fmtGroupTable: 'Table & text', convertShortcut: 'Ctrl / ⌘ + Enter to convert', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here, please paste manually', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)', diffLarge: 'Large input — switched to fast diff, highlights may be less precise', diffReportTitle: 'Structured changes: {n}', diffChange: 'Modified', diffAdd: 'Added', diffRemove: 'Deleted', diffSame: 'No differences', diffSameHint: 'No field-level changes found', navCompare: 'JSON Compare', navMore: 'More', cmpTabText: 'Any text', cmpSamples: 'Examples:', cmpSampleUser: 'User', cmpSampleProduct: 'Product', cmpSampleConfig: 'Config', cmpSampleApi: 'API response', cmpTextSamples: 'Examples:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Config file', cmpSampleHtml: 'HTML snippet', cmpSampleLog: 'Log output', cmpBeautify: 'Beautify', cmpClear: 'Clear', cmpRun: 'Compare', cmpTipIdle: 'Paste both sides, then click Compare', cmpTipJson: 'JSON compared — {n} difference(s) found', cmpTipSame: 'Both sides are identical', cmpTipText: 'Text compared — {n} different line(s)', cmpTipUseJson: 'Both sides look like JSON — switch to JSON compare for a field-level diff', cmpTipError: 'Parse failed', cmpLeftSide: 'left side', cmpRightSide: 'right side', errorLocLine: 'line {n}', errorLocCol: ', column {n}' } },
+            { code: 'az', name: 'Azərbaycan', flag: '🇦🇿', dict: { brand: 'Alətlər', navYamlJson: 'YAML to JSON', navYamlProps: 'YAML to Props', navJsonProps: 'JSON to Props', navJsonXml: 'JSON to XML', navXmlYaml: 'XML to YAML', navJsonYaml: 'JSON to YAML', navYamlXml: 'YAML to XML', fromLabel: 'From', toLabel: 'To', swapTitle: 'Swap', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock', clearBtn: 'Clear', fmtGroupStructured: 'Strukturlaşmış', fmtGroupTable: 'Cədvəl və mətn', convertShortcut: 'Çevirmək üçün Ctrl / ⌘ + Enter', convertBtn: 'Convert', copyBtn: 'Copy', pasteBtn: 'Paste', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock generated', toastFormatInput: 'Input formatted', toastFormatOutput: 'Output formatted', toastFormatError: 'Format failed', toastConvertSuccess: 'Converted', toastConvertError: 'Conversion failed', toastCopySuccess: 'Copied', toastCopyError: 'Copy failed', toastPasteSuccess: 'Pasted', toastPasteError: 'Failed to read clipboard', toastPasteUnsupported: 'Clipboard read not supported here', toastEmptyInput: 'Input is empty', toastSameFormat: 'Same format', diffBtn: 'Compare', diffExitBtn: 'Exit Compare', diffLeftTitle: 'Original (Input)', diffRightTitle: 'Modified (Output)', diffLarge: 'Giriş böyükdür — sürətli müqayisəyə keçildi', diffReportTitle: 'Struktur fərqlər: {n}', diffChange: 'Dəyişdi', diffAdd: 'Əlavə', diffRemove: 'Silindi', diffSame: 'Fərq yoxdur', diffSameHint: 'Sahə səviyyəsində fərq tapılmadı', navCompare: 'JSON müqayisə', navMore: 'Daha çox', cmpTabText: 'İstənilən mətn', cmpSamples: 'Nümunə:', cmpSampleUser: 'İstifadəçi', cmpSampleProduct: 'Məhsul', cmpSampleConfig: 'Konfiq', cmpSampleApi: 'API cavabı', cmpTextSamples: 'Nümunə mətn:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Konfiq faylı', cmpSampleHtml: 'HTML fraqmenti', cmpSampleLog: 'Jurnal çıxışı', cmpBeautify: 'Formatla', cmpClear: 'Təmizlə', cmpRun: 'Müqayisə et', cmpTipIdle: 'Hər iki tərəfi yerləşdirin və «Müqayisə et» basın', cmpTipJson: 'JSON müqayisə bitdi, {n} fərq', cmpTipSame: 'Hər iki tərəf eynidir', cmpTipText: 'Mətn müqayisəsi bitdi, {n} sətir fərqli', cmpTipUseJson: 'Hər iki tərəf JSON-dur — sahə səviyyəsində müqayisə üçün «JSON müqayisə»yə keçin', cmpTipError: 'Analiz alınmadı', cmpLeftSide: 'sol tərəf', cmpRightSide: 'sağ tərəf', errorLocLine: '{n}-ci sətir', errorLocCol: ', {n}-ci sütun' } },
+            { code: 'es', name: 'Español', flag: '🇪🇸', dict: { brand: 'Herramientas', navYamlJson: 'YAML a JSON', navYamlProps: 'YAML a Props', navJsonProps: 'JSON a Props', navJsonXml: 'JSON a XML', navXmlYaml: 'XML a YAML', navJsonYaml: 'JSON a YAML', navYamlXml: 'YAML a XML', fromLabel: 'De', toLabel: 'A', swapTitle: 'Intercambiar', inputLabel: 'Entrada', outputLabel: 'Salida', formatBtn: 'Formatear', mockBtn: 'Simular', clearBtn: 'Limpiar', fmtGroupStructured: 'Estructurado', fmtGroupTable: 'Tabla y texto', convertShortcut: 'Ctrl / ⌘ + Enter para convertir', convertBtn: 'Convertir', copyBtn: 'Copiar', pasteBtn: 'Pegar', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulado generado', toastFormatInput: 'Entrada formateada', toastFormatOutput: 'Salida formateada', toastFormatError: 'Error de formato', toastConvertSuccess: 'Convertido', toastConvertError: 'Error de conversión', toastCopySuccess: 'Copiado', toastCopyError: 'Error al copiar', toastPasteSuccess: 'Pegado', toastPasteError: 'Error al leer el portapapeles', toastPasteUnsupported: 'Lectura del portapapeles no soportada', toastEmptyInput: 'Entrada vacía', toastSameFormat: 'Mismo formato', diffBtn: 'Comparar', diffExitBtn: 'Salir', diffLeftTitle: 'Original (Entrada)', diffRightTitle: 'Modificado (Salida)', diffLarge: 'Entrada grande: se cambió a comparación rápida', diffReportTitle: 'Cambios estructurados: {n}', diffChange: 'Modificado', diffAdd: 'Añadido', diffRemove: 'Eliminado', diffSame: 'Sin diferencias', diffSameHint: 'No se encontraron cambios', navCompare: 'Comparar JSON', navMore: 'Más', cmpTabText: 'Texto libre', cmpSamples: 'Ejemplos:', cmpSampleUser: 'Usuario', cmpSampleProduct: 'Producto', cmpSampleConfig: 'Config', cmpSampleApi: 'Respuesta API', cmpTextSamples: 'Ejemplos:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Archivo de configuración', cmpSampleHtml: 'Fragmento HTML', cmpSampleLog: 'Salida de log', cmpBeautify: 'Formatear', cmpClear: 'Limpiar', cmpRun: 'Comparar', cmpTipIdle: 'Pega ambos lados y pulsa Comparar', cmpTipJson: 'JSON comparado: {n} diferencia(s)', cmpTipSame: 'Ambos lados son idénticos', cmpTipText: 'Texto comparado: {n} línea(s) distinta(s)', cmpTipUseJson: 'Ambos lados son JSON: cambia a «Comparar JSON» para ver diferencias por campo', cmpTipError: 'Error de análisis', cmpLeftSide: 'lado izquierdo', cmpRightSide: 'lado derecho', errorLocLine: 'línea {n}', errorLocCol: ', columna {n}' } },
+            { code: 'id', name: 'Bahasa Indonesia', flag: '🇮🇩', dict: { brand: 'Alat', navYamlJson: 'YAML ke JSON', navYamlProps: 'YAML ke Props', navJsonProps: 'JSON ke Props', navJsonXml: 'JSON ke XML', navXmlYaml: 'XML ke YAML', navJsonYaml: 'JSON ke YAML', navYamlXml: 'YAML ke XML', fromLabel: 'Dari', toLabel: 'Ke', swapTitle: 'Tukar', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Format', mockBtn: 'Mock', clearBtn: 'Hapus', fmtGroupStructured: 'Terstruktur', fmtGroupTable: 'Tabel & teks', convertShortcut: 'Ctrl / ⌘ + Enter untuk mengonversi', convertBtn: 'Konversi', copyBtn: 'Salin', pasteBtn: 'Tempel', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock dibuat', toastFormatInput: 'Input diformat', toastFormatOutput: 'Output diformat', toastFormatError: 'Format gagal', toastConvertSuccess: 'Dikonversi', toastConvertError: 'Konversi gagal', toastCopySuccess: 'Disalin', toastCopyError: 'Gagal menyalin', toastPasteSuccess: 'Ditempel', toastPasteError: 'Gagal membaca clipboard', toastPasteUnsupported: 'Baca clipboard tidak didukung', toastEmptyInput: 'Input kosong', toastSameFormat: 'Format sama', diffBtn: 'Bandingkan', diffExitBtn: 'Keluar', diffLeftTitle: 'Asli (Input)', diffRightTitle: 'Diubah (Output)', diffLarge: 'Input besar — beralih ke perbandingan cepat', diffReportTitle: 'Perubahan terstruktur: {n}', diffChange: 'Diubah', diffAdd: 'Ditambah', diffRemove: 'Dihapus', diffSame: 'Tidak ada perbedaan', diffSameHint: 'Tidak ada perubahan pada field', navCompare: 'Bandingkan JSON', navMore: 'Lainnya', cmpTabText: 'Teks bebas', cmpSamples: 'Contoh:', cmpSampleUser: 'Pengguna', cmpSampleProduct: 'Produk', cmpSampleConfig: 'Konfigurasi', cmpSampleApi: 'Respons API', cmpTextSamples: 'Contoh teks:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Berkas konfigurasi', cmpSampleHtml: 'Cuplikan HTML', cmpSampleLog: 'Keluaran log', cmpBeautify: 'Rapikan', cmpClear: 'Hapus', cmpRun: 'Bandingkan', cmpTipIdle: 'Tempel kedua sisi lalu klik Bandingkan', cmpTipJson: 'JSON dibandingkan: {n} perbedaan', cmpTipSame: 'Kedua sisi identik', cmpTipText: 'Teks dibandingkan: {n} baris berbeda', cmpTipUseJson: 'Kedua sisi JSON — beralih ke «Bandingkan JSON» untuk diff per field', cmpTipError: 'Gagal mengurai', cmpLeftSide: 'sisi kiri', cmpRightSide: 'sisi kanan', errorLocLine: 'baris {n}', errorLocCol: ', kolom {n}' } },
+            { code: 'it', name: 'Italiano', flag: '🇮🇹', dict: { brand: 'Strumenti', navYamlJson: 'YAML in JSON', navYamlProps: 'YAML in Props', navJsonProps: 'JSON in Props', navJsonXml: 'JSON in XML', navXmlYaml: 'XML in YAML', navJsonYaml: 'JSON in YAML', navYamlXml: 'YAML in XML', fromLabel: 'Da', toLabel: 'A', swapTitle: 'Scambia', inputLabel: 'Input', outputLabel: 'Output', formatBtn: 'Formatta', mockBtn: 'Simula', clearBtn: 'Pulisci', fmtGroupStructured: 'Strutturato', fmtGroupTable: 'Tabella e testo', convertShortcut: 'Ctrl / ⌘ + Enter per convertire', convertBtn: 'Converti', copyBtn: 'Copia', pasteBtn: 'Incolla', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulazione creata', toastFormatInput: 'Input formattato', toastFormatOutput: 'Output formattato', toastFormatError: 'Formato fallito', toastConvertSuccess: 'Convertito', toastConvertError: 'Conversione fallita', toastCopySuccess: 'Copiato', toastCopyError: 'Copia fallita', toastPasteSuccess: 'Incollato', toastPasteError: 'Lettura appunti fallita', toastPasteUnsupported: 'Lettura appunti non supportata', toastEmptyInput: 'Input vuoto', toastSameFormat: 'Stesso formato', diffBtn: 'Confronta', diffExitBtn: 'Esci', diffLeftTitle: 'Originale (Input)', diffRightTitle: 'Modificato (Output)', diffLarge: 'Input grande: confronto rapido attivato', diffReportTitle: 'Modifiche strutturate: {n}', diffChange: 'Modificato', diffAdd: 'Aggiunto', diffRemove: 'Rimosso', diffSame: 'Nessuna differenza', diffSameHint: 'Nessuna modifica a livello di campo', navCompare: 'Confronta JSON', navMore: 'Altro', cmpTabText: 'Testo libero', cmpSamples: 'Esempi:', cmpSampleUser: 'Utente', cmpSampleProduct: 'Prodotto', cmpSampleConfig: 'Config', cmpSampleApi: 'Risposta API', cmpTextSamples: 'Esempi:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'File di configurazione', cmpSampleHtml: 'Snippet HTML', cmpSampleLog: 'Output di log', cmpBeautify: 'Formatta', cmpClear: 'Pulisci', cmpRun: 'Confronta', cmpTipIdle: 'Incolla entrambi i lati e premi Confronta', cmpTipJson: 'JSON confrontato: {n} differenze', cmpTipSame: 'I due lati sono identici', cmpTipText: 'Testo confrontato: {n} righe diverse', cmpTipUseJson: 'Entrambi i lati sono JSON — passa a «Confronta JSON» per il diff per campo', cmpTipError: 'Analisi non riuscita', cmpLeftSide: 'lato sinistro', cmpRightSide: 'lato destro', errorLocLine: 'riga {n}', errorLocCol: ', colonna {n}' } },
+            { code: 'ja', name: '日本語', flag: '🇯🇵', dict: { brand: '変換ツール', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '変換元', toLabel: '変換先', swapTitle: '入れ替え', inputLabel: '入力', outputLabel: '出力', formatBtn: '整形', mockBtn: 'モック', clearBtn: 'クリア', fmtGroupStructured: '構造化', fmtGroupTable: '表とテキスト', convertShortcut: 'Ctrl / ⌘ + Enter で変換', convertBtn: '変換', copyBtn: 'コピー', pasteBtn: '貼り付け', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'モック生成完了', toastFormatInput: '入力整形完了', toastFormatOutput: '出力整形完了', toastFormatError: '整形失敗', toastConvertSuccess: '変換完了', toastConvertError: '変換失敗', toastCopySuccess: 'コピーしました', toastCopyError: 'コピー失敗', toastPasteSuccess: '貼り付けました', toastPasteError: 'クリップボードの読み取りに失敗', toastPasteUnsupported: 'クリップボードの読み取り非対応', toastEmptyInput: '入力が空です', toastSameFormat: '同じ形式です', diffBtn: '比較', diffExitBtn: '終了', diffLeftTitle: '元のバージョン (入力)', diffRightTitle: '変更後 (出力)', diffLarge: '入力が大きいため高速比較に切り替えました', diffReportTitle: '構造化差分 {n} 件', diffChange: '変更', diffAdd: '追加', diffRemove: '削除', diffSame: '差分なし', diffSameHint: 'フィールド単位の差分はありません', navCompare: 'JSON 比較', navMore: 'その他', cmpTabText: '任意テキスト', cmpSamples: 'サンプル:', cmpSampleUser: 'ユーザー情報', cmpSampleProduct: '商品データ', cmpSampleConfig: '設定', cmpSampleApi: 'API レスポンス', cmpTextSamples: 'サンプルテキスト:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '設定ファイル', cmpSampleHtml: 'HTML 断片', cmpSampleLog: 'ログ出力', cmpBeautify: '整形', cmpClear: 'クリア', cmpRun: '比較', cmpTipIdle: '両側に貼り付けて「比較」を押してください', cmpTipJson: 'JSON の比較完了、相違 {n} 件', cmpTipSame: '両側は完全に一致しています', cmpTipText: 'テキスト比較完了、{n} 行の違い', cmpTipUseJson: '両側とも JSON です。「JSON 比較」に切り替えるとフィールド単位で比較できます', cmpTipError: '解析失敗', cmpLeftSide: '左側', cmpRightSide: '右側', errorLocLine: '{n} 行目', errorLocCol: ' {n} 列目' } },
+            { code: 'ko', name: '한국어', flag: '🇰🇷', dict: { brand: '변환 도구', navYamlJson: 'YAML → JSON', navYamlProps: 'YAML → Props', navJsonProps: 'JSON → Props', navJsonXml: 'JSON → XML', navXmlYaml: 'XML → YAML', navJsonYaml: 'JSON → YAML', navYamlXml: 'YAML → XML', fromLabel: '변환 전', toLabel: '변환 후', swapTitle: '교체', inputLabel: '입력', outputLabel: '출력', formatBtn: '포맷', mockBtn: '모의', clearBtn: '지우기', fmtGroupStructured: '구조화', fmtGroupTable: '표와 텍스트', convertShortcut: 'Ctrl / ⌘ + Enter로 변환', convertBtn: '변환', copyBtn: '복사', pasteBtn: '붙여넣기', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: '모의 생성됨', toastFormatInput: '입력 포맷됨', toastFormatOutput: '출력 포맷됨', toastFormatError: '포맷 실패', toastConvertSuccess: '변환됨', toastConvertError: '변환 실패', toastCopySuccess: '복사됨', toastCopyError: '복사 실패', toastPasteSuccess: '붙여넣음', toastPasteError: '클립보드 읽기 실패', toastPasteUnsupported: '클립보드 읽기 미지원', toastEmptyInput: '입력이 비어있음', toastSameFormat: '같은 형식', diffBtn: '비교', diffExitBtn: '종료', diffLeftTitle: '원본 (입력)', diffRightTitle: '수정됨 (출력)', diffLarge: '입력이 커서 빠른 비교로 전환했습니다', diffReportTitle: '구조화 차이 {n}건', diffChange: '수정', diffAdd: '추가', diffRemove: '삭제', diffSame: '차이 없음', diffSameHint: '필드 단위 차이가 없습니다', navCompare: 'JSON 비교', navMore: '더보기', cmpTabText: '임의 텍스트', cmpSamples: '예시:', cmpSampleUser: '사용자 정보', cmpSampleProduct: '상품 데이터', cmpSampleConfig: '설정', cmpSampleApi: 'API 응답', cmpTextSamples: '예시 텍스트:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: '설정 파일', cmpSampleHtml: 'HTML 조각', cmpSampleLog: '로그 출력', cmpBeautify: '정리', cmpClear: '지우기', cmpRun: '비교', cmpTipIdle: '양쪽에 붙여넣고 「비교」를 누르세요', cmpTipJson: 'JSON 비교 완료, {n}곳 다름', cmpTipSame: '양쪽이 완전히 동일합니다', cmpTipText: '텍스트 비교 완료, {n}줄 다름', cmpTipUseJson: '양쪽 모두 JSON입니다. 「JSON 비교」로 전환하면 필드 단위로 비교됩니다', cmpTipError: '구문 분석 실패', cmpLeftSide: '왼쪽', cmpRightSide: '오른쪽', errorLocLine: '{n}행', errorLocCol: ', {n}열' } },
+            { code: 'pt', name: 'Português', flag: '🇧🇷', dict: { brand: 'Ferramentas', navYamlJson: 'YAML para JSON', navYamlProps: 'YAML para Props', navJsonProps: 'JSON para Props', navJsonXml: 'JSON para XML', navXmlYaml: 'XML para YAML', navJsonYaml: 'JSON para YAML', navYamlXml: 'YAML para XML', fromLabel: 'De', toLabel: 'Para', swapTitle: 'Trocar', inputLabel: 'Entrada', outputLabel: 'Saída', formatBtn: 'Formatar', mockBtn: 'Simular', clearBtn: 'Limpar', fmtGroupStructured: 'Estruturado', fmtGroupTable: 'Tabela e texto', convertShortcut: 'Ctrl / ⌘ + Enter para converter', convertBtn: 'Converter', copyBtn: 'Copiar', pasteBtn: 'Colar', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Simulação criada', toastFormatInput: 'Entrada formatada', toastFormatOutput: 'Saída formatada', toastFormatError: 'Falha na formatação', toastConvertSuccess: 'Convertido', toastConvertError: 'Falha na conversão', toastCopySuccess: 'Copiado', toastCopyError: 'Falha ao copiar', toastPasteSuccess: 'Colado', toastPasteError: 'Falha ao ler a área de transferência', toastPasteUnsupported: 'Leitura da área de transferência não suportada', toastEmptyInput: 'Entrada vazia', toastSameFormat: 'Mesmo formato', diffBtn: 'Comparar', diffExitBtn: 'Sair', diffLeftTitle: 'Original (Entrada)', diffRightTitle: 'Modificado (Saída)', diffLarge: 'Entrada grande — comparação rápida ativada', diffReportTitle: 'Alterações estruturadas: {n}', diffChange: 'Modificado', diffAdd: 'Adicionado', diffRemove: 'Removido', diffSame: 'Sem diferenças', diffSameHint: 'Nenhuma alteração em campos', navCompare: 'Comparar JSON', navMore: 'Mais', cmpTabText: 'Texto livre', cmpSamples: 'Exemplos:', cmpSampleUser: 'Usuário', cmpSampleProduct: 'Produto', cmpSampleConfig: 'Config', cmpSampleApi: 'Resposta API', cmpTextSamples: 'Exemplos:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Arquivo de configuração', cmpSampleHtml: 'Trecho HTML', cmpSampleLog: 'Saída de log', cmpBeautify: 'Formatar', cmpClear: 'Limpar', cmpRun: 'Comparar', cmpTipIdle: 'Cole os dois lados e clique em Comparar', cmpTipJson: 'JSON comparado: {n} diferença(s)', cmpTipSame: 'Os dois lados são idênticos', cmpTipText: 'Texto comparado: {n} linha(s) diferente(s)', cmpTipUseJson: 'Ambos os lados são JSON — mude para «Comparar JSON» para diff por campo', cmpTipError: 'Falha ao analisar', cmpLeftSide: 'lado esquerdo', cmpRightSide: 'lado direito', errorLocLine: 'linha {n}', errorLocCol: ', coluna {n}' } },
+            { code: 'pl', name: 'Polski', flag: '🇵🇱', dict: { brand: 'Narzędzia', navYamlJson: 'YAML na JSON', navYamlProps: 'YAML na Props', navJsonProps: 'JSON na Props', navJsonXml: 'JSON na XML', navXmlYaml: 'XML na YAML', navJsonYaml: 'JSON na YAML', navYamlXml: 'YAML na XML', fromLabel: 'Z', toLabel: 'Na', swapTitle: 'Zamień', inputLabel: 'Wejście', outputLabel: 'Wyjście', formatBtn: 'Formatuj', mockBtn: 'Mock', clearBtn: 'Wyczyść', fmtGroupStructured: 'Ustrukturyzowane', fmtGroupTable: 'Tabela i tekst', convertShortcut: 'Ctrl / ⌘ + Enter, aby przekonwertować', convertBtn: 'Konwertuj', copyBtn: 'Kopiuj', pasteBtn: 'Wklej', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock utworzony', toastFormatInput: 'Wejście sformatowane', toastFormatOutput: 'Wyjście sformatowane', toastFormatError: 'Błąd formatowania', toastConvertSuccess: 'Przekonwertowano', toastConvertError: 'Błąd konwersji', toastCopySuccess: 'Skopiowano', toastCopyError: 'Błąd kopiowania', toastPasteSuccess: 'Wklejono', toastPasteError: 'Błąd odczytu schowka', toastPasteUnsupported: 'Odczyt schowka nieobsługiwany', toastEmptyInput: 'Brak danych', toastSameFormat: 'Ten sam format', diffBtn: 'Porównaj', diffExitBtn: 'Wyjdź', diffLeftTitle: 'Oryginał (Wejście)', diffRightTitle: 'Zmodyfikowany (Wyjście)', diffLarge: 'Duży plik — włączono szybkie porównanie', diffReportTitle: 'Zmiany strukturalne: {n}', diffChange: 'Zmieniono', diffAdd: 'Dodano', diffRemove: 'Usunięto', diffSame: 'Brak różnic', diffSameHint: 'Brak zmian na poziomie pól', navCompare: 'Porównaj JSON', navMore: 'Więcej', cmpTabText: 'Dowolny tekst', cmpSamples: 'Przykłady:', cmpSampleUser: 'Użytkownik', cmpSampleProduct: 'Produkt', cmpSampleConfig: 'Konfiguracja', cmpSampleApi: 'Odpowiedź API', cmpTextSamples: 'Przykłady:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Plik konfiguracyjny', cmpSampleHtml: 'Fragment HTML', cmpSampleLog: 'Wyjście logu', cmpBeautify: 'Formatuj', cmpClear: 'Wyczyść', cmpRun: 'Porównaj', cmpTipIdle: 'Wklej obie strony i kliknij Porównaj', cmpTipJson: 'Porównano JSON: {n} różnic', cmpTipSame: 'Obie strony są identyczne', cmpTipText: 'Porównano tekst: {n} różnych linii', cmpTipUseJson: 'Obie strony to JSON — przełącz na «Porównaj JSON», aby porównać pola', cmpTipError: 'Błąd analizy', cmpLeftSide: 'lewa strona', cmpRightSide: 'prawa strona', errorLocLine: 'wiersz {n}', errorLocCol: ', kolumna {n}' } },
+            { code: 'ru', name: 'Русский', flag: '🇷🇺', dict: { brand: 'Инструменты', navYamlJson: 'YAML в JSON', navYamlProps: 'YAML в Props', navJsonProps: 'JSON в Props', navJsonXml: 'JSON в XML', navXmlYaml: 'XML в YAML', navJsonYaml: 'JSON в YAML', navYamlXml: 'YAML в XML', fromLabel: 'Из', toLabel: 'В', swapTitle: 'Поменять', inputLabel: 'Вход', outputLabel: 'Выход', formatBtn: 'Формат', mockBtn: 'Мок', clearBtn: 'Очистить', fmtGroupStructured: 'Структурированные', fmtGroupTable: 'Таблицы и текст', convertShortcut: 'Ctrl / ⌘ + Enter для преобразования', convertBtn: 'Конверт', copyBtn: 'Копия', pasteBtn: 'Вставить', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Мок создан', toastFormatInput: 'Вход отформатирован', toastFormatOutput: 'Выход отформатирован', toastFormatError: 'Ошибка формата', toastConvertSuccess: 'Конвертировано', toastConvertError: 'Ошибка конвертации', toastCopySuccess: 'Скопировано', toastCopyError: 'Ошибка копии', toastPasteSuccess: 'Вставлено', toastPasteError: 'Ошибка чтения буфера обмена', toastPasteUnsupported: 'Чтение буфера обмена не поддерживается', toastEmptyInput: 'Пустой ввод', toastSameFormat: 'Тот же формат', diffBtn: 'Сравнить', diffExitBtn: 'Выйти', diffLeftTitle: 'Оригинал (Вход)', diffRightTitle: 'Изменено (Выход)', diffLarge: 'Большой файл — включено быстрое сравнение', diffReportTitle: 'Структурные изменения: {n}', diffChange: 'Изменено', diffAdd: 'Добавлено', diffRemove: 'Удалено', diffSame: 'Различий нет', diffSameHint: 'Изменений на уровне полей нет', navCompare: 'Сравнить JSON', navMore: 'Ещё', cmpTabText: 'Любой текст', cmpSamples: 'Примеры:', cmpSampleUser: 'Пользователь', cmpSampleProduct: 'Товар', cmpSampleConfig: 'Конфиг', cmpSampleApi: 'Ответ API', cmpTextSamples: 'Примеры:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Файл конфигурации', cmpSampleHtml: 'Фрагмент HTML', cmpSampleLog: 'Вывод журнала', cmpBeautify: 'Формат', cmpClear: 'Очистить', cmpRun: 'Сравнить', cmpTipIdle: 'Вставьте обе стороны и нажмите «Сравнить»', cmpTipJson: 'JSON сравнён: различий {n}', cmpTipSame: 'Обе стороны идентичны', cmpTipText: 'Текст сравнён: {n} строк отличаются', cmpTipUseJson: 'Обе стороны — JSON. Переключитесь на «Сравнить JSON» для сравнения по полям', cmpTipError: 'Ошибка разбора', cmpLeftSide: 'левая сторона', cmpRightSide: 'правая сторона', errorLocLine: 'строка {n}', errorLocCol: ', столбец {n}' } },
+            { code: 'th', name: 'ภาษาไทย', flag: '🇹🇭', dict: { brand: 'เครื่องมือ', navYamlJson: 'YAML เป็น JSON', navYamlProps: 'YAML เป็น Props', navJsonProps: 'JSON เป็น Props', navJsonXml: 'JSON เป็น XML', navXmlYaml: 'XML เป็น YAML', navJsonYaml: 'JSON เป็น YAML', navYamlXml: 'YAML เป็น XML', fromLabel: 'จาก', toLabel: 'เป็น', swapTitle: 'สลับ', inputLabel: 'อินพุต', outputLabel: 'เอาต์พุต', formatBtn: 'จัดรูปแบบ', mockBtn: 'จำลอง', clearBtn: 'ล้าง', fmtGroupStructured: 'แบบมีโครงสร้าง', fmtGroupTable: 'ตารางและข้อความ', convertShortcut: 'Ctrl / ⌘ + Enter เพื่อแปลง', convertBtn: 'แปลง', copyBtn: 'คัดลอก', pasteBtn: 'วาง', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'สร้างจำลองแล้ว', toastFormatInput: 'จัดรูปแบบอินพุตแล้ว', toastFormatOutput: 'จัดรูปแบบเอาต์พุตแล้ว', toastFormatError: 'จัดรูปแบบล้มเหลว', toastConvertSuccess: 'แปลงแล้ว', toastConvertError: 'แปลงล้มเหลว', toastCopySuccess: 'คัดลอกแล้ว', toastCopyError: 'คัดลอกล้มเหลว', toastPasteSuccess: 'วางแล้ว', toastPasteError: 'อ่านคลิปบอร์ดล้มเหลว', toastPasteUnsupported: 'ไม่รองรับการอ่านคลิปบอร์ด', toastEmptyInput: 'ไม่มีข้อมูล', toastSameFormat: 'รูปแบบเดียวกัน', diffBtn: 'เปรียบเทียบ', diffExitBtn: 'ออก', diffLeftTitle: 'ต้นฉบับ (อินพุต)', diffRightTitle: 'แก้ไขแล้ว (เอาต์พุต)', diffLarge: 'ข้อมูลขนาดใหญ่ เปลี่ยนไปใช้การเปรียบเทียบแบบเร็ว', diffReportTitle: 'ความแตกต่างเชิงโครงสร้าง {n} จุด', diffChange: 'แก้ไข', diffAdd: 'เพิ่ม', diffRemove: 'ลบ', diffSame: 'ไม่พบความแตกต่าง', diffSameHint: 'ไม่พบการเปลี่ยนแปลงระดับฟิลด์', navCompare: 'เปรียบเทียบ JSON', navMore: 'เพิ่มเติม', cmpTabText: 'ข้อความใดก็ได้', cmpSamples: 'ตัวอย่าง:', cmpSampleUser: 'ผู้ใช้', cmpSampleProduct: 'สินค้า', cmpSampleConfig: 'การตั้งค่า', cmpSampleApi: 'การตอบกลับ API', cmpTextSamples: 'ตัวอย่างข้อความ:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'ไฟล์กำหนดค่า', cmpSampleHtml: 'ส่วน HTML', cmpSampleLog: 'บันทึกผลลัพธ์', cmpBeautify: 'จัดรูปแบบ', cmpClear: 'ล้าง', cmpRun: 'เปรียบเทียบ', cmpTipIdle: 'วางทั้งสองด้านแล้วกดเปรียบเทียบ', cmpTipJson: 'เปรียบเทียบ JSON แล้ว พบ {n} จุดต่าง', cmpTipSame: 'ทั้งสองด้านเหมือนกันทุกประการ', cmpTipText: 'เปรียบเทียบข้อความแล้ว ต่างกัน {n} บรรทัด', cmpTipUseJson: 'ทั้งสองด้านเป็น JSON — สลับไปที่ «เปรียบเทียบ JSON» เพื่อเทียบระดับฟิลด์', cmpTipError: 'แยกวิเคราะห์ไม่สำเร็จ', cmpLeftSide: 'ด้านซ้าย', cmpRightSide: 'ด้านขวา', errorLocLine: 'บรรทัด {n}', errorLocCol: ' คอลัมน์ {n}' } },
+            { code: 'tr', name: 'Türkçe', flag: '🇹🇷', dict: { brand: 'Araçlar', navYamlJson: 'YAML -> JSON', navYamlProps: 'YAML -> Props', navJsonProps: 'JSON -> Props', navJsonXml: 'JSON -> XML', navXmlYaml: 'XML -> YAML', navJsonYaml: 'JSON -> YAML', navYamlXml: 'YAML -> XML', fromLabel: 'Kimden', toLabel: 'Kime', swapTitle: 'Değiştir', inputLabel: 'Giriş', outputLabel: 'Çıkış', formatBtn: 'Biçimlendir', mockBtn: 'Mock', clearBtn: 'Temizle', fmtGroupStructured: 'Yapılandırılmış', fmtGroupTable: 'Tablo ve metin', convertShortcut: 'Dönüştürmek için Ctrl / ⌘ + Enter', convertBtn: 'Dönüştür', copyBtn: 'Kopyala', pasteBtn: 'Yapıştır', inputPlaceholder: '', outputPlaceholder: '', toastMockSuccess: 'Mock oluşturuldu', toastFormatInput: 'Giriş biçimlendirildi', toastFormatOutput: 'Çıkış biçimlendirildi', toastFormatError: 'Biçimlendirme hatası', toastConvertSuccess: 'Dönüştürüldü', toastConvertError: 'Dönüştürme hatası', toastCopySuccess: 'Kopyalandı', toastCopyError: 'Kopyalama hatası', toastPasteSuccess: 'Yapıştırıldı', toastPasteError: 'Pano okunamadı', toastPasteUnsupported: 'Pano okuma desteklenmiyor', toastEmptyInput: 'Giriş boş', toastSameFormat: 'Aynı format', diffBtn: 'Karşılaştır', diffExitBtn: 'Çıkış', diffLeftTitle: 'Orijinal (Giriş)', diffRightTitle: 'Değiştirilmiş (Çıkış)', diffLarge: 'Girdi büyük — hızlı karşılaştırmaya geçildi', diffReportTitle: 'Yapısal değişiklikler: {n}', diffChange: 'Değişti', diffAdd: 'Eklendi', diffRemove: 'Silindi', diffSame: 'Fark yok', diffSameHint: 'Alan düzeyinde değişiklik yok', navCompare: 'JSON Karşılaştır', navMore: 'Daha fazla', cmpTabText: 'Serbest metin', cmpSamples: 'Örnekler:', cmpSampleUser: 'Kullanıcı', cmpSampleProduct: 'Ürün', cmpSampleConfig: 'Yapılandırma', cmpSampleApi: 'API yanıtı', cmpTextSamples: 'Örnek metin:', cmpSampleMarkdown: 'Markdown', cmpSampleConf: 'Yapılandırma dosyası', cmpSampleHtml: 'HTML parçası', cmpSampleLog: 'Günlük çıktısı', cmpBeautify: 'Biçimlendir', cmpClear: 'Temizle', cmpRun: 'Karşılaştır', cmpTipIdle: 'İki tarafı yapıştırıp Karşılaştır’a basın', cmpTipJson: 'JSON karşılaştırıldı: {n} fark', cmpTipSame: 'İki taraf birebir aynı', cmpTipText: 'Metin karşılaştırıldı: {n} satır farklı', cmpTipUseJson: 'İki taraf da JSON — alan bazında karşılaştırma için «JSON Karşılaştır»a geçin', cmpTipError: 'Ayrıştırma başarısız', cmpLeftSide: 'sol taraf', cmpRightSide: 'sağ taraf', errorLocLine: 'satır {n}', errorLocCol: ', sütun {n}' } },
         ];
 
         const displayLangCodes = ['zh-CN', 'zh-TW', 'en'];
@@ -2759,9 +2803,17 @@
         }
 
         // 触发器上直接写当前这一对格式（yaml转properties），不用点开下拉才知道
-        const FORMAT_NAMES = { json: 'JSON', yaml: 'YAML', xml: 'XML', properties: 'Properties' };
+        const FORMAT_NAMES = {
+            json: 'JSON', yaml: 'YAML', xml: 'XML', properties: 'Properties',
+            toml: 'TOML', ini: 'INI', env: '.env', csv: 'CSV', tsv: 'TSV',
+            query: 'Query', headers: 'Headers', cookie: 'Cookie', html: 'HTML'
+        };
         // 窄屏那份用了缩写，长文案在 370px 的侧栏里放不下
-        const FORMAT_SHORT = { json: 'JSON', yaml: 'YAML', xml: 'XML', properties: 'Props' };
+        const FORMAT_SHORT = {
+            json: 'JSON', yaml: 'YAML', xml: 'XML', properties: 'Props',
+            toml: 'TOML', ini: 'INI', env: '.env', csv: 'CSV', tsv: 'TSV',
+            query: 'Query', headers: 'Hdrs', cookie: 'Cookie', html: 'HTML'
+        };
         let navLabelTimer = null;
         function updateConvertLabel() {
             const label = document.getElementById('navConvertLabel');
@@ -3006,8 +3058,25 @@
             json: 'application/json',
             yaml: 'text/x-yaml',
             xml: 'application/xml',
-            properties: 'text/plain'
+            properties: 'text/x-properties',
+            // 新增的九种：TOML / .env(借 shell) / Headers 有专属模式，INI 借 properties，
+            // HTML 表复用 xml；CSV / TSV / Query / Cookie 没有对应模式，退回纯文本
+            toml: 'text/x-toml',
+            ini: 'text/x-properties',
+            env: 'text/x-sh',
+            csv: 'text/plain',
+            tsv: 'text/plain',
+            query: 'text/plain',
+            headers: 'message/http',
+            cookie: 'text/plain',
+            html: 'application/xml'
         };
+
+        // 徽标上的显示名：.env 要带点，其余保持大写
+        const FORMAT_LABEL = { env: '.env', query: 'Query', headers: 'Headers', cookie: 'Cookie' };
+        function fmtLabel(value) {
+            return FORMAT_LABEL[value] || String(value).toUpperCase();
+        }
 
         const commonConfig = {
             lineNumbers: true,
@@ -3313,8 +3382,31 @@
             // 下拉里也有一份「当前格式对」的高亮，改格式时顺手同步
             if (typeof syncConvertActive === 'function') syncConvertActive();
             if (typeof updateConvertLabel === 'function') updateConvertLabel();
-            outputResultLabel.textContent = targetFormat.value.toUpperCase();
-            outputResultLabel.title = `${(currentDict && currentDict.outputLabel) || 'Output'} (${targetFormat.value.toUpperCase()})`;
+            const label = fmtLabel(targetFormat.value);
+            outputResultLabel.textContent = label;
+            outputResultLabel.title = `${(currentDict && currentDict.outputLabel) || 'Output'} (${label})`;
+        }
+
+        // 格式矩阵（TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML）的错误
+        // 由 confconv.js 以 code + 行列抛出，不含任何硬编码语言，文案在这里按当前语言取。
+        const CONF_LIMIT_KEY = {
+            'conf-too-large': 'chars',
+            'conf-too-many-rows': 'rows',
+            'conf-too-many-cols': 'cols',
+            'conf-too-many-cells': 'cells'
+        };
+
+        function confErrorText(err) {
+            if (!err || !err.code) return '';
+            const cur = CONF_I18N[currentLang] || {};
+            const tpl = cur[err.code] || (CONF_I18N.en || {})[err.code] || (CONF_I18N['zh-CN'] || {})[err.code] || '';
+            if (!tpl) return '';
+            // 上限数字不写死在译文里，从模块自己的 LIMITS 取
+            const limitKey = CONF_LIMIT_KEY[err.code];
+            if (limitKey && window.DBXConf && window.DBXConf.LIMITS) {
+                return tpl.replace('{n}', window.DBXConf.LIMITS[limitKey].toLocaleString());
+            }
+            return tpl;
         }
 
         // 错误提示条：失败时保留上一次成功的结果，只在这里提示位置
@@ -3340,8 +3432,9 @@
                 ? lineTpl.replace('{n}', loc.line) + (loc.column ? colTpl.replace('{n}', loc.column) : '')
                 : '';
             errorLoc.textContent = where;
-            errorMsg.textContent = loc.message;
-            errorMsg.title = loc.message;
+            const confMsg = confErrorText(err);
+            errorMsg.textContent = confMsg || loc.message;
+            errorMsg.title = confMsg || loc.message;
             errorBar.classList.add('show');
 
             if (errorLineHandle) {
@@ -8267,6 +8360,404 @@
                 genExported: 'Dışa aktarıldı'
             }
         };
+
+        /* 格式矩阵（TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML）
+         * 的错误文案。confconv.js 只抛 code + 行列，文案在这里按语言取。 */
+        const CONF_I18N = {
+            'zh-CN': {
+                'conf-too-large': '输入超过 {n} 个字符',
+                'conf-unknown-format': '未知格式',
+                'conf-too-many-rows': '行数超过 {n}',
+                'conf-too-many-cols': '列数超过 {n}',
+                'conf-too-many-cells': '单元格超过 {n} 个',
+                'toml-bad-key': 'TOML 键名不合法',
+                'toml-bad-value': '这个值不是合法的 TOML 值',
+                'toml-bad-escape': 'TOML 字符串里的转义序列不合法',
+                'toml-bad-array': 'TOML 数组写法有误',
+                'toml-bad-table': 'TOML 表头写法有误',
+                'toml-dup-table': '这张 TOML 表被定义了两次',
+                'toml-unclosed': 'TOML 数组或字符串没有闭合',
+                'toml-need-object': 'TOML 的输出需要对象',
+                'ini-bad-section': 'INI 小节头写法有误',
+                'ini-bad-line': '这一行不是合法的 INI —— 应为 [小节] 或 key=value',
+                'ini-need-object': 'INI 的输出需要对象',
+                'env-bad-line': '这一行不是合法的 .env —— 应为 KEY=VALUE',
+                'env-bad-quote': '.env 的值引号没有闭合',
+                'env-need-object': '.env 的输出需要对象',
+                'csv-bad-quote': 'CSV 的引号没有闭合',
+                'csv-need-object': 'CSV / TSV 的输出需要对象或对象数组',
+                'query-need-object': 'Query 的输出需要对象',
+                'headers-bad-line': '这一行不是合法的请求头 —— 应为 Name: value',
+                'headers-need-object': 'Headers 的输出需要对象',
+                'cookie-need-object': 'Cookie 的输出需要对象',
+                'html-need-object': 'HTML 表格的输出需要对象或对象数组'
+            },
+            'zh-TW': {
+                'conf-too-large': '輸入超過 {n} 個字元',
+                'conf-unknown-format': '未知格式',
+                'conf-too-many-rows': '資料列超過 {n} 列',
+                'conf-too-many-cols': '欄位超過 {n} 個',
+                'conf-too-many-cells': '儲存格超過 {n} 個',
+                'toml-bad-key': 'TOML 鍵名不合法',
+                'toml-bad-value': '不是合法的 TOML 值',
+                'toml-bad-escape': 'TOML 字串裡的跳脫序列不合法',
+                'toml-bad-array': 'TOML 陣列寫法有誤',
+                'toml-bad-table': 'TOML 表頭寫法有誤',
+                'toml-dup-table': '這張 TOML 表被定義了兩次',
+                'toml-unclosed': 'TOML 陣列或字串沒有閉合',
+                'toml-need-object': 'TOML 的輸出需要物件',
+                'ini-bad-section': 'INI 區段標題寫法有誤',
+                'ini-bad-line': '這一行不是合法的 INI —— 應為 [區段] 或 key=value',
+                'ini-need-object': 'INI 的輸出需要物件',
+                'env-bad-line': '這一行不是合法的 .env —— 應為 KEY=VALUE',
+                'env-bad-quote': '.env 的值引號沒有閉合',
+                'env-need-object': '.env 的輸出需要物件',
+                'csv-bad-quote': 'CSV 的引號沒有閉合',
+                'csv-need-object': 'CSV / TSV 的輸出需要物件或物件陣列',
+                'query-need-object': 'Query 的輸出需要物件',
+                'headers-bad-line': '這一行不是合法的標頭 —— 應為 Name: value',
+                'headers-need-object': 'Headers 的輸出需要物件',
+                'cookie-need-object': 'Cookie 的輸出需要物件',
+                'html-need-object': 'HTML 表格的輸出需要物件或物件陣列'
+            },
+            'en': {
+                'conf-too-large': 'Input exceeds {n} characters',
+                'conf-unknown-format': 'Unknown format',
+                'conf-too-many-rows': 'More than {n} rows',
+                'conf-too-many-cols': 'More than {n} columns',
+                'conf-too-many-cells': 'More than {n} cells',
+                'toml-bad-key': 'Invalid TOML key',
+                'toml-bad-value': 'Not a valid TOML value',
+                'toml-bad-escape': 'Invalid escape sequence in a TOML string',
+                'toml-bad-array': 'Malformed TOML array',
+                'toml-bad-table': 'Malformed TOML table header',
+                'toml-dup-table': 'This TOML table is defined twice',
+                'toml-unclosed': 'Unclosed TOML array or string',
+                'toml-need-object': 'TOML output needs an object',
+                'ini-bad-section': 'Invalid INI section header',
+                'ini-bad-line': 'Not a valid INI line — expected [section] or key=value',
+                'ini-need-object': 'INI output needs an object',
+                'env-bad-line': 'Not a valid .env line — expected KEY=VALUE',
+                'env-bad-quote': 'Unclosed quote in a .env value',
+                'env-need-object': '.env output needs an object',
+                'csv-bad-quote': 'Unclosed quote in CSV',
+                'csv-need-object': 'CSV / TSV output needs an object or an array of objects',
+                'query-need-object': 'Query string output needs an object',
+                'headers-bad-line': 'Not a valid header line — expected Name: value',
+                'headers-need-object': 'Headers output needs an object',
+                'cookie-need-object': 'Cookie output needs an object',
+                'html-need-object': 'HTML table output needs an object or an array of objects'
+            },
+            'az': {
+                'conf-too-large': 'Giriş {n} simvolu keçir',
+                'conf-unknown-format': 'Naməlum format',
+                'conf-too-many-rows': '{n} sətirdən çox',
+                'conf-too-many-cols': '{n} sütundan çox',
+                'conf-too-many-cells': '{n} xanadan çox',
+                'toml-bad-key': 'Yanlış TOML açarı',
+                'toml-bad-value': 'TOML dəyəri kimi oxunmur',
+                'toml-bad-escape': 'TOML sətrində yanlış escape ardıcıllığı',
+                'toml-bad-array': 'TOML massivi səhv yazılıb',
+                'toml-bad-table': 'TOML cədvəl başlığı səhv yazılıb',
+                'toml-dup-table': 'Bu TOML cədvəli iki dəfə təyin edilib',
+                'toml-unclosed': 'TOML massivi və ya sətri bağlanmayıb',
+                'toml-need-object': 'TOML çıxışı üçün obyekt lazımdır',
+                'ini-bad-section': 'Yanlış INI bölmə başlığı',
+                'ini-bad-line': 'Yanlış INI sətri — [bölmə] və ya açar=dəyər gözlənilir',
+                'ini-need-object': 'INI çıxışı üçün obyekt lazımdır',
+                'env-bad-line': 'Yanlış .env sətri — AÇAR=DƏYƏR gözlənilir',
+                'env-bad-quote': '.env dəyərində dırnaq bağlanmayıb',
+                'env-need-object': '.env çıxışı üçün obyekt lazımdır',
+                'csv-bad-quote': 'CSV-də dırnaq bağlanmayıb',
+                'csv-need-object': 'CSV / TSV çıxışı üçün obyekt və ya obyekt massivi lazımdır',
+                'query-need-object': 'Sorğu sətri çıxışı üçün obyekt lazımdır',
+                'headers-bad-line': 'Yanlış başlıq sətri — Ad: dəyər gözlənilir',
+                'headers-need-object': 'Başlıq çıxışı üçün obyekt lazımdır',
+                'cookie-need-object': 'Kuki çıxışı üçün obyekt lazımdır',
+                'html-need-object': 'HTML cədvəl çıxışı üçün obyekt və ya obyekt massivi lazımdır'
+            },
+            'es': {
+                'conf-too-large': 'La entrada supera los {n} caracteres',
+                'conf-unknown-format': 'Formato desconocido',
+                'conf-too-many-rows': 'Más de {n} filas',
+                'conf-too-many-cols': 'Más de {n} columnas',
+                'conf-too-many-cells': 'Más de {n} celdas',
+                'toml-bad-key': 'Clave TOML no válida',
+                'toml-bad-value': 'No es un valor TOML válido',
+                'toml-bad-escape': 'Secuencia de escape no válida en una cadena TOML',
+                'toml-bad-array': 'Array TOML mal formado',
+                'toml-bad-table': 'Cabecera de tabla TOML mal formada',
+                'toml-dup-table': 'Esta tabla TOML está definida dos veces',
+                'toml-unclosed': 'Array o cadena TOML sin cerrar',
+                'toml-need-object': 'La salida TOML necesita un objeto',
+                'ini-bad-section': 'Cabecera de sección INI no válida',
+                'ini-bad-line': 'Línea INI no válida — se espera [sección] o clave=valor',
+                'ini-need-object': 'La salida INI necesita un objeto',
+                'env-bad-line': 'Línea .env no válida — se espera CLAVE=VALOR',
+                'env-bad-quote': 'Comilla sin cerrar en un valor .env',
+                'env-need-object': 'La salida .env necesita un objeto',
+                'csv-bad-quote': 'Comilla sin cerrar en el CSV',
+                'csv-need-object': 'La salida CSV / TSV necesita un objeto o un array de objetos',
+                'query-need-object': 'La salida de query string necesita un objeto',
+                'headers-bad-line': 'Línea de cabecera no válida — se espera Nombre: valor',
+                'headers-need-object': 'La salida de cabeceras necesita un objeto',
+                'cookie-need-object': 'La salida de cookie necesita un objeto',
+                'html-need-object': 'La salida de tabla HTML necesita un objeto o un array de objetos'
+            },
+            'id': {
+                'conf-too-large': 'Input melebihi {n} karakter',
+                'conf-unknown-format': 'Format tidak dikenal',
+                'conf-too-many-rows': 'Lebih dari {n} baris',
+                'conf-too-many-cols': 'Lebih dari {n} kolom',
+                'conf-too-many-cells': 'Lebih dari {n} sel',
+                'toml-bad-key': 'Kunci TOML tidak valid',
+                'toml-bad-value': 'Bukan nilai TOML yang valid',
+                'toml-bad-escape': 'Urutan escape tidak valid dalam string TOML',
+                'toml-bad-array': 'Array TOML salah format',
+                'toml-bad-table': 'Header tabel TOML salah format',
+                'toml-dup-table': 'Tabel TOML ini didefinisikan dua kali',
+                'toml-unclosed': 'Array atau string TOML belum ditutup',
+                'toml-need-object': 'Output TOML membutuhkan objek',
+                'ini-bad-section': 'Header seksi INI tidak valid',
+                'ini-bad-line': 'Baris INI tidak valid — seharusnya [seksi] atau kunci=nilai',
+                'ini-need-object': 'Output INI membutuhkan objek',
+                'env-bad-line': 'Baris .env tidak valid — seharusnya KUNCI=NILAI',
+                'env-bad-quote': 'Kutip pada nilai .env belum ditutup',
+                'env-need-object': 'Output .env membutuhkan objek',
+                'csv-bad-quote': 'Kutip pada CSV belum ditutup',
+                'csv-need-object': 'Output CSV / TSV membutuhkan objek atau array objek',
+                'query-need-object': 'Output query string membutuhkan objek',
+                'headers-bad-line': 'Baris header tidak valid — seharusnya Nama: nilai',
+                'headers-need-object': 'Output header membutuhkan objek',
+                'cookie-need-object': 'Output cookie membutuhkan objek',
+                'html-need-object': 'Output tabel HTML membutuhkan objek atau array objek'
+            },
+            'it': {
+                'conf-too-large': 'L\'input supera {n} caratteri',
+                'conf-unknown-format': 'Formato sconosciuto',
+                'conf-too-many-rows': 'Più di {n} righe',
+                'conf-too-many-cols': 'Più di {n} colonne',
+                'conf-too-many-cells': 'Più di {n} celle',
+                'toml-bad-key': 'Chiave TOML non valida',
+                'toml-bad-value': 'Non è un valore TOML valido',
+                'toml-bad-escape': 'Sequenza di escape non valida in una stringa TOML',
+                'toml-bad-array': 'Array TOML mal formato',
+                'toml-bad-table': 'Intestazione di tabella TOML mal formata',
+                'toml-dup-table': 'Questa tabella TOML è definita due volte',
+                'toml-unclosed': 'Array o stringa TOML non chiusa',
+                'toml-need-object': 'L\'output TOML richiede un oggetto',
+                'ini-bad-section': 'Intestazione di sezione INI non valida',
+                'ini-bad-line': 'Riga INI non valida — atteso [sezione] o chiave=valore',
+                'ini-need-object': 'L\'output INI richiede un oggetto',
+                'env-bad-line': 'Riga .env non valida — atteso CHIAVE=VALORE',
+                'env-bad-quote': 'Virgoletta non chiusa in un valore .env',
+                'env-need-object': 'L\'output .env richiede un oggetto',
+                'csv-bad-quote': 'Virgoletta non chiusa nel CSV',
+                'csv-need-object': 'L\'output CSV / TSV richiede un oggetto o un array di oggetti',
+                'query-need-object': 'L\'output della query string richiede un oggetto',
+                'headers-bad-line': 'Riga di header non valida — atteso Nome: valore',
+                'headers-need-object': 'L\'output degli header richiede un oggetto',
+                'cookie-need-object': 'L\'output dei cookie richiede un oggetto',
+                'html-need-object': 'L\'output della tabella HTML richiede un oggetto o un array di oggetti'
+            },
+            'ja': {
+                'conf-too-large': '入力が {n} 文字を超えています',
+                'conf-unknown-format': '未知の形式',
+                'conf-too-many-rows': '行数が {n} を超えています',
+                'conf-too-many-cols': '列数が {n} を超えています',
+                'conf-too-many-cells': 'セル数が {n} を超えています',
+                'toml-bad-key': 'TOML のキーが不正です',
+                'toml-bad-value': 'TOML の値として解釈できません',
+                'toml-bad-escape': 'TOML 文字列のエスケープが不正です',
+                'toml-bad-array': 'TOML 配列の書式が不正です',
+                'toml-bad-table': 'TOML テーブル見出しの書式が不正です',
+                'toml-dup-table': 'この TOML テーブルは二重に定義されています',
+                'toml-unclosed': 'TOML の配列または文字列が閉じていません',
+                'toml-need-object': 'TOML の出力にはオブジェクトが必要です',
+                'ini-bad-section': 'INI セクション見出しが不正です',
+                'ini-bad-line': 'INI の行ではありません —— [セクション] か key=value を書いてください',
+                'ini-need-object': 'INI の出力にはオブジェクトが必要です',
+                'env-bad-line': '.env の行ではありません —— KEY=VALUE を書いてください',
+                'env-bad-quote': '.env の値の引用符が閉じていません',
+                'env-need-object': '.env の出力にはオブジェクトが必要です',
+                'csv-bad-quote': 'CSV の引用符が閉じていません',
+                'csv-need-object': 'CSV / TSV の出力にはオブジェクト、またはオブジェクトの配列が必要です',
+                'query-need-object': 'クエリ文字列の出力にはオブジェクトが必要です',
+                'headers-bad-line': 'ヘッダー行ではありません —— Name: value を書いてください',
+                'headers-need-object': 'ヘッダーの出力にはオブジェクトが必要です',
+                'cookie-need-object': 'Cookie の出力にはオブジェクトが必要です',
+                'html-need-object': 'HTML テーブルの出力にはオブジェクト、またはオブジェクトの配列が必要です'
+            },
+            'ko': {
+                'conf-too-large': '입력이 {n} 자를 넘었습니다',
+                'conf-unknown-format': '알 수 없는 형식',
+                'conf-too-many-rows': '행이 {n} 개를 넘었습니다',
+                'conf-too-many-cols': '열이 {n} 개를 넘었습니다',
+                'conf-too-many-cells': '셀이 {n} 개를 넘었습니다',
+                'toml-bad-key': 'TOML 키가 잘못되었습니다',
+                'toml-bad-value': 'TOML 값으로 해석할 수 없습니다',
+                'toml-bad-escape': 'TOML 문자열의 이스케이프가 잘못되었습니다',
+                'toml-bad-array': 'TOML 배열 형식이 잘못되었습니다',
+                'toml-bad-table': 'TOML 테이블 헤더 형식이 잘못되었습니다',
+                'toml-dup-table': '이 TOML 테이블이 두 번 정의되었습니다',
+                'toml-unclosed': 'TOML 배열이나 문자열이 닫히지 않았습니다',
+                'toml-need-object': 'TOML 출력에는 객체가 필요합니다',
+                'ini-bad-section': 'INI 섹션 헤더가 잘못되었습니다',
+                'ini-bad-line': 'INI 행이 아닙니다 —— [섹션] 또는 key=value 형식이어야 합니다',
+                'ini-need-object': 'INI 출력에는 객체가 필요합니다',
+                'env-bad-line': '.env 행이 아닙니다 —— KEY=VALUE 형식이어야 합니다',
+                'env-bad-quote': '.env 값의 따옴표가 닫히지 않았습니다',
+                'env-need-object': '.env 출력에는 객체가 필요합니다',
+                'csv-bad-quote': 'CSV 따옴표가 닫히지 않았습니다',
+                'csv-need-object': 'CSV / TSV 출력에는 객체 또는 객체 배열이 필요합니다',
+                'query-need-object': '쿼리 문자열 출력에는 객체가 필요합니다',
+                'headers-bad-line': '헤더 행이 아닙니다 —— Name: value 형식이어야 합니다',
+                'headers-need-object': '헤더 출력에는 객체가 필요합니다',
+                'cookie-need-object': '쿠키 출력에는 객체가 필요합니다',
+                'html-need-object': 'HTML 표 출력에는 객체 또는 객체 배열이 필요합니다'
+            },
+            'pt': {
+                'conf-too-large': 'A entrada ultrapassa {n} caracteres',
+                'conf-unknown-format': 'Formato desconhecido',
+                'conf-too-many-rows': 'Mais de {n} linhas',
+                'conf-too-many-cols': 'Mais de {n} colunas',
+                'conf-too-many-cells': 'Mais de {n} células',
+                'toml-bad-key': 'Chave TOML inválida',
+                'toml-bad-value': 'Não é um valor TOML válido',
+                'toml-bad-escape': 'Sequência de escape inválida em uma string TOML',
+                'toml-bad-array': 'Array TOML malformado',
+                'toml-bad-table': 'Cabeçalho de tabela TOML malformado',
+                'toml-dup-table': 'Esta tabela TOML está definida duas vezes',
+                'toml-unclosed': 'Array ou string TOML não fechado',
+                'toml-need-object': 'A saída TOML precisa de um objeto',
+                'ini-bad-section': 'Cabeçalho de seção INI inválido',
+                'ini-bad-line': 'Linha INI inválida — esperado [seção] ou chave=valor',
+                'ini-need-object': 'A saída INI precisa de um objeto',
+                'env-bad-line': 'Linha .env inválida — esperado CHAVE=VALOR',
+                'env-bad-quote': 'Aspa não fechada em um valor .env',
+                'env-need-object': 'A saída .env precisa de um objeto',
+                'csv-bad-quote': 'Aspa não fechada no CSV',
+                'csv-need-object': 'A saída CSV / TSV precisa de um objeto ou de um array de objetos',
+                'query-need-object': 'A saída de query string precisa de um objeto',
+                'headers-bad-line': 'Linha de cabeçalho inválida — esperado Nome: valor',
+                'headers-need-object': 'A saída de cabeçalhos precisa de um objeto',
+                'cookie-need-object': 'A saída de cookie precisa de um objeto',
+                'html-need-object': 'A saída de tabela HTML precisa de um objeto ou de um array de objetos'
+            },
+            'pl': {
+                'conf-too-large': 'Dane wejściowe przekraczają {n} znaków',
+                'conf-unknown-format': 'Nieznany format',
+                'conf-too-many-rows': 'Ponad {n} wierszy',
+                'conf-too-many-cols': 'Ponad {n} kolumn',
+                'conf-too-many-cells': 'Ponad {n} komórek',
+                'toml-bad-key': 'Nieprawidłowy klucz TOML',
+                'toml-bad-value': 'To nie jest prawidłowa wartość TOML',
+                'toml-bad-escape': 'Nieprawidłowa sekwencja ucieczki w ciągu TOML',
+                'toml-bad-array': 'Źle sformatowana tablica TOML',
+                'toml-bad-table': 'Źle sformatowany nagłówek tabeli TOML',
+                'toml-dup-table': 'Ta tabela TOML jest zdefiniowana dwukrotnie',
+                'toml-unclosed': 'Niezamknięta tablica lub ciąg TOML',
+                'toml-need-object': 'Wyjście TOML wymaga obiektu',
+                'ini-bad-section': 'Nieprawidłowy nagłówek sekcji INI',
+                'ini-bad-line': 'Nieprawidłowa linia INI — oczekiwano [sekcja] lub klucz=wartość',
+                'ini-need-object': 'Wyjście INI wymaga obiektu',
+                'env-bad-line': 'Nieprawidłowa linia .env — oczekiwano KLUCZ=WARTOŚĆ',
+                'env-bad-quote': 'Niezamknięty cudzysłów w wartości .env',
+                'env-need-object': 'Wyjście .env wymaga obiektu',
+                'csv-bad-quote': 'Niezamknięty cudzysłów w CSV',
+                'csv-need-object': 'Wyjście CSV / TSV wymaga obiektu lub tablicy obiektów',
+                'query-need-object': 'Wyjście query string wymaga obiektu',
+                'headers-bad-line': 'Nieprawidłowa linia nagłówka — oczekiwano Nazwa: wartość',
+                'headers-need-object': 'Wyjście nagłówków wymaga obiektu',
+                'cookie-need-object': 'Wyjście cookie wymaga obiektu',
+                'html-need-object': 'Wyjście tabeli HTML wymaga obiektu lub tablicy obiektów'
+            },
+            'ru': {
+                'conf-too-large': 'Входные данные превышают {n} символов',
+                'conf-unknown-format': 'Неизвестный формат',
+                'conf-too-many-rows': 'Больше {n} строк',
+                'conf-too-many-cols': 'Больше {n} столбцов',
+                'conf-too-many-cells': 'Больше {n} ячеек',
+                'toml-bad-key': 'Некорректный ключ TOML',
+                'toml-bad-value': 'Это не корректное значение TOML',
+                'toml-bad-escape': 'Некорректная escape-последовательность в строке TOML',
+                'toml-bad-array': 'Некорректный массив TOML',
+                'toml-bad-table': 'Некорректный заголовок таблицы TOML',
+                'toml-dup-table': 'Эта таблица TOML определена дважды',
+                'toml-unclosed': 'Массив или строка TOML не закрыты',
+                'toml-need-object': 'Для вывода TOML нужен объект',
+                'ini-bad-section': 'Некорректный заголовок секции INI',
+                'ini-bad-line': 'Некорректная строка INI — ожидается [секция] или ключ=значение',
+                'ini-need-object': 'Для вывода INI нужен объект',
+                'env-bad-line': 'Некорректная строка .env — ожидается КЛЮЧ=ЗНАЧЕНИЕ',
+                'env-bad-quote': 'Незакрытая кавычка в значении .env',
+                'env-need-object': 'Для вывода .env нужен объект',
+                'csv-bad-quote': 'Незакрытая кавычка в CSV',
+                'csv-need-object': 'Для вывода CSV / TSV нужен объект или массив объектов',
+                'query-need-object': 'Для вывода query string нужен объект',
+                'headers-bad-line': 'Некорректная строка заголовка — ожидается Имя: значение',
+                'headers-need-object': 'Для вывода заголовков нужен объект',
+                'cookie-need-object': 'Для вывода cookie нужен объект',
+                'html-need-object': 'Для вывода HTML-таблицы нужен объект или массив объектов'
+            },
+            'th': {
+                'conf-too-large': 'ข้อมูลนำเข้าเกิน {n} ตัวอักษร',
+                'conf-unknown-format': 'ไม่รู้จักรูปแบบนี้',
+                'conf-too-many-rows': 'มากกว่า {n} แถว',
+                'conf-too-many-cols': 'มากกว่า {n} คอลัมน์',
+                'conf-too-many-cells': 'มากกว่า {n} เซลล์',
+                'toml-bad-key': 'คีย์ TOML ไม่ถูกต้อง',
+                'toml-bad-value': 'ไม่ใช่ค่า TOML ที่ถูกต้อง',
+                'toml-bad-escape': 'ลำดับ escape ในสตริง TOML ไม่ถูกต้อง',
+                'toml-bad-array': 'อาร์เรย์ TOML รูปแบบไม่ถูกต้อง',
+                'toml-bad-table': 'ส่วนหัวตาราง TOML รูปแบบไม่ถูกต้อง',
+                'toml-dup-table': 'ตาราง TOML นี้ถูกกำหนดซ้ำ',
+                'toml-unclosed': 'อาร์เรย์หรือสตริง TOML ยังไม่ปิด',
+                'toml-need-object': 'ผลลัพธ์ TOML ต้องเป็นออบเจกต์',
+                'ini-bad-section': 'ส่วนหัวเซกชัน INI ไม่ถูกต้อง',
+                'ini-bad-line': 'บรรทัด INI ไม่ถูกต้อง — ต้องเป็น [เซกชัน] หรือ key=value',
+                'ini-need-object': 'ผลลัพธ์ INI ต้องเป็นออบเจกต์',
+                'env-bad-line': 'บรรทัด .env ไม่ถูกต้อง — ต้องเป็น KEY=VALUE',
+                'env-bad-quote': 'เครื่องหมายคำพูดในค่า .env ยังไม่ปิด',
+                'env-need-object': 'ผลลัพธ์ .env ต้องเป็นออบเจกต์',
+                'csv-bad-quote': 'เครื่องหมายคำพูดใน CSV ยังไม่ปิด',
+                'csv-need-object': 'ผลลัพธ์ CSV / TSV ต้องเป็นออบเจกต์หรืออาร์เรย์ของออบเจกต์',
+                'query-need-object': 'ผลลัพธ์ query string ต้องเป็นออบเจกต์',
+                'headers-bad-line': 'บรรทัดส่วนหัวไม่ถูกต้อง — ต้องเป็น Name: value',
+                'headers-need-object': 'ผลลัพธ์ส่วนหัวต้องเป็นออบเจกต์',
+                'cookie-need-object': 'ผลลัพธ์คุกกี้ต้องเป็นออบเจกต์',
+                'html-need-object': 'ผลลัพธ์ตาราง HTML ต้องเป็นออบเจกต์หรืออาร์เรย์ของออบเจกต์'
+            },
+            'tr': {
+                'conf-too-large': 'Giriş {n} karakteri aşıyor',
+                'conf-unknown-format': 'Bilinmeyen biçim',
+                'conf-too-many-rows': '{n} satırdan fazla',
+                'conf-too-many-cols': '{n} sütundan fazla',
+                'conf-too-many-cells': '{n} hücreden fazla',
+                'toml-bad-key': 'Geçersiz TOML anahtarı',
+                'toml-bad-value': 'Geçerli bir TOML değeri değil',
+                'toml-bad-escape': 'TOML dizesinde geçersiz kaçış dizisi',
+                'toml-bad-array': 'Hatalı TOML dizisi',
+                'toml-bad-table': 'Hatalı TOML tablo başlığı',
+                'toml-dup-table': 'Bu TOML tablosu iki kez tanımlanmış',
+                'toml-unclosed': 'Kapatılmamış TOML dizisi veya dizesi',
+                'toml-need-object': 'TOML çıktısı için nesne gerekli',
+                'ini-bad-section': 'Geçersiz INI bölüm başlığı',
+                'ini-bad-line': 'Geçersiz INI satırı — [bölüm] veya anahtar=değer bekleniyor',
+                'ini-need-object': 'INI çıktısı için nesne gerekli',
+                'env-bad-line': 'Geçersiz .env satırı — ANAHTAR=DEĞER bekleniyor',
+                'env-bad-quote': '.env değerinde kapatılmamış tırnak',
+                'env-need-object': '.env çıktısı için nesne gerekli',
+                'csv-bad-quote': 'CSV içinde kapatılmamış tırnak',
+                'csv-need-object': 'CSV / TSV çıktısı için nesne veya nesne dizisi gerekli',
+                'query-need-object': 'Sorgu dizesi çıktısı için nesne gerekli',
+                'headers-bad-line': 'Geçersiz başlık satırı — Ad: değer bekleniyor',
+                'headers-need-object': 'Başlık çıktısı için nesne gerekli',
+                'cookie-need-object': 'Çerez çıktısı için nesne gerekli',
+                'html-need-object': 'HTML tablo çıktısı için nesne veya nesne dizisi gerekli'
+            }
+        };
+
 
         function genT(key, fallback) {
             const table = GEN_I18N[currentLang] || {};

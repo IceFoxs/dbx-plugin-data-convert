@@ -1,6 +1,6 @@
 # 数据转换 (Data Format Converter)
 
-一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties 互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON、图片 ⇄ Base64，以及 JSON / `CREATE TABLE` 直接生成多语言模型代码。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
+一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties / TOML / INI / `.env` / CSV / TSV / Query / Headers / Cookie / HTML 共 13 种格式互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON、图片 ⇄ Base64，以及 JSON / `CREATE TABLE` 直接生成多语言模型代码。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
 
 ![数据转换工作台](docs/screen.png)
 
@@ -8,7 +8,7 @@
 
 | 页面 | 能做什么 |
 | --- | --- |
-| **格式转换** | JSON / YAML / XML / Properties 的 7 种互转，即时转换、校验与格式化、模拟数据 |
+| **格式转换** | 13 种格式任意互转（JSON / YAML / XML / Properties / TOML / INI / `.env` / CSV / TSV / Query / Headers / Cookie / HTML），即时转换、校验与格式化、模拟数据 |
 | **对比** | 按 JSON Pointer 逐字段对比 JSON，或对任意文本逐行对比 |
 | **SQL 转换** | 粘贴一列值 → `IN` / `NOT IN` / 值列表 / `INSERT`；整段 SQL 片段也能反向拆回干净的值 |
 | **表格转 JSON** | `.xlsx` / `.csv` / `.tsv` → JSON 数组或 SQL `INSERT`，全程在浏览器里解析 |
@@ -17,8 +17,14 @@
 
 ## 格式转换
 
-- 7 个互转对收在一个下拉里，触发器直接显示当前这一对（如 `yaml转properties`），当前项高亮，`Esc` 或点空白收起；再窄就继续收进「更多」，导航条不会出现横向滚动条。
+- **源格式 × 目标格式两个选择器**，13 × 13 随便配：结构化一组（JSON / YAML / XML / Properties / TOML / INI / `.env`），表格与文本一组（CSV / TSV / Query / Headers / Cookie / HTML），下拉里分组列出、超高内部滚动。
+- **TOML**：表头 `[db]`、数组表 `[[items]]`、inline table、dotted key、三引号多行字符串、十六进制 / 八进制 / 二进制 / 下划线数字、`inf` / `nan`、日期时间（按字符串往返）都认；重复定义同一张表会报出「第几行」。
+- **INI / `.env`**：`[section]` 平级（不会嵌进上一节）、`export` 前缀、引号内的转义、`#` 注释都在行尾也能认；`.env` 的嵌套键拍平成 `db.host`。
+- **CSV / TSV**：JSON 数组 → 表格，嵌套对象自动拍平成 `address.city`、数组变成 `tags[0]` / `tags[1]`；反向读回来会还原成嵌套结构与数字 / 布尔类型。空格子不写键，CSV 区分不了 `null` 和空串。
+- **Query / Headers / Cookie**：抓包粘一段就变结构化——Query 的重复键变数组（`a=1&a=2` → `["1","2"]`）、Headers 跳过请求行与状态行、Cookie 里 `HttpOnly` 这类裸标记记成 `true`。
+- **HTML**：对象数组 ⇄ `<table>`（含 `<thead>` / `<tbody>`、HTML 转义），没有 `<th>` 时自动生成列名。
 - JSON / YAML / XML 自动美化、校验失败能指出问题所在，另有模拟数据生成器，做 Schema 试跑不用手写样本。
+- 输入输出都有行号与语法着色：TOML / `.env`（shell）/ Headers（HTTP）/ INI（properties）各有自己的配色，切格式即换。
 - 全部本地完成：贴进去就转，不请求网络。
 
 ## 对比
@@ -91,12 +97,12 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## 构建与测试
 
 ```bash
-./scripts/build.sh test         # 全部用例（295 条）
+./scripts/build.sh test         # 全部用例（386 条）
 ./scripts/build.sh              # 先跑用例，再打包 dist/*.dbxp
 ./scripts/run.sh                # 等价于 build.sh dev
 
-npm test                        # 纯函数用例，无第三方依赖（295 条）
-npm install && npm run test:ui  # jsdom 页面接线冒烟（118 项）
+npm test                        # 纯函数用例，无第三方依赖（386 条）
+npm install && npm run test:ui  # jsdom 页面接线冒烟（129 项）
 ```
 
 Windows 下使用 `scripts\build.cmd`（需要 Git Bash）。
@@ -113,6 +119,7 @@ ui/js/sheetconv.js     表格文本 → 记录 → JSON —— 分隔符嗅探�
 ui/js/xlsxread.js      .xlsx 读取 —— ZIP + DecompressionStream + XML 扫描，零依赖
 ui/js/imgconv.js       图片 ↔ Base64 —— 魔数嗅探、规范化、SVG 源码编码
 ui/js/codegen.js       代码生成 —— 类型推断 + DDL 解析 + 四语言渲染
+ui/js/confconv.js      格式矩阵 —— TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML
 tests/                 回归用例，直接 node 运行
 scripts/build.sh       package | dev | test
 ```

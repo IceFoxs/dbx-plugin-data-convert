@@ -18,6 +18,9 @@ globalThis.jsyaml = require(path.join(ROOT, 'ui/js-yaml.min.js'));
 globalThis.window = globalThis;
 require(path.join(ROOT, 'ui/xml-js.min.js'));
 
+// confconv 提供后 9 种格式，跟插件页面一样挂到 globalThis 上
+globalThis.DBXConf = require(path.join(ROOT, 'ui/js/confconv.js'));
+
 var C = require(path.join(ROOT, 'ui/js/converters.js'));
 
 var results = { pass: 0, fail: 0 };

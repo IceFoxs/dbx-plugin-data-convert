@@ -188,6 +188,96 @@ function check(name, fn) {
     // 若 change 处理把 currentDataObj 清空，序列化就只剩 "null"（曾出现的 bug）。
     var sourceSelect = doc.getElementById('sourceSelect');
     var targetSelect = doc.getElementById('targetSelect');
+    var errorMsg = doc.getElementById('errorMsg');
+
+    // ---------------- 格式矩阵：TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML ----------------
+    check('两个下拉各有 13 种可选格式', function () {
+        if (sourceSelect.querySelectorAll('.custom-option').length !== 13) {
+            throw new Error('源格式数: ' + sourceSelect.querySelectorAll('.custom-option').length);
+        }
+        if (targetSelect.querySelectorAll('.custom-option').length !== 13) {
+            throw new Error('目标格式数: ' + targetSelect.querySelectorAll('.custom-option').length);
+        }
+    });
+
+    check('下拉里的分组标题不可选（没有 data-value，但要有翻译键）', function () {
+        var groups = sourceSelect.querySelectorAll('.custom-option-group');
+        if (groups.length !== 2) throw new Error('分组数: ' + groups.length);
+        var keys = [groups[0].getAttribute('data-i18n'), groups[1].getAttribute('data-i18n')];
+        if (keys.join(',') !== 'fmtGroupStructured,fmtGroupTable') throw new Error('分组键: ' + keys.join(','));
+        if (groups[0].hasAttribute('data-value')) throw new Error('分组标题不该有 data-value');
+    });
+
+    async function pickFormat(src, tgt) {
+        sourceSelect.querySelector('.custom-option[data-value="' + src + '"]').click();
+        targetSelect.querySelector('.custom-option[data-value="' + tgt + '"]').click();
+        await wait(300);
+    }
+
+    input.value = '{"name":"demo","port":8080,"db":{"host":"h"}}';
+    await wait(700);
+
+    await pickFormat('json', 'toml');
+    check('JSON → TOML：标量 + 子表，徽标显示 TOML', function () {
+        if (output.value.indexOf('name = "demo"') === -1) throw new Error(JSON.stringify(output.value));
+        if (output.value.indexOf('[db]') === -1) throw new Error('缺子表: ' + JSON.stringify(output.value));
+        if (resultLabel.textContent !== 'TOML') throw new Error('徽标: ' + resultLabel.textContent);
+    });
+
+    check('输出编辑器 mode 跟着目标格式走（TOML）', function () {
+        var cms = doc.querySelectorAll('#mainWorkspace .CodeMirror');
+        var mode = cms[cms.length - 1].CodeMirror.getOption('mode');
+        if (mode !== 'text/x-toml') throw new Error('mode: ' + mode);
+    });
+
+    await pickFormat('json', 'csv');
+    check('JSON → CSV：首行列名（嵌套拍平成 a.b）、次行数据', function () {
+        var lines = output.value.trim().split('\n');
+        if (lines[0].indexOf('name') === -1 || lines[0].indexOf('db.host') === -1) throw new Error('表头: ' + lines[0]);
+        if (lines[1].indexOf('demo') === -1) throw new Error('数据行: ' + lines[1]);
+    });
+
+    await pickFormat('json', 'env');
+    check('JSON → .env：嵌套拍平成 dotted key，徽标带点', function () {
+        if (output.value.indexOf('db.host=h') === -1) throw new Error(JSON.stringify(output.value));
+        if (resultLabel.textContent !== '.env') throw new Error('徽标: ' + resultLabel.textContent);
+    });
+
+    await pickFormat('json', 'headers');
+    check('JSON → Headers：Name: value', function () {
+        if (output.value.indexOf('name: demo') === -1) throw new Error(JSON.stringify(output.value));
+    });
+
+    await pickFormat('json', 'html');
+    check('JSON → HTML：出 <table> 与 <th>', function () {
+        if (output.value.indexOf('<table>') === -1) throw new Error(JSON.stringify(output.value));
+        if (output.value.indexOf('<th>name</th>') === -1) throw new Error('缺表头: ' + output.value);
+    });
+
+    await pickFormat('csv', 'json');
+    input.value = 'id,name\n1,Ada\n2,Bob';
+    await wait(700);
+    check('CSV → JSON：解析成对象数组，数字仍是数字', function () {
+        var parsed = JSON.parse(output.value);
+        if (!Array.isArray(parsed) || parsed.length !== 2) throw new Error(JSON.stringify(output.value));
+        if (parsed[0].id !== 1 || parsed[0].name !== 'Ada') throw new Error('内容: ' + JSON.stringify(parsed[0]));
+    });
+
+    await pickFormat('toml', 'json');
+    input.value = 'a = ???';
+    await wait(700);
+    check('TOML 解析失败：错误条给的是译文，不是 code', function () {
+        if (!errorBar.classList.contains('show')) throw new Error('错误条没出现');
+        if (!errorMsg.textContent.trim()) throw new Error('错误文案为空');
+        if (errorMsg.textContent.indexOf('toml') >= 0) throw new Error('露出了 code: ' + errorMsg.textContent);
+    });
+
+    input.value = 'a = 1';
+    await wait(700);
+    check('TOML 修好后恢复并转出 JSON', function () {
+        if (errorBar.classList.contains('show')) throw new Error('错误条仍在: ' + errorMsg.textContent);
+        if (output.value.indexOf('"a": 1') === -1) throw new Error('输出: ' + JSON.stringify(output.value));
+    });
     var targets = ['json', 'yaml', 'xml', 'properties'];
     for (var ti = 0; ti < targets.length; ti++) {
         sourceSelect.querySelector('.custom-option[data-value="properties"]').click();
