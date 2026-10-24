@@ -54,6 +54,7 @@ DBX 是宿主进程，插件页面把宿主拖崩就是事故。新增功能时�
 
 ## 版本与发布
 
+- **不要自己改版本号**（用户 2026-10-24 第二次强调：「不要自己乱改版本，你为啥记不住呢」）：不升 `manifest.json` / `package.json` 的 `version`，不新建 CHANGELOG 版本段，不动 `.dbx-store.json` 里 `source` 的 `vX.Y.Z`。功能做完就留在当前版本，改不改、改成多少由用户说；**连「先升再回退」也不要干**。
 - 版本号三处必须一致：`manifest.json`、`package.json`、`CHANGELOG.md` 顶部段落（`.dbx-store.json` 的 `source` 引用 vX.Y.Z、`releaseNotes` 写最新一版）。
 - CHANGELOG 按「新增 / 修复 / 工程化」三类写，条目要能被用户读懂（写清现象与原因），工程化条目给实测数字。
 - 打包用 `./scripts/build.sh`（会先跑全部单测再出 `dist/*.dbxp`）；新增测试文件记得同时加进 `scripts/build.sh` 的 `run_tests()` 与 `package.json` 的 `test`。
@@ -65,7 +66,7 @@ DBX 是宿主进程，插件页面把宿主拖崩就是事故。新增功能时�
 
 ### 四、工作流（进行中）
 
-1. ✅ **全局拖放路由**（已做）：`ui/js/flow.js` 的 `routeFile()` / `routeBatch()` 判定落页，window 级 dragenter/dragover/drop 接管，图片→图片页、xlsx/csv/tsv→表格页、json/yaml/xml/toml/ini/.env/log/md→格式转换页，未知扩展名拒收并提示。
+1. ✅ **全局拖放（按当前页，不跳页）**：`ui/js/flow.js` 的 `routeFile()` / `routeBatch()` 只判类型，**不再决定跳哪一页**（用户 2026-10-24 明确要求「在哪个功能就在哪个页面」）。`ui/index.html` 的 `checkDropRoute()` 拿 `dropKindForPage()` 比「当前页能吃哪类」，对不上只 toast 提示去哪一页；`dropLimitFor()` 统一入口体积（图片 10 MB / 表格上限 / 文本 2 MB）。宿主 `onDrop` 与浏览器 `document drop` 两条路共用这一套，`handleDroppedFiles` 也补了 `HOST_DROP_BUDGET` 总预算。
 2. ✅ **批量处理**（已做）：一次拖多个表格文件 → `mergeFiles()` 合并成 `{ 文件名: 记录[] }` 的一个 JSON，导出 `batch-N.json`；`sheetState.batch` 独立于单文件状态，切 SQL 输出会退回单文件。
 3. ⬜ **接入宿主选中内容**：`window.dbxPlugin.context` + `onContext()` 是宿主给数据的口子（dev-runtime 里确认过：`context` / `onInit` / `onContext`）。用 `flow.pickHostText()` 从任意形状的 context 里挖出选中文本，`classifyText()` 判 json / ddl / sql / text 后路由。**没做完，别忘。**
 4. ⬜ **最近使用 / 常用片段**：`flow.recentPush()` 已就绪（条数、单条 16 KB、总预算 256 KB、正文超预算降级为元信息），还缺 localStorage 与工具栏面板。
@@ -92,6 +93,14 @@ DBX 是宿主进程，插件页面把宿主拖崩就是事故。新增功能时�
 - 上限：输入 2 M 字符、30 系列、总点 5 万、单系列 2 万、宽高 80–4096（越界夹取并回写输入框 + 说明原因）。
 - jsdom 里 echarts 必崩（`clearRect` / `dpr`），所以冒烟测试 stub 掉 echarts 请求只验降级路径；真渲染用 `/tmp/imgh/check-chart.js`（CDP，21 项）。改到图表页后必须跑这三层：`chart.test.js`、`ui.smoke.js`、`check-chart.js`。
 - i18n：`NAV_I18N.navChart` + 新表 `CHART_I18N`（32 键 × 14 语）。
+
+### 七、图片页导入（已完成，0.1.6）
+
+1. 解码页（Base64 转图片）选项行有「导入文件」（`#imgImport` → `#imgTextInput`），只读文本：`.txt` / `.b64` / `.json` / `.md` 等；编码页的「选择图片」只吃图片。拖拽两侧都能用。
+2. **不换页是硬规矩**（用户 2026-10-24 明确要求）：`imgImportFile()` 先看 `imgMode`，类型不对只 `imgSetTip` 提示（`imgDropTextInstead` / `imgImportImageInstead`），绝不 `setImgMode()`。改这里前先想「会不会把用户从当前页踢走」。
+3. 「导出 → 导入」闭环靠 `DBXImg.parseInput()` 里的 `data:` 正则，所以 CSS / HTML / Markdown 三种包装导出的文件也能抓出 Base64 还原成图片。
+4. 入口限流：文件 16 MB（`IMG_TEXT_FILE_MAX`），读出后再按 `maxBase64Chars`（14 M 字符）卡一次——字节数过关不代表字符数过关，超了不塞进 textarea（14 M 字符的框会先卡）。
+5. 测试：`tests/ui.smoke.js` 三条（入口可见性 / 导入解析 / 二进制拦下），`/tmp/sb/check-imgimport.js` 23 项（含不换页、导出→导入闭环、图片文件被拦）。
 
 ## 保存 / 导出（0.1.6 定型，改之前先读这段）
 

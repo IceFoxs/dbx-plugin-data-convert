@@ -2064,6 +2064,15 @@
         /* ================= 图片 Base64 页 ================= */
         .img-options .compare-samples-label { font-size: 0.72rem; }
         .img-sample-wrap { display: inline-flex; }
+        .img-import-wrap { display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; }
+        .img-import-btn { padding: 0.24rem 0.7rem; font-size: 0.72rem; }
+        .img-import-tip {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         /* 代码生成页：根类型名输入框，跟选项行同高 */
         .code-root-input {
             width: 9.5rem;
@@ -2927,6 +2936,11 @@
             <span class="img-sample-wrap" id="imgSampleWrap">
                 <button type="button" class="sample-chip" id="imgSample" data-i18n="imgSample">示例图片</button>
             </span>
+            <!-- 解码页：Base64 存成文件时不用再打开编辑器复制，选文件即可 -->
+            <span class="img-import-wrap" id="imgImportWrap" hidden>
+                <button type="button" class="btn btn-outline img-import-btn" id="imgImport" data-i18n="imgImport">导入文件</button>
+                <span class="img-import-tip" data-i18n="imgImportTip">支持 .txt / .b64 / .json，也可以直接拖进来</span>
+            </span>
             <span class="sheet-hint" id="imgLimitHint" data-i18n="imgLimitHint">单张 ≤ 10 MB · Base64 体积约 +33%</span>
         </div>
 
@@ -2998,6 +3012,9 @@
         </div>
 
         <input type="file" id="imgFileInput" accept="image/*" hidden>
+        <!-- 解码页的文本文件（.txt / .b64 / .json）走这里；选到图片会自动切到编码页 -->
+        <input type="file" id="imgTextInput"
+               accept=".txt,.b64,.json,.md,.log,.text,.yaml,.yml,text/plain,application/json,image/*" hidden>
     </section>
 
     <!-- ================= 代码生成：JSON / SQL DDL → 多语言模型 ================= -->
@@ -7549,7 +7566,17 @@
                 imgKindSvg: 'SVG 源码',
                 imgSample: '示例图片',
                 imgLimitHint: '单张 ≤ 10 MB · Base64 体积约 +33%',
-                imgLimitHintDecode: '支持 DataURI 或裸 Base64 · 最大 14 M 字符',
+                imgLimitHintDecode: '支持 DataURI / 裸 Base64 / 文本文件 · 最大 14 M 字符',
+                imgImport: '导入文件',
+                imgImportTip: '支持 .txt / .b64 / .json，也可以直接拖进来',
+                imgImportTooLarge: '文件 {size}，超过 {max} 上限',
+                imgImportNotText: '这不是文本文件，读不出 Base64',
+                imgImportEmpty: '这个文件里没有内容',
+                imgImportFailed: '读取文件失败，换一个试试',
+                imgImported: '已导入 {name} · {size}',
+                imgImportUntitled: '未命名文件',
+                imgDropTextInstead: '这是文本文件，请切到「Base64 转图片」页导入',
+                imgImportImageInstead: '这是一张图片，请切到「图片转 Base64」页导入',
                 imgPlaceholderDecode: '在这里粘贴 DataURI 或 Base64…',
                 imgExport: '导出',
                 imgTipIdle: '还没有图片',
@@ -7604,7 +7631,17 @@
                 imgKindSvg: 'SVG 原始碼',
                 imgSample: '範例圖片',
                 imgLimitHint: '單張 ≤ 10 MB · Base64 體積約 +33%',
-                imgLimitHintDecode: '支援 DataURI 或純 Base64 · 最大 14 M 字元',
+                imgLimitHintDecode: '支援 DataURI / 純 Base64 / 文字檔 · 最大 14 M 字元',
+                imgImport: '匯入檔案',
+                imgImportTip: '支援 .txt / .b64 / .json，也可以直接拖進來',
+                imgImportTooLarge: '檔案 {size}，超過 {max} 上限',
+                imgImportNotText: '這不是文字檔，讀不出 Base64',
+                imgImportEmpty: '這個檔案裡沒有內容',
+                imgImportFailed: '讀取檔案失敗，換一個試試',
+                imgImported: '已匯入 {name} · {size}',
+                imgImportUntitled: '未命名檔案',
+                imgDropTextInstead: '這是文字檔，請切到「Base64 轉圖片」頁匯入',
+                imgImportImageInstead: '這是一張圖片，請切到「圖片轉 Base64」頁匯入',
                 imgPlaceholderDecode: '在這裡貼上 DataURI 或 Base64…',
                 imgExport: '匯出',
                 imgTipIdle: '還沒有圖片',
@@ -7659,7 +7696,17 @@
                 imgKindSvg: 'SVG source',
                 imgSample: 'Sample',
                 imgLimitHint: 'Up to 10 MB · Base64 is ~33% larger',
-                imgLimitHintDecode: 'DataURI or raw Base64 · up to 14 M chars',
+                imgLimitHintDecode: 'DataURI, raw Base64 or a text file · up to 14 M chars',
+                imgImport: 'Import file',
+                imgImportTip: '.txt, .b64 or .json — or just drop it here',
+                imgImportTooLarge: 'File is {size}, over the {max} limit',
+                imgImportNotText: 'Not a text file, no Base64 to read',
+                imgImportEmpty: 'This file is empty',
+                imgImportFailed: 'Could not read the file, try another one',
+                imgImported: 'Imported {name} · {size}',
+                imgImportUntitled: 'Untitled file',
+                imgDropTextInstead: 'That is a text file — import it on the Base64 to Image page',
+                imgImportImageInstead: 'That is an image — import it on the Image to Base64 page',
                 imgPlaceholderDecode: 'Paste a DataURI or Base64 string…',
                 imgExport: 'Export',
                 imgTipIdle: 'No image yet',
@@ -7714,7 +7761,17 @@
                 imgKindSvg: 'SVG mətni',
                 imgSample: 'Nümunə şəkil',
                 imgLimitHint: 'Bir şəkil ≤ 10 MB · Base64 həcmi təqribən +33%',
-                imgLimitHintDecode: 'DataURI və ya təmiz Base64 · maksimum 14 M simvol',
+                imgLimitHintDecode: 'DataURI, təmiz Base64 və ya mətn faylı · maksimum 14 M simvol',
+                imgImport: 'Fayl idxal et',
+                imgImportTip: '.txt, .b64 və ya .json — birbaşa buraya da atın',
+                imgImportTooLarge: 'Fayl {size}, {max} limitindən böyükdür',
+                imgImportNotText: 'Bu mətn faylı deyil, Base64 oxunmur',
+                imgImportEmpty: 'Bu fayl boşdur',
+                imgImportFailed: 'Fayl oxunmadı, başqasını sınayın',
+                imgImported: '{name} idxal edildi · {size}',
+                imgImportUntitled: 'Adsız fayl',
+                imgDropTextInstead: 'Bu mətn faylıdır — "Base64-dən şəkilə" səhifəsində idxal edin',
+                imgImportImageInstead: 'Bu şəkildir — "Şəkli Base64-ə" səhifəsində idxal edin',
                 imgPlaceholderDecode: 'DataURI və ya Base64 buraya yapışdırın…',
                 imgExport: 'İxrac et',
                 imgTipIdle: 'Hələ şəkil yoxdur',
@@ -7769,7 +7826,17 @@
                 imgKindSvg: 'Código SVG',
                 imgSample: 'Imagen de ejemplo',
                 imgLimitHint: 'Una imagen ≤ 10 MB · Base64 crece un 33% aprox.',
-                imgLimitHintDecode: 'DataURI o Base64 puro · máximo 14 M caracteres',
+                imgLimitHintDecode: 'DataURI, Base64 puro o un archivo de texto · máximo 14 M caracteres',
+                imgImport: 'Importar archivo',
+                imgImportTip: '.txt, .b64 o .json — o arrástralo aquí',
+                imgImportTooLarge: 'El archivo es {size}, supera el límite de {max}',
+                imgImportNotText: 'No es un archivo de texto, no hay Base64 que leer',
+                imgImportEmpty: 'Este archivo está vacío',
+                imgImportFailed: 'No se pudo leer el archivo, prueba con otro',
+                imgImported: 'Importado {name} · {size}',
+                imgImportUntitled: 'Archivo sin nombre',
+                imgDropTextInstead: 'Es un archivo de texto: impórtalo en la página Base64 a imagen',
+                imgImportImageInstead: 'Es una imagen: impórtala en la página Imagen a Base64',
                 imgPlaceholderDecode: 'Pega aquí un DataURI o Base64…',
                 imgExport: 'Exportar',
                 imgTipIdle: 'Todavía no hay imagen',
@@ -7824,7 +7891,17 @@
                 imgKindSvg: 'Sumber SVG',
                 imgSample: 'Contoh gambar',
                 imgLimitHint: 'Satu gambar ≤ 10 MB · Base64 sekitar +33%',
-                imgLimitHintDecode: 'DataURI atau Base64 murni · maksimal 14 M karakter',
+                imgLimitHintDecode: 'DataURI, Base64 murni, atau file teks · maksimal 14 M karakter',
+                imgImport: 'Impor file',
+                imgImportTip: '.txt, .b64, atau .json — atau tarik langsung ke sini',
+                imgImportTooLarge: 'File {size}, melebihi batas {max}',
+                imgImportNotText: 'Ini bukan file teks, tidak ada Base64 yang bisa dibaca',
+                imgImportEmpty: 'File ini kosong',
+                imgImportFailed: 'Gagal membaca file, coba yang lain',
+                imgImported: '{name} diimpor · {size}',
+                imgImportUntitled: 'File tanpa nama',
+                imgDropTextInstead: 'Ini file teks — impor di halaman Base64 ke gambar',
+                imgImportImageInstead: 'Ini gambar — impor di halaman Gambar ke Base64',
                 imgPlaceholderDecode: 'Tempel DataURI atau Base64 di sini…',
                 imgExport: 'Ekspor',
                 imgTipIdle: 'Belum ada gambar',
@@ -7879,7 +7956,17 @@
                 imgKindSvg: 'Sorgente SVG',
                 imgSample: 'Immagine di esempio',
                 imgLimitHint: 'Un\'immagine ≤ 10 MB · Base64 cresce di circa il 33%',
-                imgLimitHintDecode: 'DataURI o Base64 puro · massimo 14 M caratteri',
+                imgLimitHintDecode: 'DataURI, Base64 puro o un file di testo · massimo 14 M caratteri',
+                imgImport: 'Importa file',
+                imgImportTip: '.txt, .b64 o .json — oppure trascinalo qui',
+                imgImportTooLarge: 'Il file è {size}, oltre il limite di {max}',
+                imgImportNotText: 'Non è un file di testo, nessun Base64 da leggere',
+                imgImportEmpty: 'Questo file è vuoto',
+                imgImportFailed: 'Lettura del file non riuscita, provane un altro',
+                imgImported: 'Importato {name} · {size}',
+                imgImportUntitled: 'File senza nome',
+                imgDropTextInstead: 'È un file di testo: importalo nella pagina Base64 in immagine',
+                imgImportImageInstead: 'Questa è un\'immagine: importala nella pagina Immagine in Base64',
                 imgPlaceholderDecode: 'Incolla qui un DataURI o Base64…',
                 imgExport: 'Esporta',
                 imgTipIdle: 'Nessuna immagine',
@@ -7934,7 +8021,17 @@
                 imgKindSvg: 'SVG ソース',
                 imgSample: 'サンプル画像',
                 imgLimitHint: '1 枚 ≤ 10 MB · Base64 は約 +33%',
-                imgLimitHintDecode: 'DataURI または Base64 のみ · 最大 14 M 文字',
+                imgLimitHintDecode: 'DataURI / 生の Base64 / テキストファイル · 最大 14 M 文字',
+                imgImport: 'ファイルを読み込む',
+                imgImportTip: '.txt / .b64 / .json に対応、ここにドロップも可',
+                imgImportTooLarge: 'ファイルは {size}、上限 {max} を超えています',
+                imgImportNotText: 'テキストファイルではないため Base64 を読み出せません',
+                imgImportEmpty: 'このファイルは空です',
+                imgImportFailed: 'ファイルを読み込めませんでした。別のファイルをお試しください',
+                imgImported: '{name} を読み込みました · {size}',
+                imgImportUntitled: '名前のないファイル',
+                imgDropTextInstead: 'テキストファイルです。「Base64 → 画像」ページで読み込んでください',
+                imgImportImageInstead: '画像ファイルです。「画像 → Base64」ページで読み込んでください',
                 imgPlaceholderDecode: 'DataURI または Base64 をここに貼り付け…',
                 imgExport: '書き出し',
                 imgTipIdle: '画像がまだありません',
@@ -7989,7 +8086,17 @@
                 imgKindSvg: 'SVG 소스',
                 imgSample: '예시 이미지',
                 imgLimitHint: '이미지 1장 ≤ 10 MB · Base64는 약 +33%',
-                imgLimitHintDecode: 'DataURI 또는 순수 Base64 · 최대 14 M 문자',
+                imgLimitHintDecode: 'DataURI, 순수 Base64 또는 텍스트 파일 · 최대 14 M 문자',
+                imgImport: '파일 가져오기',
+                imgImportTip: '.txt / .b64 / .json 지원, 여기로 끌어다 놓아도 됩니다',
+                imgImportTooLarge: '파일이 {size}로 {max} 한도를 초과합니다',
+                imgImportNotText: '텍스트 파일이 아니어서 Base64를 읽을 수 없습니다',
+                imgImportEmpty: '이 파일은 비어 있습니다',
+                imgImportFailed: '파일을 읽지 못했습니다. 다른 파일을 시도해 보세요',
+                imgImported: '{name} 가져옴 · {size}',
+                imgImportUntitled: '이름 없는 파일',
+                imgDropTextInstead: '텍스트 파일입니다. "Base64 → 이미지" 페이지에서 가져오세요',
+                imgImportImageInstead: '이미지 파일입니다. "이미지 → Base64" 페이지에서 가져오세요',
                 imgPlaceholderDecode: 'DataURI 또는 Base64를 여기에 붙여넣으세요…',
                 imgExport: '내보내기',
                 imgTipIdle: '아직 이미지가 없습니다',
@@ -8044,7 +8151,17 @@
                 imgKindSvg: 'Código SVG',
                 imgSample: 'Imagem de exemplo',
                 imgLimitHint: 'Uma imagem ≤ 10 MB · Base64 cresce cerca de 33%',
-                imgLimitHintDecode: 'DataURI ou Base64 puro · máximo 14 M caracteres',
+                imgLimitHintDecode: 'DataURI, Base64 puro ou um arquivo de texto · máximo 14 M caracteres',
+                imgImport: 'Importar arquivo',
+                imgImportTip: '.txt, .b64 ou .json — ou arraste para cá',
+                imgImportTooLarge: 'O arquivo tem {size}, acima do limite de {max}',
+                imgImportNotText: 'Não é um arquivo de texto, não há Base64 para ler',
+                imgImportEmpty: 'Este arquivo está vazio',
+                imgImportFailed: 'Não foi possível ler o arquivo, tente outro',
+                imgImported: 'Importado {name} · {size}',
+                imgImportUntitled: 'Arquivo sem nome',
+                imgDropTextInstead: 'É um arquivo de texto — importe na página Base64 para imagem',
+                imgImportImageInstead: 'É uma imagem — importe na página Imagem para Base64',
                 imgPlaceholderDecode: 'Cole aqui um DataURI ou Base64…',
                 imgExport: 'Exportar',
                 imgTipIdle: 'Ainda sem imagem',
@@ -8099,7 +8216,17 @@
                 imgKindSvg: 'Źródło SVG',
                 imgSample: 'Przykładowy obraz',
                 imgLimitHint: 'Jeden obraz ≤ 10 MB · Base64 to około +33%',
-                imgLimitHintDecode: 'DataURI lub czysty Base64 · maksymalnie 14 M znaków',
+                imgLimitHintDecode: 'DataURI, czysty Base64 lub plik tekstowy · maksymalnie 14 M znaków',
+                imgImport: 'Importuj plik',
+                imgImportTip: '.txt, .b64 lub .json — możesz też go tu przeciągnąć',
+                imgImportTooLarge: 'Plik ma {size}, przekracza limit {max}',
+                imgImportNotText: 'To nie jest plik tekstowy, nie ma Base64 do odczytu',
+                imgImportEmpty: 'Ten plik jest pusty',
+                imgImportFailed: 'Nie udało się odczytać pliku, spróbuj innego',
+                imgImported: 'Zaimportowano {name} · {size}',
+                imgImportUntitled: 'Plik bez nazwy',
+                imgDropTextInstead: 'To plik tekstowy — zaimportuj go na stronie Base64 na obraz',
+                imgImportImageInstead: 'To obraz — zaimportuj go na stronie Obraz na Base64',
                 imgPlaceholderDecode: 'Wklej tutaj DataURI lub Base64…',
                 imgExport: 'Eksportuj',
                 imgTipIdle: 'Nie ma jeszcze obrazu',
@@ -8154,7 +8281,17 @@
                 imgKindSvg: 'Исходник SVG',
                 imgSample: 'Пример изображения',
                 imgLimitHint: 'Одно изображение ≤ 10 MB · Base64 примерно +33%',
-                imgLimitHintDecode: 'DataURI или чистый Base64 · максимум 14 M символов',
+                imgLimitHintDecode: 'DataURI, чистый Base64 или текстовый файл · максимум 14 M символов',
+                imgImport: 'Импорт файла',
+                imgImportTip: '.txt, .b64 или .json — можно просто перетащить сюда',
+                imgImportTooLarge: 'Файл {size}, больше лимита {max}',
+                imgImportNotText: 'Это не текстовый файл, Base64 не читается',
+                imgImportEmpty: 'Этот файл пустой',
+                imgImportFailed: 'Не удалось прочитать файл, попробуйте другой',
+                imgImported: 'Импортирован {name} · {size}',
+                imgImportUntitled: 'Файл без имени',
+                imgDropTextInstead: 'Это текстовый файл — импортируйте его на странице «Base64 в изображение»',
+                imgImportImageInstead: 'Это изображение — импортируйте его на странице «Изображение в Base64»',
                 imgPlaceholderDecode: 'Вставьте сюда DataURI или Base64…',
                 imgExport: 'Экспорт',
                 imgTipIdle: 'Изображения пока нет',
@@ -8209,7 +8346,17 @@
                 imgKindSvg: 'ซอร์ส SVG',
                 imgSample: 'รูปตัวอย่าง',
                 imgLimitHint: 'รูปเดียว ≤ 10 MB · Base64 โตขึ้นราว +33%',
-                imgLimitHintDecode: 'DataURI หรือ Base64 ล้วน · สูงสุด 14 M ตัวอักษร',
+                imgLimitHintDecode: 'DataURI / Base64 ล้วน / ไฟล์ข้อความ · สูงสุด 14 M ตัวอักษร',
+                imgImport: 'นำเข้าไฟล์',
+                imgImportTip: 'รองรับ .txt / .b64 / .json หรือลากมาวางที่นี่',
+                imgImportTooLarge: 'ไฟล์ขนาด {size} เกินขีดจำกัด {max}',
+                imgImportNotText: 'ไม่ใช่ไฟล์ข้อความ จึงอ่าน Base64 ไม่ได้',
+                imgImportEmpty: 'ไฟล์นี้ว่างเปล่า',
+                imgImportFailed: 'อ่านไฟล์ไม่สำเร็จ ลองไฟล์อื่น',
+                imgImported: 'นำเข้า {name} · {size}',
+                imgImportUntitled: 'ไฟล์ไม่มีชื่อ',
+                imgDropTextInstead: 'นี่คือไฟล์ข้อความ — นำเข้าที่หน้า Base64 เป็นรูปภาพ',
+                imgImportImageInstead: 'นี่คือรูปภาพ — นำเข้าที่หน้า รูปภาพเป็น Base64',
                 imgPlaceholderDecode: 'วาง DataURI หรือ Base64 ที่นี่…',
                 imgExport: 'ส่งออก',
                 imgTipIdle: 'ยังไม่มีรูปภาพ',
@@ -8264,7 +8411,17 @@
                 imgKindSvg: 'SVG kaynağı',
                 imgSample: 'Örnek görsel',
                 imgLimitHint: 'Görsel başına ≤ 10 MB · Base64 yaklaşık +%33',
-                imgLimitHintDecode: 'DataURI veya saf Base64 · en fazla 14 M karakter',
+                imgLimitHintDecode: 'DataURI, saf Base64 veya metin dosyası · en fazla 14 M karakter',
+                imgImport: 'Dosya içe aktar',
+                imgImportTip: '.txt, .b64 veya .json — buraya sürükleyebilirsiniz',
+                imgImportTooLarge: 'Dosya {size}, {max} sınırını aşıyor',
+                imgImportNotText: 'Bu bir metin dosyası değil, Base64 okunamıyor',
+                imgImportEmpty: 'Bu dosya boş',
+                imgImportFailed: 'Dosya okunamadı, başka bir tane deneyin',
+                imgImported: '{name} içe aktarıldı · {size}',
+                imgImportUntitled: 'Adsız dosya',
+                imgDropTextInstead: 'Bu bir metin dosyası — "Base64 → görsel" sayfasında içe aktarın',
+                imgImportImageInstead: 'Bu bir görsel — "Görsel → Base64" sayfasında içe aktarın',
                 imgPlaceholderDecode: 'DataURI veya Base64\'ü buraya yapıştırın…',
                 imgExport: 'Dışa aktar',
                 imgTipIdle: 'Henüz görsel yok',
@@ -8361,6 +8518,9 @@
         const imgProgressFill = document.getElementById('imgProgressFill');
         const imgLimitHint = document.getElementById('imgLimitHint');
         const imgFileInput = document.getElementById('imgFileInput');
+        const imgTextInput = document.getElementById('imgTextInput');
+        const imgImportWrap = document.getElementById('imgImportWrap');
+        const imgImportBtn = document.getElementById('imgImport');
         const imgMetaFile = document.getElementById('imgMetaFile');
         const imgMetaSize = document.getElementById('imgMetaSize');
         const imgMetaB64 = document.getElementById('imgMetaB64');
@@ -8377,6 +8537,8 @@
         let imgZoom = 'fit';
         // base64 超过这个长度就不再常驻全量文本，全量留给导出时临时拼一次
         const IMG_LAZY_TEXT = 2 * 1024 * 1024;
+        // 导入的 Base64 文本文件上限：14 M 字符的 ASCII 约 14 MB，留点余量后统一在入口拦下
+        const IMG_TEXT_FILE_MAX = 16 * 1024 * 1024;
 
         function imgSetTip(text, kind) {
             imgTip.textContent = text || '';
@@ -8750,7 +8912,7 @@
                     .replace('{max}', DBXImg.formatBytes(DBXImg.LIMITS.maxImageBytes)), 'error');
                 return;
             }
-            if (imgMode !== 'encode') setImgMode('encode');
+            if (imgMode !== 'encode') return;
             const job = ++imgJob;
             imgProgressSet(0);
             imgSetTip('');
@@ -8804,6 +8966,77 @@
             } finally {
                 if (job === imgJob) imgProgressSet(null);
             }
+        }
+
+        // 解码页的文件入口：文本文件当 Base64 读进来，图片自动转去编码页。
+        // 选择框、拖放都先过这里，判定只写一份
+        const IMG_TEXT_EXT = /\.(txt|b64|text|json|md|log|ya?ml|csv|env)$/i;
+
+        function imgLooksTextFile(file) {
+            const type = (file.type || '').toLowerCase();
+            if (/^text\//.test(type)) return true;
+            if (type === 'application/json' || type === 'application/xml') return true;
+            return !type && IMG_TEXT_EXT.test(file.name || '');
+        }
+
+        function imgImportFile(file) {
+            if (!file) return;
+            const name = file.name || '';
+            const looksImage = DBXImg.isImageMime(file.type) ||
+                /\.(png|jpe?g|gif|webp|bmp|ico|avif|svg)$/i.test(name);
+
+            // 不做「按类型换页」：这一页的导入只认自己那一类，另一种只提示去哪一页，
+            // 免得拖一次文件页面就被换走
+            if (imgMode === 'encode') {
+                if (!looksImage) {
+                    imgSetTip(imgT('imgDropTextInstead', '这是文本文件，请切到「Base64 转图片」页导入'), 'err');
+                    return;
+                }
+                imgOpenFile(file);
+                return;
+            }
+            if (looksImage) {
+                imgSetTip(imgT('imgImportImageInstead', '这是一张图片，请切到「图片转 Base64」页导入'), 'err');
+                return;
+            }
+            if (file.size > IMG_TEXT_FILE_MAX) {
+                imgSetTip(imgTpl('imgImportTooLarge', '文件 {size}，超过 {max} 上限', {
+                    size: DBXImg.formatBytes(file.size),
+                    max: DBXImg.formatBytes(IMG_TEXT_FILE_MAX)
+                }), 'err');
+                return;
+            }
+            if (!imgLooksTextFile(file)) {
+                imgSetTip(imgT('imgImportNotText', '这不是文本文件，读不出 Base64'), 'err');
+                return;
+            }
+            const job = ++imgJob;
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (job !== imgJob) return;
+                const text = String(reader.result || '');
+                if (!text.trim()) {
+                    imgSetTip(imgT('imgImportEmpty', '这个文件里没有内容'), 'err');
+                    return;
+                }
+                // 字节数过关不代表字符数过关（UTF-8 中文 1 字符占 3 字节）；
+                // 超了就别塞进 textarea，否则 14 M 字符的框会先把页面拖慢
+                if (text.length > DBXImg.LIMITS.maxBase64Chars) {
+                    imgSetTip(imgT('imgTipTooLong', 'Base64 文本太长，最多 14 MB（约 10 MB 图片）'), 'err');
+                    return;
+                }
+                imgInput.value = text;
+                imgSetTip(imgTpl('imgImported', '已导入 {name} · {size}', {
+                    name: name || imgT('imgImportUntitled', '未命名文件'),
+                    size: DBXImg.formatBytes(file.size)
+                }), 'ok');
+                imgDecodeNow();
+            };
+            reader.onerror = () => {
+                if (job !== imgJob) return;
+                imgSetTip(imgT('imgImportFailed', '读取文件失败，换一个试试'), 'err');
+            };
+            reader.readAsText(file);
         }
 
         // Base64 → 图片：防抖解析，别每敲一个字符就解一遍
@@ -8916,6 +9149,7 @@
             imgFormatTabs.hidden = !isEncode;
             imgFormatTabs.parentNode.querySelector('[data-i18n="imgFormatLabel"]').hidden = !isEncode;
             imgSampleWrap.hidden = !isEncode;
+            imgImportWrap.hidden = isEncode;
             imgCopyBtn.hidden = !isEncode;
             imgPickTop.hidden = !isEncode;
             imgInLabel.textContent = isEncode
@@ -8927,9 +9161,12 @@
                 : imgT('imgPreviewTitle', '预览结果');
             imgOutLabel.setAttribute('data-i18n', isEncode ? 'imgResultTitle' : 'imgPreviewTitle');
             imgInput.placeholder = imgT('imgPlaceholderDecode', '在这里粘贴 DataURI 或 Base64…');
+            const hintKey = isEncode ? 'imgLimitHint' : 'imgLimitHintDecode';
             imgLimitHint.textContent = isEncode
                 ? imgT('imgLimitHint', '单张 ≤ 10 MB · Base64 体积约 +33%')
-                : imgT('imgLimitHintDecode', '支持 DataURI 或裸 Base64 · 最大 14 M 字符');
+                : imgT('imgLimitHintDecode', '支持 DataURI / 裸 Base64 / 文本文件 · 最大 14 M 字符');
+            // data-i18n 也要跟着换，否则切语言时会被 encode 的文案覆盖回去
+            imgLimitHint.setAttribute('data-i18n', hintKey);
             imgExportBtn.textContent = isEncode
                 ? imgT('imgExport', '导出') + ' .txt'
                 : imgT('imgExport', '导出') + ' ' + (imgState.mime
@@ -9204,8 +9441,15 @@
         imgPickTop.addEventListener('click', () => imgFileInput.click());
         imgFileInput.addEventListener('change', () => {
             const file = imgFileInput.files && imgFileInput.files[0];
-            if (file) imgOpenFile(file);
+            if (file) imgImportFile(file);
             imgFileInput.value = '';
+        });
+        // 解码页的「导入文件」：导出的 .txt / .b64 直接读回来，和导出闭环
+        imgImportBtn.addEventListener('click', () => imgTextInput.click());
+        imgTextInput.addEventListener('change', () => {
+            const file = imgTextInput.files && imgTextInput.files[0];
+            if (file) imgImportFile(file);
+            imgTextInput.value = '';
         });
         imgSampleBtn.addEventListener('click', imgMakeSample);
         imgCopyBtn.addEventListener('click', imgCopy);
@@ -9267,7 +9511,7 @@
             e.preventDefault();
             imgDrop.classList.remove('dragover');
             const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-            if (file) imgOpenFile(file);
+            if (file) imgImportFile(file);
         });
         // 解码页也能直接丢：图片转去编码，文本文件读进来当 Base64
         imgInputWrap.addEventListener('dragover', (e) => e.preventDefault());
@@ -9275,17 +9519,7 @@
             const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
             if (!file) return;
             e.preventDefault();
-            if (DBXImg.isImageMime(file.type)) {
-                setImgMode('encode');
-                imgOpenFile(file);
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = () => {
-                imgInput.value = String(reader.result || '');
-                imgDecodeNow();
-            };
-            reader.readAsText(file);
+            imgImportFile(file);
         });
 
         // =========================================
@@ -10911,8 +11145,13 @@
         const FLOW_I18N = {
             'zh-CN': {
                 flowDropTitle: '松手即可导入',
-                flowDropHint: '图片、表格、文本会按类型自动打开对应页面',
+                flowDropHint: '文件会导入当前页面，不会自动换页',
                 flowDropBad: '不支持的文件类型：{e}',
+                flowDropWrongKind: '当前页只处理 {kind} 文件，请切到对应页面再拖入',
+                flowDropNoImport: '当前页没有导入功能，请切到对应功能页再拖入',
+                flowKindImage: '图片',
+                flowKindSheet: '表格',
+                flowKindText: '文本',
                 flowDropMany: '一次最多 {n} 个文件',
                 flowBatchTip: '{n} 个文件 · {m} 条记录，已合并成一个 JSON',
                 flowBatchOne: '批量处理中，左侧先预览 {f}',
@@ -10921,8 +11160,13 @@
             },
             'zh-TW': {
                 flowDropTitle: '放開即可匯入',
-                flowDropHint: '圖片、表格、文字會依類型自動開啟對應頁面',
+                flowDropHint: '檔案會匯入目前頁面，不會自動換頁',
                 flowDropBad: '不支援的檔案類型：{e}',
+                flowDropWrongKind: '目前頁面只處理 {kind} 檔案，請切到對應頁面再拖入',
+                flowDropNoImport: '目前頁面沒有匯入功能，請切到對應功能頁再拖入',
+                flowKindImage: '圖片',
+                flowKindSheet: '表格',
+                flowKindText: '文字',
                 flowDropMany: '一次最多 {n} 個檔案',
                 flowBatchTip: '{n} 個檔案 · {m} 筆記錄，已合併成一個 JSON',
                 flowBatchOne: '批次處理中，左側先預覽 {f}',
@@ -10931,8 +11175,13 @@
             },
             'en': {
                 flowDropTitle: 'Drop to import',
-                flowDropHint: 'Images, sheets and text files open the matching page automatically',
+                flowDropHint: 'Files land on the page you are on — no automatic page switch',
                 flowDropBad: 'Unsupported file type: {e}',
+                flowDropWrongKind: 'This page only takes {kind} files — switch to the matching page first',
+                flowDropNoImport: 'This page has no import — switch to a page that does first',
+                flowKindImage: 'image',
+                flowKindSheet: 'spreadsheet',
+                flowKindText: 'text',
                 flowDropMany: 'Up to {n} files at a time',
                 flowBatchTip: '{n} files · {m} records, merged into one JSON',
                 flowBatchOne: 'Batch in progress — previewing {f}',
@@ -10941,8 +11190,13 @@
             },
             'az': {
                 flowDropTitle: 'İdxal üçün buraxın',
-                flowDropHint: 'Şəkillər, cədvəllər və mətnlər uyğun səhifəni avtomatik açır',
+                flowDropHint: 'Fayllar hazırda olduğunuz səhifəyə yüklənir, səhifə avtomatik dəyişmir',
                 flowDropBad: 'Dəstəklənməyən fayl növü: {e}',
+                flowDropWrongKind: 'Bu səhifə yalnız {kind} faylları qəbul edir — əvvəlcə uyğun səhifəyə keçin',
+                flowDropNoImport: 'Bu səhifədə idxal yoxdur — əvvəlcə idxalı olan səhifəyə keçin',
+                flowKindImage: 'şəkil',
+                flowKindSheet: 'cədvəl',
+                flowKindText: 'mətn',
                 flowDropMany: 'Bir dəfəyə ən çox {n} fayl',
                 flowBatchTip: '{n} fayl · {m} qeyd bir JSON-da birləşdirildi',
                 flowBatchOne: 'Toplu emal — {f} önizləmə',
@@ -10951,8 +11205,13 @@
             },
             'es': {
                 flowDropTitle: 'Suelta para importar',
-                flowDropHint: 'Las imágenes, tablas y textos abren su página automáticamente',
+                flowDropHint: 'Los archivos se importan en la página actual, sin cambiar de página',
                 flowDropBad: 'Tipo de archivo no admitido: {e}',
+                flowDropWrongKind: 'Esta página solo acepta archivos de {kind}: cambia a la página correspondiente',
+                flowDropNoImport: 'Esta página no tiene importación: cambia antes a una que sí',
+                flowKindImage: 'imagen',
+                flowKindSheet: 'hoja de cálculo',
+                flowKindText: 'texto',
                 flowDropMany: 'Máximo {n} archivos a la vez',
                 flowBatchTip: '{n} archivos · {m} registros, unidos en un JSON',
                 flowBatchOne: 'Procesando por lotes: vista previa de {f}',
@@ -10961,8 +11220,13 @@
             },
             'id': {
                 flowDropTitle: 'Lepas untuk mengimpor',
-                flowDropHint: 'Gambar, tabel, dan teks membuka halaman yang sesuai otomatis',
+                flowDropHint: 'File masuk ke halaman yang sedang dibuka, tanpa pindah halaman',
                 flowDropBad: 'Jenis file tidak didukung: {e}',
+                flowDropWrongKind: 'Halaman ini hanya menerima file {kind} — pindah ke halaman yang sesuai dulu',
+                flowDropNoImport: 'Halaman ini tidak punya impor — pindah ke halaman yang mendukung dulu',
+                flowKindImage: 'gambar',
+                flowKindSheet: 'spreadsheet',
+                flowKindText: 'teks',
                 flowDropMany: 'Maksimal {n} file sekaligus',
                 flowBatchTip: '{n} file · {m} catatan, digabung jadi satu JSON',
                 flowBatchOne: 'Memproses batch — pratinjau {f}',
@@ -10971,8 +11235,13 @@
             },
             'it': {
                 flowDropTitle: 'Rilascia per importare',
-                flowDropHint: 'Immagini, tabelle e testi aprono la pagina corrispondente',
+                flowDropHint: 'I file si aprono nella pagina corrente, senza cambiare pagina',
                 flowDropBad: 'Tipo di file non supportato: {e}',
+                flowDropWrongKind: 'Questa pagina accetta solo file {kind}: passa alla pagina corrispondente',
+                flowDropNoImport: 'Questa pagina non ha importazione: passa a una pagina che lo supporta',
+                flowKindImage: 'immagine',
+                flowKindSheet: 'foglio di calcolo',
+                flowKindText: 'testo',
                 flowDropMany: 'Massimo {n} file alla volta',
                 flowBatchTip: '{n} file · {m} record, uniti in un solo JSON',
                 flowBatchOne: 'Elaborazione batch — anteprima di {f}',
@@ -10981,8 +11250,13 @@
             },
             'ja': {
                 flowDropTitle: 'ドロップで読み込み',
-                flowDropHint: '画像・表・テキストは種類に応じて対応ページを開きます',
+                flowDropHint: 'ファイルは今のページに読み込まれ、自動でページは切り替わりません',
                 flowDropBad: '未対応のファイル形式：{e}',
+                flowDropWrongKind: 'このページは{kind}ファイル専用です。対応するページに切り替えてください',
+                flowDropNoImport: 'このページには読み込み機能がありません。対応するページに切り替えてください',
+                flowKindImage: '画像',
+                flowKindSheet: '表計算',
+                flowKindText: 'テキスト',
                 flowDropMany: '一度に最大 {n} ファイル',
                 flowBatchTip: '{n} ファイル · {m} 件のレコードを 1 つの JSON に統合しました',
                 flowBatchOne: 'バッチ処理中 — {f} を表示',
@@ -10991,8 +11265,13 @@
             },
             'ko': {
                 flowDropTitle: '놓으면 가져옵니다',
-                flowDropHint: '이미지·표·텍스트는 종류에 따라 해당 페이지가 열립니다',
+                flowDropHint: '파일은 현재 페이지로 들어오며 자동으로 페이지가 바뀌지 않습니다',
                 flowDropBad: '지원하지 않는 파일 형식: {e}',
+                flowDropWrongKind: '이 페이지는 {kind} 파일만 처리합니다. 해당 페이지로 이동하세요',
+                flowDropNoImport: '이 페이지에는 가져오기 기능이 없습니다. 지원하는 페이지로 이동하세요',
+                flowKindImage: '이미지',
+                flowKindSheet: '스프레드시트',
+                flowKindText: '텍스트',
                 flowDropMany: '한 번에 최대 {n}개 파일',
                 flowBatchTip: '{n}개 파일 · {m}개 레코드를 하나의 JSON으로 합쳤습니다',
                 flowBatchOne: '일괄 처리 중 — {f} 미리보기',
@@ -11001,8 +11280,13 @@
             },
             'pt': {
                 flowDropTitle: 'Solte para importar',
-                flowDropHint: 'Imagens, tabelas e textos abrem a página correspondente',
+                flowDropHint: 'Os arquivos entram na página atual, sem trocar de página',
                 flowDropBad: 'Tipo de arquivo não suportado: {e}',
+                flowDropWrongKind: 'Esta página só aceita arquivos de {kind} — troque para a página correspondente',
+                flowDropNoImport: 'Esta página não tem importação — troque antes para uma que tenha',
+                flowKindImage: 'imagem',
+                flowKindSheet: 'planilha',
+                flowKindText: 'texto',
                 flowDropMany: 'No máximo {n} arquivos por vez',
                 flowBatchTip: '{n} arquivos · {m} registros, unidos em um JSON',
                 flowBatchOne: 'Processando em lote — visualizando {f}',
@@ -11011,8 +11295,13 @@
             },
             'pl': {
                 flowDropTitle: 'Upuść, aby zaimportować',
-                flowDropHint: 'Obrazy, tabele i teksty otwierają odpowiednią stronę',
+                flowDropHint: 'Pliki trafiają na bieżącą stronę, bez automatycznego przełączania',
                 flowDropBad: 'Nieobsługiwany typ pliku: {e}',
+                flowDropWrongKind: 'Ta strona przyjmuje tylko pliki {kind} — przełącz się na właściwą stronę',
+                flowDropNoImport: 'Ta strona nie ma importu — przełącz się najpierw na stronę, która go ma',
+                flowKindImage: 'obraz',
+                flowKindSheet: 'arkusz',
+                flowKindText: 'tekst',
                 flowDropMany: 'Maksymalnie {n} plików naraz',
                 flowBatchTip: '{n} plików · {m} rekordów scalonych w jeden JSON',
                 flowBatchOne: 'Przetwarzanie wsadowe — podgląd {f}',
@@ -11021,8 +11310,13 @@
             },
             'ru': {
                 flowDropTitle: 'Отпустите для импорта',
-                flowDropHint: 'Изображения, таблицы и текст открывают нужную страницу',
+                flowDropHint: 'Файлы загружаются на текущую страницу, без автоматического перехода',
                 flowDropBad: 'Неподдерживаемый тип файла: {e}',
+                flowDropWrongKind: 'Эта страница принимает только файлы {kind} — перейдите на нужную страницу',
+                flowDropNoImport: 'На этой странице нет импорта — сначала перейдите на подходящую',
+                flowKindImage: 'изображение',
+                flowKindSheet: 'таблица',
+                flowKindText: 'текст',
                 flowDropMany: 'Не более {n} файлов за раз',
                 flowBatchTip: '{n} файлов · {m} записей объединены в один JSON',
                 flowBatchOne: 'Пакетная обработка — предпросмотр {f}',
@@ -11031,8 +11325,13 @@
             },
             'th': {
                 flowDropTitle: 'ปล่อยเพื่อนำเข้า',
-                flowDropHint: 'รูปภาพ ตาราง และข้อความจะเปิดหน้าที่ตรงกันโดยอัตโนมัติ',
+                flowDropHint: 'ไฟล์จะเข้าสู่หน้าปัจจุบัน ไม่สลับหน้าให้อัตโนมัติ',
                 flowDropBad: 'ชนิดไฟล์ที่ไม่รองรับ: {e}',
+                flowDropWrongKind: 'หน้านี้รับเฉพาะไฟล์{kind} — ไปที่หน้าที่ตรงกันก่อน',
+                flowDropNoImport: 'หน้านี้ไม่มีการนำเข้า — ไปที่หน้าที่รองรับก่อน',
+                flowKindImage: 'รูปภาพ',
+                flowKindSheet: 'ตาราง',
+                flowKindText: 'ข้อความ',
                 flowDropMany: 'ครั้งละไม่เกิน {n} ไฟล์',
                 flowBatchTip: '{n} ไฟล์ · {m} ระเบียน รวมเป็น JSON เดียว',
                 flowBatchOne: 'กำลังประมวลผลเป็นชุด — ดูตัวอย่าง {f}',
@@ -11041,8 +11340,13 @@
             },
             'tr': {
                 flowDropTitle: 'İçe aktarmak için bırakın',
-                flowDropHint: 'Görseller, tablolar ve metinler ilgili sayfayı açar',
+                flowDropHint: 'Dosyalar bulunduğunuz sayfaya yüklenir, sayfa otomatik değişmez',
                 flowDropBad: 'Desteklenmeyen dosya türü: {e}',
+                flowDropWrongKind: 'Bu sayfa yalnızca {kind} dosyaları kabul eder — önce ilgili sayfaya geçin',
+                flowDropNoImport: 'Bu sayfada içe aktarma yok — önce destekleyen bir sayfaya geçin',
+                flowKindImage: 'görsel',
+                flowKindSheet: 'tablo',
+                flowKindText: 'metin',
                 flowDropMany: 'Tek seferde en fazla {n} dosya',
                 flowBatchTip: '{n} dosya · {m} kayıt tek bir JSON\'da birleştirildi',
                 flowBatchOne: 'Toplu işleniyor — {f} önizleniyor',
@@ -13800,6 +14104,44 @@
             try { ft.cancel(entry.handleId); } catch (err) { /* 句柄可能已回收 */ }
         }
 
+        // 当前页能接哪一类文件：'' 表示格式转换页（按文本处理），其余页没有导入口
+        function dropKindForPage() {
+            const page = currentPageId();
+            if (page === 'navImage') return 'image';
+            if (page === 'navSheet') return 'sheet';
+            if (page === '') return 'text';
+            return '';
+        }
+
+        // 拖放前的守门：只看「当前页能不能吃这个类型」，绝不替用户切页
+        function checkDropRoute(route) {
+            const pageKind = dropKindForPage();
+            if (!pageKind) {
+                return { ok: false, msg: fT('flowDropNoImport', '当前页没有导入功能，请切到对应功能页再拖入') };
+            }
+            if (route.kind !== pageKind) {
+                const kindName = pageKind === 'image' ? fT('flowKindImage', '图片')
+                    : (pageKind === 'sheet' ? fT('flowKindSheet', '表格') : fT('flowKindText', '文本'));
+                return {
+                    ok: false,
+                    msg: fT('flowDropWrongKind', '当前页只处理 {kind} 文件，请切到对应页面再拖入')
+                        .replace('{kind}', kindName)
+                };
+            }
+            // 图片页停在解码模式时不吃图片，免得把人从「Base64 转图片」踢走
+            if (route.kind === 'image' && imgMode !== 'encode') {
+                return { ok: false, msg: imgT('imgImportImageInstead', '这是一张图片，请切到「图片转 Base64」页导入') };
+            }
+            return { ok: true };
+        }
+
+        // 每类文件在入口就该拦下的体积（文本页用 2 M 字符预算，和宿主路径一致）
+        function dropLimitFor(kind) {
+            if (kind === 'image') return DBXImg.LIMITS.maxImageBytes;
+            if (kind === 'sheet') return SHEET_LIMITS.maxFileBytes;
+            return window.DBXFlow ? DBXFlow.LIMITS.hostText : 2 * 1024 * 1024;
+        }
+
         async function handleHostDrop(entries) {
             const flow = window.DBXFlow;
             if (!flow || !entries || !entries.length) return;
@@ -13818,8 +14160,16 @@
                     .replace('{e}', flow.extOf((list[0] && list[0].name) || '') || '—'), 'error');
                 return;
             }
-            const perFile = route.kind === 'image' ? DBXImg.LIMITS.maxImageBytes
-                : (route.kind === 'sheet' ? SHEET_LIMITS.maxFileBytes : flow.LIMITS.hostText);
+
+            // 拖进来的文件只交给当前页消化：以前按扩展名自动进图片页 / 表格页 / 格式转换页，
+            // 拖错一次页面就被换走。现在页面不动，类型对不上就说清楚该去哪一页
+            const verdict = checkDropRoute(route);
+            if (!verdict.ok) {
+                list.forEach(releaseEntry);
+                showToast(verdict.msg, 'error');
+                return;
+            }
+            const perFile = dropLimitFor(route.kind);
 
             // 图片页、文本页一次只处理一个文件，多拖的没必要读进内存
             const need = route.kind === 'sheet' ? list.length : 1;
@@ -13850,12 +14200,10 @@
             if (!files.length) return;
 
             if (route.kind === 'image') {
-                enterImageMode();
                 imgOpenFile(files[0]);
                 return;
             }
             if (route.kind === 'sheet') {
-                enterSheetMode();
                 if (files.length > 1) openSheetBatch(files);
                 else openSheetFile(files[0]);
                 return;
@@ -14058,18 +14406,45 @@
                 showToast(fT('flowDropBad', '不支持的文件类型：{e}').replace('{e}', flow.extOf(list[0].name) || '—'), 'error');
                 return;
             }
+            const verdict = checkDropRoute(route);
+            if (!verdict.ok) {
+                showToast(verdict.msg, 'error');
+                return;
+            }
+            // 浏览器路径以前不看体积：拖一个几百 MB 的 txt 会整段读进内存再塞进编辑器。
+            // 现在和宿主路径同一个入口上限，读之前就拦掉
+            const perFile = dropLimitFor(route.kind);
+            let used = 0;
+            const keep = [];
+            for (let i = 0; i < list.length; i++) {
+                const f = list[i];
+                const size = Number(f.size || 0);
+                if (size > perFile) {
+                    showToast(dropTooBig(f.name, size, perFile), 'error');
+                    continue;
+                }
+                if (used + size > HOST_DROP_BUDGET) {
+                    showToast(dropTooBig(f.name, size, HOST_DROP_BUDGET), 'error');
+                    break;
+                }
+                used += size;
+                keep.push(f);
+            }
+            if (!keep.length) return;
+            list = keep;
             if (route.kind === 'image') {
-                enterImageMode();
                 imgOpenFile(list[0]);
                 return;
             }
             if (route.kind === 'sheet') {
-                enterSheetMode();
                 if (list.length > 1) openSheetBatch(list);
                 else openSheetFile(list[0]);
                 return;
             }
-            loadTextFileIntoConvert(list[0], route.items[0].format);
+            // 体积过滤后第一个留下的文件可能不是原来那个，格式要按它在原数组的位置取
+            const origin = files.indexOf(list[0]);
+            const firstItem = route.items[origin >= 0 ? origin : 0] || route.items[0] || {};
+            loadTextFileIntoConvert(list[0], firstItem.format);
         }
 
         renderLangMenu();

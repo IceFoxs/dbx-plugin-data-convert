@@ -1008,6 +1008,9 @@ function check(name, fn) {
     var imgOutputWrap = doc.getElementById('imgOutputWrap');
     var imgFormatTabs = doc.getElementById('imgFormat');
     var imgSampleWrap = doc.getElementById('imgSampleWrap');
+    var imgImportWrap = doc.getElementById('imgImportWrap');
+    var imgImportBtn = doc.getElementById('imgImport');
+    var imgTextInput = doc.getElementById('imgTextInput');
     var imgCopyBtn = doc.getElementById('imgCopy');
     var imgTip = doc.getElementById('imgTip');
     var imgMetaB64 = doc.getElementById('imgMetaB64');
@@ -1085,6 +1088,42 @@ function check(name, fn) {
     check('带 data: 前缀的 DataURI 同样能解，且标注为 DataURI', function () {
         if (imgTip.textContent.indexOf('DataURI') < 0) throw new Error('没标出 DataURI：' + imgTip.textContent);
         if (imgTip.textContent.indexOf('image/png') < 0) throw new Error('没识别出 PNG');
+    });
+
+    check('解码页有「导入文件」，编码页不显示', function () {
+        if (imgImportWrap.hidden) throw new Error('解码页没显示导入入口');
+        if (!imgImportBtn || imgImportBtn.hidden) throw new Error('导入按钮不可见');
+        var accept = imgTextInput.getAttribute('accept') || '';
+        if (accept.indexOf('.txt') < 0 || accept.indexOf('.b64') < 0) {
+            throw new Error('accept 没放开文本类型：' + accept);
+        }
+        doc.querySelector('#imgModeTabs [data-mode="encode"]').click();
+        if (!imgImportWrap.hidden) throw new Error('编码页不该显示导入入口（那里有选择图片）');
+        doc.querySelector('#imgModeTabs [data-mode="decode"]').click();
+        if (imgImportWrap.hidden) throw new Error('切回解码页后导入入口没回来');
+    });
+
+    // 导入闭环：图片页导出的 .txt（DataURI）能被解码页直接读回来
+    var importFile = new win.File(['data:image/png;base64,' + PNG_B64], 'exported.txt', { type: 'text/plain' });
+    Object.defineProperty(imgTextInput, 'files', { value: [importFile], configurable: true });
+    imgTextInput.dispatchEvent(new win.Event('change'));
+    await wait(600);
+
+    check('导入 .txt 文件：内容进输入框、自动解析成图片', function () {
+        if (imgTextarea.value.indexOf('data:image/png;base64,') !== 0) {
+            throw new Error('文件内容没读进输入框：' + String(imgTextarea.value).slice(0, 40));
+        }
+        var src = doc.getElementById('imgDecodeImg').getAttribute('src') || '';
+        if (src.indexOf('data:image/png;base64,') !== 0) throw new Error('导入后没解析出图片');
+        if (imgTip.textContent.indexOf('image/png') < 0) throw new Error('没嗅探出 PNG：' + imgTip.textContent);
+    });
+
+    check('导入非文本文件被拦下（不硬读成乱码）', function () {
+        var bin = new win.File([new Uint8Array([1, 2, 3, 4])], 'blob.bin', { type: 'application/octet-stream' });
+        Object.defineProperty(imgTextInput, 'files', { value: [bin], configurable: true });
+        imgTextInput.dispatchEvent(new win.Event('change'));
+        if (imgTip.textContent.indexOf('不是文本文件') < 0) throw new Error('提示不对：' + imgTip.textContent);
+        if (imgTip.className.indexOf('err') < 0) throw new Error('没标成错误态');
     });
 
     imgTextarea.value = 'hello world ###';
@@ -1989,8 +2028,8 @@ function check(name, fn) {
     dropFiles([{ name: 'data.json', text: '{"a":1,"b":[1,2]}' }]);
     await wait(500);
 
-    check('拖入 JSON 文件：切到格式转换页并认出源格式', function () {
-        if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('没回到转换页');
+    check('拖入 JSON：留在格式转换页并认出源格式', function () {
+        if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('不在转换页');
         if (input.value.indexOf('"a"') < 0) throw new Error('内容没载入');
         var src = doc.querySelector('#sourceSelect .custom-select-trigger .label').textContent.trim().toLowerCase();
         if (src !== 'json') throw new Error('源格式是 ' + src);
@@ -1998,10 +2037,22 @@ function check(name, fn) {
     });
 
     dropFiles([{ name: 'users.csv', text: 'id,name\n1,Ada\n2,Bob\n' }]);
+    await wait(700);
+
+    check('在格式转换页拖 CSV：只提示去哪一页，页面不动', function () {
+        if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('页面被换走了');
+        if (doc.getElementById('sheetWorkspace').classList.contains('active')) throw new Error('不该自动进表格页');
+        var toasts = [].map.call(doc.querySelectorAll('.toast'), function (t) { return t.textContent; }).join('|');
+        if (toasts.indexOf('只处理') < 0 && toasts.indexOf('表格') < 0) throw new Error('没有提示: ' + toasts);
+    });
+
+    doc.getElementById('navSheet').click();
+    await wait(300);
+    dropFiles([{ name: 'users.csv', text: 'id,name\n1,Ada\n2,Bob\n' }]);
     await wait(900);
 
-    check('拖入 CSV：进表格页并解析出记录', function () {
-        if (!doc.getElementById('sheetWorkspace').classList.contains('active')) throw new Error('没进表格页');
+    check('进了表格页再拖 CSV：解析出记录', function () {
+        if (!doc.getElementById('sheetWorkspace').classList.contains('active')) throw new Error('不在表格页');
         if (cmText('sheetOutputText').indexOf('Ada') < 0) throw new Error('没解析出数据');
     });
 
@@ -2399,20 +2450,32 @@ function check(name, fn) {
         await feed([{ name: 'data.json', text: '{"a":1,"b":[1,2]}' }]);
         await wait(600);
 
-        check('宿主拖入 JSON：切到格式转换页、认出源格式并自动转换', function () {
+        check('宿主拖入 JSON：留在格式转换页、认出源格式并自动转换', function () {
             var input = d2.getElementById('inputText');
             if (!input || input.value.indexOf('"a"') < 0) throw new Error('内容没载入');
-            if (d2.querySelector('.toolbar').classList.contains('hidden')) throw new Error('没回到转换页');
+            if (d2.querySelector('.toolbar').classList.contains('hidden')) throw new Error('不在转换页');
             var src = d2.querySelector('#sourceSelect .custom-select-trigger .label').textContent.trim().toLowerCase();
             if (src !== 'json') throw new Error('源格式是 ' + src);
             if (!d2.getElementById('outputText').value.trim()) throw new Error('没有自动转换');
         });
 
         await feed([{ name: 'users.csv', text: 'id,name\n1,Ada\n2,Bob\n' }]);
+        await wait(700);
+
+        check('宿主在格式转换页拖 CSV：只提示去向，不自动跳页', function () {
+            if (d2.getElementById('sheetWorkspace').classList.contains('active')) throw new Error('不该自动进表格页');
+            if (d2.querySelector('.toolbar').classList.contains('hidden')) throw new Error('页面被换走了');
+            var msg = toastText();
+            if (msg.indexOf('只处理') < 0 && msg.indexOf('表格') < 0) throw new Error('没有提示: ' + msg);
+        });
+
+        d2.getElementById('navSheet').click();
+        await wait(300);
+        await feed([{ name: 'users.csv', text: 'id,name\n1,Ada\n2,Bob\n' }]);
         await wait(900);
 
-        check('宿主拖入 CSV：进表格页并解析出记录', function () {
-            if (!d2.getElementById('sheetWorkspace').classList.contains('active')) throw new Error('没进表格页');
+        check('宿主在表格页拖 CSV：解析出记录', function () {
+            if (!d2.getElementById('sheetWorkspace').classList.contains('active')) throw new Error('不在表格页');
             if (cmText2('sheetOutputText').indexOf('Ada') < 0) throw new Error('没解析出数据');
         });
 
