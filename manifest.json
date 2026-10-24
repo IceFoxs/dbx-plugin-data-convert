@@ -3,7 +3,7 @@
   "manifest_version": 1,
   "id": "io.github.icefoxs.data-convert",
   "name": "数据转换工具",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "publisher": "icefoxs",
   "description": "🛠️ 一个面板搞定数据搬运：13 种格式（JSON / YAML / XML / Properties / TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML）任意互转、JSONPath / jq 查询与 JSON Schema 校验、8 种转义工具、字节换算（1000 / 1024 两套进制）、批量文本生成 SQL、Excel / CSV 转 JSON、图片 ↔ Base64，以及 JSON 或 CREATE TABLE 直接生成 TypeScript / Go / Java / Python 模型。纯前端、不联网、可离线。",
   "source": "https://github.com/IceFoxs/dbx-plugin-data-convert",
