@@ -72,6 +72,7 @@ var tables = {
     QUERY_I18N: readLiteral(html, 'QUERY_I18N'),
     ESC_I18N: readLiteral(html, 'ESC_I18N'),
     BYTES_I18N: readLiteral(html, 'BYTES_I18N'),
+    CHART_I18N: readLiteral(html, 'CHART_I18N'),
     FLOW_I18N: readLiteral(html, 'FLOW_I18N')
 };
 

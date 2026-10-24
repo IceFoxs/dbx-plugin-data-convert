@@ -80,7 +80,41 @@ DBX 是宿主进程，插件页面把宿主拖崩就是事故。新增功能时�
 - 上限：序列 8 KB、数值 1e18、批量 200 行、预览 2 K 字符（复制拿全文）。
 - i18n：`NAV_I18N.navBytes` + 新表 `BYTES_I18N`（19 键 × 14 语），i18n 测试已纳入。
 
+### 六、JSON 转图表（已完成，0.1.6）
+
+独立导航页（第 9 项，紧跟「字节转换」），`ui/js/chart.js` 纯函数 + `#chartWorkspace`。用户明确要过「参考 `striezel/echarts-node-export-server`」「用官方 6.1.0」「**默认宽 700 × 高 400**」。
+
+- 输入既可以是完整 ECharts option（`series` 存在即认），也可以只是数据：`points` / `pairs` / `map`，自动判形状挑类型；完整 option 时类型下拉禁用。
+- **智能解析是这块的核心竞争力**（用户拿真实接口返回提的需求）：`findInside()` 递归剥外层（≤3 层，键名+内容双打分），认 `{"biz":{"echart_option":"{…}"}}` 这种「业务 key + 序列化字符串」；`collectOptions()` 收集一份或多份 JSON 里的所有 option（预算 300 节点），UI 用 `#chartPick` 下拉切换；`splitJsonDocs()` 自己配平括号切 NDJSON / `{…}{…}`。改这块先看 `tests/chart.test.js` 的「智能解析」「多个 option」「多份 JSON」三节。
+- **预览必须 1:1**：`.chart-stage` 是 `justify-content: flex-start` + `.chart-canvas{margin:auto}`（居中布局会让超宽画布左半截滚不回去），并在 `chartApply()` 里用 important 钉住 `max-width/height:none` 防宿主把 canvas 压扁。别加 `object-fit:none`（HiDPI 会毁渲染）。
+- **导出与预览共用同一份 `chartResult.option`**（都 `animation:false`）：PNG 走 `chartRenderPng()`（临时实例 + `devicePixelRatio` + 显式 `pixelRatio`，见上节），SVG 走 `ssr:true` 实例 + `renderToSVGString()`。别把这两条路改成各自 build 一次 option，否则两边会不一样。
+- 引擎 `ui/vendor/echarts/echarts.min.js`（6.1.0 全量 1.1 MB，Apache-2.0，附 LICENSE）。**不能用 `echarts.simple.min.js`**（缺 radar / treemap / dataZoom）。`loadChartEngine()` 懒加载，失败不缓存 promise；离开页面 dispose。
+- 上限：输入 2 M 字符、30 系列、总点 5 万、单系列 2 万、宽高 80–4096（越界夹取并回写输入框 + 说明原因）。
+- jsdom 里 echarts 必崩（`clearRect` / `dpr`），所以冒烟测试 stub 掉 echarts 请求只验降级路径；真渲染用 `/tmp/imgh/check-chart.js`（CDP，21 项）。改到图表页后必须跑这三层：`chart.test.js`、`ui.smoke.js`、`check-chart.js`。
+- i18n：`NAV_I18N.navChart` + 新表 `CHART_I18N`（32 键 × 14 语）。
+
+## 保存 / 导出（0.1.6 定型，改之前先读这段）
+
+1. **唯一入口**：`saveTextFile(name, text, mime)` / `saveBinaryFile(name, base64, mime)`（`ui/index.html` 约 7200 行）。返回 **`host` / `browser` / `cancelled` / `failed`** 四态，调用方一律 `saveToast(status, okText)` 报结果。**不要再出现「不管成功失败都弹已导出」**——那正是用户两次反馈「导出不生效」的直接原因。
+2. **写法照 aes-tools**：`beginSave` 同步调用放进 try/catch 先拿 Promise（宿主同步抛错也能当场接住），写盘在 IIFE 里 `await`；中途失败先 `ft.cancel(handleId)` 再回退浏览器下载。**不要写成 `const handle = await ft.beginSave(...)`**。
+3. **`dbx-plugin dev` 里导出不可用是预期**（dev 宿主没有 `fileTransfer`，iframe 是 `sandbox="allow-scripts"` 禁下载）。用户已确认这一点，别为 dev 改正式逻辑，也别在 dev 下假装成功。
+4. **验证方法**：`/tmp/sb/check-scale.js` 的思路——拦 `URL.createObjectURL` 拿 Blob，直接读 PNG 的 IHDR（第 16..24 字节大端宽高），比加载图片更可靠。
+
+## 图表像素比（1x / 2x / 3x）
+
+1. 下拉 `#chartScale`（`.custom-select` 自绘），`data-label` 存触发器短标签（`2x`）、`data-value` 存倍率；选项里 `<span class="chart-opt-size">` 显示该档实际像素，`chartFillScale()` 在尺寸变化时重算。
+2. `initCustomSelect` / `syncSelectLabel` 取文案优先用 `opt.dataset.label`，否则含附加信息的选项会把窄触发器撑爆。
+3. 导出 PNG 走 `chartRenderPng(option, w, h, ratio)`：单独起临时实例（`devicePixelRatio: ratio` + `animation:false`）再取图。**取图时必须显式传 `pixelRatio: ratio`**——zrender 用的是「逻辑宽高 × pixelRatio」，不读实例的 dpr，只传 1 会老实地返回 700×400（已实测）。
+4. 「放大查看」灯箱也走同一条路，标题写真实像素 + 倍率；`chartSafeScale()` 按 2400 万像素封顶自动降档（4096²@3x → 1x）。
+5. **命名要查全局**：`chartScaleNow` 已被预览缩放占用（`(w,h)` 那版），像素比函数叫 `chartPixelRatio()`。同名函数声明会互相覆盖，症状是「UI 都对了但取值永远是 1」。
+
+## 工具坑（省时间）
+
+1. macOS 自带 **BSD grep 不支持 `\s`、`\|`、`{0,300}`**：多模式一律 `grep -E "a|b"`，需要 `\s` 就用 `[[:space:]]` 或 node 脚本；否则会得到「空结果」并且误判成「文件里没有」。
+2. 十几万行的 `ui/index.html` 用 `Grep` 工具或 `sed -n`，别用裸 `grep` 拼管道。
+3. 批量插 i18n 用 node 脚本按锚点键逐语言插入（`/tmp/patch-*.js` 那套路），插完必须跑 `node tests/i18n.test.js`——漏逗号、切断字符串（意大利语 `l\'immagine`）都真发生过。
+
 ### 每次开工前都要想起的两条约束
 
-1. 每加一页 ≈ 20–50 个 i18n 键 × 14 种语言；`ui/index.html` 已 11.9 k 行，新文案进独立小字典（`BYTES_I18N` / `FLOW_I18N` 那套路，现在共 10 张表），别继续堆主字典。
+1. 每加一页 ≈ 20–50 个 i18n 键 × 14 种语言；`ui/index.html` 已 12.9 k 行，新文案进独立小字典（`BYTES_I18N` / `CHART_I18N` / `FLOW_I18N` 那套路，现在共 11 张表），别继续堆主字典。
 2. 新功能一旦要碰 DOM / 大文本，先按「性能与稳定性」七条自查，尤其入口限流与大字符串不驻留。

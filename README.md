@@ -1,6 +1,6 @@
 # 数据转换 (Data Format Converter)
 
-A [DBX](https://dbxio.com) plugin that moves data between formats without leaving the workbench: JSON / YAML / XML / Properties conversion, a field-level diff, a batch-value SQL builder, Excel / CSV → JSON, Image ⇄ Base64, JSON / `CREATE TABLE` straight into model code, JSONPath / jq queries with JSON Schema validation, an escape toolbox and byte conversion (1000 and 1024 scales). Built from the **frontend-only (universal)** template — one cross-platform `.dbxp`, no native backend, no network calls, works offline.
+A [DBX](https://dbxio.com) plugin that moves data between formats without leaving the workbench: JSON / YAML / XML / Properties conversion, a field-level diff, a batch-value SQL builder, Excel / CSV → JSON, Image ⇄ Base64, JSON / `CREATE TABLE` straight into model code, JSONPath / jq queries with JSON Schema validation, an escape toolbox, byte conversion (1000 and 1024 scales) and JSON straight into an ECharts chart exported as PNG / SVG. Built from the **frontend-only (universal)** template — one cross-platform `.dbxp`, no native backend, no network calls, works offline.
 
 ![Data Format Converter workbench](docs/screen.png)
 
@@ -19,6 +19,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 | **Query & Validate** | JSONPath / jq expressions over a JSON document, JSON Schema (draft-07) validation with path + reason per error, one-click schema inference from data |
 | **Escape** | URL / Base64 / HTML / JSON string / `\uXXXX` / hex / SQL literal / regex — encode and decode, with a one-click direction flip |
 | **Byte converter** | B / KB / MB / GB / TB / PB on both the 1000 and 1024 scales, exact value ⇄ human readable, batch totals, hex dump / byte array / binary string forms, and every value copies on its own without thousands separators |
+| **JSON to Chart** | An ECharts option (or an array of numbers / objects) drawn as a chart, custom width & height, PNG export at 1x / 2x / 3x and vector SVG, plus a full-screen lightbox; the chart engine ships inside the package, no network |
 
 ## Convert
 
@@ -113,6 +114,23 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 ![Byte converter page](docs/screen-bytes.png)
 
+## JSON to Chart
+
+- **Paste an option, get a chart** — drop a full **ECharts option** on the left (`title` / `xAxis` / `yAxis` / `series` / `dataset` all understood) and the right pane renders exactly that configuration: line, bar, pie, scatter, radar, treemap and every other ECharts chart type works. No API to memorise — copy an option from the official examples and look at it immediately.
+- **Bare data is enough** — paste an array of numbers (`[820, 932, 901]`), an array of named objects (`[{ "name": "Jan", "value": 820 }]`), a mapping (`{"Jan": 820, "Feb": 932}`) or `[[x, y]]` pairs and the shape is detected and matched to a sensible type; the toolbar switches between line / bar / area / pie / scatter. For a full option the dropdown keeps working: **Auto** follows `series.type` from the JSON, and picking line / bar / area / pie / scatter overrides it (the first three just swap `series.type`, pie rebuilds from the category names plus the first series) — never leaving you with a blank canvas after a switch.
+- **API responses need no unwrapping** — plenty of backends bury the option under a business key, as a string: paste `{"monthly_trend":{"echart_option":"{…}","table_data":null,"biz_data":{}}}` as it is. Keys such as `echart_option` / `chartOption` / `chart_config` / `option` / `data` / `result` are ranked together with the content, up to three layers are peeled, and a double-encoded string (JSON inside a JSON string) is decoded too. The status line says *Parsed from monthly_trend.echart_option* instead of silently swapping what you pasted.
+- **Several charts in one JSON, or several JSONs at once** — when a response holds more than one chart (`{"a":{"echart_option":…},"b":{…}}`, `{"charts":[option, option]}`, sibling `option1` / `option2` keys) a **Chart** dropdown appears in the toolbar, listing them by title; picking one redraws. One JSON per line (NDJSON) or back-to-back `{…}{…}` is split as well, with paths shown as `#1…` / `#2…`, while one number per line merges into a single line chart.
+- **See the whole chart, then zoom in** — when the canvas does not fit the pane it is scaled down to fit (100% when it does), and the toolbar carries `−` / Fit / percentage / `+`: 1.25× steps, click the percentage for true 1:1, click Fit to go back. Zoom only changes what you see — the export and the conversion always use the pixels you typed. The Image ⇄ Base64 preview shares the same controls and scales proportionally, never stretched.
+- **1:1 preview, never stretched** — the canvas is drawn at exactly the pixels in the size fields, with no CSS scaling (what you see is what you export). When it is wider than the pane the stage scrolls, and the left edge is reachable — the previous centred layout pushed the left half out of view where it could not be scrolled back.
+- **The size is whatever you type** — the default is **700 × 400** (landscape, matching echarts-node-export-server), and changing the fields (80–4096) moves the preview *and* the export together, WYSIWYG. Out-of-range values are clamped to the bound, written back into the field and explained. Made a mess of it? **Reset size** puts 700 × 400 back.
+- **Pixel ratio decides how sharp the export is** — the toolbar's **Pixel ratio** offers **1x / 2x / 3x**, i.e. the render-time `devicePixelRatio`: 1x is exactly the width and height you typed, 2x / 3x produce larger bitmaps that stay crisp in documents and print. Each option states the pixels it will yield (`2x · 1400 × 800`), the export button's tooltip repeats it, and the file name gets an `@2x` / `@3x` suffix so you can tell at a glance. Beyond 24 megapixels (say 4096 × 4096 at 3x) the ratio is stepped down automatically so the host canvas is never blown up.
+- **Export PNG / SVG** — PNG comes out at width × pixel ratio, rendered through a throwaway instance created with that `devicePixelRatio` and `animation: false`, so the result never depends on how the on-screen canvas happens to be zoomed. SVG goes through ECharts' `renderToSVGString()`. Both save as files: through the host save channel inside DBX, falling back to a browser download when you open `index.html` directly. The background follows the current theme, so a dark theme exports a dark chart rather than white-on-white.
+- **Zoom to inspect** — **Zoom in** (or a double-click on the canvas) opens the whole chart in a full-screen lightbox: wheel zooms at the cursor, double-click toggles 1:1 and fit, `+` `−` `0` `1` are shortcuts, `Esc` closes. The lightbox renders at the selected pixel ratio too, so 300% still looks sharp. The Image ⇄ Base64 preview shares the same lightbox.
+- **Failure is explained** — bad JSON, an unrecognised shape, too many points (20k per series / 50k total), too many series (30) or a chart engine that did not load each get their own message instead of a blank canvas.
+- The chart engine (ECharts 6.1.0) **ships offline** and is only loaded the first time you open this page, so the first paint never pays for it. It is not pulled through an external script tag — the engine travels as inert text and is turned into a `blob:` URL on demand, which no sandbox CSP can block. Leaving the page releases the canvas and the instance right away.
+
+![JSON to Chart page](docs/screen-chart.png)
+
 ## Workflow
 
 - **Drop a file anywhere** — the whole window is a drop target, not just the image or sheet pane. A veil tells you it is armed, and on release the file is routed by extension: images open the Image page and encode immediately, `.xlsx` / `.csv` / `.tsv` open Sheet → JSON and start parsing, `.json` / `.yaml` / `.xml` / `.toml` / `.ini` / `.env` / `.log` / `.md` open Convert with the source format already set and the conversion run. Unknown extensions are refused with a toast instead of dumping binary into an editor.
@@ -122,10 +140,10 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 ## Everywhere
 
-- **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az. Every page (convert, compare, SQL, sheet, image, code gen, query, escape, bytes) is translated into all 14, including the 20 schema-validation messages.
+- **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az. Every page (convert, compare, SQL, sheet, image, code gen, query, escape, bytes, chart) is translated into all 14, including the 20 schema-validation messages.
 - **Theme adaptability** — follows the DBX host theme and shadcn/ui tokens, including hosts that only send theme metadata (no `data-dbx-theme`) and custom palettes. First paint already matches the host, theme switches cross-fade over 300 ms, and `prefers-reduced-motion` turns the animation off.
 - **Clipboard** — one-click copy through the DBX host API, with a browser fallback.
-- **Offline** — no backend, no CDN, no telemetry; CodeMirror and the YAML library ship inside the package.
+- **Offline** — no backend, no CDN, no telemetry; CodeMirror, the YAML library and ECharts (Apache-2.0, `ui/vendor/echarts/` with its LICENSE) all ship inside the package.
 
 ## Prerequisites
 
@@ -142,12 +160,12 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## Build & test
 
 ```bash
-./scripts/build.sh test         # all suites (691 cases)
+./scripts/build.sh test         # all suites (840 cases)
 ./scripts/build.sh              # run tests, then package dist/*.dbxp
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
-npm test                        # pure-function suites, no dependencies (691 cases)
-npm install && npm run test:ui  # jsdom smoke test of the UI wiring (166 checks)
+npm test                        # pure-function suites, no dependencies (840 cases)
+npm install && npm run test:ui  # jsdom smoke test of the UI wiring (201 checks)
 ```
 
 On Windows use `scripts\build.cmd` instead (requires Git Bash).
@@ -168,6 +186,8 @@ ui/js/confconv.js      format matrix — TOML / INI / .env / CSV / TSV / Query /
 ui/js/jsonpath.js      JSONPath + jq subset — one parser, two dialects, result paths
 ui/js/schema.js        JSON Schema draft-07 subset — validation errors + inference
 ui/js/escape.js        8 escape kinds — URL / Base64 / HTML / JSON / Unicode / hex / SQL / regex
+ui/js/bytes.js         byte conversion — units ⇄ bytes, batch totals, hex dump / byte array / binary
+ui/js/chart.js         JSON to chart — shape detection, data → option, size clamping and limits
 ui/js/flow.js          workflow — drop routing, batch merge, recent list, host selection
 tests/                 regression suite, run with plain node
 scripts/build.sh       package | dev | test

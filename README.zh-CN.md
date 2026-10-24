@@ -1,6 +1,6 @@
 # 数据转换 (Data Format Converter)
 
-一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties / TOML / INI / `.env` / CSV / TSV / Query / Headers / Cookie / HTML 共 13 种格式互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON、图片 ⇄ Base64、JSON / `CREATE TABLE` 直接生成多语言模型代码，外加 JSONPath / jq 查询、JSON Schema 校验、一组转义工具与字节换算（1000 / 1024 两套进制）。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
+一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties / TOML / INI / `.env` / CSV / TSV / Query / Headers / Cookie / HTML 共 13 种格式互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON、图片 ⇄ Base64、JSON / `CREATE TABLE` 直接生成多语言模型代码，外加 JSONPath / jq 查询、JSON Schema 校验、一组转义工具、字节换算（1000 / 1024 两套进制），以及把 JSON 直接画成 ECharts 图表并导出 PNG / SVG。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
 
 ![数据转换工作台](docs/screen.png)
 
@@ -17,6 +17,7 @@
 | **查询校验** | JSONPath / jq 表达式查 JSON，JSON Schema（draft-07）校验并给出路径 + 原因，还能从数据反推一份 Schema |
 | **转义工具** | URL / Base64 / HTML / JSON 字符串 / `\uXXXX` / Hex / SQL 字面量 / 正则，编码解码一键对调 |
 | **字节转换** | B / KB / MB / GB / TB / PB 两套进制（1000 与 1024）互算、精确值 ⇄ 人类可读、批量求和、hex dump / 字节数组 / 二进制串三种字节写法，每个值都能单独复制且不带千分位 |
+| **JSON 转图表** | 一段 ECharts option（或数字 / 对象数组）直接画图，宽高可自定义，像素比 1x / 2x / 3x 导出 PNG、矢量导出 SVG，全屏灯箱放大看；图表引擎本地随包，不联网 |
 
 ## 格式转换
 
@@ -111,6 +112,23 @@
 
 ![字节转换页](docs/screen-bytes.png)
 
+## JSON 转图表
+
+- **贴 option 就出图**：左边贴一段完整的 **ECharts option**（`title` / `xAxis` / `yAxis` / `series` / `dataset` 都认），右边立刻按这份配置渲染，支持折线、柱状、饼图、散点、雷达、树图等全部 ECharts 图表类型。不用记 API，从官方示例里复制一段 JSON 就能看效果。
+- **只想看数据也行**：贴一组数字（`[820, 932, 901]`）、带名字的对象数组（`[{ "name": "1月", "value": 820 }]`）、`{"一月": 820, "二月": 932}` 这样的字典，或者散点用的 `[[x, y]]`，自动判形状并挑一个合适的类型；也可以在工具栏里换成折线 / 柱状 / 面积 / 饼图 / 散点。是完整 option 时下拉也能接着改：**自动**就听 JSON 里的 `series.type`，选了折线 / 柱状 / 面积 / 饼图 / 散点就按你选的画（前三者只换 `series.type`，饼图用类目名 + 首条系列重拼），不会改完类型只剩一片空白。
+- **接口返回不用手工剥**：很多后台把图配置塞在业务 key 里、而且还是个字符串——`{"monthly_trend":{"echart_option":"{…}","table_data":null,"biz_data":{}}}` 直接贴进来就行。按 `echart_option` / `chartOption` / `chart_config` / `option` / `data` / `result` 这些键名加上内容判断往下找，最多剥三层，二次编码（字符串里还是 JSON 字符串）也解；提示条会写明「已自动解析 monthly_trend.echart_option」，不会悄悄把你贴的东西换掉。
+- **一份 JSON 里有多个图 / 一次贴多份 JSON**：一个返回里带好几个图（`{"a":{"echart_option":…},"b":{…}}`、`{"charts":[option, option]}`、同一层的 `option1` / `option2`）时，工具栏会多出一个「图表」下拉，按标题列出来，点一下换一张；一行一个 JSON（NDJSON）或首尾相接的 `{…}{…}` 也能切开，路径标成 `#1…` / `#2…`，而一行一个数字则合并成一条曲线。
+- **先看整体，再放大看细节**：画布装不下面板时自动按「适应」缩小（装得下就 100%），工具栏有 `−` `适应` `比例` `+`：按 1.25 倍增减、点比例回 1:1、点适应回到整图；缩放只影响显示，导出与转换永远是原始像素。图片 Base64 页的预览用同一套控件，等比缩放不拉伸。
+- **预览 1:1，不拉伸**：画布严格按输入框里的像素画，不做任何 CSS 缩放（所见即导出）；比面板宽时容器横向滚动，左侧也滚得到——之前居中布局会把画布的左半截顶出可视区，滚不回去。
+- **宽高就是你定的像素**：默认 **宽 700 × 高 400**（横版，和 echarts-node-export-server 的默认一致），改一下输入框（80–4096）预览和导出一起变，所见即所得；越界会夹到边界并把输入框改成实际用的值，同时说明原因。改乱了点「重置宽高」一键回到 700 × 400。
+- **像素比决定导出的清晰度**：工具栏「像素比」可选 **1x / 2x / 3x**，就是渲染时的 `devicePixelRatio`——1x 出输入框的宽高，2x / 3x 出 1.4 万、2.1 万像素级的更大位图，贴进文档、做成打印稿放大也不糊。每档后面直接标出这一档实际导出多少像素（`2x · 1400 × 800`），导出按钮的提示里也带着；文件名会加 `@2x` / `@3x` 后缀，一眼看出是几倍图。像素总量超过 2400 万（比如 4096 × 4096 选 3x）会自动降档，免得把宿主画布撑爆。
+- **导出 PNG / SVG**：PNG 按「宽高 × 像素比」出图，走的是单独起的临时实例（`devicePixelRatio` 就是所选倍率、`animation: false`），所以导出结果和画布上的缩放状态无关；SVG 走 ECharts 的 `renderToSVGString()` 出矢量文本。两者都能存成文件——DBX 里走宿主的保存通道，直接打开 `index.html` 时回退浏览器下载。底色跟当前主题一致，暗色下导出的图也是暗底，不会白底白字。
+- **放大查看**：点「放大查看」（或双击画布）把整张图铺到全屏灯箱里看，滚轮往光标处缩放、双击切 1:1 与适应、`+` `−` `0` `1` 快捷键、`Esc` 关闭。灯箱里的图同样按所选像素比渲染，放大到 300% 也不糊。图片 Base64 页的预览共用同一个灯箱。
+- **画不出来就说清楚**：JSON 语法错、形状不认识、点太多（单系列 2 万 / 总计 5 万）、系列太多（30）、引擎没加载起来，各有各的提示，不会给你一张空白图。
+- 图表引擎（ECharts 6.1.0）**随包离线**，只有进这一页才加载解析，首屏不为它付费；引擎不靠外链脚本，而是以惰性文本随页面一起走、进页时才包成 `blob:` 地址执行，宿主沙箱的 CSP 再严也拦不住；离开页面立即释放 canvas 与实例。
+
+![JSON 转图表页](docs/screen-chart.png)
+
 ## 工作流
 
 - **文件拖到哪都行**：整个窗口都是投放区，不只是图片页 / 表格页那两块。拖进来时浮一层提示，松手后按扩展名分流——图片直接进「图片 Base64」并开始编码，`.xlsx` / `.csv` / `.tsv` 进「表格转 JSON」并开始解析，`.json` / `.yaml` / `.xml` / `.toml` / `.ini` / `.env` / `.log` / `.md` 进「格式转换」并自动设好源格式、直接把结果算出来。不认识的扩展名会提示一句，不会把二进制塞进编辑器。
@@ -120,10 +138,10 @@
 
 ## 通用
 
-- **国际化**——14 种语言：zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。切换器里列出前三种，其余随宿主 locale 自动匹配；九个页面（格式转换、对比、SQL、表格、图片、代码生成、查询校验、转义工具、字节转换）的文案都已覆盖全部 14 种，连 20 条 Schema 校验错误也有译文，缺一条会退回英文而不是中文。
+- **国际化**——14 种语言：zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。切换器里列出前三种，其余随宿主 locale 自动匹配；十个页面（格式转换、对比、SQL、表格、图片、代码生成、查询校验、转义工具、字节转换、图表）的文案都已覆盖全部 14 种，连 20 条 Schema 校验错误也有译文，缺一条会退回英文而不是中文。
 - **主题适配**——跟随 DBX 宿主主题与 shadcn/ui 设计令牌，宿主只下发主题信息（不写 `data-dbx-theme`）或自定义调色板同样生效。首屏按宿主主题直接落定、不闪白底，明暗切换有 300 ms 整页过渡，`prefers-reduced-motion` 下自动关掉。
 - **剪贴板**——通过 DBX Host API 一键复制，没有宿主时走浏览器降级方案。
-- **离线**——无后端、无 CDN、无遥测；CodeMirror 与 YAML 库都打在包里。
+- **离线**——无后端、无 CDN、无遥测；CodeMirror、YAML 库与 ECharts（Apache-2.0，`ui/vendor/echarts/` 连同 LICENSE）都打在包里，跑起来一次网络请求都没有。
 
 ## 环境要求
 
@@ -140,12 +158,12 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## 构建与测试
 
 ```bash
-./scripts/build.sh test         # 全部用例（691 条）
+./scripts/build.sh test         # 全部用例（840 条）
 ./scripts/build.sh              # 先跑用例，再打包 dist/*.dbxp
 ./scripts/run.sh                # 等价于 build.sh dev
 
-npm test                        # 纯函数用例，无第三方依赖（691 条）
-npm install && npm run test:ui  # jsdom 页面接线冒烟（166 项）
+npm test                        # 纯函数用例，无第三方依赖（840 条）
+npm install && npm run test:ui  # jsdom 页面接线冒烟（201 项）
 ```
 
 Windows 下使用 `scripts\build.cmd`（需要 Git Bash）。
@@ -166,6 +184,8 @@ ui/js/confconv.js      格式矩阵 —— TOML / INI / .env / CSV / TSV / Query
 ui/js/jsonpath.js      JSONPath + jq 子集 —— 一套解析器、两种方言、匹配路径
 ui/js/schema.js        JSON Schema draft-07 子集 —— 校验错误 + 反推 Schema
 ui/js/escape.js        八种转义 —— URL / Base64 / HTML / JSON / Unicode / Hex / SQL / 正则
+ui/js/bytes.js         字节换算 —— 单位 ⇄ 字节、批量求和、hex dump / 字节数组 / 二进制串
+ui/js/chart.js         JSON 转图表 —— 形状判定、数据转 option、尺寸夹取与上限
 ui/js/flow.js          工作流 —— 拖放路由、批量合并、最近使用、宿主选区
 tests/                 回归用例，直接 node 运行
 scripts/build.sh       package | dev | test

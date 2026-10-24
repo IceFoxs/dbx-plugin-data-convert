@@ -70,6 +70,24 @@ var wait = function (ms) {
     });
 };
 
+// jsdom 没有 canvas：echarts 就算加载成功，init 也会在 canvas 上抛错。
+// 这里统一拦掉 echarts 的请求，让全流程走「引擎加载失败也不崩」这条最糟的路径；
+// 真正的渲染 / PNG / SVG 导出由 /tmp/imgh/check-chart.js 在 Chrome 里验收。
+(function stubEchartsLoad() {
+    var doc0 = win.document;
+    var realAppend = doc0.head.appendChild.bind(doc0.head);
+    doc0.head.appendChild = function (el) {
+        var src = el && el.getAttribute ? String(el.getAttribute('src') || '') : '';
+        if (el && el.tagName === 'SCRIPT' && src.indexOf('echarts') >= 0) {
+            setTimeout(function () {
+                if (typeof el.onerror === 'function') el.onerror(new win.Event('error'));
+            }, 0);
+            return el;
+        }
+        return realAppend(el);
+    };
+})();
+
 function check(name, fn) {
     try {
         fn();
@@ -1503,7 +1521,8 @@ function check(name, fn) {
             ['navCodegen', 'codeWorkspace'],
             ['navQuery', 'queryWorkspace'],
             ['navEscape', 'escWorkspace'],
-            ['navBytes', 'bytesWorkspace']
+            ['navBytes', 'bytesWorkspace'],
+            ['navChart', 'chartWorkspace']
         ];
         pages.forEach(function (pair) {
             doc.getElementById(pair[0]).click();
@@ -1653,6 +1672,297 @@ function check(name, fn) {
         if (doc.querySelectorAll('#bytesForms .bytes-form').length !== 0) throw new Error('写法没清');
     });
 
+    // ---------------- JSON 转图表 ----------------
+    // jsdom 里没有 canvas，echarts 也加载不了：这里只校验「不依赖引擎」的那半边
+    // —— 形状判定、报错文案、尺寸夹取、导出前的空态。真渲染由 CDP 截图脚本验收。
+    var chartWs = doc.getElementById('chartWorkspace');
+
+    // jsdom 没有 canvas，echarts 也画不出来：文件开头已经拦掉了引擎请求，
+    // 所以这里覆盖的是「引擎加载失败也不崩页面」这条最糟的路径。
+    doc.getElementById('navChart').click();
+    await wait(400);
+
+    function chartSetInput(text) {
+        var wrap = doc.getElementById('chartInput').nextElementSibling;
+        if (wrap && wrap.CodeMirror) wrap.CodeMirror.setValue(text);
+        else doc.getElementById('chartInput').value = text;
+    }
+
+    function chartTipText() {
+        return doc.getElementById('chartTip').textContent.trim();
+    }
+
+    function chartBadge(id) {
+        var el = doc.getElementById(id);
+        return el ? el.textContent.trim() : '';
+    }
+
+    check('点导航进图表页：只在页里、一个编辑器、默认示例是完整 option', function () {
+        if (!chartWs.classList.contains('active')) throw new Error('没进图表页');
+        if (doc.getElementById('bytesWorkspace').classList.contains('active')) throw new Error('字节页还开着');
+        if (doc.querySelectorAll('#chartWorkspace .CodeMirror').length !== 1) {
+            throw new Error('编辑器数量 ' + doc.querySelectorAll('#chartWorkspace .CodeMirror').length);
+        }
+        var text = doc.getElementById('chartInput').value;
+        if (text.indexOf('"series"') < 0) throw new Error('默认示例没加载');
+        if (chartBadge('chartInBadge') !== 'option') throw new Error('来源徽标 ' + chartBadge('chartInBadge'));
+        // option 自带类型时下拉仍可用（自动 = 听 JSON，选了就覆盖）
+        if (doc.getElementById('chartType').disabled) throw new Error('类型下拉不该禁用');
+        if (doc.getElementById('chartType').title.indexOf('series.type') < 0) {
+            throw new Error('没说明自动和覆盖的关系: ' + doc.getElementById('chartType').title);
+        }
+    });
+
+    check('宽高默认 700 × 400', function () {
+        if (doc.getElementById('chartWidth').value !== '700') throw new Error('宽 ' + doc.getElementById('chartWidth').value);
+        if (doc.getElementById('chartHeight').value !== '400') throw new Error('高 ' + doc.getElementById('chartHeight').value);
+    });
+
+    check('引擎加载失败：只提示，页面不崩', function () {
+        var tip = chartTipText();
+        if (tip.indexOf('图表引擎') < 0) throw new Error('提示: ' + tip);
+        if (!chartWs.classList.contains('active')) throw new Error('页面被带崩了');
+        if (!doc.getElementById('chartCanvas').hidden) throw new Error('画布不该露出来');
+    });
+
+    chartSetInput('{');
+    await wait(420);
+
+    check('坏 JSON：提示解析失败，画布收起', function () {
+        if (chartTipText().indexOf('解析') < 0) throw new Error('提示: ' + chartTipText());
+        if (!doc.getElementById('chartCanvas').hidden) throw new Error('画布没收起');
+        if (doc.getElementById('chartEmpty').hidden) throw new Error('空态提示没显示');
+    });
+
+    chartSetInput('[1, 2, 3]');
+    await wait(420);
+
+    check('一组数字：判定为数据，类型下拉放开', function () {
+        if (chartBadge('chartInBadge') !== '数据') throw new Error('徽标 ' + chartBadge('chartInBadge'));
+        if (doc.getElementById('chartType').disabled) throw new Error('类型下拉还禁用着');
+    });
+
+    chartSetInput('"just a string"');
+    await wait(420);
+
+    check('画不出的 JSON：提示怎么给数据', function () {
+        var tip = chartTipText();
+        if (tip.indexOf('画不出图') < 0) throw new Error('提示: ' + tip);
+        if (tip.indexOf('option') < 0) throw new Error('没给出可用形状');
+    });
+
+    // 接口返回的形状：业务 key 里塞一个 echart_option 字符串（很多后台都是这么给的）
+    var SMOKE_OPT1 = JSON.stringify({
+        title: { text: '月度订单量' },
+        xAxis: { type: 'category', data: ['12月', '1月'] },
+        yAxis: { type: 'value' },
+        series: [{ name: '线上订单', type: 'line', data: [800, 800] }]
+    });
+    var SMOKE_OPT2 = JSON.stringify({
+        title: { text: '另一个图' },
+        xAxis: { type: 'category', data: ['a'] },
+        yAxis: { type: 'value' },
+        series: [{ name: 's', type: 'bar', data: [1] }]
+    });
+    var wrapped = JSON.stringify({
+        monthly_trend: { echart_option: SMOKE_OPT1, table_data: null, biz_data: {} }
+    });
+
+    chartSetInput(wrapped);
+    await wait(460);
+
+    check('接口返回（业务 key 里包 echart_option 字符串）能自动剥出来', function () {
+        // 引擎在 jsdom 里加载不了，这里能看到的证据是「形状判定已经变成 option」
+        if (chartBadge('chartInBadge') !== 'option') throw new Error('徽标 ' + chartBadge('chartInBadge'));
+        if (doc.getElementById('chartType').disabled) throw new Error('类型下拉不该禁用（完整 option 也允许改类型）');
+        // 只有一个图时不该冒出选择器
+        if (!doc.getElementById('chartPickWrap').hidden) throw new Error('单图还显示了选择器');
+    });
+
+    var multi = JSON.stringify({
+        trend_online: { echart_option: SMOKE_OPT1 },
+        trend_retail: { echart_option: SMOKE_OPT2 }
+    });
+
+    chartSetInput(multi);
+    await wait(460);
+
+    check('一份 JSON 里多个 option：出选择器、按标题列出', function () {
+        if (doc.getElementById('chartPickWrap').hidden) throw new Error('选择器没出现');
+        var pick = doc.getElementById('chartPick');
+        var opts = doc.getElementById('chartPickOptions').children;
+        if (opts.length !== 2) throw new Error('选项数 ' + opts.length);
+        if (opts[0].textContent !== '月度订单量') throw new Error('第一项 ' + opts[0].textContent);
+        if (opts[1].textContent !== '另一个图') throw new Error('第二项 ' + opts[1].textContent);
+        if (pick.dataset.value !== '0') throw new Error('默认没选第一个: ' + pick.dataset.value);
+        // shadcn 风格下拉：触发器显示当前项，选中项左边打勾
+        var label = pick.querySelector('.custom-select-trigger .label');
+        if (label.textContent !== '月度订单量') throw new Error('触发器文案 ' + label.textContent);
+        if (!opts[0].classList.contains('selected')) throw new Error('第一项没标选中');
+        if (chartBadge('chartInBadge') !== 'option') throw new Error('徽标 ' + chartBadge('chartInBadge'));
+    });
+
+    doc.getElementById('chartPickOptions').children[1].click();
+    await wait(300);
+
+    check('切到第二个图：还是 option、选择器保持选中', function () {
+        if (doc.getElementById('chartPick').dataset.value !== '1') throw new Error('选择丢了');
+        if (chartBadge('chartInBadge') !== 'option') throw new Error('徽标 ' + chartBadge('chartInBadge'));
+        if (doc.getElementById('chartPickWrap').hidden) throw new Error('选择器被收起来了');
+        // 二号图只有一个点，状态条不会被引擎错误盖掉之前就已经算过尺寸，这里只校验没抛错
+        if (!chartWs.classList.contains('active')) throw new Error('页面被带崩了');
+    });
+
+    var ndjson = JSON.stringify({ trend_online: { echart_option: SMOKE_OPT1 } }) + '\n'
+        + JSON.stringify({ trend_retail: { echart_option: SMOKE_OPT2 } });
+
+    chartSetInput(ndjson);
+    await wait(460);
+
+    check('换行粘贴多份 JSON（一行一份）：也能各自解析并列出', function () {
+        if (doc.getElementById('chartPickWrap').hidden) throw new Error('选择器没出现');
+        if (doc.getElementById('chartPickOptions').children.length !== 2) throw new Error('选项数 ' + doc.getElementById('chartPickOptions').children.length);
+        if (chartBadge('chartInBadge') !== 'option') throw new Error('徽标 ' + chartBadge('chartInBadge'));
+    });
+
+    chartSetInput('[1, 2, 3]');
+    await wait(460);
+
+    check('换回纯数据：选择器收起、类型下拉放开', function () {
+        if (!doc.getElementById('chartPickWrap').hidden) throw new Error('选择器没收起');
+        if (chartBadge('chartInBadge') !== '数据') throw new Error('徽标 ' + chartBadge('chartInBadge'));
+        if (doc.getElementById('chartType').disabled) throw new Error('类型下拉还禁用着');
+    });
+
+    doc.getElementById('chartClear').click();
+    await wait(300);
+
+    check('清空后回到空态', function () {
+        if (doc.getElementById('chartInput').value !== '') throw new Error('输入没清');
+        if (chartTipText().indexOf('贴一段 JSON') < 0) throw new Error('提示: ' + chartTipText());
+        if (!doc.getElementById('chartPickWrap').hidden) throw new Error('清空后选择器还留着');
+        if (doc.getElementById('chartPickOptions').children.length !== 0) throw new Error('选择器还有旧选项');
+    });
+
+    check('预览缩放条：四个控件都在，空态时收起', function () {
+        ['chartZoomOut', 'chartZoomFit', 'chartZoomValue', 'chartZoomIn'].forEach(function (id) {
+            if (!doc.getElementById(id)) throw new Error('缺控件 ' + id);
+        });
+        if (!doc.getElementById('chartZoomBar').hidden) throw new Error('没图时缩放条该收起');
+        if (doc.getElementById('chartZoomValue').textContent !== '100%') {
+            throw new Error('默认比例 ' + doc.getElementById('chartZoomValue').textContent);
+        }
+        // 图片页用同一套控件（缩放只影响看，不改原始像素）
+        ['imgZoomOut', 'imgZoomFit', 'imgZoomValue', 'imgZoomIn'].forEach(function (id) {
+            if (!doc.getElementById(id)) throw new Error('图片页缺缩放控件 ' + id);
+        });
+        if (!doc.getElementById('imgZoomBar').hidden) throw new Error('没图时图片缩放条该收起');
+    });
+
+    check('重置宽高：按钮在，点了回到 700 × 400', function () {
+        var btn = doc.getElementById('chartResetSize');
+        if (!btn) throw new Error('缺「重置宽高」按钮');
+        if (btn.textContent.trim() !== '重置宽高') throw new Error('按钮文案 ' + btn.textContent);
+        doc.getElementById('chartWidth').value = '1200';
+        doc.getElementById('chartHeight').value = '900';
+        btn.click();
+        if (doc.getElementById('chartWidth').value !== '700') throw new Error('宽没复位: ' + doc.getElementById('chartWidth').value);
+        if (doc.getElementById('chartHeight').value !== '400') throw new Error('高没复位: ' + doc.getElementById('chartHeight').value);
+    });
+
+    check('类型下拉（shadcn 风格）：点选项就换、触发器跟着走', function () {
+        // 原生 select 的弹层是系统画的，这里换成自定义下拉：选项在 .custom-select-options 里
+        var typeBox = doc.getElementById('chartType');
+        var label = typeBox.querySelector('.custom-select-trigger .label');
+        var options = typeBox.querySelectorAll('.custom-option');
+        if (options.length !== 6) throw new Error('类型选项数 ' + options.length);
+        if (!typeBox.querySelector('.custom-option.selected')) throw new Error('没有默认选中项');
+        var line = typeBox.querySelector('.custom-option[data-value="line"]');
+        line.click();
+        if (label.textContent !== '折线') throw new Error('触发器没跟着换: ' + label.textContent);
+        if (!line.classList.contains('selected')) throw new Error('选中态没移过去');
+        if (typeBox.querySelector('.custom-option[data-value="auto"]').classList.contains('selected')) {
+            throw new Error('旧选项还占着 selected');
+        }
+        typeBox.querySelector('.custom-option[data-value="auto"]').click();
+        if (label.textContent !== '自动') throw new Error('复位失败: ' + label.textContent);
+    });
+
+    check('像素比下拉：默认 1x、三档、选项标出实际像素', function () {
+        var box = doc.getElementById('chartScale');
+        if (!box) throw new Error('缺像素比下拉');
+        var label = box.querySelector('.custom-select-trigger .label');
+        if (label.textContent.trim() !== '1x') throw new Error('默认值不是 1x: ' + label.textContent);
+        var options = box.querySelectorAll('.custom-option');
+        if (options.length !== 3) throw new Error('档位数 ' + options.length);
+        // 每档后面要写清这一档导出多少像素（尺寸 700 × 400 时：700/1400/2100）
+        var expect = ['700 × 400', '1400 × 800', '2100 × 1200'];
+        options.forEach(function (opt, i) {
+            var badge = opt.querySelector('.chart-opt-size');
+            if (!badge) throw new Error('第 ' + (i + 1) + ' 档缺实际像素');
+            if (badge.textContent.trim() !== expect[i]) {
+                throw new Error('第 ' + (i + 1) + ' 档标的是 ' + badge.textContent + '，应为 ' + expect[i]);
+            }
+        });
+        // 触发器只放短标签（2x），不把尺寸塞进去
+        options[1].click();
+        if (label.textContent.trim() !== '2x') throw new Error('切 2x 后触发器是 ' + label.textContent);
+        if (!options[1].classList.contains('selected')) throw new Error('选中态没移过去');
+        var title = doc.getElementById('chartExportPng').title || '';
+        if (title.indexOf('1400 × 800') < 0) throw new Error('导出按钮 title 没跟上: ' + title);
+        options[0].click();
+        if (label.textContent.trim() !== '1x') throw new Error('复位失败: ' + label.textContent);
+    });
+
+    check('灯箱：控件齐全、默认收起、Esc 能关', function () {
+        ['imgLightbox', 'imgLightboxStage', 'imgLightboxImg', 'imgLightboxZoom',
+            'imgLightboxOut', 'imgLightboxFit', 'imgLightboxActual', 'imgLightboxIn', 'imgLightboxClose']
+            .forEach(function (id) {
+                if (!doc.getElementById(id)) throw new Error('灯箱缺控件 ' + id);
+            });
+        if (!doc.getElementById('imgLightbox').hidden) throw new Error('灯箱默认不该展开');
+        // 面板里的预览图要能被点（空态下没有 src，点了不该开）
+        var prev = doc.getElementById('imgPreview');
+        prev.hidden = false;
+        prev.click();
+        if (!doc.getElementById('imgLightbox').hidden) throw new Error('没图也打开了灯箱');
+        prev.setAttribute('src', 'data:image/png;base64,iVBORw0KGgo=');
+        prev.click();
+        if (doc.getElementById('imgLightbox').hidden) throw new Error('有图却没打开灯箱');
+        if (doc.getElementById('imgLightboxImg').getAttribute('src') !== 'data:image/png;base64,iVBORw0KGgo=') {
+            throw new Error('灯箱没拿到图');
+        }
+        doc.getElementById('imgLightboxClose').click();
+        if (!doc.getElementById('imgLightbox').hidden) throw new Error('关不掉');
+        // 再开一次，用 Esc 收（键盘用户的主路径）
+        prev.click();
+        doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        if (!doc.getElementById('imgLightbox').hidden) throw new Error('Esc 关不掉');
+        // 收拾干净，别影响后面的图片页用例
+        prev.hidden = true;
+        prev.removeAttribute('src');
+    });
+
+    doc.getElementById('chartExportPng').click();
+    await wait(120);
+
+    check('没有图时点导出：只提示，不抛错', function () {
+        var toasts = [].map.call(doc.querySelectorAll('.toast'), function (t) { return t.textContent; }).join('|');
+        if (toasts.indexOf('还没有可导出的图表') < 0) throw new Error('toast: ' + toasts);
+    });
+
+    check('图表页不碰格式化页的编辑器', function () {
+        if (!doc.getElementById('mainWorkspace').classList.contains('hidden')) throw new Error('转换页没藏');
+    });
+
+    doc.getElementById('navBytes').click();
+    await wait(200);
+
+    check('离开图表页：工作区收起、回到字节页', function () {
+        if (chartWs.classList.contains('active')) throw new Error('图表页没关');
+        if (!doc.getElementById('bytesWorkspace').classList.contains('active')) throw new Error('没回到字节页');
+    });
+
     // 收尾：回到格式转换页，后面的用例还要用
     doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
     await wait(200);
@@ -1747,7 +2057,7 @@ function check(name, fn) {
             throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
         }
         // 直属项（从左到右）：JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / 字节转换 / 代码生成 / 表格转 JSON / 查询校验
-        if (inlineNavLinks().length !== 8) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 9) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
         if (!doc.getElementById('navConvertTrigger')) throw new Error('缺少「格式转换」触发器');
         // 触发器直接显示当前这一对格式，而不是固定的「格式转换」
         var label = doc.getElementById('navConvertLabel').textContent.trim();
@@ -1796,7 +2106,7 @@ function check(name, fn) {
         if (!moreEl.classList.contains('show')) throw new Error('「更多」未出现');
         var names = [].map.call(moreMenu.querySelectorAll('a'), function (a) { return a.textContent.trim(); });
         // 收进「更多」的先后顺序取决于「非固定项先挪、固定项兜底」，这里只校验集合
-        var expect = ['SQL 转换', 'JSON 对比', '表格转 JSON', '代码生成', '图片 Base64', '查询校验', '转义工具', '字节转换'].sort().join('|');
+        var expect = ['SQL 转换', 'JSON 对比', '表格转 JSON', '代码生成', '图片 Base64', '查询校验', '转义工具', '字节转换', 'JSON 转图表'].sort().join('|');
         if (names.slice().sort().join('|') !== expect) {
             throw new Error('菜单项: ' + names.join(','));
         }
@@ -1830,7 +2140,8 @@ function check(name, fn) {
             navCodegen: 'codeWorkspace',
             navQuery: 'queryWorkspace',
             navEscape: 'escWorkspace',
-            navBytes: 'bytesWorkspace'
+            navBytes: 'bytesWorkspace',
+            navChart: 'chartWorkspace'
         };
         if (!pageOf[id]) throw new Error('菜单项不是页面入口: ' + item.textContent.trim());
         if (!doc.getElementById(pageOf[id]).classList.contains('active')) {
@@ -1849,7 +2160,7 @@ function check(name, fn) {
     check('宽度恢复后导航项全部回到导航条', function () {
         if (moreEl.classList.contains('show')) throw new Error('「更多」仍显示');
         if (moreMenu.querySelectorAll('a').length !== 0) throw new Error('菜单仍有残留');
-        if (inlineNavLinks().length !== 8) throw new Error('导航项数 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 9) throw new Error('导航项数 ' + inlineNavLinks().length);
         if (convertMenu.querySelectorAll('a').length !== 7) throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
     });
 
