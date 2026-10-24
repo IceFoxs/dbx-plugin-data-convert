@@ -1,144 +1,110 @@
 # 项目约定（长期）
 
-## 文档与截图（用户明确要求，务必遵守）
+## 用户硬规范（最高优先）
 
-1. **截图必须与当前版本一致**：任何改到 UI（导航项、布局、文案、主题）的版本，都要重拍 README 里用到的截图，不能留着上一版的界面。判断标准：导航项、页面结构、按钮文案要与当次打包的 `ui/index.html` 完全对得上。
-2. **README 只保留核心功能页面的截图**：每个一级功能页一张（当前 7 张：格式转换主图 + JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / 代码生成 / 查询校验 / 表格转 JSON）。细节截图（滚动、弹层、暗色、窄屏、各种状态）不进 README。
-3. **及时删除无效截图**：不再被 README 引用的 `docs/*.png` 直接删掉，不要攒着占地。改完用脚本校验「README 引用 → 文件存在」和「docs 里的文件 → 是否被引用」两边都干净。
-4. 截图规格：**1440×900、1x 原生像素、亮色主题**（`--force-device-scale-factor=1`；2x 缩到 795 px 显示会把 1px 边线抹掉）。示例数据全部用模拟数据，不出现真实业务内容。
-5. 截图前清理 `document.querySelectorAll('.toast')`，否则会把上一个场景的「转换成功」带到下一张图里。
+1. **不打 tag、不建分支**；提交 / push 由用户确认。
+2. **不改版本号**（`manifest.json` / `package.json` / CHANGELOG 段落 / `.dbx-store.json` 的 `vX.Y.Z`），连「先升后退」也不做。功能做完留在当前版本。
+3. **不用用户给的真实数据**（接口返回、业务 JSON、截图内容、表名 / 字段名 / 业务指标）：代码、测试夹具、文档、截图、CHANGELOG、提交信息一律用自造样本（`orders.json` / `items` / `访问量` 这类）。
+4. **组件样式统一 shadcn**：原生 `<select>` 的弹层跟主题打架，一律自绘 `.custom-select`。
+5. **CSS 变量带 fallback**：`var(--radius-md, 0.5rem)`（独立浏览器里没有定义会退成 0）。
+6. **有性能顾虑也要用 CodeMirror**，不许因此退回 textarea（唯一例外：图片 Base64 页）。
+7. 踩过的坑写进本文件，别只留在会话里。
 
-## README 结构约定
+## 文档与截图
 
-- 顶部：一句话简介 + 主图 + 中文文档链接。
-- 「功能页一览」表格（页面 → 能做什么）先给全貌，再按页分节展开（每节 2–5 条短句 + 一张截图）。
-- 通用能力（i18n / 主题 / 剪贴板 / 离线）单独一节，不混在功能页里。
-- 中英文两份 README 结构、条目顺序一一对应；用例条数、目录结构、导航项文案必须同步更新。
+1. **截图与当前版本一致**：改到 UI（导航、布局、文案、主题）就重拍 README 用到的图；导航项 / 页面结构 / 按钮文案要与当次打包的 `ui/index.html` 对得上。
+2. **只留核心页**：每个一级功能页一张（现 8 张：格式转换主图 + 对比 / SQL / 图片 / 转义 / 字节 / 代码生成 / 查询校验 / 表格 / 图表，实际以 README 引用为准）。细节图（弹层、暗色、窄屏）不进 README；不再引用的 `docs/*.png` 直接删。
+3. 规格：**1440×900、1x 原生像素、亮色主题**（`--force-device-scale-factor=1`）。截图前清 `.toast`，否则会把上一场景的提示带进来。
+4. 改完用脚本双向校验「README 引用 → 文件存在」「docs 文件 → 是否被引用」。
+5. README 结构：一句话简介 + 主图 → 功能页一览表 → 按页分节（2–5 条短句 + 一张图）→ 通用能力（i18n / 主题 / 剪贴板 / 离线）单列。中英两份条目顺序一一对应。
 
-## 国际化（用户明确要求，别再漏）
+## 国际化
 
-1. **新增文案必须 14 种语言齐全**：zh-CN / zh-TW / en / ja / ko / es / id / it / pl / pt / ru / th / tr / az。只补中英是最容易犯的错——宿主 locale 是日语 / 韩语 / 俄语时，页面会露出中文兜底。
-2. 文案分九处：主字典 `languageConfigs[].dict`（工具栏、对比、错误定位）、`NAV_I18N`、`SQL_I18N`、`SHEET_I18N`、`IMG_I18N`、`GEN_I18N`、`CONF_I18N`、`QUERY_I18N`、`ESC_I18N`、`FLOW_I18N`。新增页面用独立小表，别把 14 份大字典再撑一圈。
-3. 取值一律 `xxxT(key, '中文兜底')`，回退顺序为「当前语言 → 英文 → 主字典 → 中文」；JS 里不硬编码中文（含行列定位、单位、标点、拼接串）。
-4. 占位符用具名 token（`{n}` / `{size}` / `{e}` / `{p}` / `{m}` / `{c}` / `{s}`），各语言可以调整语序，但 token 不能丢、也不能多。
-5. 改完跑 `node tests/i18n.test.js`（已进 `npm test` 与 `scripts/build.sh`）：校验语言集合、键集合与 zh-CN 对齐、无空译文、占位符齐全。语言菜单只列 zh-CN / zh-TW / en，其余靠宿主 locale 自动匹配。
+1. **新增文案必须 14 语齐全**：zh-CN / zh-TW / en / ja / ko / es / id / it / pl / pt / ru / th / tr / az。只补中英是最容易犯的错。
+2. 文案分表：主字典 `languageConfigs[].dict` + `NAV_I18N` / `SQL_I18N` / `SHEET_I18N` / `IMG_I18N` / `GEN_I18N` / `CONF_I18N` / `QUERY_I18N` / `ESC_I18N` / `FLOW_I18N` / `BYTES_I18N` / `CHART_I18N`。新页面用独立小表，别再撑大字典。
+3. 取值 `xxxT(key, '中文兜底')`，回退「当前语言 → en → 主字典 → zh-CN」；JS 里不硬编码中文。占位符用 `{n}` / `{size}` / `{path}` 这类具名 token，可调语序但不能丢不能多。
+4. 改完跑 `node tests/i18n.test.js`（已进 `npm test` 与 `scripts/build.sh`）：语言集合、键集合与 zh-CN 对齐、无空译文、占位符齐全。语言菜单只列前三种，其余靠宿主 locale 匹配。
 
-## 宿主兼容（DBX 会往插件 DOM 里塞东西）
+## 宿主兼容（DBX 会往 DOM 里塞东西）
 
-1. **按钮不要裸奔**：DBX 会给没写 `title` 的按钮补一个提示，用的是**宿主自己的词表**——中文界面会冒出英文 "Paste"，还盖住相邻按钮。凡是按钮，要么写 `data-i18n-title`（文案跟着插件语言），要么接受被 `stripHostTooltips()` 摘掉；只有动态内容的提示（导出格式与后缀、当前格式对）才标 `data-keep-title` 放过。
-2. 插件里不自己造 tooltip 系统：按钮都有可见文字，原生 `title` 只在「文字表达不了」时才用（图标按钮、动态内容）。
-3. 宿主注入的时机不确定（加载后 / 移入时 / 重新渲染），拦截要三层：初始化 sweep + 捕获阶段 `pointerover` + `MutationObserver`（`attributeFilter: ['title']`），只监听单个属性，成本可忽略。
+1. **按钮不要裸奔**：DBX 给没写 `title` 的按钮补宿主词表的提示（中文界面冒出英文 "Paste"，还盖住相邻按钮）。要么写 `data-i18n-title`，要么被 `stripHostTooltips()` 摘掉；只有动态内容（导出格式与后缀）标 `data-keep-title`。
+2. 拦截三层：初始化 sweep + 捕获阶段 `pointerover` + `MutationObserver({attributeFilter:['title']})`。
+3. **宿主用正则扫 HTML 收集要内联的资源**：注释 / 字符串里写假的 `<script src>` / `<link href>` 也会被扫到，读不到文件整页 400（`tests/assets.test.js` 守着）。
+4. 宿主 CSP 只允许 `script-src 'unsafe-inline' blob:`。
 
-## 性能与稳定性（硬性要求，每个版本都要守）
+## 性能与稳定性（每版自查）
 
-DBX 是宿主进程，插件页面把宿主拖崩就是事故。新增功能时按这几条自查：
+1. **入口限流**：图片 10 MB / Base64 14 M 字符；表格 20 MB / 10 万行 / 200 列；文本导入 16 MB，一次拖入总预算 64 MB。
+2. **大字符串不驻留**：>2 M 字符的中间结果只存长度 + 切片预览（`imgState.text` 就这么做）。
+3. **预览不用 data URI**：图片用 `URL.createObjectURL`，清空 / 换图 / 重置 / 卸载时 `revokeObjectURL`。
+4. **长任务分块 + 可取消**：每 1 MB / 4096 条 `await setTimeout(0)` 让出主线程，配进度与取消 token；切文件时旧任务作废。
+5. **预分配 + 快路径**：`Uint8Array` 预分配、8 KB 一段 `fromCharCode`；正则规范化先判「干净且 4 对齐」直接返回。
+6. **验收基线**：冷启动 ≈500 ms、堆 ≈9.5 MB、≈535 节点；8 MB 图编码 ≈250 ms 且堆不涨；反复进出 5 次堆与节点不变（测法 `/tmp/imgh/load5.js`）。
+7. **不引入网络依赖**：无 CDN / 遥测 / 首屏同步 XHR；第三方库进 `ui/vendor/`。
 
-1. **入口限流**：任何能吞下大对象的功能都要先划上限并在入口拦下、把上限写在界面上（当前：图片 10 MB / Base64 14 M 字符，表格 20 MB / 10 万行 / 200 列）。
-2. **大字符串不驻留**：超过 2 M 字符的中间结果不要留引用，只存长度 + 切片预览，真正需要时临时拼一次并立刻释放（图片页 `imgState.text` 就是这么做的）。
-3. **预览不要用 data URI**：图片预览用 `URL.createObjectURL`，并在清空 / 换图 / 重置 / 卸载时 `revokeObjectURL`，否则泄漏的是整张图的内存。
-4. **长任务分块 + 可取消**：超过几十毫秒的循环每 1 MB / 4096 条 `await setTimeout(0)` 让出主线程，配进度条和取消 token；切文件时旧任务必须作废，不能覆盖新结果。
-5. **预分配 + 快路径**：编解码用预分配 `Uint8Array`（`encodeUtf8` 写码点、8 KB 一段 `fromCharCode`）；正则规范化的输入先判「干净且 4 对齐」直接返回，避免对 10 MB 字符串做多次全量替换。
-6. **验收数据**（改动涉及图片/表格/转换核心时必测）：冷启动 DOMContentLoaded ≈500 ms、JS 堆 ≈9.5 MB、≈535 节点；8 MB 图编码 ≈250 ms 且编码后堆不涨；反复进出页面 5 次堆与节点数不变。测法见 `/tmp/imgh/load5.js`（CDP `Runtime.evaluate` + `performance.memory`）。
-7. **不引入网络依赖**：不加 CDN、不加遥测、不在首屏做同步 XHR；第三方库必须本地打包（`ui/vendor/`，构建时从 npm 取、运行时不联网）。
+## 编辑器选型
 
-## 编辑器选型（用户明确要求，别再拿性能当理由退回 textarea）
-1. **默认一律用 CodeMirror 5**（本地 `ui/vendor/codemirror`）：格式转换、差异对比、JSON 对比、SQL、表格输出、代码生成、查询校验、转义工具、字节转换都是 CM（字节页右侧是 HTML 结果面板，只有左侧输入是 CM），别再出现第二个纯 textarea 输入/输出页。
-2. **唯一的例外是图片 Base64 页**：那里可能塞进 10 MB 图片 / 13 M 字符的 Base64，CM 会卡死宿主，才用纯文本域。判断标准是「会不会吞下 MB 级字符串」，不是「嫌 CM 重」。
-3. 新哲学时期盼的产物语言如果没有内置 mode，从 npm 拉 CodeMirror 5.65.16 的同版 mode 文件、压缩后放进 `ui/vendor/codemirror/mode/` 并在 `ui/index.html` 里加 `<script>`，不要让某个语言的输出没有着色。
-4. CM 与原生 textarea 之间通过 `linkTextareaToEditor()` 桥接 `.value` 读写，所以既有代码与冒烟测试继续用 `el.value` 依然成立；新页面沿用这一套路不要把读写改成 `getValue()`。
+1. 默认一律 CodeMirror 5（`ui/vendor/codemirror`）：格式转换、差异对比、JSON 对比、SQL、表格输出、代码生成、查询校验、转义、字节、图表都是 CM。
+2. **唯一例外是图片 Base64 页**（会吞 MB 级字符串，CM 会卡死宿主）。判断标准是「会不会吞 MB 级字符串」，不是「嫌 CM 重」。
+3. 缺 mode 从 npm 拉 5.65.16 同版文件 → 压缩放进 `ui/vendor/codemirror/mode/` → 在 `ui/index.html` 加 `<script>`。
+4. CM 与 textarea 用 `linkTextareaToEditor()` 桥接 `.value`，所以测试与既有代码继续用 `el.value`。
 
-## 展示约定（用户 2026-10-22 明确要求）
+## 展示约定
 
-1. **换算出来的数值一律不带千分位逗号**：这些值要能直接贴进代码 / 命令行 / 配置，`1,234,567,890` 在那里是语法错误。已落地在字节页（`bytesFmt` 用 `String(Number(n))`，别再改回 `toLocaleString`）；其它页面的「字符数 / 条数」这类统计仍可用 `toLocaleString`，那是给人读的计数，不是要复制走的数值。
-2. **换算结果要能逐个复制**：字节页三张汇总卡各有「复制」胶囊 + 数字本身可点；表格里 `td.num` 点一下即复制（`cursor: copy` + `title`）。整体复制仍给 TSV。新增类似页面照这个模式做。
+1. **换算出来的数值不带千分位**（要能直接贴进代码 / 配置）；字符数 / 条数这类统计仍可 `toLocaleString`。
+2. **结果要能逐个复制**：汇总卡有复制胶囊、`td.num` 点一下即复制（`cursor: copy`），整体复制给 TSV。
 
 ## 版本与发布
 
-- **不要自己改版本号**（用户 2026-10-24 第二次强调：「不要自己乱改版本，你为啥记不住呢」）：不升 `manifest.json` / `package.json` 的 `version`，不新建 CHANGELOG 版本段，不动 `.dbx-store.json` 里 `source` 的 `vX.Y.Z`。功能做完就留在当前版本，改不改、改成多少由用户说；**连「先升再回退」也不要干**。
-- 版本号三处必须一致：`manifest.json`、`package.json`、`CHANGELOG.md` 顶部段落（`.dbx-store.json` 的 `source` 引用 vX.Y.Z、`releaseNotes` 写最新一版）。
-- CHANGELOG 按「新增 / 修复 / 工程化」三类写，条目要能被用户读懂（写清现象与原因），工程化条目给实测数字。
-- 打包用 `./scripts/build.sh`（会先跑全部单测再出 `dist/*.dbxp`）；新增测试文件记得同时加进 `scripts/build.sh` 的 `run_tests()` 与 `package.json` 的 `test`。
-- **不打 tag、不建分支**（用户 2026-10-22 明确要求，永远遵守）：只在当前分支上提交，版本号同步到文件里就够；`git tag` / `git branch` / `git checkout -b` 一律不做，push 也要先问。
+- 版本号三处一致：`manifest.json` / `package.json` / `CHANGELOG.md` 顶部段落；`.dbx-store.json` 的 `source` 用 `tree/vX.Y.Z`，`releaseNotes` 写最新一版。
+- CHANGELOG 分「新增 / 修复 / 工程化」，写现象与原因，工程化条目给实测数字。
+- 打包 `./scripts/build.sh`（先跑全部单测再出 `dist/*.dbxp`）；新测试文件要同时进 `scripts/build.sh` 的 `run_tests()` 与 `package.json` 的 `test`。
 
-## 后续任务清单
+## 已上线能力（改动前必读）
 
-已完成的不再列在这里（二 格式矩阵、三 查询与校验均已上线）。当前只剩下面这些。
+### 导入体系（0.1.6）
 
-### 四、工作流（进行中）
+- **不换页**（用户明确要求「在哪个功能就在哪个页面」）：`importKindForPage(page)` 决定这一页吃什么（图片页按 `imgMode`、表格页 sheet、其余 text）；`checkDropRoute()` 只比对并 toast 指路，绝不跳页。
+- `flow.textImportable(name)`：不是图片、不是 `xlsx/xlsm/xls` 就当文本收，**扩展名不认识也收**（`.dat` / `.out`）。`flow.textFormatOf(name)` 给格式转换页定源格式。
+- 三入口同一通道：隐藏 `#pageImportInput` + `[data-import-page]` 按钮（对比页 `data-import-side="left|right"`）+ 拖放 → `importTextIntoPage()` → `pageImportTargets()` → `putTextIntoPage()`。
+- **>2 M 字符（`TEXT_AUTO_MAX`）只载入不自动转换**（格式转换要「解析 → 序列化」，大文件会卡住宿主）；`textLooksBinary()`（NUL / 大量 `\uFFFD`）拦二进制。
+- 提示条 `setPageTip()` 写「已导入 {name} · {size}」并 toast；拖入蒙层的 `syncDropVeilLimit()` 写本页上限。格式转换页的 `#convertTip` 默认 `hidden`（不加 `min-height`，否则切页留空白）。
+- 批量：一次拖多个表格 → `mergeFiles()` 成 `{ 文件名: 记录[] }`；文本页只导入第一个并 toast 说明。
 
-1. ✅ **全局拖放（按当前页，不跳页）**：`ui/js/flow.js` 的 `routeFile()` / `routeBatch()` 只判类型，**不再决定跳哪一页**（用户 2026-10-24 明确要求「在哪个功能就在哪个页面」）。`ui/index.html` 的 `checkDropRoute()` 拿 `importKindForPage()` 比「当前页能吃哪类」，对不上只 toast 提示去哪一页；`dropLimitFor()` 统一入口体积（图片 10 MB / 表格上限 / 文本 `TEXT_IMPORT_MAX`）。宿主 `onDrop` 与浏览器 `document drop` 两条路共用这一套，浏览器路径也补了 `HOST_DROP_BUDGET`（64 MB）总预算。
-2. ✅ **每页都有「导入文件」**（用户 2026-10-24 要求「每个功能页面正常支持的格式都应该被导入」「没有导入文件的功能页面看情况加上」）：共用一个隐藏 `#pageImportInput` + `[data-import-page]` 按钮（对比页两个按钮靠 `data-import-side`），点按钮与拖放都进 `importTextIntoPage()` → `pageImportTargets()`（编辑器优先，懒创建时退回 textarea）。**判断口径**：`flow.textImportable()` —— 只要不是图片、不是 xlsx/xls 二进制表格就当文本收，扩展名不认识也收（`.dat` / `.out` 那类导出文件），`.csv` / `.tsv` 在格式转换页按源格式读。改这条先看 `tests/ui.smoke.js` 的「拖入 JSON / CSV / 不认识的扩展名 / 导入按钮 / 对比页导入右侧」几节。
-3. ✅ **导入的体积与显示**：文本 16 MB（原来错用了 `flow.LIMITS.hostText` 的 2 MB，太紧）、图片 10 MB、表格 20 MB；导入后提示条 + toast 都写「文件名 · 体积」，拖入时蒙层写本页上限（`syncDropVeilLimit()`）。**超过 `TEXT_AUTO_MAX`（2 M 字符）只载入不自动转换**，否则格式转换页在导入瞬间跑「解析 → 序列化」会卡住宿主。二进制（NUL / 大量 `\uFFFD`）用 `textLooksBinary()` 拦下。
-4. ✅ **批量处理**（已做）：一次拖多个表格文件 → `mergeFiles()` 合并成 `{ 文件名: 记录[] }` 的一个 JSON，导出 `batch-N.json`；`sheetState.batch` 独立于单文件状态，切 SQL 输出会退回单文件。文本页一次只导入第一个（会 toast 说明用了哪个）。
-5. ⬜ **接入宿主选中内容**：`window.dbxPlugin.context` + `onContext()` 是宿主给数据的口子（dev-runtime 里确认过：`context` / `onInit` / `onContext`）。用 `flow.pickHostText()` 从任意形状的 context 里挖出选中文本，`classifyText()` 判 json / ddl / sql / text 后路由。**没做完，别忘。**
-6. ⬜ **最近使用 / 常用片段**：`flow.recentPush()` 已就绪（条数、单条 16 KB、总预算 256 KB、正文超预算降级为元信息），还缺 localStorage 与工具栏面板。
+### JSON 转图表（0.1.6）
 
-### 五、字节转换（已完成，0.1.5）
+- 独立导航页，`ui/js/chart.js` 纯函数 + `#chartWorkspace`；默认 **700 × 400**，宽高 80–4096。
+- **智能解析**：`findInside()`（≤3 层，键名 + 内容双打分）认 `{"biz":{"echart_option":"{…}"}}`；`collectReport(value, budget)` 收集多 option（`COLLECT_DEPTH=8`、`budgetFor(chars)=min(60000,max(300,chars/6))`，多份文档按份数摊）；`isScalarRow()` 的纯数据行**跳过且不计预算**（但值里有字符串化 JSON 的不能剪）；`looksEmbedded()` 只看前 8 字符；`parseEmbedded()` 别 `trim()` 整串。扫不完如实 `truncated` → 状态条 `chartTruncated`。
+- **出图不跟主题**（用户 2026-10-25 要求）：`CHART_BG='#ffffff'`、`chartThemeName()` 恒 `null`，预览与导出共用同一份 option；换主题不再重建实例。
+- **预览 1:1**：`.chart-stage` 用 `justify-content:flex-start` + `.chart-canvas{margin:auto}`，`chartApply()` 用 important 钉 `max-width/height:none`；别加 `object-fit:none`。
+- 导出：PNG 走 `chartRenderPng()`（临时实例 + `devicePixelRatio` + **显式 `pixelRatio`**，zrender 不读实例 dpr），SVG 走 `ssr:true` + `renderToSVGString()`；两条路共用 `chartResult.option`，别各自 build 一次。
+- 引擎 `ui/vendor/echarts/echarts.min.js`（6.1.0 全量，Apache-2.0）。**不能用 simple 版**（缺 radar / treemap / dataZoom）。懒加载、失败不缓存 promise、离开页 dispose。
+- 上限：输入 2 M 字符、30 系列、总点 5 万、单系列 2 万；像素比 1x/2x/3x，`chartSafeScale()` 按 2400 万像素封顶降档。
+- 测试三层：`tests/chart.test.js`（含「任务列表」6 条）、`ui.smoke.js`（stub 掉 echarts，jsdom 里真 echarts 必崩）、`/tmp/imgh/check-chart.js`（真 Chrome 43 项）。
 
-用户先要「并进转义抽屉当第 9 种」，随后两次改口：「支持批量转换」「独立功能」——最终形态是**独立导航页**（导航第 5 项，紧跟「转义工具」），`ui/js/bytes.js` 纯函数 + `#bytesWorkspace` 独立工作区，不进 esc 的 chip 列表。
+### 图片页导入（0.1.6）
 
-- 左侧输入一行一值（CodeMirror，非 MB 级所以照规矩用 CM）；右侧是 HTML 结果面板：汇总三卡（精确值 / 1000 制 / 1024 制）+ 批量表格（# / 输入 / 字节 / 两套换算，多行才有合计行）+ 三种写法。
-- 解析优先级：`parseSize()` 先吃「数字 + 单位」（`1.5 GB` / `700M` / `1 KiB`），再吃字节序列；序列整串统一进制（混了 a-f 或 0x 就全按 hex），避免 `1f 10` 的 `10` 被当十进制；xxd 行先剥偏移列、再按 `|` 或「两个以上空格」剥 ASCII 列。
-- 三种写法往返都要成立：`toHexDump`（偏移是**十六进制**、8 位）/ `toByteArray`（每行 16 个）/ `toBinary`，测试里专门验证「生成再读回」一致。
-- 上限：序列 8 KB、数值 1e18、批量 200 行、预览 2 K 字符（复制拿全文）。
-- i18n：`NAV_I18N.navBytes` + 新表 `BYTES_I18N`（19 键 × 14 语），i18n 测试已纳入。
+- 解码页「导入文件」只读文本（16 MB，再按 14 M 字符卡一次）；编码页「选择图片」只吃图片。
+- **不换页**：`imgImportFile()` 类型不对只 `imgSetTip` 提示，绝不 `setImgMode()`。
+- 导出 → 导入闭环靠 `DBXImg.parseInput()` 的 `data:` 正则（CSS / HTML / Markdown 包装都能读回）。
 
-### 六、JSON 转图表（已完成，0.1.6）
+### 保存 / 导出（0.1.6 定型）
 
-独立导航页（第 9 项，紧跟「字节转换」），`ui/js/chart.js` 纯函数 + `#chartWorkspace`。用户明确要过「参考 `striezel/echarts-node-export-server`」「用官方 6.1.0」「**默认宽 700 × 高 400**」。
+1. **唯一入口** `saveTextFile()` / `saveBinaryFile()`，返回 **`host` / `browser` / `cancelled` / `failed`** 四态，调用方一律 `saveToast(status, okText)`。**不要再出现「不管成败都弹已导出」**。
+2. 写法照 aes-tools：`beginSave` 同步调用先进 try/catch 拿 Promise，写盘在 IIFE 里 await；中途失败先 `cancel(handleId)` 再回退浏览器下载。别写 `const h = await ft.beginSave(...)`。
+3. **`dbx-plugin dev` 里导出不可用是预期**（无 `fileTransfer`，iframe 禁下载），别为 dev 改正式逻辑。
+4. 验证：拦 `URL.createObjectURL` 拿 Blob，直接读 PNG 的 IHDR（第 16..24 字节大端宽高）。
 
-- 输入既可以是完整 ECharts option（`series` 存在即认），也可以只是数据：`points` / `pairs` / `map`，自动判形状挑类型；完整 option 时类型下拉禁用。
-- **智能解析是这块的核心竞争力**（用户拿真实接口返回提的需求）：`findInside()` 递归剥外层（≤3 层，键名+内容双打分），认 `{"biz":{"echart_option":"{…}"}}` 这种「业务 key + 序列化字符串」；`collectOptions()` 收集一份或多份 JSON 里的所有 option（预算 300 节点），UI 用 `#chartPick` 下拉切换；`splitJsonDocs()` 自己配平括号切 NDJSON / `{…}{…}`。改这块先看 `tests/chart.test.js` 的「智能解析」「多个 option」「多份 JSON」三节。
-- **预览必须 1:1**：`.chart-stage` 是 `justify-content: flex-start` + `.chart-canvas{margin:auto}`（居中布局会让超宽画布左半截滚不回去），并在 `chartApply()` 里用 important 钉住 `max-width/height:none` 防宿主把 canvas 压扁。别加 `object-fit:none`（HiDPI 会毁渲染）。
-- **导出与预览共用同一份 `chartResult.option`**（都 `animation:false`）：PNG 走 `chartRenderPng()`（临时实例 + `devicePixelRatio` + 显式 `pixelRatio`，见上节），SVG 走 `ssr:true` 实例 + `renderToSVGString()`。别把这两条路改成各自 build 一次 option，否则两边会不一样。
-- 引擎 `ui/vendor/echarts/echarts.min.js`（6.1.0 全量 1.1 MB，Apache-2.0，附 LICENSE）。**不能用 `echarts.simple.min.js`**（缺 radar / treemap / dataZoom）。`loadChartEngine()` 懒加载，失败不缓存 promise；离开页面 dispose。
-- 上限：输入 2 M 字符、30 系列、总点 5 万、单系列 2 万、宽高 80–4096（越界夹取并回写输入框 + 说明原因）。
-- jsdom 里 echarts 必崩（`clearRect` / `dpr`），所以冒烟测试 stub 掉 echarts 请求只验降级路径；真渲染用 `/tmp/imgh/check-chart.js`（CDP，21 项）。改到图表页后必须跑这三层：`chart.test.js`、`ui.smoke.js`、`check-chart.js`。
-- i18n：`NAV_I18N.navChart` + 新表 `CHART_I18N`（33 键 × 14 语，+`chartTruncated`）。
+## 工具坑
 
-#### 任务列表式数据（0.1.6 补，用户拿真实导出提的需求）
+1. macOS **BSD grep 不支持 `\s` / `\|` / `{0,300}`**：多模式用 `grep -E "a|b"`。裸 grep 无输出时先怀疑语法，别当成「文件里没有」。
+2. 十几万行的 `ui/index.html` 用 `Grep` 工具或 `sed -n`，别裸 grep 拼管道。
+3. 批量插 i18n 用 node 脚本按锚点键插入，插完必跑 `tests/i18n.test.js`（漏逗号、切断 `l'immagine` 都发生过）。
+4. **语言头正则要兼容无引号**：`CHART_I18N` 里只有 `zh-CN` / `zh-TW` 带引号。用 `/^\s+(?:'([a-zA-Z-]+)'|([a-zA-Z0-9_-]+)):\s*\{\s*$/`，否则 `cur` 不前进、13 个语言全写成繁体而测试照样过。
+5. **自绘下拉的 `.disabled` 是空转**（`<div>`）：断言一律 `el.hasAttribute('disabled')`。
+6. 新增页面 ≈ 20–50 个 i18n 键 × 14 语，新文案进独立小表。
 
-顶层是数组 → 每条任务的某个字段是**序列化 JSON 字符串** → 展开后才是「业务键 → `echart_option` / `table_data` / `biz_data`」。option 落在**第 6 层**，中间夹着上千行表格。老参数（`COLLECT_DEPTH=4`、预算 300）会一个都找不到。
+## 待办（未完成）
 
-1. **深度放到 8、预算随输入放大**：`budgetFor(chars) = min(60000, max(300, chars/6))`，`parseText` 传进去；多份文档时按份数摊。实测 40 万字符的返回 7 ms 找出全部 33 张图，1.8 MB / 1.9 万行 42 ms。
-2. **纯数据行不占预算**：`isScalarRow()`（对象里全是标量、且没有字符串像序列化 JSON）直接跳过——表格行是预算的最大消耗者，且不可能藏着 option。注意「值里有字符串化 JSON」必须排除（否则会把 `{note:'ok', extra:'{"inner":{echart_option:…}}'}` 剪掉）。预算只给「会往下走的节点」记账（数组 / 非数据行对象 / 能解析出 JSON 的字符串）。
-3. **扫不完要如实说**：`collectReport()` 返回 `{options, truncated}`，`parseText` 带出 `truncated`，UI 在状态条前缀 `chartTruncated` 一句（`notes` 数组拼 ` · `，和尺寸越界提示共用一条）。
-4. `echart_option` 为 `null` / 空串不占位（下拉只列真能画的）。
-5. `parseEmbedded()` 判断「像不像 JSON」只看前 8 个字符（`looksEmbedded()`），**别 `trim()` 整串**——负载几百 KB，一次判断就是一次全量拷贝。
-6. 测试三处：`tests/chart.test.js` 的「任务列表」6 条（自造样本）、`ui.smoke.js` 的「任务列表」1 条、`/tmp/imgh/check-chart.js` 的 4 条（真 Chrome）。
-
-### 七、图片页导入（已完成，0.1.6）
-
-1. 解码页（Base64 转图片）选项行有「导入文件」（`#imgImport` → `#imgTextInput`），只读文本：`.txt` / `.b64` / `.json` / `.md` 等；编码页的「选择图片」只吃图片。拖拽两侧都能用。
-2. **不换页是硬规矩**（用户 2026-10-24 明确要求）：`imgImportFile()` 先看 `imgMode`，类型不对只 `imgSetTip` 提示（`imgDropTextInstead` / `imgImportImageInstead`），绝不 `setImgMode()`。改这里前先想「会不会把用户从当前页踢走」。
-3. 「导出 → 导入」闭环靠 `DBXImg.parseInput()` 里的 `data:` 正则，所以 CSS / HTML / Markdown 三种包装导出的文件也能抓出 Base64 还原成图片。
-4. 入口限流：文件 16 MB（`IMG_TEXT_FILE_MAX`），读出后再按 `maxBase64Chars`（14 M 字符）卡一次——字节数过关不代表字符数过关，超了不塞进 textarea（14 M 字符的框会先卡）。
-5. 测试：`tests/ui.smoke.js` 三条（入口可见性 / 导入解析 / 二进制拦下），`/tmp/sb/check-imgimport.js` 23 项（含不换页、导出→导入闭环、图片文件被拦）。
-
-## 保存 / 导出（0.1.6 定型，改之前先读这段）
-
-1. **唯一入口**：`saveTextFile(name, text, mime)` / `saveBinaryFile(name, base64, mime)`（`ui/index.html` 约 7200 行）。返回 **`host` / `browser` / `cancelled` / `failed`** 四态，调用方一律 `saveToast(status, okText)` 报结果。**不要再出现「不管成功失败都弹已导出」**——那正是用户两次反馈「导出不生效」的直接原因。
-2. **写法照 aes-tools**：`beginSave` 同步调用放进 try/catch 先拿 Promise（宿主同步抛错也能当场接住），写盘在 IIFE 里 `await`；中途失败先 `ft.cancel(handleId)` 再回退浏览器下载。**不要写成 `const handle = await ft.beginSave(...)`**。
-3. **`dbx-plugin dev` 里导出不可用是预期**（dev 宿主没有 `fileTransfer`，iframe 是 `sandbox="allow-scripts"` 禁下载）。用户已确认这一点，别为 dev 改正式逻辑，也别在 dev 下假装成功。
-4. **验证方法**：`/tmp/sb/check-scale.js` 的思路——拦 `URL.createObjectURL` 拿 Blob，直接读 PNG 的 IHDR（第 16..24 字节大端宽高），比加载图片更可靠。
-
-## 图表像素比（1x / 2x / 3x）
-
-1. 下拉 `#chartScale`（`.custom-select` 自绘），`data-label` 存触发器短标签（`2x`）、`data-value` 存倍率；选项里 `<span class="chart-opt-size">` 显示该档实际像素，`chartFillScale()` 在尺寸变化时重算。
-2. `initCustomSelect` / `syncSelectLabel` 取文案优先用 `opt.dataset.label`，否则含附加信息的选项会把窄触发器撑爆。
-3. 导出 PNG 走 `chartRenderPng(option, w, h, ratio)`：单独起临时实例（`devicePixelRatio: ratio` + `animation:false`）再取图。**取图时必须显式传 `pixelRatio: ratio`**——zrender 用的是「逻辑宽高 × pixelRatio」，不读实例的 dpr，只传 1 会老实地返回 700×400（已实测）。
-4. 「放大查看」灯箱也走同一条路，标题写真实像素 + 倍率；`chartSafeScale()` 按 2400 万像素封顶自动降档（4096²@3x → 1x）。
-5. **命名要查全局**：`chartScaleNow` 已被预览缩放占用（`(w,h)` 那版），像素比函数叫 `chartPixelRatio()`。同名函数声明会互相覆盖，症状是「UI 都对了但取值永远是 1」。
-
-## 工具坑（省时间）
-
-1. macOS 自带 **BSD grep 不支持 `\s`、`\|`、`{0,300}`**：多模式一律 `grep -E "a|b"`，需要 `\s` 就用 `[[:space:]]` 或 node 脚本；否则会得到「空结果」并且误判成「文件里没有」。
-2. 十几万行的 `ui/index.html` 用 `Grep` 工具或 `sed -n`，别用裸 `grep` 拼管道。
-3. 批量插 i18n 用 node 脚本按锚点键逐语言插入（`/tmp/patch-*.js` 那套路），插完必须跑 `node tests/i18n.test.js`——漏逗号、切断字符串（意大利语 `l\'immagine`）都真发生过。
-4. **插 i18n 时语言头正则要兼容无引号写法**：`CHART_I18N` 里只有 `zh-CN` / `zh-TW` 带引号，`en` / `az` / `es` … 是 `en: {`。写成 `/^\s+'([a-zA-Z-]+)':\s*\{/` 时 `cur` 不前进，13 个语言全被写成繁体（i18n 测试还照样过，因为它只查键集合与占位符）。正确写法：`/^\s+(?:'([a-zA-Z-]+)'|([a-zA-Z0-9_-]+)):\s*\{\s*$/`，插完 `grep` 一眼扫过去。
-5. **jsdom 里 `.disabled` 是空转**：`chartType` 这类自绘下拉是 `<div class="custom-select">`，`el.disabled` 恒为 `undefined`，写成 `if (el.disabled)` 的断言永远不触发。一律用 `el.hasAttribute('disabled')`（`/tmp/imgh/check-chart.js` 那条就空转过一次）。
-
-### 每次开工前都要想起的两条约束
-
-1. 每加一页 ≈ 20–50 个 i18n 键 × 14 种语言；`ui/index.html` 已 12.9 k 行，新文案进独立小字典（`BYTES_I18N` / `CHART_I18N` / `FLOW_I18N` 那套路，现在共 11 张表），别继续堆主字典。
-2. 新功能一旦要碰 DOM / 大文本，先按「性能与稳定性」七条自查，尤其入口限流与大字符串不驻留。
+1. **接入宿主选中内容**：`window.dbxPlugin.context` + `onContext()`（dev-runtime 里确认过 `context` / `onInit` / `onContext`）。用 `flow.pickHostText()` 挖选中文本，`classifyText()` 判 json / ddl / sql / text 后路由。
+2. **最近使用 / 常用片段**：`flow.recentPush()` 已就绪（单条 16 KB、总预算 256 KB、超预算降级元信息），还缺 localStorage 与工具栏面板。

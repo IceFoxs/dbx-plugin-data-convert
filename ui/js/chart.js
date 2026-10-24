@@ -754,7 +754,7 @@
     /**
      * build(value, opts)
      *   opts.type        'auto' | 'line' | 'bar' | 'area' | 'pie' | 'scatter'
-     *   opts.background  预览 / 导出共用的底色（跟着主题走）
+     *   opts.background  预览 / 导出共用的底色（固定白底，不跟界面主题走）
      * 返回 { option, meta } 或 { code, detail }
      */
     function build(value, opts) {

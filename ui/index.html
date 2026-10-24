@@ -4064,7 +4064,7 @@
         let escOutputEditor = null;
         let bytesEditor = null;
         let chartEditor = null;
-        // 图表页的状态也提前声明：syncEditorTheme() 首屏就会调到 syncChartTheme()，
+        // 图表页的状态也提前声明：离开/进入页面、syncEditorTheme() 都会用到，
         // 声明放在后面会踩 TDZ（和当初 bytesEditor 一样的坑）
         let chartModeActive = false;
         let chartTimer = null;
@@ -4189,8 +4189,7 @@
                 // setOption('theme') 内部已经 refresh 过一次，只有主题没变（仅换了皮肤令牌）时才需要手动刷新
                 if (!switching) cm.refresh();
             });
-            // 图表的配色是 init 时烘进去的，换主题要重建实例（见 syncChartTheme）
-            syncChartTheme();
+            // 图表页不用管：出图配色与底色固定，见 chartBg() / chartThemeName()
         }
 
         // CodeMirror 的语法配色是整块换 class 的，文字颜色没法跟着 CSS 过渡走。
@@ -13320,17 +13319,18 @@
             chartTip.className = 'compare-tip' + (cls ? ' ' + cls : '');
         }
 
-        function chartIsDark() {
-            return document.documentElement.getAttribute('data-dbx-theme') === 'dark';
-        }
+        /* 出图不跟主题走：画出来的图是要拿去贴到别处的（文档、聊天、报告），
+           宿主界面是暗色时也照样按浅色默认配色 + 白底出图——
+           预览与导出共用同一份 option，所以「看到的」和「存下来的」永远是同一张。 */
+        const CHART_BG = '#ffffff';
 
-        // 底色跟主题走：导出的图与预览同一张，不会白底白字
         function chartBg() {
-            return chartIsDark() ? '#141416' : '#ffffff';
+            return CHART_BG;
         }
 
+        /** 图表一律用 ECharts 默认（浅色）配色，不切 dark 主题 */
         function chartThemeName() {
-            return chartIsDark() ? 'dark' : null;
+            return null;
         }
 
         function chartSizeNow() {
@@ -13914,12 +13914,8 @@
             }
         }
 
-        // 换主题：echarts 的配色在 init 时就烘进去了，只能重建实例再画一次
-        function syncChartTheme() {
-            if (!chartInstance) return;
-            disposeChart();
-            if (chartModeActive) chartRender();
-        }
+        /* 换主题不重画：图表的配色固定浅色、底色固定白，
+           跟界面是亮是暗无关，重建实例只会白白丢一次渲染。 */
 
         function enterChartMode() {
             if (chartModeActive) return;
