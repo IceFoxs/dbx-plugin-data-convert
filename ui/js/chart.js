@@ -81,18 +81,46 @@
         return 10;
     }
 
+    /**
+     * 字符串开头（允许前导空白）是不是 { 或 [。只看前 8 个字符，
+     * 不 trim、不复制 —— 负载字符串动辄几百 KB，trim 一次就是一次全量拷贝。
+     */
+    function looksEmbedded(value) {
+        if (typeof value !== 'string') return false;
+        var n = value.length;
+        for (var i = 0; i < n && i < 8; i++) {
+            var c = value.charCodeAt(i);
+            if (c === 0x20 || c === 0x0a || c === 0x0d || c === 0x09) continue;
+            return c === 0x7b || c === 0x5b;   // '{' / '['
+        }
+        return false;
+    }
+
     /** 字符串里藏着 JSON（接口把 option 序列化成了字符串）就取出来，否则 null */
     function parseEmbedded(value) {
-        if (typeof value !== 'string') return null;
-        var s = value.trim();
-        if (!s) return null;
         // 只有以 { 或 [ 开头的才当"藏了 JSON"，普通字符串不试解析
-        if (s.charAt(0) !== '{' && s.charAt(0) !== '[') return null;
+        if (!looksEmbedded(value)) return null;
         try {
-            return JSON.parse(s);
+            return JSON.parse(value);   // JSON.parse 自己容忍前导空白
         } catch (err) {
             return null;
         }
+    }
+
+    /**
+     * 是不是"一行普通数据"：对象里的值全是标量，且没有哪个字符串像序列化 JSON。
+     * 表格行（几万条记录）不可能藏着 option，却是遍历预算的最大消耗者 ——
+     * 认出来就整棵跳过，既快又不会把后面的业务键挤掉。
+     */
+    function isScalarRow(node) {
+        var keys = Object.keys(node);
+        if (!keys.length) return false;
+        for (var i = 0; i < keys.length; i++) {
+            var v = node[keys[i]];
+            if (v && typeof v === 'object') return false;
+            if (looksEmbedded(v)) return false;   // 字符串里可能还裹着一层 option
+        }
+        return true;
     }
 
     /** 候选值有多值得当成"真正的配置"：完整 option 比纯数据更值得 */
@@ -160,6 +188,11 @@
     //   {"前端":{"echart_option":"{…}"},"后台":{"echart_option":"{…}"}}
     //   [{"echart_option":"{…}"},{"echart_option":"{…}"}]
     //
+    // 还有一种更常见的形态：顶层是**任务列表**，每条的某个字段是二次序列化的
+    // JSON 字符串，展开之后才是「业务键 -> { echart_option, table_data, … }」。
+    // 一层套一层、还夹着几万行表格数据，所以这里既不能设浅，也不能不设预算：
+    // 靠 isScalarRow 跳过纯数据行，预算按输入长度放大。
+    //
     // 只挑一个出来会丢掉别的，所以把找到的都列出来（带路径与标题），由界面让用户选。
 
     function optionTitle(value) {
@@ -172,26 +205,50 @@
     }
 
     /**
-     * collectOptions(value) -> [{ path, value, title }]
-     * 广度优先、最多看 COLLECT_BUDGET 个节点（病态输入也不会把主线程占住），
-     * 命中 option 就不再往下挖（避免把 series 当根）。
+     * 预算：看多少个节点。小输入 300 个就够；大输入按文本长度放大（一个节点平均
+     * 也就几个字符），再大也不超过 COLLECT_BUDGET_MAX —— 病态输入不能占住主线程。
+     * 深度放到 8：现实里的接口常常是「数组 → 序列化负载 → 业务键 → 字段 → 再一层
+     * 字符串 → option」，6 层打得住，8 层留余量。
      */
     var COLLECT_BUDGET = 300;
-    var COLLECT_DEPTH = 4;
+    var COLLECT_BUDGET_MAX = 60000;
+    var COLLECT_DEPTH = 8;
 
-    function collectOptions(value) {
-        var out = [];
-        var budget = COLLECT_BUDGET;
+    function budgetFor(chars) {
+        var n = Math.ceil(Number(chars) / 6);
+        if (!isFinite(n) || n < COLLECT_BUDGET) return COLLECT_BUDGET;
+        return n > COLLECT_BUDGET_MAX ? COLLECT_BUDGET_MAX : n;
+    }
+
+    /**
+     * 把找到的 option 塞进 out，返回「预算是否被用光」（true = 没扫完）。
+     * 命中 option 就停，不再往里挖，避免把 series 里的东西当成根。
+     *
+     * 预算只给「真会往下走的结构节点」记账：数组、普通对象、能解析出 JSON 的字符串。
+     * 表格行和标量不算 —— 一份 3000 行的表能白扫，不会把后面的业务键挤掉。
+     */
+    function collectInto(value, budget, out) {
+        var left = typeof budget === 'number' && budget > 0
+            ? Math.min(Math.floor(budget), COLLECT_BUDGET_MAX)
+            : COLLECT_BUDGET;
+        var truncated = false;
+
+        /** 花掉一个预算；没了就记下「没扫完」并让调用方别再往下走 */
+        function spend() {
+            if (left <= 0) { truncated = true; return false; }
+            left--;
+            return true;
+        }
 
         function walk(node, path, depth) {
-            if (budget <= 0 || depth > COLLECT_DEPTH) return;
-            budget--;
+            if (depth > COLLECT_DEPTH) return;
             if (typeof node === 'string') {
                 var parsed = parseEmbedded(node);
-                if (parsed !== null) walk(parsed, path, depth + 1);
+                if (parsed !== null && spend()) walk(parsed, path, depth + 1);
                 return;
             }
             if (Array.isArray(node)) {
+                if (!spend()) return;
                 for (var i = 0; i < node.length; i++) {
                     walk(node[i], path ? path + '[' + i + ']' : '[' + i + ']', depth + 1);
                 }
@@ -202,6 +259,9 @@
                 out.push({ path: path, value: node, title: optionTitle(node) });
                 return;
             }
+            // 表格里的一行：纯标量、没有嵌套，不可能藏着 option，跳过且不占预算
+            if (isScalarRow(node)) return;
+            if (!spend()) return;
             var keys = Object.keys(node);
             for (var j = 0; j < keys.length; j++) {
                 walk(node[keys[j]], path ? path + '.' + keys[j] : keys[j], depth + 1);
@@ -209,7 +269,20 @@
         }
 
         walk(value, '', 0);
+        return truncated;
+    }
+
+    function collectOptions(value, budget) {
+        var out = [];
+        collectInto(value, budget, out);
         return out;
+    }
+
+    /** 同 collectOptions，但把「预算用光、没扫完」也带出来（界面要如实说一句） */
+    function collectReport(value, budget) {
+        var out = [];
+        var truncated = collectInto(value, budget, out);
+        return { options: out, truncated: truncated };
     }
 
     // ---------- 换行 / 拼接的多个 JSON ----------
@@ -322,24 +395,36 @@
         // 多份文档：把每一份里的 option 都收集起来，路径带上 #序号
         if (docs) {
             var many = [];
+            var manyCut = false;
+            // 预算按文档数摊开，否则 200 份文档各自扫满一遍就白等了
+            var perDoc = budgetFor(raw.length / docs.length);
             for (var d = 0; d < docs.length; d++) {
-                var list = collectOptions(docs[d]);
-                for (var k = 0; k < list.length; k++) {
+                var doc = collectReport(docs[d], perDoc);
+                if (doc.truncated) manyCut = true;
+                for (var k = 0; k < doc.options.length; k++) {
                     many.push({
-                        path: '#' + (d + 1) + (list[k].path ? '.' + list[k].path : ''),
-                        title: list[k].title,
-                        value: list[k].value
+                        path: '#' + (d + 1) + (doc.options[k].path ? '.' + doc.options[k].path : ''),
+                        title: doc.options[k].title,
+                        value: doc.options[k].value
                     });
                 }
             }
             if (many.length) {
-                return { value: many[0].value, via: many[0].path, layers: 1, options: many, docs: docs.length };
+                return {
+                    value: many[0].value,
+                    via: many[0].path,
+                    layers: 1,
+                    options: many,
+                    docs: docs.length,
+                    truncated: manyCut
+                };
             }
             // 没有 option：当成一串数据（一行一个点也能画）
-            return { value: docs, via: '', layers: 0, options: [], docs: docs.length };
+            return { value: docs, via: '', layers: 0, options: [], docs: docs.length, truncated: manyCut };
         }
 
-        var found = collectOptions(parsedValue);
+        var report = collectReport(parsedValue, budgetFor(raw.length));
+        var found = report.options;
         if (found.length) {
             return {
                 value: found[0].value,
@@ -347,12 +432,13 @@
                 layers: 1,
                 options: found.map(function (o) {
                     return { path: o.path, title: o.title, value: o.value };
-                })
+                }),
+                truncated: report.truncated
             };
         }
 
         var res = unwrap(parsedValue);
-        return { value: res.value, via: res.via, layers: res.layers, options: [] };
+        return { value: res.value, via: res.via, layers: res.layers, options: [], truncated: report.truncated };
     }
 
     // ---------- 形状判定 ----------
@@ -748,6 +834,8 @@
         countPoints: countPoints,
         mapToList: mapToList,
         unwrap: unwrap,
-        collectOptions: collectOptions
+        collectOptions: collectOptions,
+        collectReport: collectReport,
+        budgetFor: budgetFor
     };
 });

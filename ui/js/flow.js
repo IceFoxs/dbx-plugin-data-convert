@@ -40,9 +40,33 @@
         log: '', md: ''
     };
 
+    // 二进制表格：只有「表格转 JSON」页能读，文本类页面收不了
+    var BINARY_SHEET_EXT = ['xlsx', 'xlsm', 'xls'];
+
     function extOf(name) {
         var m = /\.([^.\\/]+)$/.exec(String(name || ''));
         return m ? m[1].toLowerCase() : '';
+    }
+
+    /**
+     * 文本类页面（格式转换 / 对比 / SQL / 转义 / 字节 / 图表 / 代码生成 / 查询）能吃这个文件吗。
+     * 原则：只要不是图片、也不是二进制表格，就当文本读进来——扩展名不认识也收
+     * （大量导出文件叫 .dat / .out / .resp，按扩展名拒收等于把人挡在外面）。
+     */
+    function textImportable(name) {
+        var ext = extOf(name);
+        if (!ext) return true;                        // 没扩展名：读进来按内容判断
+        if (IMAGE_EXT.indexOf(ext) >= 0) return false;
+        if (BINARY_SHEET_EXT.indexOf(ext) >= 0) return false;
+        return true;
+    }
+
+    /** 这个扩展名对应的源格式（格式转换页用）；空串表示交给内容嗅探 */
+    function textFormatOf(name) {
+        var ext = extOf(name);
+        if (ext === 'csv' || ext === 'tsv') return ext;
+        if (Object.prototype.hasOwnProperty.call(TEXT_EXT, ext)) return TEXT_EXT[ext];
+        return '';
     }
 
     function baseName(name) {
@@ -278,6 +302,8 @@
         baseName: baseName,
         routeFile: routeFile,
         routeBatch: routeBatch,
+        textImportable: textImportable,
+        textFormatOf: textFormatOf,
         mergeFiles: mergeFiles,
         hashText: hashText,
         recentPush: recentPush,

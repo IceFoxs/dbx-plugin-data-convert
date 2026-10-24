@@ -1735,6 +1735,14 @@
         .drop-veil-card svg { width: 26px; height: 26px; color: var(--primary); }
         .drop-veil-card strong { font-size: 0.9rem; font-weight: 600; }
         .drop-veil-card span { font-size: 0.76rem; color: var(--text-muted); }
+        /* 当前页的体积上限：拖进来之前就说清楚，别等松手才弹「文件太大」 */
+        .drop-veil-card .drop-veil-limit { font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+        .drop-veil-card .drop-veil-limit[hidden] { display: none; }
+        /* 格式转换页的导入结果：工具栏是居中的胶囊，提示行也跟着居中。
+           默认不占位（没导入过就没有这一行），切到别的页面时跟着工作区一起隐藏 */
+        .convert-tip { text-align: center; }
+        .convert-tip[hidden] { display: none; }
+        .main-container:has(#mainWorkspace.hidden) .convert-tip { display: none; }
 
         /* ================= 表格转 JSON 页 ================= */
         /* 选项行：表头、分隔符、数字/布尔识别、上限提示 */
@@ -2551,6 +2559,9 @@
         </button>
     </div>
 
+    <!-- 导入结果（文件名 + 体积）：没导入过就整行不出现，不留空白 -->
+    <div class="compare-tip convert-tip" id="convertTip" hidden></div>
+
     <!-- 原来的工作区 -->
     <div class="workspace-grid" id="mainWorkspace">
         <div class="pane">
@@ -2560,6 +2571,7 @@
                     <span data-i18n="inputLabel">输入内容</span>
                 </div>
                 <div class="pane-actions">
+                    <button class="btn btn-outline" id="convertImport" data-import-page="convert" data-i18n="flowImport">导入文件</button>
                     <button class="btn btn-outline" id="pasteInputBtn" data-i18n-title="pasteBtn">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
                         <span data-i18n="pasteBtn">粘贴</span>
@@ -2672,6 +2684,8 @@
             </div>
 
             <div class="compare-actions">
+                <button type="button" class="btn btn-outline" id="cmpImportLeft" data-import-page="navCompare" data-import-side="left" data-i18n="flowImportLeft">导入左侧</button>
+                <button type="button" class="btn btn-outline" id="cmpImportRight" data-import-page="navCompare" data-import-side="right" data-i18n="flowImportRight">导入右侧</button>
                 <button type="button" class="btn btn-outline" id="cmpBeautify" data-i18n="cmpBeautify">美化</button>
                 <button type="button" class="btn btn-outline" id="cmpClear" data-i18n="cmpClear">清空</button>
                 <button type="button" class="btn btn-primary" id="cmpRun" data-i18n="cmpRun">对比</button>
@@ -2723,6 +2737,7 @@
             </div>
 
             <div class="compare-actions">
+                <button type="button" class="btn btn-outline" id="sqlImport" data-import-page="navSql" data-i18n="flowImport">导入文件</button>
                 <button type="button" class="btn btn-outline" id="sqlClear" data-i18n="clearBtn">清空</button>
                 <button type="button" class="btn btn-primary" id="sqlGenerate" data-i18n="sqlGenerate">生成</button>
             </div>
@@ -3062,6 +3077,9 @@
                         <span id="codeInLabel" data-i18n="genInputJsonTitle">JSON 示例</span>
                         <span class="pane-badge" id="codeInBadge">—</span>
                     </div>
+                    <div class="pane-actions">
+                        <button type="button" class="btn btn-outline" id="codeImport" data-import-page="navCodegen" data-i18n="flowImport">导入文件</button>
+                    </div>
                 </div>
                 <div class="editor-container">
                     <textarea id="codeInput" class="code-input" spellcheck="false" data-i18n-placeholder="genPlaceholderJson"></textarea>
@@ -3092,6 +3110,7 @@
             </div>
 
             <div class="compare-actions">
+                <button type="button" class="btn btn-outline" id="queryImport" data-import-page="navQuery" data-i18n="flowImport">导入文件</button>
                 <button type="button" class="btn btn-outline" id="queryCopy" data-i18n="copyBtn">复制</button>
                 <button type="button" class="btn btn-outline" id="queryClear" data-i18n="clearBtn">清空</button>
             </div>
@@ -3194,6 +3213,7 @@
             <button type="button" class="btn btn-outline esc-flip" id="escFlip" data-i18n="escFlip">对调</button>
 
             <div class="compare-actions">
+                <button type="button" class="btn btn-outline" id="escImport" data-import-page="navEscape" data-i18n="flowImport">导入文件</button>
                 <button type="button" class="btn btn-outline" id="escCopy" data-i18n="copyBtn">复制</button>
                 <button type="button" class="btn btn-outline" id="escClear" data-i18n="clearBtn">清空</button>
             </div>
@@ -3251,6 +3271,7 @@
             </div>
 
             <div class="compare-actions">
+                <button type="button" class="btn btn-outline" id="bytesImport" data-import-page="navBytes" data-i18n="flowImport">导入文件</button>
                 <button type="button" class="btn btn-outline" id="bytesCopy" data-i18n="copyBtn">复制</button>
                 <button type="button" class="btn btn-outline" id="bytesClear" data-i18n="clearBtn">清空</button>
             </div>
@@ -3391,6 +3412,7 @@
                         <span class="pane-badge" id="chartInBadge">JSON</span>
                     </div>
                     <div class="pane-actions">
+                        <button type="button" class="btn btn-outline" id="chartImport" data-import-page="navChart" data-i18n="flowImport">导入文件</button>
                         <button type="button" class="btn btn-outline chart-sample-btn" id="chartSample" data-i18n="chartSample">示例</button>
                     </div>
                 </div>
@@ -10501,6 +10523,7 @@
                 chartPickLabel: '图表',
                 chartPickTitle: '这份 JSON 里有多个图表，选一个显示',
                 chartUnwrapped: '已自动解析 {path}',
+                chartTruncated: '内容太多，只扫描了前面一部分',
                 chartZoomFit: '适应',
                 chartZoomOut: '缩小',
                 chartZoomIn: '放大',
@@ -10548,6 +10571,7 @@
                 chartPickLabel: '圖表',
                 chartPickTitle: '這份 JSON 裡有多個圖表，選一個顯示',
                 chartUnwrapped: '已自動解析 {path}',
+                chartTruncated: '內容太多，只掃描了前面一部分',
                 chartZoomFit: '適應',
                 chartZoomOut: '縮小',
                 chartZoomIn: '放大',
@@ -10595,6 +10619,7 @@
                 chartPickLabel: 'Chart',
                 chartPickTitle: 'This JSON holds several charts — pick one',
                 chartUnwrapped: 'Parsed from {path}',
+                chartTruncated: 'Too much content — only the first part was scanned',
                 chartZoomFit: 'Fit',
                 chartZoomOut: 'Zoom out',
                 chartZoomIn: 'Zoom in',
@@ -10642,6 +10667,7 @@
                 chartPickLabel: 'Qrafik',
                 chartPickTitle: 'Bu JSON-da bir neçə qrafik var — birini seçin',
                 chartUnwrapped: '{path} yerindən avtomatik oxundu',
+                chartTruncated: 'Məzmun çox böyükdür — yalnız ilk hissə yoxlanıldı',
                 chartZoomFit: 'Sığdır',
                 chartZoomOut: 'Kiçilt',
                 chartZoomIn: 'Böyüt',
@@ -10689,6 +10715,7 @@
                 chartPickLabel: 'Gráfico',
                 chartPickTitle: 'Este JSON contiene varios gráficos; elige uno',
                 chartUnwrapped: 'Analizado desde {path}',
+                chartTruncated: 'Demasiado contenido: solo se analizó la primera parte',
                 chartZoomFit: 'Ajustar',
                 chartZoomOut: 'Alejar',
                 chartZoomIn: 'Acercar',
@@ -10736,6 +10763,7 @@
                 chartPickLabel: 'Grafik',
                 chartPickTitle: 'JSON ini berisi beberapa grafik — pilih satu',
                 chartUnwrapped: 'Diurai otomatis dari {path}',
+                chartTruncated: 'Konten terlalu banyak — hanya bagian awal yang dipindai',
                 chartZoomFit: 'Paskan',
                 chartZoomOut: 'Perkecil',
                 chartZoomIn: 'Perbesar',
@@ -10783,6 +10811,7 @@
                 chartPickLabel: 'Grafico',
                 chartPickTitle: 'Questo JSON contiene più grafici: scegline uno',
                 chartUnwrapped: 'Analizzato da {path}',
+                chartTruncated: 'Contenuto troppo grande: è stata analizzata solo la prima parte',
                 chartZoomFit: 'Adatta',
                 chartZoomOut: 'Riduci',
                 chartZoomIn: 'Ingrandisci',
@@ -10830,6 +10859,7 @@
                 chartPickLabel: 'グラフ',
                 chartPickTitle: 'この JSON には複数のグラフがあります。表示するものを選択',
                 chartUnwrapped: '{path} から自動解析しました',
+                chartTruncated: '内容が多すぎるため、前半のみを走査しました',
                 chartZoomFit: 'フィット',
                 chartZoomOut: '縮小',
                 chartZoomIn: '拡大',
@@ -10877,6 +10907,7 @@
                 chartPickLabel: '차트',
                 chartPickTitle: '이 JSON에는 여러 차트가 있습니다. 표시할 차트를 선택하세요',
                 chartUnwrapped: '{path} 에서 자동으로 분석했습니다',
+                chartTruncated: '내용이 너무 많아 앞부분만 검사했습니다',
                 chartZoomFit: '맞춤',
                 chartZoomOut: '축소',
                 chartZoomIn: '확대',
@@ -10924,6 +10955,7 @@
                 chartPickLabel: 'Gráfico',
                 chartPickTitle: 'Este JSON tem vários gráficos — escolha um',
                 chartUnwrapped: 'Analisado de {path}',
+                chartTruncated: 'Conteúdo demais — apenas a primeira parte foi analisada',
                 chartZoomFit: 'Ajustar',
                 chartZoomOut: 'Reduzir',
                 chartZoomIn: 'Ampliar',
@@ -10971,6 +11003,7 @@
                 chartPickLabel: 'Wykres',
                 chartPickTitle: 'Ten JSON zawiera kilka wykresów — wybierz jeden',
                 chartUnwrapped: 'Odczytano automatycznie z {path}',
+                chartTruncated: 'Zbyt dużo treści — przeskanowano tylko początkową część',
                 chartZoomFit: 'Dopasuj',
                 chartZoomOut: 'Pomniejsz',
                 chartZoomIn: 'Powiększ',
@@ -11018,6 +11051,7 @@
                 chartPickLabel: 'График',
                 chartPickTitle: 'В этом JSON несколько графиков — выберите один',
                 chartUnwrapped: 'Разобрано автоматически из {path}',
+                chartTruncated: 'Слишком много данных — проверена только первая часть',
                 chartZoomFit: 'По размеру',
                 chartZoomOut: 'Уменьшить',
                 chartZoomIn: 'Увеличить',
@@ -11065,6 +11099,7 @@
                 chartPickLabel: 'กราฟ',
                 chartPickTitle: 'JSON นี้มีหลายกราฟ เลือกหนึ่งรายการ',
                 chartUnwrapped: 'แยกวิเคราะห์จาก {path} โดยอัตโนมัติ',
+                chartTruncated: 'เนื้อหามากเกินไป สแกนเฉพาะส่วนแรกแล้ว',
                 chartZoomFit: 'พอดี',
                 chartZoomOut: 'ย่อ',
                 chartZoomIn: 'ขยาย',
@@ -11112,6 +11147,7 @@
                 chartPickLabel: 'Grafik',
                 chartPickTitle: 'Bu JSON birden fazla grafik içeriyor — birini seçin',
                 chartUnwrapped: '{path} konumundan otomatik ayrıştırıldı',
+                chartTruncated: 'İçerik çok fazla — yalnızca ilk kısım tarandı',
                 chartZoomFit: 'Sığdır',
                 chartZoomOut: 'Küçült',
                 chartZoomIn: 'Büyüt',
@@ -11156,7 +11192,18 @@
                 flowBatchTip: '{n} 个文件 · {m} 条记录，已合并成一个 JSON',
                 flowBatchOne: '批量处理中，左侧先预览 {f}',
                 flowDropTooBig: '文件太大：{name}（{size}），上限 {max}',
-                flowDropFail: '读取失败：{name}'
+                flowDropFail: '读取失败：{name}',
+                flowImport: '导入文件',
+                flowImportLeft: '导入左侧',
+                flowImportRight: '导入右侧',
+                flowDropLimit: '{kind}文件 ≤ {max}',
+                flowImported: '已导入 {name} · {size}',
+                flowImportedHeavy: '已导入 {name} · {size} · 文件较大，已跳过自动处理',
+                flowDropNotText: '这不是文本文件，读不出内容',
+                flowDropImageOnly: '这是图片，请到「图片 Base64」页导入',
+                flowDropSheetOnly: '这是表格文件（xlsx / xls），请到「表格转 JSON」页导入',
+                flowDropNotSheet: '这一页只收表格文件（xlsx / xlsm / csv / tsv / txt）',
+                flowDropOneOnly: '这一页一次只导入一个文件，已用 {name}',
             },
             'zh-TW': {
                 flowDropTitle: '放開即可匯入',
@@ -11171,7 +11218,18 @@
                 flowBatchTip: '{n} 個檔案 · {m} 筆記錄，已合併成一個 JSON',
                 flowBatchOne: '批次處理中，左側先預覽 {f}',
                 flowDropTooBig: '檔案太大：{name}（{size}），上限 {max}',
-                flowDropFail: '讀取失敗：{name}'
+                flowDropFail: '讀取失敗：{name}',
+                flowImport: '匯入檔案',
+                flowImportLeft: '匯入左側',
+                flowImportRight: '匯入右側',
+                flowDropLimit: '{kind}檔案 ≤ {max}',
+                flowImported: '已匯入 {name} · {size}',
+                flowImportedHeavy: '已匯入 {name} · {size} · 檔案較大，已略過自動處理',
+                flowDropNotText: '這不是文字檔，讀不出內容',
+                flowDropImageOnly: '這是圖片，請到「圖片 Base64」頁面匯入',
+                flowDropSheetOnly: '這是表格檔案（xlsx / xls），請到「表格轉 JSON」頁面匯入',
+                flowDropNotSheet: '這一頁只收表格檔案（xlsx / xlsm / csv / tsv / txt）',
+                flowDropOneOnly: '這一頁一次只匯入一個檔案，已使用 {name}',
             },
             'en': {
                 flowDropTitle: 'Drop to import',
@@ -11186,7 +11244,18 @@
                 flowBatchTip: '{n} files · {m} records, merged into one JSON',
                 flowBatchOne: 'Batch in progress — previewing {f}',
                 flowDropTooBig: 'File too large: {name} ({size}), limit {max}',
-                flowDropFail: 'Failed to read {name}'
+                flowDropFail: 'Failed to read {name}',
+                flowImport: 'Import file',
+                flowImportLeft: 'Import left',
+                flowImportRight: 'Import right',
+                flowDropLimit: '{kind} file ≤ {max}',
+                flowImported: 'Imported {name} · {size}',
+                flowImportedHeavy: 'Imported {name} · {size} · large file, auto-processing skipped',
+                flowDropNotText: 'That is not a text file — nothing readable inside',
+                flowDropImageOnly: 'That is an image — import it on the Image Base64 page',
+                flowDropSheetOnly: 'That is a spreadsheet (xlsx / xls) — import it on the Sheet to JSON page',
+                flowDropNotSheet: 'This page only takes spreadsheets (xlsx / xlsm / csv / tsv / txt)',
+                flowDropOneOnly: 'This page imports one file at a time — used {name}',
             },
             'az': {
                 flowDropTitle: 'İdxal üçün buraxın',
@@ -11201,7 +11270,18 @@
                 flowBatchTip: '{n} fayl · {m} qeyd bir JSON-da birləşdirildi',
                 flowBatchOne: 'Toplu emal — {f} önizləmə',
                 flowDropTooBig: 'Fayl çox böyükdür: {name} ({size}), limit {max}',
-                flowDropFail: '{name} oxunmadı'
+                flowDropFail: '{name} oxunmadı',
+                flowImport: 'Fayl idxal et',
+                flowImportLeft: 'Solu idxal et',
+                flowImportRight: 'Sağı idxal et',
+                flowDropLimit: '{kind} faylı ≤ {max}',
+                flowImported: '{name} idxal edildi · {size}',
+                flowImportedHeavy: '{name} idxal edildi · {size} · fayl böyükdür, avtomatik emal buraxıldı',
+                flowDropNotText: 'Bu mətn faylı deyil — oxuna bilən məzmun yoxdur',
+                flowDropImageOnly: 'Bu şəkildir — «Image Base64» səhifəsində idxal edin',
+                flowDropSheetOnly: 'Bu cədvəl faylıdır (xlsx / xls) — «Sheet to JSON» səhifəsində idxal edin',
+                flowDropNotSheet: 'Bu səhifə yalnız cədvəl fayllarını qəbul edir (xlsx / xlsm / csv / tsv / txt)',
+                flowDropOneOnly: 'Bu səhifə bir dəfəyə bir fayl idxal edir — {name} istifadə olundu',
             },
             'es': {
                 flowDropTitle: 'Suelta para importar',
@@ -11216,7 +11296,18 @@
                 flowBatchTip: '{n} archivos · {m} registros, unidos en un JSON',
                 flowBatchOne: 'Procesando por lotes: vista previa de {f}',
                 flowDropTooBig: 'Archivo demasiado grande: {name} ({size}), límite {max}',
-                flowDropFail: 'No se pudo leer {name}'
+                flowDropFail: 'No se pudo leer {name}',
+                flowImport: 'Importar archivo',
+                flowImportLeft: 'Importar izquierda',
+                flowImportRight: 'Importar derecha',
+                flowDropLimit: 'Archivo de {kind} ≤ {max}',
+                flowImported: 'Importado {name} · {size}',
+                flowImportedHeavy: 'Importado {name} · {size} · archivo grande, se omitió el procesado automático',
+                flowDropNotText: 'No es un archivo de texto: no hay nada legible',
+                flowDropImageOnly: 'Es una imagen: impórtala en la página Image Base64',
+                flowDropSheetOnly: 'Es una hoja de cálculo (xlsx / xls): impórtala en la página Sheet to JSON',
+                flowDropNotSheet: 'Esta página solo acepta hojas de cálculo (xlsx / xlsm / csv / tsv / txt)',
+                flowDropOneOnly: 'Esta página importa un archivo a la vez: se usó {name}',
             },
             'id': {
                 flowDropTitle: 'Lepas untuk mengimpor',
@@ -11231,7 +11322,18 @@
                 flowBatchTip: '{n} file · {m} catatan, digabung jadi satu JSON',
                 flowBatchOne: 'Memproses batch — pratinjau {f}',
                 flowDropTooBig: 'File terlalu besar: {name} ({size}), batas {max}',
-                flowDropFail: 'Gagal membaca {name}'
+                flowDropFail: 'Gagal membaca {name}',
+                flowImport: 'Impor file',
+                flowImportLeft: 'Impor kiri',
+                flowImportRight: 'Impor kanan',
+                flowDropLimit: 'File {kind} ≤ {max}',
+                flowImported: '{name} diimpor · {size}',
+                flowImportedHeavy: '{name} diimpor · {size} · file besar, pemrosesan otomatis dilewati',
+                flowDropNotText: 'Ini bukan file teks — tidak ada isi yang bisa dibaca',
+                flowDropImageOnly: 'Ini gambar — impor di halaman Image Base64',
+                flowDropSheetOnly: 'Ini file spreadsheet (xlsx / xls) — impor di halaman Sheet to JSON',
+                flowDropNotSheet: 'Halaman ini hanya menerima spreadsheet (xlsx / xlsm / csv / tsv / txt)',
+                flowDropOneOnly: 'Halaman ini mengimpor satu file setiap kali — {name} dipakai',
             },
             'it': {
                 flowDropTitle: 'Rilascia per importare',
@@ -11246,7 +11348,18 @@
                 flowBatchTip: '{n} file · {m} record, uniti in un solo JSON',
                 flowBatchOne: 'Elaborazione batch — anteprima di {f}',
                 flowDropTooBig: 'File troppo grande: {name} ({size}), limite {max}',
-                flowDropFail: 'Lettura di {name} non riuscita'
+                flowDropFail: 'Lettura di {name} non riuscita',
+                flowImport: 'Importa file',
+                flowImportLeft: 'Importa sinistra',
+                flowImportRight: 'Importa destra',
+                flowDropLimit: 'File {kind} ≤ {max}',
+                flowImported: '{name} importato · {size}',
+                flowImportedHeavy: '{name} importato · {size} · file grande, elaborazione automatica saltata',
+                flowDropNotText: 'Non è un file di testo: non c\'è nulla di leggibile',
+                flowDropImageOnly: 'È un\'immagine: importala nella pagina Image Base64',
+                flowDropSheetOnly: 'È un foglio di calcolo (xlsx / xls): importalo nella pagina Sheet to JSON',
+                flowDropNotSheet: 'Questa pagina accetta solo fogli di calcolo (xlsx / xlsm / csv / tsv / txt)',
+                flowDropOneOnly: 'Questa pagina importa un file alla volta: usato {name}',
             },
             'ja': {
                 flowDropTitle: 'ドロップで読み込み',
@@ -11261,7 +11374,18 @@
                 flowBatchTip: '{n} ファイル · {m} 件のレコードを 1 つの JSON に統合しました',
                 flowBatchOne: 'バッチ処理中 — {f} を表示',
                 flowDropTooBig: 'ファイルが大きすぎます：{name}（{size}）、上限 {max}',
-                flowDropFail: '{name} を読み取れませんでした'
+                flowDropFail: '{name} を読み取れませんでした',
+                flowImport: 'ファイルを読み込む',
+                flowImportLeft: '左を読み込む',
+                flowImportRight: '右を読み込む',
+                flowDropLimit: '{kind}ファイル ≤ {max}',
+                flowImported: '{name} を読み込みました · {size}',
+                flowImportedHeavy: '{name} を読み込みました · {size} · 大きいファイルのため自動処理はスキップしました',
+                flowDropNotText: 'テキストファイルではありません（読める内容がありません）',
+                flowDropImageOnly: '画像です。「Image Base64」ページで読み込んでください',
+                flowDropSheetOnly: '表計算ファイル（xlsx / xls）です。「Sheet to JSON」ページで読み込んでください',
+                flowDropNotSheet: 'このページは表計算ファイル（xlsx / xlsm / csv / tsv / txt）のみ読み込めます',
+                flowDropOneOnly: 'このページは一度に 1 ファイルだけ読み込みます（{name} を使用）',
             },
             'ko': {
                 flowDropTitle: '놓으면 가져옵니다',
@@ -11276,7 +11400,18 @@
                 flowBatchTip: '{n}개 파일 · {m}개 레코드를 하나의 JSON으로 합쳤습니다',
                 flowBatchOne: '일괄 처리 중 — {f} 미리보기',
                 flowDropTooBig: '파일이 너무 큽니다: {name} ({size}), 최대 {max}',
-                flowDropFail: '{name}을(를) 읽지 못했습니다'
+                flowDropFail: '{name}을(를) 읽지 못했습니다',
+                flowImport: '파일 가져오기',
+                flowImportLeft: '왼쪽 가져오기',
+                flowImportRight: '오른쪽 가져오기',
+                flowDropLimit: '{kind} 파일 ≤ {max}',
+                flowImported: '{name} 가져옴 · {size}',
+                flowImportedHeavy: '{name} 가져옴 · {size} · 파일이 커서 자동 처리를 건너뛰었습니다',
+                flowDropNotText: '텍스트 파일이 아닙니다. 읽을 내용이 없습니다',
+                flowDropImageOnly: '이미지입니다. Image Base64 페이지에서 가져오세요',
+                flowDropSheetOnly: '스프레드시트(xlsx / xls)입니다. Sheet to JSON 페이지에서 가져오세요',
+                flowDropNotSheet: '이 페이지는 스프레드시트(xlsx / xlsm / csv / tsv / txt)만 받습니다',
+                flowDropOneOnly: '이 페이지는 한 번에 파일 하나만 가져옵니다. {name} 사용됨',
             },
             'pt': {
                 flowDropTitle: 'Solte para importar',
@@ -11291,7 +11426,18 @@
                 flowBatchTip: '{n} arquivos · {m} registros, unidos em um JSON',
                 flowBatchOne: 'Processando em lote — visualizando {f}',
                 flowDropTooBig: 'Arquivo muito grande: {name} ({size}), limite {max}',
-                flowDropFail: 'Falha ao ler {name}'
+                flowDropFail: 'Falha ao ler {name}',
+                flowImport: 'Importar arquivo',
+                flowImportLeft: 'Importar esquerda',
+                flowImportRight: 'Importar direita',
+                flowDropLimit: 'Arquivo de {kind} ≤ {max}',
+                flowImported: '{name} importado · {size}',
+                flowImportedHeavy: '{name} importado · {size} · arquivo grande, processamento automático ignorado',
+                flowDropNotText: 'Não é um arquivo de texto — não há nada legível',
+                flowDropImageOnly: 'É uma imagem — importe na página Image Base64',
+                flowDropSheetOnly: 'É uma planilha (xlsx / xls) — importe na página Sheet to JSON',
+                flowDropNotSheet: 'Esta página só aceita planilhas (xlsx / xlsm / csv / tsv / txt)',
+                flowDropOneOnly: 'Esta página importa um arquivo por vez — usado {name}',
             },
             'pl': {
                 flowDropTitle: 'Upuść, aby zaimportować',
@@ -11306,7 +11452,18 @@
                 flowBatchTip: '{n} plików · {m} rekordów scalonych w jeden JSON',
                 flowBatchOne: 'Przetwarzanie wsadowe — podgląd {f}',
                 flowDropTooBig: 'Plik jest za duży: {name} ({size}), limit {max}',
-                flowDropFail: 'Nie udało się odczytać {name}'
+                flowDropFail: 'Nie udało się odczytać {name}',
+                flowImport: 'Importuj plik',
+                flowImportLeft: 'Importuj lewą',
+                flowImportRight: 'Importuj prawą',
+                flowDropLimit: 'Plik {kind} ≤ {max}',
+                flowImported: 'Zaimportowano {name} · {size}',
+                flowImportedHeavy: 'Zaimportowano {name} · {size} · duży plik, pominięto automatyczne przetwarzanie',
+                flowDropNotText: 'To nie jest plik tekstowy — brak czytelnej treści',
+                flowDropImageOnly: 'To obraz — zaimportuj go na stronie Image Base64',
+                flowDropSheetOnly: 'To arkusz (xlsx / xls) — zaimportuj go na stronie Sheet to JSON',
+                flowDropNotSheet: 'Ta strona przyjmuje tylko arkusze (xlsx / xlsm / csv / tsv / txt)',
+                flowDropOneOnly: 'Ta strona importuje jeden plik naraz — użyto {name}',
             },
             'ru': {
                 flowDropTitle: 'Отпустите для импорта',
@@ -11321,7 +11478,18 @@
                 flowBatchTip: '{n} файлов · {m} записей объединены в один JSON',
                 flowBatchOne: 'Пакетная обработка — предпросмотр {f}',
                 flowDropTooBig: 'Файл слишком большой: {name} ({size}), предел {max}',
-                flowDropFail: 'Не удалось прочитать {name}'
+                flowDropFail: 'Не удалось прочитать {name}',
+                flowImport: 'Импорт файла',
+                flowImportLeft: 'Импорт слева',
+                flowImportRight: 'Импорт справа',
+                flowDropLimit: 'Файл {kind} ≤ {max}',
+                flowImported: '{name} импортирован · {size}',
+                flowImportedHeavy: '{name} импортирован · {size} · файл большой, автобработка пропущена',
+                flowDropNotText: 'Это не текстовый файл — читаемого содержимого нет',
+                flowDropImageOnly: 'Это изображение — импортируйте на странице Image Base64',
+                flowDropSheetOnly: 'Это таблица (xlsx / xls) — импортируйте на странице Sheet to JSON',
+                flowDropNotSheet: 'Эта страница принимает только таблицы (xlsx / xlsm / csv / tsv / txt)',
+                flowDropOneOnly: 'Страница импортирует один файл за раз — использован {name}',
             },
             'th': {
                 flowDropTitle: 'ปล่อยเพื่อนำเข้า',
@@ -11336,7 +11504,18 @@
                 flowBatchTip: '{n} ไฟล์ · {m} ระเบียน รวมเป็น JSON เดียว',
                 flowBatchOne: 'กำลังประมวลผลเป็นชุด — ดูตัวอย่าง {f}',
                 flowDropTooBig: 'ไฟล์ใหญ่เกินไป: {name} ({size}) จำกัด {max}',
-                flowDropFail: 'อ่าน {name} ไม่สำเร็จ'
+                flowDropFail: 'อ่าน {name} ไม่สำเร็จ',
+                flowImport: 'นำเข้าไฟล์',
+                flowImportLeft: 'นำเข้าซ้าย',
+                flowImportRight: 'นำเข้าขวา',
+                flowDropLimit: 'ไฟล์ {kind} ≤ {max}',
+                flowImported: 'นำเข้า {name} · {size} แล้ว',
+                flowImportedHeavy: 'นำเข้า {name} · {size} แล้ว · ไฟล์ใหญ่ จึงข้ามการประมวลผลอัตโนมัติ',
+                flowDropNotText: 'ไม่ใช่ไฟล์ข้อความ — ไม่มีเนื้อหาที่อ่านได้',
+                flowDropImageOnly: 'นี่คือรูปภาพ — นำเข้าที่หน้า Image Base64',
+                flowDropSheetOnly: 'นี่คือไฟล์ตาราง (xlsx / xls) — นำเข้าที่หน้า Sheet to JSON',
+                flowDropNotSheet: 'หน้านี้รับเฉพาะไฟล์ตาราง (xlsx / xlsm / csv / tsv / txt)',
+                flowDropOneOnly: 'หน้านี้รับครั้งละหนึ่งไฟล์ — ใช้ {name}',
             },
             'tr': {
                 flowDropTitle: 'İçe aktarmak için bırakın',
@@ -11351,7 +11530,18 @@
                 flowBatchTip: '{n} dosya · {m} kayıt tek bir JSON\'da birleştirildi',
                 flowBatchOne: 'Toplu işleniyor — {f} önizleniyor',
                 flowDropTooBig: 'Dosya çok büyük: {name} ({size}), sınır {max}',
-                flowDropFail: '{name} okunamadı'
+                flowDropFail: '{name} okunamadı',
+                flowImport: 'Dosya içe aktar',
+                flowImportLeft: 'Solu içe aktar',
+                flowImportRight: 'Sağı içe aktar',
+                flowDropLimit: '{kind} dosyası ≤ {max}',
+                flowImported: '{name} içe aktarıldı · {size}',
+                flowImportedHeavy: '{name} içe aktarıldı · {size} · dosya büyük, otomatik işleme atlandı',
+                flowDropNotText: 'Bu bir metin dosyası değil — okunabilir içerik yok',
+                flowDropImageOnly: 'Bu bir görsel — Image Base64 sayfasından içe aktarın',
+                flowDropSheetOnly: 'Bu bir elektronik tablo (xlsx / xls) — Sheet to JSON sayfasından içe aktarın',
+                flowDropNotSheet: 'Bu sayfa yalnızca elektronik tablo kabul eder (xlsx / xlsm / csv / tsv / txt)',
+                flowDropOneOnly: 'Bu sayfa aynı anda tek dosya aktarır — {name} kullanıldı',
             }
         };
 
@@ -13616,11 +13806,16 @@
             if (size.wCode) { chartWidthInput.value = String(size.width); clamped = true; }
             if (size.hCode) { chartHeightInput.value = String(size.height); clamped = true; }
 
+            // 内容大到只扫了一部分时先说一句，别让用户以为「这份 JSON 就只有这几张图」
+            const notes = [];
+            if (parsed.truncated) notes.push(cT('chartTruncated', '内容太多，只扫描了前面一部分'));
+
             if (clamped) {
                 const C2 = window.DBXChart;
-                chartSetTip(cT('chartErrSize', '宽高超出范围，已按边界处理')
+                notes.push(cT('chartErrSize', '宽高超出范围，已按边界处理')
                     .replace('{min}', String(C2.LIMITS.width.min))
-                    .replace('{max}', String(C2.LIMITS.width.max)), 'err');
+                    .replace('{max}', String(C2.LIMITS.width.max)));
+                chartSetTip(notes.join(' · '), 'err');
             } else {
                 let tipText = cT('chartTipOk', '{series} 个系列 · {points} 个点 · {w} × {h} px')
                     .replace('{series}', String(built.meta.series))
@@ -13629,7 +13824,8 @@
                     .replace('{h}', String(size.height));
                 // 外层被自动剥开时告诉用户「图是从哪个键里挖出来的」，否则会疑惑为什么少了字段
                 if (viaPath) tipText = cT('chartUnwrapped', '已自动解析 {path}').replace('{path}', viaPath) + ' · ' + tipText;
-                chartSetTip(tipText, 'ok');
+                notes.push(tipText);
+                chartSetTip(notes.join(' · '), 'ok');
             }
         }
 
@@ -13990,11 +14186,18 @@
         // =========================================
         // 13. 工作流：全局拖放 + 批量
         // =========================================
-        // 任何位置松手都按扩展名路由：图片进图片页、xlsx/csv 进表格页、文本进格式转换页；
-        // 一次拖多个表格文件则合并成一个 JSON（批量），判断规则都在 flow.js 里。
+        // 拖进来的文件只交给「当前这一页」消化，不按扩展名换页：判断规则都在 flow.js 里
         function fT(key, fallback) {
             const cur = FLOW_I18N[currentLang] || {};
             return cur[key] || (FLOW_I18N.en || {})[key] || (FLOW_I18N['zh-CN'] || {})[key] || fallback || key;
+        }
+
+        function fTpl(key, fallback, vars) {
+            let text = fT(key, fallback);
+            Object.keys(vars || {}).forEach((k) => {
+                text = text.split('{' + k + '}').join(String(vars[k]));
+            });
+            return text;
         }
 
         // ---------- 全局拖放 ----------
@@ -14002,6 +14205,7 @@
         // HTML5 的 dragenter/drop 根本进不到页面里，所以先走宿主给的口子
         // dbxPlugin.fileTransfer（onDragState / onDrop / read），浏览器事件只作兜底。
         const dropVeil = document.getElementById('dropVeil');
+        const dropVeilLimit = document.getElementById('dropVeilLimit');
         let dragDepth = 0;
         let lastDropAt = 0;
         let lastDropSource = '';
@@ -14020,7 +14224,22 @@
         }
 
         function showDropVeil(visible) {
-            if (dropVeil) dropVeil.hidden = !visible;
+            if (!dropVeil) return;
+            if (visible) syncDropVeilLimit();
+            dropVeil.hidden = !visible;
+        }
+
+        // 松手之前就把当前页的体积上限写在蒙层里，别等松手才弹「文件太大」
+        function syncDropVeilLimit() {
+            if (!dropVeilLimit) return;
+            const kind = importKindForPage(currentPageId());
+            const max = dropLimitFor(currentPageId());
+            const kindName = kind === 'image' ? fT('flowKindImage', '图片')
+                : (kind === 'sheet' ? fT('flowKindSheet', '表格') : fT('flowKindText', '文本'));
+            dropVeilLimit.textContent = fTpl('flowDropLimit', '{kind}文件 ≤ {max}', {
+                kind: kindName,
+                max: DBXImg.formatBytes(max)
+            });
         }
         // 宿主与 HTML5 两条路偶尔会同时派发同一份文件，先到的那条算数；
         // 同一个来源连着拖两次不受影响（用户就是要拖两次）
@@ -14048,7 +14267,7 @@
 
         // ---------- 宿主路径：handleId -> 字节 ----------
         const HOST_CHUNK = 256 * 1024;              // 单次读多少，避免大文件一次性撑出巨型 base64
-        const HOST_DROP_BUDGET = 40 * 1024 * 1024;  // 一次拖入的总字节预算
+        const HOST_DROP_BUDGET = 64 * 1024 * 1024;  // 一次拖入的总字节预算
 
         function dropTooBig(name, size, max) {
             return fT('flowDropTooBig', '文件太大：{name}（{size}），上限 {max}')
@@ -14104,79 +14323,251 @@
             try { ft.cancel(entry.handleId); } catch (err) { /* 句柄可能已回收 */ }
         }
 
-        // 当前页能接哪一类文件：'' 表示格式转换页（按文本处理），其余页没有导入口
-        function dropKindForPage() {
-            const page = currentPageId();
-            if (page === 'navImage') return 'image';
+        // ---------- 统一的文件导入（拖进来 / 点「导入文件」） ----------
+        // 各页能接什么：图片页编码只吃图片、解码只吃文本；表格页只吃表格；
+        // 其余页面都是「文本页」——除了图片和二进制表格，扩展名不认识也照收，
+        // 因为大量导出文件叫 .dat / .out / .resp，按扩展名拒收等于把人挡在门外。
+        function importKindForPage(page) {
+            if (page === 'navImage') return imgMode === 'encode' ? 'image' : 'text';
             if (page === 'navSheet') return 'sheet';
-            if (page === '') return 'text';
-            return '';
+            return 'text';
         }
 
-        // 拖放前的守门：只看「当前页能不能吃这个类型」，绝不替用户切页
-        function checkDropRoute(route) {
-            const pageKind = dropKindForPage();
-            if (!pageKind) {
-                return { ok: false, msg: fT('flowDropNoImport', '当前页没有导入功能，请切到对应功能页再拖入') };
+        // 文本单文件上限：16 MB（原来是 2 MB，直接把常见几 MB 的接口导出挡在外面）
+        const TEXT_IMPORT_MAX = 16 * 1024 * 1024;
+        // 超过这么多字符就不在导入瞬间自动转换：格式转换要「解析 → 重新序列化」一遍，
+        // 大文件在拖入的瞬间跑完整转换会把宿主卡住，宁可让用户自己点「执行转换」
+        const TEXT_AUTO_MAX = 2 * 1024 * 1024;
+
+        // 每个文本页的写入目标：优先写 CodeMirror（会触发页面自己的 change 处理），
+        // 编辑器还没建起来（懒创建）就写 textarea，等它 fromTextArea 时照样能读到
+        function pageImportTargets(page, side) {
+            const byId = (id) => document.getElementById(id);
+            // 格式转换页的 pageId 是空串（导航上的 dataset 里写的是 convert）
+            if (page === '' || page === 'convert') return { editor: inputEditor, el: inputText, tipId: 'convertTip', convert: true };
+            if (page === 'navCompare') {
+                // 对比页左右各自有导入按钮；拖进来（没有 side）时先填空着的那一侧
+                const leftHas = (cmpLeftEditor ? cmpLeftEditor.getValue() : cmpLeftText.value).trim();
+                const rightHas = (cmpRightEditor ? cmpRightEditor.getValue() : cmpRightText.value).trim();
+                const toRight = side === 'right' || (!side && !!leftHas && !rightHas);
+                return toRight
+                    ? { editor: cmpRightEditor, el: cmpRightText, tipId: 'compareTip' }
+                    : { editor: cmpLeftEditor, el: cmpLeftText, tipId: 'compareTip' };
             }
-            if (route.kind !== pageKind) {
-                const kindName = pageKind === 'image' ? fT('flowKindImage', '图片')
-                    : (pageKind === 'sheet' ? fT('flowKindSheet', '表格') : fT('flowKindText', '文本'));
+            if (page === 'navSql') return { editor: sqlInputEditor, el: sqlInputText, tipId: 'sqlTip' };
+            if (page === 'navEscape') return { editor: escInputEditor, el: escInput, tipId: 'escTip' };
+            if (page === 'navBytes') return { editor: bytesEditor, el: bytesInput, tipId: 'bytesTip' };
+            if (page === 'navChart') return { editor: chartEditor, el: chartInput, tipId: 'chartTip' };
+            if (page === 'navCodegen') return { editor: codeInputEditor, el: codeInput, tipId: 'codeTip' };
+            if (page === 'navQuery') {
+                const schemaPane = byId('querySchemaPane');
+                const onSchema = !!schemaPane && schemaPane.classList.contains('active');
+                return onSchema
+                    ? { editor: schDataEditor, el: schData, tipId: 'queryTip' }
+                    : { editor: queryDataEditor, el: queryInput, tipId: 'queryTip' };
+            }
+            return null;
+        }
+
+        // 提示条按 id 写：各页的 .compare-tip 结构一样，只有格式转换页多了 convert-tip 类
+        function setPageTip(tipId, text, tone) {
+            const node = tipId ? document.getElementById(tipId) : null;
+            if (!node) return;
+            node.textContent = text;
+            node.hidden = false;
+            node.classList.remove('ok', 'err', 'diff');
+            if (tone) node.classList.add(tone);
+        }
+
+        // 文本按 UTF-8 读出来之后，二进制会变成 NUL 或大量替换符，这种直接拦下
+        function textLooksBinary(text) {
+            const head = text.length > 8192 ? text.slice(0, 8192) : text;
+            if (head.indexOf('\u0000') >= 0) return true;
+            let bad = 0;
+            for (let i = 0; i < head.length; i++) {
+                if (head.charCodeAt(i) === 0xFFFD) bad++;
+            }
+            return head.length > 64 && bad / head.length > 0.1;
+        }
+
+        // 导入文本时定「格式转换」的源格式：扩展名能确定就用它，其余按内容认；
+        // 认不出结构但看着像表格就按 CSV，比直接抛一句 JSON 解析错有用
+        function convertSourceFormat(name, text) {
+            const flow = window.DBXFlow;
+            if (!flow) return 'json';
+            const byExt = flow.textFormatOf(name || '');
+            if (byExt) return byExt;
+            const guess = flow.guessFormat(text);
+            if (guess !== 'json') return guess;
+            if (flow.classifyText(text) === 'json') return 'json';
+            const lines = String(text).split('\n').slice(0, 20).filter((l) => l.trim());
+            if (lines.length >= 2) {
+                const hits = lines.filter((l) => l.indexOf(',') >= 0 || l.indexOf('\t') >= 0).length;
+                if (hits / lines.length >= 0.8) return 'csv';
+            }
+            return 'json';
+        }
+
+        function putTextIntoPage(t, text) {
+            if (t.editor && typeof t.editor.setValue === 'function') {
+                t.editor.setValue(text);
+                return;
+            }
+            if (!t.el) return;
+            t.el.value = text;
+            t.el.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        // 格式转换页有自己的入口：要先定源格式、抑制自动转换
+        function loadTextIntoConvert(text, name, heavy, forceSrc) {
+            const src = forceSrc || convertSourceFormat(name, text);
+            exitOtherModes('');
+            toolbarEl.classList.remove('hidden');
+            mainWorkspace.classList.remove('hidden');
+            markConvertActive(null);
+            clearTimeout(autoTimer);
+            suppressAutoConvert = true;
+            inputText.value = text;
+            suppressAutoConvert = false;
+            currentDataObj = null;
+            clearError();
+            const tgt = targetFormat.value === src ? (src === 'json' ? 'yaml' : 'json') : targetFormat.value;
+            if (heavy) {
+                // 只把格式选好，不跑转换：几十 MB 的内容在导入瞬间解析会把宿主卡住
+                sourceFormat.value = src;
+                targetFormat.value = tgt;
+                sourceSelect.setValue(src);
+                targetSelect.setValue(tgt);
+                updateOutputLabel();
+                syncEditorModes();
+                setOutput('');
+                return;
+            }
+            handleFormatChange(src, tgt);
+        }
+
+        async function importTextIntoPage(page, file, side) {
+            const t = pageImportTargets(page, side);
+            if (!t || !file) return;
+            const size = Number(file.size || 0);
+            if (size > TEXT_IMPORT_MAX) {
+                showToast(dropTooBig(file.name, size, TEXT_IMPORT_MAX), 'error');
+                return;
+            }
+            let text = '';
+            try {
+                text = await readFileText(file);
+            } catch (err) {
+                showToast(fT('flowDropFail', '读取失败：{name}').replace('{name}', file.name || '—'), 'error');
+                return;
+            }
+            if (textLooksBinary(text)) {
+                showToast(fT('flowDropNotText', '这不是文本文件，读不出内容'), 'error');
+                return;
+            }
+            const heavy = text.length > TEXT_AUTO_MAX;
+            if (t.convert) loadTextIntoConvert(text, file.name || '', heavy);
+            else putTextIntoPage(t, text);
+
+            // 导入结果说两遍：提示条里常驻（页面自己刷新提示时可能被覆盖），
+            // 再加一条 toast 保证「文件名 + 体积」这次一定看得到
+            const note = fTpl(heavy ? 'flowImportedHeavy' : 'flowImported',
+                heavy ? '已导入 {name} · {size} · 文件较大，已跳过自动处理' : '已导入 {name} · {size}',
+                { name: file.name || '—', size: DBXImg.formatBytes(size) });
+            setPageTip(t.tipId, note, heavy ? 'diff' : 'ok');
+            showToast(note);
+        }
+
+        // 拖放前的守门：只看「当前页能不能吃这个文件」，绝不替用户切页
+        function checkDropRoute(names) {
+            const page = currentPageId();
+            const flow = window.DBXFlow;
+            const kind = importKindForPage(page);
+            const list = names || [];
+            for (let i = 0; i < list.length; i++) {
+                const name = list[i];
+                const routed = flow ? flow.routeFile(name) : { kind: 'none' };
+                if (kind === 'image') {
+                    if (routed.kind === 'image') continue;
+                    return { ok: false, msg: imgT('imgDropTextInstead', '这是文本文件，请切到「Base64 转图片」页导入') };
+                }
+                if (kind === 'sheet') {
+                    if (routed.kind === 'sheet') continue;
+                    return {
+                        ok: false,
+                        msg: routed.kind === 'image'
+                            ? fT('flowDropImageOnly', '这是图片，请到「图片 Base64」页导入')
+                            : fT('flowDropNotSheet', '这一页只收表格文件（xlsx / xlsm / csv / tsv / txt）')
+                    };
+                }
+                // 文本页：图片与二进制表格之外，扩展名不认识也照收
+                if (!flow || flow.textImportable(name)) continue;
                 return {
                     ok: false,
-                    msg: fT('flowDropWrongKind', '当前页只处理 {kind} 文件，请切到对应页面再拖入')
-                        .replace('{kind}', kindName)
+                    msg: routed.kind === 'image'
+                        ? fT('flowDropImageOnly', '这是图片，请到「图片 Base64」页导入')
+                        : fT('flowDropSheetOnly', '这是表格文件（xlsx / xls），请到「表格转 JSON」页导入')
                 };
-            }
-            // 图片页停在解码模式时不吃图片，免得把人从「Base64 转图片」踢走
-            if (route.kind === 'image' && imgMode !== 'encode') {
-                return { ok: false, msg: imgT('imgImportImageInstead', '这是一张图片，请切到「图片转 Base64」页导入') };
             }
             return { ok: true };
         }
 
-        // 每类文件在入口就该拦下的体积（文本页用 2 M 字符预算，和宿主路径一致）
-        function dropLimitFor(kind) {
+        // 每页在入口就该拦下的体积（读完之前先按声明的 size 拦一次，别先读进内存）
+        function dropLimitFor(page) {
+            const kind = importKindForPage(page);
             if (kind === 'image') return DBXImg.LIMITS.maxImageBytes;
             if (kind === 'sheet') return SHEET_LIMITS.maxFileBytes;
-            return window.DBXFlow ? DBXFlow.LIMITS.hostText : 2 * 1024 * 1024;
+            return TEXT_IMPORT_MAX;
+        }
+
+        // 过滤完的文件交给当前页：图片页一张、表格页可批量、其余页一次一个
+        function dispatchDroppedFiles(files) {
+            if (!files || !files.length) return;
+            const page = currentPageId();
+            const kind = importKindForPage(page);
+            if (page === 'navImage') {
+                // 编码页收图片，解码页收 Base64 文本文件——两条路都在 imgImportFile 里判
+                if (kind === 'image') imgOpenFile(files[0]);
+                else imgImportFile(files[0]);
+                return;
+            }
+            if (kind === 'sheet') {
+                if (files.length > 1) openSheetBatch(files);
+                else openSheetFile(files[0]);
+                return;
+            }
+            if (files.length > 1) {
+                showToast(fTpl('flowDropOneOnly', '这一页一次只导入一个文件，已用 {name}', { name: files[0].name || '—' }), 'diff');
+            }
+            importTextIntoPage(page, files[0]);
         }
 
         async function handleHostDrop(entries) {
             const flow = window.DBXFlow;
             if (!flow || !entries || !entries.length) return;
             showDropVeil(false);
-            const max = flow.LIMITS.batchFiles;
+            const page = currentPageId();
+            const kind = importKindForPage(page);
+            // 表格页能批量合并，其它页一次只读一个，多拖的连字节都不用读
+            const max = kind === 'sheet' ? flow.LIMITS.batchFiles : 1;
             let list = entries;
             if (list.length > max) {
-                showToast(fT('flowDropMany', '一次最多 {n} 个文件').replace('{n}', String(max)), 'error');
+                if (kind === 'sheet') {
+                    showToast(fT('flowDropMany', '一次最多 {n} 个文件').replace('{n}', String(max)), 'error');
+                }
                 list.slice(max).forEach(releaseEntry);
                 list = list.slice(0, max);
             }
-            const route = flow.routeBatch(list.map((e) => (e && e.name) || ''));
-            if (route.kind === 'none') {
-                list.forEach(releaseEntry);
-                showToast(fT('flowDropBad', '不支持的文件类型：{e}')
-                    .replace('{e}', flow.extOf((list[0] && list[0].name) || '') || '—'), 'error');
-                return;
-            }
-
-            // 拖进来的文件只交给当前页消化：以前按扩展名自动进图片页 / 表格页 / 格式转换页，
-            // 拖错一次页面就被换走。现在页面不动，类型对不上就说清楚该去哪一页
-            const verdict = checkDropRoute(route);
+            const verdict = checkDropRoute(list.map((e) => (e && e.name) || ''));
             if (!verdict.ok) {
                 list.forEach(releaseEntry);
                 showToast(verdict.msg, 'error');
                 return;
             }
-            const perFile = dropLimitFor(route.kind);
-
-            // 图片页、文本页一次只处理一个文件，多拖的没必要读进内存
-            const need = route.kind === 'sheet' ? list.length : 1;
-            if (list.length > need) list.slice(need).forEach(releaseEntry);
+            const perFile = dropLimitFor(page);
             const files = [];
             let used = 0;
-            for (let i = 0; i < list.length && i < need; i++) {
+            for (let i = 0; i < list.length; i++) {
                 const entry = list[i] || {};
                 const declared = Number(entry.size || 0);
                 if (declared && used + declared > HOST_DROP_BUDGET) {
@@ -14198,17 +14589,7 @@
                 }
             }
             if (!files.length) return;
-
-            if (route.kind === 'image') {
-                imgOpenFile(files[0]);
-                return;
-            }
-            if (route.kind === 'sheet') {
-                if (files.length > 1) openSheetBatch(files);
-                else openSheetFile(files[0]);
-                return;
-            }
-            loadTextFileIntoConvert(files[0], route.items[0] && route.items[0].format);
+            dispatchDroppedFiles(files);
         }
 
         function setupHostDrop() {
@@ -14293,19 +14674,8 @@
 
         async function loadTextFileIntoConvert(file, format) {
             const text = await readFileText(file);
-            const src = format || (window.DBXFlow ? DBXFlow.guessFormat(text) : 'json');
-            exitOtherModes('');
-            toolbarEl.classList.remove('hidden');
-            mainWorkspace.classList.remove('hidden');
-            markConvertActive(null);
-            clearTimeout(autoTimer);
-            suppressAutoConvert = true;
-            inputText.value = text;
-            suppressAutoConvert = false;
-            currentDataObj = null;
-            clearError();
-            const tgt = targetFormat.value === src ? (src === 'json' ? 'yaml' : 'json') : targetFormat.value;
-            handleFormatChange(src, tgt);
+            const src = format || convertSourceFormat(file.name, text);
+            loadTextIntoConvert(text, file.name || '', false, src);
         }
 
         // 一个表格文件 → 记录（批量与单文件共用同一套选项）
@@ -14395,25 +14765,25 @@
         function handleDroppedFiles(files) {
             const flow = window.DBXFlow;
             if (!flow || !files.length) return;
-            const max = flow.LIMITS.batchFiles;
+            const page = currentPageId();
+            const kind = importKindForPage(page);
+            // 表格页能批量合并，其它页一次只读一个
+            const max = kind === 'sheet' ? flow.LIMITS.batchFiles : 1;
             let list = files;
             if (list.length > max) {
-                showToast(fT('flowDropMany', '一次最多 {n} 个文件').replace('{n}', String(max)), 'error');
+                if (kind === 'sheet') {
+                    showToast(fT('flowDropMany', '一次最多 {n} 个文件').replace('{n}', String(max)), 'error');
+                }
                 list = list.slice(0, max);
             }
-            const route = flow.routeBatch(list.map((f) => f.name));
-            if (route.kind === 'none') {
-                showToast(fT('flowDropBad', '不支持的文件类型：{e}').replace('{e}', flow.extOf(list[0].name) || '—'), 'error');
-                return;
-            }
-            const verdict = checkDropRoute(route);
+            const verdict = checkDropRoute(list.map((f) => f.name));
             if (!verdict.ok) {
                 showToast(verdict.msg, 'error');
                 return;
             }
             // 浏览器路径以前不看体积：拖一个几百 MB 的 txt 会整段读进内存再塞进编辑器。
             // 现在和宿主路径同一个入口上限，读之前就拦掉
-            const perFile = dropLimitFor(route.kind);
+            const perFile = dropLimitFor(page);
             let used = 0;
             const keep = [];
             for (let i = 0; i < list.length; i++) {
@@ -14431,21 +14801,32 @@
                 keep.push(f);
             }
             if (!keep.length) return;
-            list = keep;
-            if (route.kind === 'image') {
-                imgOpenFile(list[0]);
-                return;
-            }
-            if (route.kind === 'sheet') {
-                if (list.length > 1) openSheetBatch(list);
-                else openSheetFile(list[0]);
-                return;
-            }
-            // 体积过滤后第一个留下的文件可能不是原来那个，格式要按它在原数组的位置取
-            const origin = files.indexOf(list[0]);
-            const firstItem = route.items[origin >= 0 ? origin : 0] || route.items[0] || {};
-            loadTextFileIntoConvert(list[0], firstItem.format);
+            dispatchDroppedFiles(keep);
         }
+
+        // 「导入文件」按钮：所有页面共用一个隐藏选择框，点哪一页的按钮就按哪一页的规则读
+        const pageImportInput = document.getElementById('pageImportInput');
+        let pageImportFor = '';
+        let pageImportSide = '';
+        document.querySelectorAll('[data-import-page]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                pageImportFor = btn.dataset.importPage || 'convert';
+                pageImportSide = btn.dataset.importSide || '';
+                pageImportInput.click();
+            });
+        });
+        pageImportInput.addEventListener('change', () => {
+            const file = pageImportInput.files && pageImportInput.files[0];
+            try { pageImportInput.value = ''; } catch (err) { /* 有些环境不让改 file input 的值，不影响读取 */ }
+            if (!file) return;
+            const page = pageImportFor || currentPageId();
+            if (page === 'navImage') { imgImportFile(file); return; }
+            if (page === 'navSheet') { openSheetFile(file); return; }
+            // 和拖入走同一套守门：图片 / 二进制表格指路到对应页面，别读成乱码
+            const verdict = checkDropRoute([file.name]);
+            if (!verdict.ok) { showToast(verdict.msg, 'error'); return; }
+            importTextIntoPage(page, file, pageImportSide);
+        });
 
         renderLangMenu();
         applyI18n();
@@ -14485,12 +14866,16 @@
     <div class="img-lightbox-hint" data-i18n="imgLightboxHint">滚轮缩放 · 双击切 1:1 · Esc 关闭</div>
 </div>
 
-<!-- 全局拖放提示：拖文件进来时浮在最上层，松手后按扩展名路由 -->
+<!-- 各页共用「导入文件」的选择框：点哪一页的按钮，就按那一页的规则读进来 -->
+<input type="file" id="pageImportInput" hidden>
+
+<!-- 全局拖放提示：拖文件进来时浮在最上层，松手后交给当前页处理 -->
 <div class="drop-veil" id="dropVeil" hidden>
     <div class="drop-veil-card">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <strong data-i18n="flowDropTitle">松手即可导入</strong>
-        <span data-i18n="flowDropHint">图片、表格、文本会按类型自动打开对应页面</span>
+        <span data-i18n="flowDropHint">文件会导入当前页面，不会自动换页</span>
+        <span class="drop-veil-limit" id="dropVeilLimit"></span>
     </div>
 </div>
 </body>

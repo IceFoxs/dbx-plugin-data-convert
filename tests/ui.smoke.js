@@ -1746,7 +1746,7 @@ function check(name, fn) {
         if (text.indexOf('"series"') < 0) throw new Error('默认示例没加载');
         if (chartBadge('chartInBadge') !== 'option') throw new Error('来源徽标 ' + chartBadge('chartInBadge'));
         // option 自带类型时下拉仍可用（自动 = 听 JSON，选了就覆盖）
-        if (doc.getElementById('chartType').disabled) throw new Error('类型下拉不该禁用');
+        if (doc.getElementById('chartType').hasAttribute('disabled')) throw new Error('类型下拉不该禁用');
         if (doc.getElementById('chartType').title.indexOf('series.type') < 0) {
             throw new Error('没说明自动和覆盖的关系: ' + doc.getElementById('chartType').title);
         }
@@ -1778,7 +1778,7 @@ function check(name, fn) {
 
     check('一组数字：判定为数据，类型下拉放开', function () {
         if (chartBadge('chartInBadge') !== '数据') throw new Error('徽标 ' + chartBadge('chartInBadge'));
-        if (doc.getElementById('chartType').disabled) throw new Error('类型下拉还禁用着');
+        if (doc.getElementById('chartType').hasAttribute('disabled')) throw new Error('类型下拉还禁用着');
     });
 
     chartSetInput('"just a string"');
@@ -1813,7 +1813,7 @@ function check(name, fn) {
     check('接口返回（业务 key 里包 echart_option 字符串）能自动剥出来', function () {
         // 引擎在 jsdom 里加载不了，这里能看到的证据是「形状判定已经变成 option」
         if (chartBadge('chartInBadge') !== 'option') throw new Error('徽标 ' + chartBadge('chartInBadge'));
-        if (doc.getElementById('chartType').disabled) throw new Error('类型下拉不该禁用（完整 option 也允许改类型）');
+        if (doc.getElementById('chartType').hasAttribute('disabled')) throw new Error('类型下拉不该禁用（完整 option 也允许改类型）');
         // 只有一个图时不该冒出选择器
         if (!doc.getElementById('chartPickWrap').hidden) throw new Error('单图还显示了选择器');
     });
@@ -1864,13 +1864,52 @@ function check(name, fn) {
         if (chartBadge('chartInBadge') !== 'option') throw new Error('徽标 ' + chartBadge('chartInBadge'));
     });
 
+    // 任务列表：顶层是数组，每条的负载是二次序列化的 JSON，图埋在第 6 层，
+    // 中间还夹着表格数据 —— 这是后台导出的典型形状，必须能挑出每一张图。
+    function smokeTask(tag, key, title) {
+        var payload = {};
+        payload[key] = {
+            echart_option: JSON.stringify({
+                title: { text: title },
+                xAxis: { type: 'category', data: ['甲', '乙'] },
+                yAxis: { type: 'value' },
+                series: [{ name: tag, type: 'bar', data: [3, 5] }]
+            }),
+            table_data: [{ seq: 1, label: '行1', amount: 3 }, { seq: 2, label: '行2', amount: 5 }],
+            biz_data: { region: '东' }
+        };
+        payload[key + '_empty'] = { echart_option: null, table_data: [], biz_data: {} };
+        return { id: 'task-' + tag, tag: tag, collected_at: '2024-05-06 07:08:09', payload: JSON.stringify(payload) };
+    }
+
+    var taskList = JSON.stringify([
+        smokeTask('a', 'alpha', '图甲'),
+        smokeTask('b', 'beta', '图乙'),
+        smokeTask('c', 'gamma', '图丙')
+    ]);
+
+    chartSetInput(taskList);
+    await wait(520);
+
+    check('任务列表（负载是二次序列化的 JSON）：每份图都列出来，空值不占位', function () {
+        if (doc.getElementById('chartPickWrap').hidden) throw new Error('选择器没出现');
+        var opts = doc.getElementById('chartPickOptions').children;
+        // 3 条任务 × 2 个业务键，其中 3 个 echart_option 是 null
+        if (opts.length !== 3) throw new Error('选项数 ' + opts.length);
+        if (opts[0].textContent !== '图甲') throw new Error('第一项 ' + opts[0].textContent);
+        if (opts[2].textContent !== '图丙') throw new Error('第三项 ' + opts[2].textContent);
+        if (chartBadge('chartInBadge') !== 'option') throw new Error('徽标 ' + chartBadge('chartInBadge'));
+        // 路径写进了 title，鼠标悬停能看到图在哪一层
+        if (opts[1].title.indexOf('echart_option') < 0) throw new Error('悬停没给路径: ' + opts[1].title);
+    });
+
     chartSetInput('[1, 2, 3]');
     await wait(460);
 
     check('换回纯数据：选择器收起、类型下拉放开', function () {
         if (!doc.getElementById('chartPickWrap').hidden) throw new Error('选择器没收起');
         if (chartBadge('chartInBadge') !== '数据') throw new Error('徽标 ' + chartBadge('chartInBadge'));
-        if (doc.getElementById('chartType').disabled) throw new Error('类型下拉还禁用着');
+        if (doc.getElementById('chartType').hasAttribute('disabled')) throw new Error('类型下拉还禁用着');
     });
 
     doc.getElementById('chartClear').click();
@@ -2036,15 +2075,80 @@ function check(name, fn) {
         if (!output.value.trim()) throw new Error('没有自动转换');
     });
 
+    check('导入后提示条写出文件名与体积', function () {
+        var tip = doc.getElementById('convertTip').textContent;
+        if (tip.indexOf('data.json') < 0) throw new Error('提示里没有文件名: ' + tip);
+        if (!/[0-9]+\s*(B|KB|MB)$/.test(tip.trim())) throw new Error('提示里没有体积: ' + tip);
+    });
+
     dropFiles([{ name: 'users.csv', text: 'id,name\n1,Ada\n2,Bob\n' }]);
     await wait(700);
 
-    check('在格式转换页拖 CSV：只提示去哪一页，页面不动', function () {
+    check('在格式转换页拖 CSV：按页面自己支持的 CSV 读进来并转出结果', function () {
         if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('页面被换走了');
         if (doc.getElementById('sheetWorkspace').classList.contains('active')) throw new Error('不该自动进表格页');
-        var toasts = [].map.call(doc.querySelectorAll('.toast'), function (t) { return t.textContent; }).join('|');
-        if (toasts.indexOf('只处理') < 0 && toasts.indexOf('表格') < 0) throw new Error('没有提示: ' + toasts);
+        if (input.value.indexOf('Ada') < 0) throw new Error('CSV 内容没载入');
+        var src = doc.querySelector('#sourceSelect .custom-select-trigger .label').textContent.trim().toLowerCase();
+        if (src !== 'csv') throw new Error('源格式是 ' + src);
+        if (!output.value.trim()) throw new Error('没有自动转换');
     });
+
+    dropFiles([{ name: 'book.xlsx', text: 'PK' }]);
+    await wait(400);
+
+    check('文本页收到二进制表格：指路到表格页，不硬读', function () {
+        var msg = [].map.call(doc.querySelectorAll('.toast'), function (t) { return t.textContent; }).join('|');
+        if (msg.indexOf('表格') < 0) throw new Error('没有指路: ' + msg);
+        if (input.value.indexOf('Ada') < 0) throw new Error('不该覆盖已有内容');
+    });
+
+    // ---------------- 「导入文件」按钮：所有文本页共用一条通道 ----------------
+    check('各个文本页都有「导入文件」入口', function () {
+        ['convertImport', 'cmpImportLeft', 'cmpImportRight', 'sqlImport', 'escImport', 'bytesImport',
+            'chartImport', 'codeImport', 'queryImport'].forEach(function (id) {
+            if (!doc.getElementById(id)) throw new Error('缺少入口: ' + id);
+        });
+    });
+
+    check('没导入过时格式转换页不留空白行', function () {
+        var tip = doc.getElementById('convertTip');
+        if (!tip.hidden && !tip.textContent) throw new Error('空提示行还占着位置');
+    });
+
+    doc.getElementById('convertImport').click();
+    await wait(60);
+    Object.defineProperty(doc.getElementById('pageImportInput'), 'files', {
+        configurable: true,
+        value: [new win.File(['{"btn":true}'], 'btn.json', { type: 'application/json' })]
+    });
+    doc.getElementById('pageImportInput').dispatchEvent(new win.Event('change', { bubbles: true }));
+    await wait(600);
+
+    check('点「导入文件」按钮也能读进当前页，并写出文件名', function () {
+        if (input.value.indexOf('"btn"') < 0) throw new Error('按钮导入没生效');
+        var tip = doc.getElementById('convertTip').textContent;
+        if (tip.indexOf('btn.json') < 0) throw new Error('提示里没有文件名: ' + tip);
+    });
+
+    // 对比页左右各自导入：点哪边写哪边
+    doc.getElementById('navCompare').click();
+    await wait(500);
+    Object.defineProperty(doc.getElementById('pageImportInput'), 'files', {
+        configurable: true,
+        value: [new win.File(['{"side":"right"}'], 'right.json', { type: 'application/json' })]
+    });
+    doc.getElementById('cmpImportRight').click();
+    doc.getElementById('pageImportInput').dispatchEvent(new win.Event('change', { bubbles: true }));
+    await wait(600);
+
+    check('对比页「导入右侧」只写右栏，左栏不动', function () {
+        if (cmText('cmpRightText').indexOf('side') < 0) throw new Error('右栏没载入');
+        if (cmText('cmpLeftText').indexOf('side') >= 0) throw new Error('不该写进左栏');
+        if (doc.getElementById('compareTip').textContent.indexOf('right.json') < 0) throw new Error('提示里没有文件名');
+    });
+
+    doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
+    await wait(300);
 
     doc.getElementById('navSheet').click();
     await wait(300);
@@ -2081,13 +2185,13 @@ function check(name, fn) {
 
     doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
     await wait(200);
-    dropFiles([{ name: 'weird.zzz', text: 'x' }]);
-    await wait(400);
+    dropFiles([{ name: 'weird.zzz', text: '{"k":1}' }]);
+    await wait(500);
 
-    check('拖入不支持的扩展名：报错且不切页', function () {
-        var toasts = [].map.call(doc.querySelectorAll('.toast'), function (t) { return t.textContent; }).join('|');
-        if (toasts.indexOf('zzz') < 0 && toasts.indexOf('不支持') < 0) throw new Error('没有报错提示: ' + toasts);
+    check('不认识的扩展名也当文本读进来（不按扩展名拒收）', function () {
         if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('被切页了');
+        if (input.value.indexOf('"k"') < 0) throw new Error('内容没载入');
+        if (!output.value.trim()) throw new Error('没有自动转换');
     });
 
     // 导航：7 个格式互转收进「格式转换」下拉，导航条上只剩 3 个单元
@@ -2462,11 +2566,12 @@ function check(name, fn) {
         await feed([{ name: 'users.csv', text: 'id,name\n1,Ada\n2,Bob\n' }]);
         await wait(700);
 
-        check('宿主在格式转换页拖 CSV：只提示去向，不自动跳页', function () {
+        check('宿主在格式转换页拖 CSV：照 CSV 读进来，不自动跳页', function () {
             if (d2.getElementById('sheetWorkspace').classList.contains('active')) throw new Error('不该自动进表格页');
             if (d2.querySelector('.toolbar').classList.contains('hidden')) throw new Error('页面被换走了');
-            var msg = toastText();
-            if (msg.indexOf('只处理') < 0 && msg.indexOf('表格') < 0) throw new Error('没有提示: ' + msg);
+            if (d2.getElementById('inputText').value.indexOf('Ada') < 0) throw new Error('CSV 内容没载入');
+            var src2 = d2.querySelector('#sourceSelect .custom-select-trigger .label').textContent.trim().toLowerCase();
+            if (src2 !== 'csv') throw new Error('源格式是 ' + src2);
         });
 
         d2.getElementById('navSheet').click();
@@ -2493,13 +2598,12 @@ function check(name, fn) {
 
         d2.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
         await wait(200);
-        await feed([{ name: 'weird.zzz', text: 'x' }]);
-        await wait(400);
+        await feed([{ name: 'weird.zzz', text: '{"k":1}' }]);
+        await wait(500);
 
-        check('宿主拖入不支持的扩展名：报错且不切页', function () {
-            var msg = toastText();
-            if (msg.indexOf('zzz') < 0 && msg.indexOf('不支持') < 0) throw new Error('没有报错提示: ' + msg);
+        check('宿主拖入不认识的扩展名：当文本读进来，不报错也不切页', function () {
             if (d2.querySelector('.toolbar').classList.contains('hidden')) throw new Error('被切页了');
+            if (d2.getElementById('inputText').value.indexOf('"k"') < 0) throw new Error('内容没载入');
         });
 
         await feed([{ name: 'huge.json', text: '{}', size: 999 * 1024 * 1024 }]);
@@ -2524,9 +2628,11 @@ function check(name, fn) {
         await feed(many);
         await wait(700);
 
-        check('宿主一次拖 12 个：只收前 10 个并提示', function () {
+        check('宿主一次拖 12 个：文本页只导入第一个并说明', function () {
             var msg = toastText();
-            if (msg.indexOf('10') < 0) throw new Error('没提示数量上限: ' + msg);
+            if (msg.indexOf('f0.json') < 0) throw new Error('没提示用了哪个文件: ' + msg);
+            // 转换会把输入重新排版，这里只认键名，不比对原始空格
+            if (d2.getElementById('inputText').value.indexOf('"i"') < 0) throw new Error('第一个文件没载入');
         });
 
         dom2.window.close();

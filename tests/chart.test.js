@@ -482,6 +482,115 @@ check('一个 JSON 里用数组装多份 option', () => {
     eq(r.options.map((o) => o.path), ['charts[0]', 'charts[1]']);
 });
 
+// ---------- 任务列表（负载是二次序列化的 JSON） ----------
+//
+// 顶层是任务数组，每条任务的某个字段又是一段 JSON 字符串，展开之后才是
+// 「业务键 -> { echart_option, table_data, biz_data }」。option 落在第 6 层，
+// 中间还夹着上千行表格数据。这里的样本全是自己编的。
+
+console.log('=== 任务列表 ===');
+
+function bizOption(title, n) {
+    return JSON.stringify({
+        title: { text: title },
+        xAxis: { type: 'category', data: ['甲', '乙'] },
+        yAxis: { type: 'value' },
+        series: [{ type: 'bar', data: [n, n + 1] }]
+    });
+}
+
+function tableRows(n) {
+    const rows = [];
+    for (let i = 0; i < n; i++) rows.push({ seq: i + 1, label: '行' + (i + 1), amount: i * 3, memo: 'memo-' + i });
+    return rows;
+}
+
+function taskOf(tag, payloadMap) {
+    return {
+        id: 'task-1',
+        tag: tag,
+        collected_at: '2024-05-06 07:08:09',
+        payload: JSON.stringify(payloadMap)
+    };
+}
+
+check('任务列表：每条的负载里各带图表，全部列出来（含空值跳过）', () => {
+    const tasks = [
+        taskOf('t1', {
+            alpha: { echart_option: bizOption('图甲', 1), table_data: tableRows(3), biz_data: { region: '东' } },
+            beta: { echart_option: null, table_data: tableRows(2), biz_data: {} }
+        }),
+        taskOf('t2', {
+            gamma: { echart_option: bizOption('图乙', 5), table_data: tableRows(4), biz_data: { region: '西' } }
+        })
+    ];
+    const r = C.parseText(JSON.stringify(tasks));
+    eq(r.options.map((o) => o.path), [
+        '[0].payload.alpha.echart_option',
+        '[1].payload.gamma.echart_option'
+    ]);
+    eq(r.options.map((o) => o.title), ['图甲', '图乙']);
+    eq(C.build(r.value, {}).meta.kind, 'option');
+    eq(C.build(r.options[1].value, {}).option.title.text, '图乙');
+});
+
+check('任务列表：前面一大坨表格也压不垮（预算按文本长度放大）', () => {
+    const tasks = [
+        taskOf('t1', {
+            wide_table: { echart_option: null, table_data: tableRows(3000), biz_data: { rows: 3000 } },
+            after_table: { echart_option: bizOption('排在表格后面', 2), table_data: tableRows(2), biz_data: {} }
+        })
+    ];
+    const r = C.parseText(JSON.stringify(tasks));
+    eq(r.options.length, 1);
+    eq(r.options[0].path, '[0].payload.after_table.echart_option');
+    eq(r.options[0].title, '排在表格后面');
+});
+
+check('纯数据行被跳过：预算不会被行数吃掉', () => {
+    // 300 个节点的默认预算下，几千行数据照样能扫到后面的业务键
+    const payload = JSON.parse(JSON.stringify({
+        rows: { echart_option: null, table_data: tableRows(500), biz_data: {} },
+        tail: { echart_option: bizOption('尾图', 9), table_data: [], biz_data: {} }
+    }));
+    const list = C.collectOptions(payload, 300);
+    eq(list.length, 1);
+    eq(list[0].path, 'tail.echart_option');
+});
+
+check('预算被用光时如实报告 truncated，不假装扫完了', () => {
+    const tasks = [];
+    for (let i = 0; i < 4; i++) {
+        tasks.push(taskOf('t' + i, {
+            a: { echart_option: bizOption('一', i), table_data: tableRows(3), biz_data: {} },
+            b: { echart_option: bizOption('二', i), table_data: tableRows(3), biz_data: {} }
+        }));
+    }
+    const text = JSON.stringify(tasks);
+    // 预算故意给得极小：一定扫不完，得说清楚
+    const small = C.collectReport(JSON.parse(text), 10);
+    eq(small.truncated, true);
+    ok(small.options.length < 8, '只该找到一部分，实际 ' + small.options.length);
+    // 正常预算下扫完，不该报 truncated
+    const full = C.collectReport(JSON.parse(text), C.budgetFor(text.length));
+    eq(full.truncated, false);
+    eq(full.options.length, 8);
+});
+
+check('任务列表里一个能画的都没有：给 shape，不硬猜', () => {
+    const tasks = [taskOf('t1', { a: { echart_option: '', table_data: tableRows(2), biz_data: {} } })];
+    const r = C.parseText(JSON.stringify(tasks));
+    eq(r.options.length, 0);
+    eq(C.build(r.value, {}).code, 'shape');
+});
+
+check('对象里带字符串化 JSON 的不会被当成纯数据行跳过', () => {
+    // 一行里全是字符串，但有一个字符串本身就是负载 —— 不能剪掉
+    const list = C.collectOptions({ row: { note: 'ok', extra: JSON.stringify({ inner: { echart_option: bizOption('藏在字符串里', 3) } }) } });
+    eq(list.length, 1);
+    eq(list[0].path, 'row.extra.inner.echart_option');
+});
+
 // ---------- 换行 / 首尾相接的多份 JSON ----------
 
 console.log('=== 多份 JSON ===');

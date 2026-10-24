@@ -66,10 +66,12 @@ DBX 是宿主进程，插件页面把宿主拖崩就是事故。新增功能时�
 
 ### 四、工作流（进行中）
 
-1. ✅ **全局拖放（按当前页，不跳页）**：`ui/js/flow.js` 的 `routeFile()` / `routeBatch()` 只判类型，**不再决定跳哪一页**（用户 2026-10-24 明确要求「在哪个功能就在哪个页面」）。`ui/index.html` 的 `checkDropRoute()` 拿 `dropKindForPage()` 比「当前页能吃哪类」，对不上只 toast 提示去哪一页；`dropLimitFor()` 统一入口体积（图片 10 MB / 表格上限 / 文本 2 MB）。宿主 `onDrop` 与浏览器 `document drop` 两条路共用这一套，`handleDroppedFiles` 也补了 `HOST_DROP_BUDGET` 总预算。
-2. ✅ **批量处理**（已做）：一次拖多个表格文件 → `mergeFiles()` 合并成 `{ 文件名: 记录[] }` 的一个 JSON，导出 `batch-N.json`；`sheetState.batch` 独立于单文件状态，切 SQL 输出会退回单文件。
-3. ⬜ **接入宿主选中内容**：`window.dbxPlugin.context` + `onContext()` 是宿主给数据的口子（dev-runtime 里确认过：`context` / `onInit` / `onContext`）。用 `flow.pickHostText()` 从任意形状的 context 里挖出选中文本，`classifyText()` 判 json / ddl / sql / text 后路由。**没做完，别忘。**
-4. ⬜ **最近使用 / 常用片段**：`flow.recentPush()` 已就绪（条数、单条 16 KB、总预算 256 KB、正文超预算降级为元信息），还缺 localStorage 与工具栏面板。
+1. ✅ **全局拖放（按当前页，不跳页）**：`ui/js/flow.js` 的 `routeFile()` / `routeBatch()` 只判类型，**不再决定跳哪一页**（用户 2026-10-24 明确要求「在哪个功能就在哪个页面」）。`ui/index.html` 的 `checkDropRoute()` 拿 `importKindForPage()` 比「当前页能吃哪类」，对不上只 toast 提示去哪一页；`dropLimitFor()` 统一入口体积（图片 10 MB / 表格上限 / 文本 `TEXT_IMPORT_MAX`）。宿主 `onDrop` 与浏览器 `document drop` 两条路共用这一套，浏览器路径也补了 `HOST_DROP_BUDGET`（64 MB）总预算。
+2. ✅ **每页都有「导入文件」**（用户 2026-10-24 要求「每个功能页面正常支持的格式都应该被导入」「没有导入文件的功能页面看情况加上」）：共用一个隐藏 `#pageImportInput` + `[data-import-page]` 按钮（对比页两个按钮靠 `data-import-side`），点按钮与拖放都进 `importTextIntoPage()` → `pageImportTargets()`（编辑器优先，懒创建时退回 textarea）。**判断口径**：`flow.textImportable()` —— 只要不是图片、不是 xlsx/xls 二进制表格就当文本收，扩展名不认识也收（`.dat` / `.out` 那类导出文件），`.csv` / `.tsv` 在格式转换页按源格式读。改这条先看 `tests/ui.smoke.js` 的「拖入 JSON / CSV / 不认识的扩展名 / 导入按钮 / 对比页导入右侧」几节。
+3. ✅ **导入的体积与显示**：文本 16 MB（原来错用了 `flow.LIMITS.hostText` 的 2 MB，太紧）、图片 10 MB、表格 20 MB；导入后提示条 + toast 都写「文件名 · 体积」，拖入时蒙层写本页上限（`syncDropVeilLimit()`）。**超过 `TEXT_AUTO_MAX`（2 M 字符）只载入不自动转换**，否则格式转换页在导入瞬间跑「解析 → 序列化」会卡住宿主。二进制（NUL / 大量 `\uFFFD`）用 `textLooksBinary()` 拦下。
+4. ✅ **批量处理**（已做）：一次拖多个表格文件 → `mergeFiles()` 合并成 `{ 文件名: 记录[] }` 的一个 JSON，导出 `batch-N.json`；`sheetState.batch` 独立于单文件状态，切 SQL 输出会退回单文件。文本页一次只导入第一个（会 toast 说明用了哪个）。
+5. ⬜ **接入宿主选中内容**：`window.dbxPlugin.context` + `onContext()` 是宿主给数据的口子（dev-runtime 里确认过：`context` / `onInit` / `onContext`）。用 `flow.pickHostText()` 从任意形状的 context 里挖出选中文本，`classifyText()` 判 json / ddl / sql / text 后路由。**没做完，别忘。**
+6. ⬜ **最近使用 / 常用片段**：`flow.recentPush()` 已就绪（条数、单条 16 KB、总预算 256 KB、正文超预算降级为元信息），还缺 localStorage 与工具栏面板。
 
 ### 五、字节转换（已完成，0.1.5）
 
@@ -92,7 +94,18 @@ DBX 是宿主进程，插件页面把宿主拖崩就是事故。新增功能时�
 - 引擎 `ui/vendor/echarts/echarts.min.js`（6.1.0 全量 1.1 MB，Apache-2.0，附 LICENSE）。**不能用 `echarts.simple.min.js`**（缺 radar / treemap / dataZoom）。`loadChartEngine()` 懒加载，失败不缓存 promise；离开页面 dispose。
 - 上限：输入 2 M 字符、30 系列、总点 5 万、单系列 2 万、宽高 80–4096（越界夹取并回写输入框 + 说明原因）。
 - jsdom 里 echarts 必崩（`clearRect` / `dpr`），所以冒烟测试 stub 掉 echarts 请求只验降级路径；真渲染用 `/tmp/imgh/check-chart.js`（CDP，21 项）。改到图表页后必须跑这三层：`chart.test.js`、`ui.smoke.js`、`check-chart.js`。
-- i18n：`NAV_I18N.navChart` + 新表 `CHART_I18N`（32 键 × 14 语）。
+- i18n：`NAV_I18N.navChart` + 新表 `CHART_I18N`（33 键 × 14 语，+`chartTruncated`）。
+
+#### 任务列表式数据（0.1.6 补，用户拿真实导出提的需求）
+
+顶层是数组 → 每条任务的某个字段是**序列化 JSON 字符串** → 展开后才是「业务键 → `echart_option` / `table_data` / `biz_data`」。option 落在**第 6 层**，中间夹着上千行表格。老参数（`COLLECT_DEPTH=4`、预算 300）会一个都找不到。
+
+1. **深度放到 8、预算随输入放大**：`budgetFor(chars) = min(60000, max(300, chars/6))`，`parseText` 传进去；多份文档时按份数摊。实测 40 万字符的返回 7 ms 找出全部 33 张图，1.8 MB / 1.9 万行 42 ms。
+2. **纯数据行不占预算**：`isScalarRow()`（对象里全是标量、且没有字符串像序列化 JSON）直接跳过——表格行是预算的最大消耗者，且不可能藏着 option。注意「值里有字符串化 JSON」必须排除（否则会把 `{note:'ok', extra:'{"inner":{echart_option:…}}'}` 剪掉）。预算只给「会往下走的节点」记账（数组 / 非数据行对象 / 能解析出 JSON 的字符串）。
+3. **扫不完要如实说**：`collectReport()` 返回 `{options, truncated}`，`parseText` 带出 `truncated`，UI 在状态条前缀 `chartTruncated` 一句（`notes` 数组拼 ` · `，和尺寸越界提示共用一条）。
+4. `echart_option` 为 `null` / 空串不占位（下拉只列真能画的）。
+5. `parseEmbedded()` 判断「像不像 JSON」只看前 8 个字符（`looksEmbedded()`），**别 `trim()` 整串**——负载几百 KB，一次判断就是一次全量拷贝。
+6. 测试三处：`tests/chart.test.js` 的「任务列表」6 条（自造样本）、`ui.smoke.js` 的「任务列表」1 条、`/tmp/imgh/check-chart.js` 的 4 条（真 Chrome）。
 
 ### 七、图片页导入（已完成，0.1.6）
 
@@ -122,6 +135,8 @@ DBX 是宿主进程，插件页面把宿主拖崩就是事故。新增功能时�
 1. macOS 自带 **BSD grep 不支持 `\s`、`\|`、`{0,300}`**：多模式一律 `grep -E "a|b"`，需要 `\s` 就用 `[[:space:]]` 或 node 脚本；否则会得到「空结果」并且误判成「文件里没有」。
 2. 十几万行的 `ui/index.html` 用 `Grep` 工具或 `sed -n`，别用裸 `grep` 拼管道。
 3. 批量插 i18n 用 node 脚本按锚点键逐语言插入（`/tmp/patch-*.js` 那套路），插完必须跑 `node tests/i18n.test.js`——漏逗号、切断字符串（意大利语 `l\'immagine`）都真发生过。
+4. **插 i18n 时语言头正则要兼容无引号写法**：`CHART_I18N` 里只有 `zh-CN` / `zh-TW` 带引号，`en` / `az` / `es` … 是 `en: {`。写成 `/^\s+'([a-zA-Z-]+)':\s*\{/` 时 `cur` 不前进，13 个语言全被写成繁体（i18n 测试还照样过，因为它只查键集合与占位符）。正确写法：`/^\s+(?:'([a-zA-Z-]+)'|([a-zA-Z0-9_-]+)):\s*\{\s*$/`，插完 `grep` 一眼扫过去。
+5. **jsdom 里 `.disabled` 是空转**：`chartType` 这类自绘下拉是 `<div class="custom-select">`，`el.disabled` 恒为 `undefined`，写成 `if (el.disabled)` 的断言永远不触发。一律用 `el.hasAttribute('disabled')`（`/tmp/imgh/check-chart.js` 那条就空转过一次）。
 
 ### 每次开工前都要想起的两条约束
 
