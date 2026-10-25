@@ -3,7 +3,7 @@
   "manifest_version": 1,
   "id": "io.github.icefoxs.data-convert",
   "name": "数据转换工具",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "publisher": "icefoxs",
   "description": "🛠️ 在 DBX 工作台里一次转完：JSON / YAML / XML / Properties / TOML / INI / .env / CSV / TSV / Query / Headers / Cookie / HTML 共 13 种格式任意互转、JSONPath / jq 查询与 JSON Schema 校验（含从样例反推 Schema）、URL / Base64 / HTML / JSON / Unicode / Hex / SQL / 正则 8 种转义互转、字节换算（B / KB / MB / GB / TB / PB，1000 与 1024 两套进制，精确值 ⇄ 人类可读，批量求和，以及 hex dump / 字节数组 / 二进制串）、批量文本生成 SQL（IN / NOT IN / INSERT）、.xlsx / .csv / .tsv 转 JSON，以及图片 ↔ Base64；「代码生成」页把一段 JSON 示例或一条 CREATE TABLE 直接变成 TypeScript / Go / Java / Python 模型；「JSON 转图表」页把一段 ECharts option（或一组数字）直接画成图，默认 700 × 400、宽高可改，可导出 PNG / SVG。纯前端、无后端、可离线运行。",
   "source": "https://github.com/IceFoxs/dbx-plugin-data-convert",
