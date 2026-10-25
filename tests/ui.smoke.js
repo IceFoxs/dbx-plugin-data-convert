@@ -1711,6 +1711,122 @@ function check(name, fn) {
         if (doc.querySelectorAll('#bytesForms .bytes-form').length !== 0) throw new Error('写法没清');
     });
 
+    // ---------------- 时间转换 ----------------
+    var timeWs = doc.getElementById('timeWorkspace');
+
+    doc.getElementById('navTime').click();
+    await wait(350);
+
+    function timeSetInput(text) {
+        var wrap = doc.getElementById('timeInput').nextElementSibling;
+        if (wrap && wrap.CodeMirror) wrap.CodeMirror.setValue(text);
+        else doc.getElementById('timeInput').value = text;
+    }
+    function timeRows() {
+        return [].slice.call(doc.querySelectorAll('#timePanel .time-row'));
+    }
+    function timeRuleStates() {
+        var out = {};
+        doc.querySelectorAll('.time-rule').forEach(function (c) {
+            out[c.textContent.trim()] = c.getAttribute('aria-checked');
+        });
+        return out;
+    }
+
+    check('点导航进时间转换页：只在页里、一个编辑器', function () {
+        if (!timeWs.classList.contains('active')) throw new Error('没进时间页');
+        if (doc.getElementById('bytesWorkspace').classList.contains('active')) throw new Error('字节页还开着');
+        if (doc.querySelectorAll('#timeWorkspace .CodeMirror').length !== 1) {
+            throw new Error('编辑器数量 ' + doc.querySelectorAll('#timeWorkspace .CodeMirror').length);
+        }
+    });
+
+    check('默认只勾「本地时间」和「本地时间(T)」两项', function () {
+        var s = timeRuleStates();
+        var on = Object.keys(s).filter(function (k) { return s[k] === 'true'; });
+        if (on.length !== 2) throw new Error('勾选数 ' + on.length + '：' + on.join('/'));
+        if (on.indexOf('本地时间') < 0 || on.indexOf('本地时间（T）') < 0) {
+            throw new Error('勾选的不是本地时间两项：' + on.join('/'));
+        }
+    });
+
+    timeSetInput('2020-01-01\n2020-01-01 00:00:00\n2020-01-01T00:00:00\n1577836800');
+    await wait(350);
+
+    check('批量转换：空格与 T 分隔都能转出两种本地写法', function () {
+        var rows = timeRows();
+        if (rows.length !== 4) throw new Error('行数 ' + rows.length);
+        // 每行默认两个字段：本地时间 + 本地时间(T)
+        var fields = rows[1].querySelectorAll('.time-field');
+        if (fields.length !== 2) throw new Error('字段数 ' + fields.length);
+        var vals = [].map.call(fields, function (f) { return f.querySelector('.time-field-value').textContent; });
+        if (vals[0] !== '2020-01-01 00:00:00') throw new Error('空格写法 ' + vals[0]);
+        if (vals[1] !== '2020-01-01T00:00:00') throw new Error('T 写法 ' + vals[1]);
+    });
+
+    check('点字段值能复制', function () {
+        win.__clip.length = 0;
+        var firstVal = timeRows()[0].querySelector('.time-field-value');
+        firstVal.click();
+        if (win.__clip.length !== 1) throw new Error('复制次数 ' + win.__clip.length);
+        if (win.__clip[0] !== '2020-01-01 00:00:00') throw new Error('字段值 ' + win.__clip[0]);
+    });
+
+    check('点「复制整行」复制整行 TSV', function () {
+        win.__clip.length = 0;
+        timeRows()[0].querySelector('[data-copy-row]').click();
+        if (win.__clip.length !== 1) throw new Error('整行复制次数 ' + win.__clip.length);
+        if (win.__clip[0].indexOf('\t') < 0) throw new Error('整行不是 TSV: ' + win.__clip[0]);
+    });
+
+    check('「复制」按钮：每行输入一行，字段值空格分隔，不带原值和序号', function () {
+        win.__clip.length = 0;
+        doc.getElementById('timeCopy').click();
+        if (win.__clip.length !== 1) throw new Error('复制次数 ' + win.__clip.length);
+        // 4 行输入，每行 2 个字段（本地时间 + 本地时间T），空格连接，行间换行 = 4 行
+        var lines = win.__clip[0].split('\n');
+        if (lines.length !== 4) throw new Error('行数 ' + lines.length + '：' + win.__clip[0]);
+        // 每行两个字段值用空格连接（注意本地时间值内部自带空格）
+        if (lines[0] !== '2020-01-01 00:00:00 2020-01-01T00:00:00') {
+            throw new Error('首行内容 ' + lines[0]);
+        }
+        // 不带 #序号、不带输入原值（时间戳 1577836800 是第 4 行的输入原值）
+        if (win.__clip[0].indexOf('#1') >= 0) throw new Error('带了 #序号');
+        if (win.__clip[0].indexOf('1577836800') >= 0) throw new Error('带了输入原值时间戳');
+    });
+
+    check('点 header 折叠 / 展开', function () {
+        var row = timeRows()[0];
+        var header = row.querySelector('header');
+        if (row.classList.contains('collapsed')) throw new Error('默认不该折叠');
+        header.click();
+        if (!row.classList.contains('collapsed')) throw new Error('没折叠');
+        header.click();
+        if (row.classList.contains('collapsed')) throw new Error('没展开');
+    });
+
+    check('勾选更多规则：字段数跟着变', function () {
+        var rule = doc.querySelector('.time-rule[data-field="unixSec"]');
+        rule.click();
+        if (timeRows()[0].querySelectorAll('.time-field').length !== 3) {
+            throw new Error('勾选 unixSec 后字段数 ' + timeRows()[0].querySelectorAll('.time-field').length);
+        }
+        // 还原
+        rule.click();
+        if (timeRows()[0].querySelectorAll('.time-field').length !== 2) throw new Error('还原后字段数不对');
+    });
+
+    doc.getElementById('navBytes').click();
+    await wait(200);
+    check('切走再切回：时间页状态复位', function () {
+        if (timeWs.classList.contains('active')) throw new Error('离开后还 active');
+    });
+    doc.getElementById('navTime').click();
+    await wait(200);
+    check('切回来还是时间页', function () {
+        if (!timeWs.classList.contains('active')) throw new Error('没回到时间页');
+    });
+
     // ---------------- JSON 转图表 ----------------
     // jsdom 里没有 canvas，echarts 也加载不了：这里只校验「不依赖引擎」的那半边
     // —— 形状判定、报错文案、尺寸夹取、导出前的空态。真渲染由 CDP 截图脚本验收。
@@ -2225,8 +2341,8 @@ function check(name, fn) {
         if (convertMenu.querySelectorAll('a').length !== 7) {
             throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
         }
-        // 直属项（从左到右）：JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / 字节转换 / 代码生成 / 表格转 JSON / 查询校验
-        if (inlineNavLinks().length !== 9) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
+        // 直属项（从左到右）：JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / 字节转换 / JSON 转图表 / 时间转换 / 代码生成 / 表格转 JSON / 查询校验
+        if (inlineNavLinks().length !== 10) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
         if (!doc.getElementById('navConvertTrigger')) throw new Error('缺少「格式转换」触发器');
         // 触发器直接显示当前这一对格式，而不是固定的「格式转换」
         var label = doc.getElementById('navConvertLabel').textContent.trim();
@@ -2275,7 +2391,7 @@ function check(name, fn) {
         if (!moreEl.classList.contains('show')) throw new Error('「更多」未出现');
         var names = [].map.call(moreMenu.querySelectorAll('a'), function (a) { return a.textContent.trim(); });
         // 收进「更多」的先后顺序取决于「非固定项先挪、固定项兜底」，这里只校验集合
-        var expect = ['SQL 转换', 'JSON 对比', '表格转 JSON', '代码生成', '图片 Base64', '查询校验', '转义工具', '字节转换', 'JSON 转图表'].sort().join('|');
+        var expect = ['SQL 转换', 'JSON 对比', '表格转 JSON', '代码生成', '图片 Base64', '查询校验', '转义工具', '字节转换', 'JSON 转图表', '时间转换'].sort().join('|');
         if (names.slice().sort().join('|') !== expect) {
             throw new Error('菜单项: ' + names.join(','));
         }
@@ -2310,7 +2426,8 @@ function check(name, fn) {
             navQuery: 'queryWorkspace',
             navEscape: 'escWorkspace',
             navBytes: 'bytesWorkspace',
-            navChart: 'chartWorkspace'
+            navChart: 'chartWorkspace',
+            navTime: 'timeWorkspace'
         };
         if (!pageOf[id]) throw new Error('菜单项不是页面入口: ' + item.textContent.trim());
         if (!doc.getElementById(pageOf[id]).classList.contains('active')) {
@@ -2329,7 +2446,7 @@ function check(name, fn) {
     check('宽度恢复后导航项全部回到导航条', function () {
         if (moreEl.classList.contains('show')) throw new Error('「更多」仍显示');
         if (moreMenu.querySelectorAll('a').length !== 0) throw new Error('菜单仍有残留');
-        if (inlineNavLinks().length !== 9) throw new Error('导航项数 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 10) throw new Error('导航项数 ' + inlineNavLinks().length);
         if (convertMenu.querySelectorAll('a').length !== 7) throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
     });
 

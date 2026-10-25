@@ -46,6 +46,7 @@
     <script src="js/escape.js"></script>
     <script src="js/bytes.js"></script>
     <script src="js/chart.js"></script>
+    <script src="js/time.js"></script>
     <script src="js/flow.js"></script>
 
     <!-- ECharts 引擎的惰性副本。宿主把插件页关进沙箱，CSP 只放行 inline / blob: 脚本，
@@ -1190,6 +1191,7 @@
         .code-workspace,
         .query-workspace,
         .bytes-workspace,
+        .time-workspace,
         .esc-workspace {
             display: none;
             flex: 1 1 0;
@@ -1203,6 +1205,7 @@
         .code-workspace.active,
         .query-workspace.active,
         .bytes-workspace.active,
+        .time-workspace.active,
         .esc-workspace.active { display: flex; }
         /* 选项行：引号、去重、每行一项、数字不加引号 */
         .sql-options {
@@ -1542,6 +1545,194 @@
         }
         .bytes-empty[hidden] { display: none; }
         .bytes-decimals { min-width: 5.6rem; }
+
+        /* ================= 时间转换 ================= */
+        .time-options { align-items: center; }
+        .time-rules {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            flex-wrap: wrap;
+        }
+        .time-rule {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.16rem 0.55rem;
+            font-size: 0.72rem;
+            font-family: var(--font-mono);
+            color: var(--text-main);
+            background-color: var(--bg-base);
+            border: 1px solid var(--border-light);
+            border-radius: 999px;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+        }
+        .time-rule:hover { border-color: var(--primary); }
+        /* 选中态：主题色实底 + 白字 + 前置对勾，和未选中的灰底拉开差距 */
+        .time-rule[aria-checked="true"] {
+            background-color: var(--primary, #2563eb);
+            border-color: var(--primary, #2563eb);
+            color: #ffffff;
+            font-weight: 600;
+        }
+        .time-rule[aria-checked="false"] { opacity: 0.55; }
+        .time-rule[aria-checked="false"]:hover { opacity: 0.85; }
+        .time-rule::before {
+            content: '';
+            flex-shrink: 0;
+            width: 8px;
+            height: 5px;
+            border-left: 2px solid transparent;
+            border-bottom: 2px solid transparent;
+            transform: rotate(-45deg) translateY(-1px);
+            transition: border-color 0.12s ease;
+        }
+        .time-rule[aria-checked="true"]::before {
+            border-left-color: #ffffff;
+            border-bottom-color: #ffffff;
+        }
+        .time-panel {
+            flex: 1 1 0;
+            min-height: 0;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .time-row {
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md, 0.5rem);
+            background-color: var(--bg-card);
+            overflow: hidden;
+            min-width: 0;
+            flex-shrink: 0;
+        }
+        .time-row.bad { border-color: #dc2626; }
+        /* 输入框光标定位到某行时，右侧对应卡片短暂高亮 */
+        .time-row.locate {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary);
+        }
+        .time-row header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.6rem;
+            background-color: var(--accent-bg);
+            cursor: pointer;
+            user-select: none;
+        }
+        .time-row.bad header { background-color: transparent; cursor: default; }
+        .time-row .time-row-arrow {
+            flex-shrink: 0;
+            width: 9px;
+            height: 9px;
+            display: inline-block;
+            position: relative;
+            transition: transform 0.15s ease;
+        }
+        .time-row .time-row-arrow::before,
+        .time-row .time-row-arrow::after {
+            content: '';
+            position: absolute;
+            background-color: var(--text-muted);
+            border-radius: 1px;
+            transition: background-color 0.12s ease;
+        }
+        /* 竖线 */
+        .time-row .time-row-arrow::before {
+            left: 4px;
+            top: 1px;
+            width: 2px;
+            height: 8px;
+        }
+        /* 横线 */
+        .time-row .time-row-arrow::after {
+            left: 1px;
+            top: 4px;
+            width: 8px;
+            height: 2px;
+        }
+        /* 折叠时隐藏竖线，只剩横线（→ 变成 −），更直观 */
+        .time-row.collapsed .time-row-arrow::before { display: none; }
+        .time-row.collapsed .time-row-arrow { transform: rotate(0deg); }
+        .time-row:not(.collapsed) .time-row-arrow::before { display: block; }
+        .time-row header:hover .time-row-arrow::before,
+        .time-row header:hover .time-row-arrow::after { background-color: var(--primary); }
+        .time-row.collapsed .time-fields { display: none; }
+        .time-row.bad .time-row-arrow { display: none; }
+        .time-row .time-row-count {
+            flex-shrink: 0;
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+        .time-row .time-row-line {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+        .time-row .time-row-input {
+            flex: 1 1 0;
+            min-width: 0;
+            font-size: 0.76rem;
+            font-family: var(--font-mono);
+            color: var(--text-main);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .time-row.bad .time-row-input { color: #b91c1c; }
+        [data-dbx-theme="dark"] .time-row.bad .time-row-input { color: #fca5a5; }
+        .time-row .time-row-copy {
+            padding: 0.08rem 0.55rem;
+            font-size: 0.7rem;
+            line-height: 1.6;
+        }
+        .time-fields {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+            gap: 0.35rem;
+            padding: 0.5rem 0.6rem;
+            min-width: 0;
+        }
+        .time-field {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.3rem 0.5rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm, 0.375rem);
+            background-color: var(--bg-base);
+            min-width: 0;
+        }
+        .time-field .time-field-label {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+        .time-field .time-field-value {
+            flex: 1 1 0;
+            min-width: 0;
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            color: var(--text-main);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: copy;
+        }
+        .time-field .time-field-value:hover { color: var(--primary); }
+        .time-field .time-field-static { cursor: default; }
+        .time-field .time-field-static:hover { color: var(--text-main); }
+        .time-row .time-row-err {
+            padding: 0.4rem 0.6rem;
+            font-size: 0.74rem;
+            color: #b91c1c;
+        }
+        [data-dbx-theme="dark"] .time-row .time-row-err { color: #fca5a5; }
 
         /* ================= JSON 转图表 ================= */
         .chart-workspace {
@@ -2472,6 +2663,7 @@
         <a id="navEscape" class="nav-escape" data-i18n="navEscape">转义工具</a>
         <a id="navBytes" class="nav-bytes" data-i18n="navBytes">字节转换</a>
         <a id="navChart" class="nav-chart" data-i18n="navChart">JSON 转图表</a>
+        <a id="navTime" class="nav-time" data-i18n="navTime">时间转换</a>
         <a id="navCodegen" class="nav-code" data-i18n="navCodegen">代码生成</a>
         <a id="navSheet" class="nav-sheet" data-i18n="navSheet">表格转 JSON</a>
         <a id="navQuery" class="nav-query" data-i18n="navQuery">查询校验</a>
@@ -3339,6 +3531,50 @@
         </div>
     </section>
 
+    <!-- ================= 时间转换 ================= -->
+    <section class="time-workspace" id="timeWorkspace">
+        <div class="compare-bar">
+            <div class="sql-options time-options">
+                <span class="compare-samples-label" data-i18n="timeRules">输出格式</span>
+                <div class="time-rules" id="timeRules"></div>
+            </div>
+
+            <div class="compare-actions">
+                <button type="button" class="btn btn-outline" id="timeImport" data-import-page="navTime" data-i18n="flowImport">导入文件</button>
+                <button type="button" class="btn btn-primary" id="timeRun" data-i18n="timeRun">批量转换</button>
+                <button type="button" class="btn btn-outline" id="timeCopy" data-i18n="copyBtn">复制</button>
+                <button type="button" class="btn btn-outline" id="timeClear" data-i18n="clearBtn">清空</button>
+            </div>
+
+            <div class="compare-tip" id="timeTip"></div>
+        </div>
+
+        <div class="compare-grid">
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="timeInputTitle">时间值</span>
+                        <span class="pane-badge" id="timeInBadge">—</span>
+                    </div>
+                </div>
+                <div class="editor-container">
+                    <textarea id="timeInput" class="textarea" spellcheck="false" data-i18n-placeholder="timeInputPlaceholder"></textarea>
+                </div>
+            </div>
+
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="timeOutputTitle">转换结果</span>
+                        <span class="pane-badge" id="timeOutBadge"></span>
+                    </div>
+                    <div class="pane-actions"><span class="sheet-size" id="timeOutSize"></span></div>
+                </div>
+                <div class="time-panel" id="timePanel"></div>
+            </div>
+        </div>
+    </section>
+
     <!-- ================= JSON 转图表 ================= -->
     <section class="chart-workspace" id="chartWorkspace">
         <div class="compare-bar">
@@ -3866,20 +4102,20 @@
         // =========================================
         // 导航「格式转换」下拉的标题：14 种语言的小表，同样由 applyI18n 合并查询
         const NAV_I18N = {
-            'zh-CN': { navConvert: '格式转换', navBytes: '字节转换', navChart: 'JSON 转图表' },
-            'zh-TW': { navConvert: '格式轉換', navBytes: '位元組轉換', navChart: 'JSON 轉圖表' },
-            en: { navConvert: 'Convert', navBytes: 'Bytes', navChart: 'JSON to Chart' },
-            az: { navConvert: 'Format', navBytes: 'Bayt', navChart: 'JSON → Diaqram' },
-            es: { navConvert: 'Formato', navBytes: 'Bytes', navChart: 'JSON a gráfico' },
-            id: { navConvert: 'Format', navBytes: 'Byte', navChart: 'JSON ke grafik' },
-            it: { navConvert: 'Formato', navBytes: 'Byte', navChart: 'JSON in grafico' },
-            ja: { navConvert: '形式変換', navBytes: 'バイト変換', navChart: 'JSON → グラフ' },
-            ko: { navConvert: '형식 변환', navBytes: '바이트 변환', navChart: 'JSON → 차트' },
-            pt: { navConvert: 'Formato', navBytes: 'Bytes', navChart: 'JSON para gráfico' },
-            pl: { navConvert: 'Format', navBytes: 'Bajty', navChart: 'JSON na wykres' },
-            ru: { navConvert: 'Формат', navBytes: 'Байты', navChart: 'JSON в график' },
-            th: { navConvert: 'รูปแบบ', navBytes: 'ไบต์', navChart: 'JSON เป็นกราฟ' },
-            tr: { navConvert: 'Format', navBytes: 'Bayt', navChart: 'JSON → Grafik' }
+            'zh-CN': { navConvert: '格式转换', navBytes: '字节转换', navChart: 'JSON 转图表', navTime: '时间转换' },
+            'zh-TW': { navConvert: '格式轉換', navBytes: '位元組轉換', navChart: 'JSON 轉圖表', navTime: '時間轉換' },
+            en: { navConvert: 'Convert', navBytes: 'Bytes', navChart: 'JSON to Chart', navTime: 'Time' },
+            az: { navConvert: 'Format', navBytes: 'Bayt', navChart: 'JSON → Diaqram', navTime: 'Vaxt' },
+            es: { navConvert: 'Formato', navBytes: 'Bytes', navChart: 'JSON a gráfico', navTime: 'Tiempo' },
+            id: { navConvert: 'Format', navBytes: 'Byte', navChart: 'JSON ke grafik', navTime: 'Waktu' },
+            it: { navConvert: 'Formato', navBytes: 'Byte', navChart: 'JSON in grafico', navTime: 'Tempo' },
+            ja: { navConvert: '形式変換', navBytes: 'バイト変換', navChart: 'JSON → グラフ', navTime: '時間変換' },
+            ko: { navConvert: '형식 변환', navBytes: '바이트 변환', navChart: 'JSON → 차트', navTime: '시간 변환' },
+            pt: { navConvert: 'Formato', navBytes: 'Bytes', navChart: 'JSON para gráfico', navTime: 'Tempo' },
+            pl: { navConvert: 'Format', navBytes: 'Bajty', navChart: 'JSON na wykres', navTime: 'Czas' },
+            ru: { navConvert: 'Формат', navBytes: 'Байты', navChart: 'JSON в график', navTime: 'Время' },
+            th: { navConvert: 'รูปแบบ', navBytes: 'ไบต์', navChart: 'JSON เป็นกราฟ', navTime: 'เวลา' },
+            tr: { navConvert: 'Format', navBytes: 'Bayt', navChart: 'JSON → Grafik', navTime: 'Zaman' }
         };
 
         function applyI18n() {
@@ -3896,6 +4132,7 @@
                 QUERY_I18N[currentLang] || QUERY_I18N.en || {},
                 ESC_I18N[currentLang] || ESC_I18N.en || {},
                 BYTES_I18N[currentLang] || BYTES_I18N.en || {},
+                TIME_I18N[currentLang] || TIME_I18N.en || {},
                 CHART_I18N[currentLang] || CHART_I18N.en || {},
                 FLOW_I18N[currentLang] || FLOW_I18N.en || {}
             );
@@ -3937,6 +4174,8 @@
             if (typeof refreshEscI18n === 'function') refreshEscI18n();
             // 字节转换页的列头、三种写法标题、提示语
             if (typeof refreshBytesI18n === 'function') refreshBytesI18n();
+            // 时间转换页的格式 chip、字段标签、提示语
+            if (typeof refreshTimeI18n === 'function') refreshTimeI18n();
             // 图表页的提示语与占位符
             if (typeof refreshChartI18n === 'function') refreshChartI18n();
         }
@@ -4071,6 +4310,7 @@
         let escInputEditor = null;
         let escOutputEditor = null;
         let bytesEditor = null;
+        let timeEditor = null;
         let chartEditor = null;
         // 图表页的状态也提前声明：离开/进入页面、syncEditorTheme() 都会用到，
         // 声明放在后面会踩 TDZ（和当初 bytesEditor 一样的坑）
@@ -4190,7 +4430,7 @@
             [inputEditor, outputEditor, diffLeftEditor, diffRightEditor, cmpLeftEditor, cmpRightEditor,
                 sqlInputEditor, sqlOutputEditor, sheetOutputEditor, codeInputEditor, codeOutputEditor,
                 queryDataEditor, queryResultEditor, schDataEditor, schSchemaEditor, escInputEditor, escOutputEditor,
-                bytesEditor, chartEditor].forEach((cm) => {
+                bytesEditor, timeEditor, chartEditor].forEach((cm) => {
                 if (!cm) return;
                 const switching = cm.getOption('theme') !== theme;
                 cm.setOption('theme', theme);
@@ -4373,6 +4613,11 @@
                 enterChartMode();
                 return;
             }
+            // 「时间转换」是批量时间戳 / 日期互转的独立页
+            if (link.id === 'navTime') {
+                enterTimeMode();
+                return;
+            }
             if (compareMode) exitCompareMode();
             if (sqlModeActive) exitSqlMode();
             if (sheetModeActive) exitSheetMode();
@@ -4382,6 +4627,7 @@
             if (bytesModeActive) exitBytesMode();
             if (chartModeActive) exitChartMode();
             if (escModeActive) exitEscMode();
+            if (timeModeActive) exitTimeMode();
             markConvertActive(link);
             clearTimeout(autoTimer);
             suppressAutoConvert = true;
@@ -5427,6 +5673,7 @@
             if (keep !== 'bytes' && bytesModeActive) exitBytesMode();
             if (keep !== 'chart' && chartModeActive) exitChartMode();
             if (keep !== 'esc' && escModeActive) exitEscMode();
+            if (keep !== 'time' && timeModeActive) exitTimeMode();
         }
 
         // 当前停在哪一页（关掉快捷页时用来回原处），'' 表示格式转换页
@@ -5439,6 +5686,7 @@
             if (queryModeActive) return 'navQuery';
             if (bytesModeActive) return 'navBytes';
             if (chartModeActive) return 'navChart';
+            if (timeModeActive) return 'navTime';
             return '';
         }
 
@@ -10508,6 +10756,194 @@
             }
         };
 
+        // 时间转换页的文案（独立小表，别再把主字典撑大一圈）
+        const TIME_I18N = {
+            'zh-CN': {
+                timeInputTitle: '时间值', timeOutputTitle: '转换结果',
+                timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
+                timeRun: '批量转换', timeRules: '输出格式', timeCopyRow: '复制整行',
+                timeEmpty: '每行一个时间值：日期、时间戳（秒 / 毫秒）都能识别',
+                timeTipOk: '成功 {ok} · 失败 {fail}',
+                timeErrAll: '没有识别出有效的时间',
+                timeTruncated: '内容太多，只处理了前面 {n} 行',
+                // 字段标签
+                timeFUnixSec: 'Unix 时间戳（秒）', timeFUnixMs: 'Unix 时间戳（毫秒）',
+                timeFLocal: '本地时间', timeFLocalT: '本地时间（T）', timeFUtc: 'UTC 时间', timeFIso: 'ISO 8601', timeFRelative: '相对时间',
+                // 相对时间片段
+                timeAgo: '{n} {unit}前', timeIn: '{n} {unit}后', timeNow: '刚刚',
+                unitYear: '年', unitMonth: '个月', unitWeek: '周', unitDay: '天', unitHour: '小时', unitMinute: '分钟', unitSecond: '秒',
+            },
+            'zh-TW': {
+                timeInputTitle: '時間值', timeOutputTitle: '轉換結果',
+                timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
+                timeRun: '批次轉換', timeRules: '輸出格式', timeCopyRow: '複製整列',
+                timeEmpty: '每行一個時間值：日期、時間戳（秒 / 毫秒）都能識別',
+                timeTipOk: '成功 {ok} · 失敗 {fail}',
+                timeErrAll: '沒有識別出有效的時間',
+                timeTruncated: '內容太多，只處理了前面 {n} 列',
+                timeFUnixSec: 'Unix 時間戳（秒）', timeFUnixMs: 'Unix 時間戳（毫秒）',
+                timeFLocal: '本地時間', timeFLocalT: '本地時間（T）', timeFUtc: 'UTC 時間', timeFIso: 'ISO 8601', timeFRelative: '相對時間',
+                timeAgo: '{n} {unit}前', timeIn: '{n} {unit}後', timeNow: '剛剛',
+                unitYear: '年', unitMonth: '個月', unitWeek: '週', unitDay: '天', unitHour: '小時', unitMinute: '分鐘', unitSecond: '秒',
+            },
+            en: {
+                timeInputTitle: 'Time values', timeOutputTitle: 'Result',
+                timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
+                timeRun: 'Convert', timeRules: 'Formats', timeCopyRow: 'Copy row',
+                timeEmpty: 'One time per line: dates and timestamps (s / ms) are detected',
+                timeTipOk: '{ok} ok · {fail} failed',
+                timeErrAll: 'No valid time detected',
+                timeTruncated: 'Too much input — only the first {n} lines were processed',
+                timeFUnixSec: 'Unix timestamp (s)', timeFUnixMs: 'Unix timestamp (ms)',
+                timeFLocal: 'Local time', timeFLocalT: 'Local time (T)', timeFUtc: 'UTC time', timeFIso: 'ISO 8601', timeFRelative: 'Relative',
+                timeAgo: '{n} {unit} ago', timeIn: 'in {n} {unit}', timeNow: 'just now',
+                unitYear: 'y', unitMonth: 'mo', unitWeek: 'w', unitDay: 'd', unitHour: 'h', unitMinute: 'm', unitSecond: 's',
+            },
+            az: {
+                timeInputTitle: 'Vaxt dəyərləri', timeOutputTitle: 'Nəticə',
+                timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
+                timeRun: 'Çevir', timeRules: 'Formatlar', timeCopyRow: 'Sətri kopyala',
+                timeEmpty: 'Hər sətirdə bir vaxt: tarix və timestamp (s / ms) tanınır',
+                timeTipOk: '{ok} uğurlu · {fail} xəta',
+                timeErrAll: 'Etibarlı vaxt tapılmadı',
+                timeTruncated: 'Məzmun çox böyükdür — yalnız ilk {n} sətir işləndi',
+                timeFUnixSec: 'Unix timestamp (s)', timeFUnixMs: 'Unix timestamp (ms)',
+                timeFLocal: 'Yerli vaxt', timeFLocalT: 'Yerli vaxt (T)', timeFUtc: 'UTC vaxtı', timeFIso: 'ISO 8601', timeFRelative: 'Nisbi',
+                timeAgo: '{n} {unit} əvvəl', timeIn: '{n} {unit} sonra', timeNow: 'indi',
+                unitYear: 'il', unitMonth: 'ay', unitWeek: 'həftə', unitDay: 'gün', unitHour: 'saat', unitMinute: 'dəq', unitSecond: 'san',
+            },
+            es: {
+                timeInputTitle: 'Valores de tiempo', timeOutputTitle: 'Resultado',
+                timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
+                timeRun: 'Convertir', timeRules: 'Formatos', timeCopyRow: 'Copiar fila',
+                timeEmpty: 'Un tiempo por línea: se detectan fechas y marcas (s / ms)',
+                timeTipOk: '{ok} correctos · {fail} fallidos',
+                timeErrAll: 'No se detectó un tiempo válido',
+                timeTruncated: 'Demasiado contenido: solo se procesaron las primeras {n} líneas',
+                timeFUnixSec: 'Marca Unix (s)', timeFUnixMs: 'Marca Unix (ms)',
+                timeFLocal: 'Hora local', timeFLocalT: 'Hora local (T)', timeFUtc: 'Hora UTC', timeFIso: 'ISO 8601', timeFRelative: 'Relativo',
+                timeAgo: 'hace {n} {unit}', timeIn: 'en {n} {unit}', timeNow: 'ahora mismo',
+                unitYear: 'a', unitMonth: 'meses', unitWeek: 'sem', unitDay: 'd', unitHour: 'h', unitMinute: 'min', unitSecond: 's',
+            },
+            id: {
+                timeInputTitle: 'Nilai waktu', timeOutputTitle: 'Hasil',
+                timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
+                timeRun: 'Konversi', timeRules: 'Format', timeCopyRow: 'Salin baris',
+                timeEmpty: 'Satu waktu per baris: tanggal dan timestamp (s / ms) terdeteksi',
+                timeTipOk: '{ok} berhasil · {fail} gagal',
+                timeErrAll: 'Tidak ada waktu valid terdeteksi',
+                timeTruncated: 'Konten terlalu banyak — hanya {n} baris pertama yang diproses',
+                timeFUnixSec: 'Unix timestamp (s)', timeFUnixMs: 'Unix timestamp (ms)',
+                timeFLocal: 'Waktu lokal', timeFLocalT: 'Waktu lokal (T)', timeFUtc: 'Waktu UTC', timeFIso: 'ISO 8601', timeFRelative: 'Relatif',
+                timeAgo: '{n} {unit} lalu', timeIn: 'dalam {n} {unit}', timeNow: 'baru saja',
+                unitYear: 'thn', unitMonth: 'bln', unitWeek: 'mgg', unitDay: 'hr', unitHour: 'jam', unitMinute: 'mnt', unitSecond: 'dtk',
+            },
+            it: {
+                timeInputTitle: 'Valori temporali', timeOutputTitle: 'Risultato',
+                timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
+                timeRun: 'Converti', timeRules: 'Formati', timeCopyRow: 'Copia riga',
+                timeEmpty: 'Un orario per riga: date e timestamp (s / ms) vengono rilevati',
+                timeTipOk: '{ok} ok · {fail} falliti',
+                timeErrAll: 'Nessun orario valido rilevato',
+                timeTruncated: 'Contenuto troppo grande: elaborate solo le prime {n} righe',
+                timeFUnixSec: 'Timestamp Unix (s)', timeFUnixMs: 'Timestamp Unix (ms)',
+                timeFLocal: 'Ora locale', timeFLocalT: 'Ora locale (T)', timeFUtc: 'Ora UTC', timeFIso: 'ISO 8601', timeFRelative: 'Relativo',
+                timeAgo: '{n} {unit} fa', timeIn: 'tra {n} {unit}', timeNow: 'adesso',
+                unitYear: 'anni', unitMonth: 'mesi', unitWeek: 'sett', unitDay: 'g', unitHour: 'ore', unitMinute: 'min', unitSecond: 's',
+            },
+            ja: {
+                timeInputTitle: '時間値', timeOutputTitle: '変換結果',
+                timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
+                timeRun: '一括変換', timeRules: '出力形式', timeCopyRow: '行をコピー',
+                timeEmpty: '1 行に 1 つの時間：日付・タイムスタンプ（秒 / ミリ秒）を自動判別',
+                timeTipOk: '成功 {ok} · 失敗 {fail}',
+                timeErrAll: '有効な時間が見つかりませんでした',
+                timeTruncated: '内容が多すぎるため、先頭 {n} 行のみ処理しました',
+                timeFUnixSec: 'Unix タイムスタンプ（秒）', timeFUnixMs: 'Unix タイムスタンプ（ミリ秒）',
+                timeFLocal: 'ローカル時刻', timeFLocalT: 'ローカル時刻（T）', timeFUtc: 'UTC 時刻', timeFIso: 'ISO 8601', timeFRelative: '相対時間',
+                timeAgo: '{n} {unit}前', timeIn: '{n} {unit}後', timeNow: 'たった今',
+                unitYear: '年', unitMonth: 'か月', unitWeek: '週間', unitDay: '日', unitHour: '時間', unitMinute: '分', unitSecond: '秒',
+            },
+            ko: {
+                timeInputTitle: '시간 값', timeOutputTitle: '변환 결과',
+                timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
+                timeRun: '일괄 변환', timeRules: '출력 형식', timeCopyRow: '행 복사',
+                timeEmpty: '한 줄에 하나씩: 날짜·타임스탬프(초 / 밀리초) 자동 인식',
+                timeTipOk: '성공 {ok} · 실패 {fail}',
+                timeErrAll: '유효한 시간을 찾지 못했습니다',
+                timeTruncated: '내용이 너무 많아 처음 {n}줄만 처리했습니다',
+                timeFUnixSec: 'Unix 타임스탬프(초)', timeFUnixMs: 'Unix 타임스탬프(밀리초)',
+                timeFLocal: '로컬 시간', timeFLocalT: '로컬 시간(T)', timeFUtc: 'UTC 시간', timeFIso: 'ISO 8601', timeFRelative: '상대 시간',
+                timeAgo: '{n} {unit} 전', timeIn: '{n} {unit} 후', timeNow: '방금',
+                unitYear: '년', unitMonth: '개월', unitWeek: '주', unitDay: '일', unitHour: '시간', unitMinute: '분', unitSecond: '초',
+            },
+            pt: {
+                timeInputTitle: 'Valores de tempo', timeOutputTitle: 'Resultado',
+                timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
+                timeRun: 'Converter', timeRules: 'Formatos', timeCopyRow: 'Copiar linha',
+                timeEmpty: 'Um horário por linha: datas e timestamps (s / ms) são detectados',
+                timeTipOk: '{ok} ok · {fail} falhas',
+                timeErrAll: 'Nenhum horário válido detectado',
+                timeTruncated: 'Conteúdo demais: apenas as primeiras {n} linhas foram processadas',
+                timeFUnixSec: 'Timestamp Unix (s)', timeFUnixMs: 'Timestamp Unix (ms)',
+                timeFLocal: 'Hora local', timeFLocalT: 'Hora local (T)', timeFUtc: 'Hora UTC', timeFIso: 'ISO 8601', timeFRelative: 'Relativo',
+                timeAgo: 'há {n} {unit}', timeIn: 'em {n} {unit}', timeNow: 'agora mesmo',
+                unitYear: 'a', unitMonth: 'm', unitWeek: 'sem', unitDay: 'd', unitHour: 'h', unitMinute: 'min', unitSecond: 's',
+            },
+            pl: {
+                timeInputTitle: 'Wartości czasu', timeOutputTitle: 'Wynik',
+                timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
+                timeRun: 'Konwertuj', timeRules: 'Formaty', timeCopyRow: 'Kopiuj wiersz',
+                timeEmpty: 'Jedna godzina w wierszu: daty i znaczniki (s / ms) są wykrywane',
+                timeTipOk: '{ok} ok · {fail} błędów',
+                timeErrAll: 'Nie wykryto prawidłowego czasu',
+                timeTruncated: 'Zbyt dużo treści — przetworzono tylko pierwsze {n} wierszy',
+                timeFUnixSec: 'Znacznik Unix (s)', timeFUnixMs: 'Znacznik Unix (ms)',
+                timeFLocal: 'Czas lokalny', timeFLocalT: 'Czas lokalny (T)', timeFUtc: 'Czas UTC', timeFIso: 'ISO 8601', timeFRelative: 'Względny',
+                timeAgo: '{n} {unit} temu', timeIn: 'za {n} {unit}', timeNow: 'przed chwilą',
+                unitYear: 'l', unitMonth: 'mies.', unitWeek: 'tydz.', unitDay: 'dn', unitHour: 'godz.', unitMinute: 'min', unitSecond: 's',
+            },
+            ru: {
+                timeInputTitle: 'Значения времени', timeOutputTitle: 'Результат',
+                timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
+                timeRun: 'Конвертировать', timeRules: 'Форматы', timeCopyRow: 'Копировать строку',
+                timeEmpty: 'По одному времени в строке: даты и метки (с / мс) определяются',
+                timeTipOk: '{ok} успешно · {fail} ошибок',
+                timeErrAll: 'Не найдено допустимое время',
+                timeTruncated: 'Слишком много данных — обработаны только первые {n} строк',
+                timeFUnixSec: 'Unix-метка (с)', timeFUnixMs: 'Unix-метка (мс)',
+                timeFLocal: 'Местное время', timeFLocalT: 'Местное время (T)', timeFUtc: 'Время UTC', timeFIso: 'ISO 8601', timeFRelative: 'Относительное',
+                timeAgo: '{n} {unit} назад', timeIn: 'через {n} {unit}', timeNow: 'только что',
+                unitYear: 'г', unitMonth: 'мес', unitWeek: 'нед', unitDay: 'дн', unitHour: 'ч', unitMinute: 'мин', unitSecond: 'с',
+            },
+            th: {
+                timeInputTitle: 'ค่าเวลา', timeOutputTitle: 'ผลลัพธ์',
+                timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
+                timeRun: 'แปลง', timeRules: 'รูปแบบ', timeCopyRow: 'คัดลอกแถว',
+                timeEmpty: 'หนึ่งเวลาต่อบรรทัด: ตรวจพบวันที่และ timestamp (วินาที / มิลลิวินาที)',
+                timeTipOk: 'สำเร็จ {ok} · ล้มเหลว {fail}',
+                timeErrAll: 'ไม่พบเวลาที่ถูกต้อง',
+                timeTruncated: 'เนื้อหามากเกินไป — ประมวลผลเฉพาะ {n} บรรทัดแรก',
+                timeFUnixSec: 'Unix timestamp (วินาที)', timeFUnixMs: 'Unix timestamp (มิลลิวินาที)',
+                timeFLocal: 'เวลาท้องถิ่น', timeFLocalT: 'เวลาท้องถิ่น (T)', timeFUtc: 'เวลา UTC', timeFIso: 'ISO 8601', timeFRelative: 'สัมพัทธ์',
+                timeAgo: '{n} {unit} ที่แล้ว', timeIn: 'ใน {n} {unit}', timeNow: 'เมื่อสักครู่',
+                unitYear: 'ปี', unitMonth: 'เดือน', unitWeek: 'สัปดาห์', unitDay: 'วัน', unitHour: 'ชม.', unitMinute: 'นาที', unitSecond: 'วินาที',
+            },
+            tr: {
+                timeInputTitle: 'Zaman değerleri', timeOutputTitle: 'Sonuç',
+                timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
+                timeRun: 'Dönüştür', timeRules: 'Biçimler', timeCopyRow: 'Satırı kopyala',
+                timeEmpty: 'Satır başına bir zaman: tarih ve zaman damgası (s / ms) algılanır',
+                timeTipOk: '{ok} başarılı · {fail} başarısız',
+                timeErrAll: 'Geçerli bir zaman bulunamadı',
+                timeTruncated: 'İçerik çok fazla — yalnızca ilk {n} satır işlendi',
+                timeFUnixSec: 'Unix damgası (s)', timeFUnixMs: 'Unix damgası (ms)',
+                timeFLocal: 'Yerel saat', timeFLocalT: 'Yerel saat (T)', timeFUtc: 'UTC saati', timeFIso: 'ISO 8601', timeFRelative: 'Göreli',
+                timeAgo: '{n} {unit} önce', timeIn: '{n} {unit} sonra', timeNow: 'şimdi',
+                unitYear: 'yıl', unitMonth: 'ay', unitWeek: 'hft', unitDay: 'gün', unitHour: 'sa', unitMinute: 'dk', unitSecond: 'sn',
+            }
+        };
+
         // JSON 转图表页的文案（独立小表，别再把主字典撑大一圈）
         const CHART_I18N = {
             'zh-CN': {
@@ -12339,6 +12775,16 @@
         const bytesDecimalsEl = document.getElementById('bytesDecimals');
         const bytesDecimalsSelect = initCustomSelect('bytesDecimals');
 
+        const timeWorkspaceEl = document.getElementById('timeWorkspace');
+        const navTimeLink = document.getElementById('navTime');
+        const timeInput = document.getElementById('timeInput');
+        const timePanel = document.getElementById('timePanel');
+        const timeInBadge = document.getElementById('timeInBadge');
+        const timeOutBadge = document.getElementById('timeOutBadge');
+        const timeOutSize = document.getElementById('timeOutSize');
+        const timeTip = document.getElementById('timeTip');
+        const timeRulesEl = document.getElementById('timeRules');
+
         const chartWorkspaceEl = document.getElementById('chartWorkspace');
         const navChartLink = document.getElementById('navChart');
         const chartInput = document.getElementById('chartInput');
@@ -12382,6 +12828,10 @@
         let bytesTimer = null;
         let bytesDecimals = 2;
         let bytesCopyPayload = '';
+        let timeModeActive = false;
+        let timeTimer = null;
+        // 时间转换：勾选哪些输出格式（默认按 time.js 的 FIELDS.def）
+        let timeRules = null;
         let querySampleText = '';
         let schSampleText = '';
 
@@ -13290,6 +13740,295 @@
                 showToast(qT('toastCopySuccess', 'Copied'));
             } catch (err) {
                 showToast(qT('toastCopyError', 'Copy failed'), 'error');
+            }
+        });
+
+        /* ----------------------------- 时间转换 ----------------------------- */
+
+        function timeT(key, fallback) {
+            const table = TIME_I18N[currentLang] || {};
+            return table[key] || (TIME_I18N.en || {})[key] || (TIME_I18N['zh-CN'] || {})[key] || fallback || key;
+        }
+
+        function timeSetTip(text, cls) {
+            timeTip.textContent = text || '';
+            timeTip.className = 'compare-tip' + (cls ? ' ' + cls : '');
+        }
+
+        // 勾选状态：time.js 里 FIELDS 的 key 为准，默认按 def 勾选
+        function timeInitRules() {
+            const T = window.DBXTime;
+            if (!T) return;
+            timeRules = {};
+            Object.keys(T.FIELDS).forEach((key) => {
+                timeRules[key] = !!T.FIELDS[key].def;
+            });
+        }
+
+        function timeRenderRules() {
+            const T = window.DBXTime;
+            if (!T || !timeRules) return;
+            timeRulesEl.innerHTML = '';
+            Object.keys(T.FIELDS).forEach((key) => {
+                const chip = document.createElement('span');
+                chip.className = 'time-rule';
+                chip.setAttribute('role', 'checkbox');
+                chip.setAttribute('aria-checked', timeRules[key] ? 'true' : 'false');
+                chip.dataset.field = key;
+                chip.textContent = timeT('timeF' + key.charAt(0).toUpperCase() + key.slice(1), key);
+                timeRulesEl.appendChild(chip);
+            });
+        }
+
+        // 相对时间：把 time.js 的 { n, unit, future } 换成当前语言
+        function timeRelative(d) {
+            if (!d || d.n === 0) return timeT('timeNow', '刚刚');
+            const unit = timeT('unit' + d.unit.charAt(0).toUpperCase() + d.unit.slice(1), d.unit);
+            const tpl = d.future ? timeT('timeIn', '{n} {unit}后') : timeT('timeAgo', '{n} {unit}前');
+            return tpl.replace('{n}', String(d.n)).replace('{unit}', unit);
+        }
+
+        function timeFieldLabel(key) {
+            return timeT('timeF' + key.charAt(0).toUpperCase() + key.slice(1), key);
+        }
+
+        // 一行结果 -> 一个 time-row 卡片（字段按勾选顺序排，值可逐个复制）
+        // 头部点击折叠/展开，超长字段值省略显示、悬停看全文、点击复制
+        function timeRenderRow(row) {
+            const T = window.DBXTime;
+            const wrap = document.createElement('div');
+            wrap.className = 'time-row' + (row.ok ? '' : ' bad');
+            wrap.dataset.line = String(row.line);
+
+            const header = document.createElement('header');
+            const arrow = document.createElement('span');
+            arrow.className = 'time-row-arrow';
+            header.appendChild(arrow);
+
+            const lineEl = document.createElement('span');
+            lineEl.className = 'time-row-line';
+            lineEl.textContent = '#' + row.line;
+            header.appendChild(lineEl);
+
+            const inputEl = document.createElement('span');
+            inputEl.className = 'time-row-input';
+            inputEl.textContent = row.input || '';
+            inputEl.title = row.input || '';
+            header.appendChild(inputEl);
+
+            if (row.ok) {
+                const copyBtn = document.createElement('button');
+                copyBtn.type = 'button';
+                copyBtn.className = 'btn btn-outline time-row-copy';
+                copyBtn.dataset.copyRow = row.line;
+                copyBtn.textContent = timeT('timeCopyRow', '复制整行');
+                header.appendChild(copyBtn);
+            }
+            wrap.appendChild(header);
+
+            if (!row.ok) {
+                const err = document.createElement('div');
+                err.className = 'time-row-err';
+                err.textContent = timeT('timeErrAll', '无法识别');
+                wrap.appendChild(err);
+                return wrap;
+            }
+
+            const f = T.fields(row.ms);
+            const enabled = Object.keys(T.FIELDS).filter((k) => timeRules[k]);
+            const grid = document.createElement('div');
+            grid.className = 'time-fields';
+            enabled.forEach((key) => {
+                const val = key === 'relative' ? timeRelative(f.relative) : f[key];
+                const field = document.createElement('div');
+                field.className = 'time-field';
+                const label = document.createElement('span');
+                label.className = 'time-field-label';
+                label.textContent = timeFieldLabel(key);
+                const value = document.createElement('span');
+                value.className = 'time-field-value' + (key === 'relative' ? ' time-field-static' : '');
+                value.textContent = val;
+                // 相对时间结果不参与单独复制（也不进批量复制）
+                if (key !== 'relative') value.dataset.copyText = val;
+                value.title = val;
+                field.appendChild(label);
+                field.appendChild(value);
+                grid.appendChild(field);
+            });
+            wrap.appendChild(grid);
+
+            // 头部点击折叠/展开（点「复制整行」按钮不折叠）
+            header.addEventListener('click', (e) => {
+                if (e.target.closest('[data-copy-row]')) return;
+                wrap.classList.toggle('collapsed');
+            });
+
+            return wrap;
+        }
+
+        function timeRun() {
+            const T = window.DBXTime;
+            if (!T) return;
+            // 规则没初始化就按默认勾选补上（拖放 / 导入可能绕过 enterTimeMode 直接进到这里）
+            if (!timeRules) { timeInitRules(); timeRenderRules(); }
+            const result = T.parse(timeInput.value);
+
+            timeInBadge.textContent = result.rows.length ? String(result.rows.length) : '—';
+            timeOutBadge.textContent = '';
+            timeOutSize.textContent = '';
+
+            timePanel.innerHTML = '';
+            const frag = document.createDocumentFragment();
+            result.rows.forEach((row) => frag.appendChild(timeRenderRow(row)));
+            timePanel.appendChild(frag);
+
+            if (!result.rows.length) {
+                timeSetTip(timeT('timeEmpty'));
+                return;
+            }
+            let note = timeT('timeTipOk').replace('{ok}', String(result.okCount)).replace('{fail}', String(result.failCount));
+            if (result.truncated) note = timeT('timeTruncated').replace('{n}', String(result.rows.length)) + ' · ' + note;
+            timeSetTip(note, result.okCount ? 'ok' : 'err');
+        }
+
+        function timeEnsureEditor() {
+            if (timeEditor) return;
+            timeEditor = CodeMirror.fromTextArea(timeInput, editorConfig('text/plain', timeInput.placeholder, timeRun));
+            timeEditor.on('change', () => {
+                const next = timeEditor.getValue();
+                if (timeInput.value !== next) timeInput.value = next;
+                timeSchedule();
+            });
+            // 光标在哪一行，右侧就定位并高亮对应的结果卡片（按行快速定位）
+            timeEditor.on('cursorActivity', () => {
+                if (!timeModeActive) return;
+                const cursor = timeEditor.getCursor();
+                timeLocateRow(cursor.line + 1);
+            });
+            linkTextareaToEditor(timeInput, timeEditor);
+            syncEditorTheme();
+        }
+
+        // 高亮 + 滚动到第 line 行对应的结果卡片（行号从 1 起）
+        function timeLocateRow(line) {
+            const target = timePanel.querySelector('.time-row[data-line="' + line + '"]');
+            if (!target) return;
+            timePanel.querySelectorAll('.time-row.locate').forEach((r) => r.classList.remove('locate'));
+            target.classList.add('locate');
+            target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+
+        function timeSchedule() {
+            clearTimeout(timeTimer);
+            timeTimer = setTimeout(timeRun, 180);
+        }
+
+        function enterTimeMode() {
+            if (timeModeActive) return;
+            exitOtherModes('time');
+            timeModeActive = true;
+            markConvertActive(null);
+            mainWorkspace.classList.add('hidden');
+            toolbarEl.classList.add('hidden');
+            timeEnsureEditor();
+            if (!timeRules) timeInitRules();
+            timeRenderRules();
+            timeWorkspaceEl.classList.add('active');
+            navTimeLink.classList.add('active');
+            timeRun();
+            requestAnimationFrame(() => timeEditor.refresh());
+        }
+
+        function exitTimeMode() {
+            if (!timeModeActive) return;
+            timeModeActive = false;
+            clearTimeout(timeTimer);
+            timeWorkspaceEl.classList.remove('active');
+            navTimeLink.classList.remove('active');
+            toolbarEl.classList.remove('hidden');
+            mainWorkspace.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                inputEditor.refresh();
+                outputEditor.refresh();
+            });
+        }
+
+        function refreshTimeI18n() {
+            if (!timeEditor) return;
+            timeEditor.setOption('placeholder', timeInput.placeholder || '');
+            timeRenderRules();
+            if (timeModeActive) timeRun();
+        }
+
+        timeRulesEl.addEventListener('click', (e) => {
+            const chip = e.target.closest('.time-rule');
+            if (!chip || !chip.dataset.field) return;
+            const key = chip.dataset.field;
+            timeRules[key] = !timeRules[key];
+            chip.setAttribute('aria-checked', timeRules[key] ? 'true' : 'false');
+            timeRun();
+        });
+        document.getElementById('timeRun').addEventListener('click', timeRun);
+        document.getElementById('timeClear').addEventListener('click', () => {
+            clearTimeout(timeTimer);
+            timeInput.value = '';
+            if (timeEditor) timeEditor.setValue('');
+            timeRun();
+        });
+        document.getElementById('timeCopy').addEventListener('click', async () => {
+            const T = window.DBXTime;
+            if (!T) return;
+            const result = T.parse(timeInput.value);
+            // 排除相对时间：复制按钮不带相对时间结果
+            const keys = Object.keys(T.FIELDS).filter((k) => timeRules[k] && k !== 'relative');
+            // 每行输入 -> 一行（该行勾选字段的值用空格连起来），行间换行；
+            // 不带 #序号、不带输入原值、不带字段标签
+            const lines = [];
+            result.rows.forEach((row) => {
+                if (!row.ok) return;
+                const f = T.fields(row.ms);
+                const cells = keys.map((k) => (k === 'relative' ? timeRelative(f.relative) : f[k]));
+                lines.push(cells.join(' '));
+            });
+            if (!lines.length) {
+                showToast(qT('toastCopyError', 'Nothing to copy'), 'error');
+                return;
+            }
+            try {
+                await writeClipboardText(lines.join('\n'));
+                showToast(qT('toastCopySuccess', 'Copied'));
+            } catch (err) {
+                showToast(qT('toastCopyError', 'Copy failed'), 'error');
+            }
+        });
+        // 单个值复制：点字段值复制该值；点「复制整行」复制这一行的所有字段（TSV）
+        timePanel.addEventListener('click', async (e) => {
+            const cell = e.target.closest('[data-copy-text]');
+            if (cell) {
+                try {
+                    await writeClipboardText(cell.dataset.copyText || '');
+                    showToast(qT('toastCopySuccess', 'Copied'));
+                } catch (err) {
+                    showToast(qT('toastCopyError', 'Copy failed'), 'error');
+                }
+                return;
+            }
+            const btn = e.target.closest('[data-copy-row]');
+            if (btn) {
+                const line = btn.dataset.copyRow;
+                const T = window.DBXTime;
+                const result = T.parse(timeInput.value);
+                const row = result.rows.find((r) => String(r.line) === String(line));
+                if (!row || !row.ok) return;
+                const keys = Object.keys(T.FIELDS).filter((k) => timeRules[k] && k !== 'relative');
+                const f = T.fields(row.ms);
+                const cells = keys.map((k) => (k === 'relative' ? timeRelative(f.relative) : f[k]));
+                try {
+                    await writeClipboardText(cells.join('\t'));
+                    showToast(qT('toastCopySuccess', 'Copied'));
+                } catch (err) {
+                    showToast(qT('toastCopyError', 'Copy failed'), 'error');
+                }
             }
         });
 
@@ -14377,6 +15116,7 @@
             if (page === 'navSql') return { editor: sqlInputEditor, el: sqlInputText, tipId: 'sqlTip' };
             if (page === 'navEscape') return { editor: escInputEditor, el: escInput, tipId: 'escTip' };
             if (page === 'navBytes') return { editor: bytesEditor, el: bytesInput, tipId: 'bytesTip' };
+            if (page === 'navTime') return { editor: timeEditor, el: timeInput, tipId: 'timeTip' };
             if (page === 'navChart') return { editor: chartEditor, el: chartInput, tipId: 'chartTip' };
             if (page === 'navCodegen') return { editor: codeInputEditor, el: codeInput, tipId: 'codeTip' };
             if (page === 'navQuery') {
