@@ -1547,6 +1547,59 @@
         .bytes-decimals { min-width: 5.6rem; }
 
         /* ================= 时间转换 ================= */
+        /* 快捷操作：五个常用时刻，点一下换行追加到输入框 */
+        .time-quick {
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            padding: 0.8rem 0.95rem 0.9rem;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg, 0.75rem);
+        }
+        .time-quick-title {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-main);
+            padding-bottom: 0.55rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .time-quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .time-quick-btn {
+            flex: 1 1 auto;
+            min-width: 5.6rem;
+            padding: 0.5rem 0.9rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            font-family: var(--font-sans);
+            color: var(--quick, var(--primary));
+            background-color: transparent;
+            border: 1px solid var(--quick, var(--primary));
+            border-radius: var(--radius-md, 0.5rem);
+            cursor: pointer;
+            transition: background-color 0.12s ease, box-shadow 0.12s ease;
+        }
+        .time-quick-btn:hover {
+            background-color: var(--accent-bg);
+            box-shadow: 0 0 0 3px var(--accent-bg);
+        }
+        .time-quick-btn:active { transform: translateY(1px); }
+        /* 每个按钮一个语义色（蓝 / 绿 / 青 / 琥珀 / 灰），暗色下换成更亮的同色系 */
+        .time-quick-btn[data-quick="now"] { --quick: #2563eb; }
+        .time-quick-btn[data-quick="today"] { --quick: #16a34a; }
+        .time-quick-btn[data-quick="yesterday"] { --quick: #0891b2; }
+        .time-quick-btn[data-quick="week"] { --quick: #d97706; }
+        .time-quick-btn[data-quick="month"] { --quick: #71717a; }
+        [data-dbx-theme="dark"] .time-quick-btn[data-quick="now"] { --quick: #60a5fa; }
+        [data-dbx-theme="dark"] .time-quick-btn[data-quick="today"] { --quick: #4ade80; }
+        [data-dbx-theme="dark"] .time-quick-btn[data-quick="yesterday"] { --quick: #22d3ee; }
+        [data-dbx-theme="dark"] .time-quick-btn[data-quick="week"] { --quick: #fbbf24; }
+        [data-dbx-theme="dark"] .time-quick-btn[data-quick="month"] { --quick: #a1a1aa; }
         .time-options { align-items: center; }
         .time-rules {
             display: flex;
@@ -3532,6 +3585,17 @@
 
     <!-- ================= 时间转换 ================= -->
     <section class="time-workspace" id="timeWorkspace">
+        <div class="time-quick">
+            <div class="time-quick-title" data-i18n="timeQuick">快捷操作</div>
+            <div class="time-quick-actions" id="timeQuickActions">
+                <button type="button" class="time-quick-btn" data-quick="now" data-i18n="timeQuickNow">当前时间</button>
+                <button type="button" class="time-quick-btn" data-quick="today" data-i18n="timeQuickToday">今天开始</button>
+                <button type="button" class="time-quick-btn" data-quick="yesterday" data-i18n="timeQuickYesterday">昨天</button>
+                <button type="button" class="time-quick-btn" data-quick="week" data-i18n="timeQuickWeek">本周开始</button>
+                <button type="button" class="time-quick-btn" data-quick="month" data-i18n="timeQuickMonth">本月开始</button>
+            </div>
+        </div>
+
         <div class="compare-bar">
             <div class="sql-options time-options">
                 <span class="compare-samples-label" data-i18n="timeRules">输出格式</span>
@@ -10758,6 +10822,12 @@
         // 时间转换页的文案（独立小表，别再把主字典撑大一圈）
         const TIME_I18N = {
             'zh-CN': {
+                timeQuick: '快捷操作',
+                timeQuickNow: '当前时间',
+                timeQuickToday: '今天开始',
+                timeQuickYesterday: '昨天',
+                timeQuickWeek: '本周开始',
+                timeQuickMonth: '本月开始',
                 timeInputTitle: '时间值', timeOutputTitle: '转换结果',
                 timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
                 timeRun: '批量转换', timeRules: '输出格式', timeCopyRow: '复制整行',
@@ -10773,6 +10843,12 @@
                 unitYear: '年', unitMonth: '个月', unitWeek: '周', unitDay: '天', unitHour: '小时', unitMinute: '分钟', unitSecond: '秒',
             },
             'zh-TW': {
+                timeQuick: '快捷操作',
+                timeQuickNow: '目前時間',
+                timeQuickToday: '今天開始',
+                timeQuickYesterday: '昨天',
+                timeQuickWeek: '本週開始',
+                timeQuickMonth: '本月開始',
                 timeInputTitle: '時間值', timeOutputTitle: '轉換結果',
                 timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
                 timeRun: '批次轉換', timeRules: '輸出格式', timeCopyRow: '複製整列',
@@ -10786,6 +10862,12 @@
                 unitYear: '年', unitMonth: '個月', unitWeek: '週', unitDay: '天', unitHour: '小時', unitMinute: '分鐘', unitSecond: '秒',
             },
             en: {
+                timeQuick: 'Quick actions',
+                timeQuickNow: 'Now',
+                timeQuickToday: 'Today start',
+                timeQuickYesterday: 'Yesterday',
+                timeQuickWeek: 'Week start',
+                timeQuickMonth: 'Month start',
                 timeInputTitle: 'Time values', timeOutputTitle: 'Result',
                 timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
                 timeRun: 'Convert', timeRules: 'Formats', timeCopyRow: 'Copy row',
@@ -10799,6 +10881,12 @@
                 unitYear: 'y', unitMonth: 'mo', unitWeek: 'w', unitDay: 'd', unitHour: 'h', unitMinute: 'm', unitSecond: 's',
             },
             az: {
+                timeQuick: 'Sürətli əməliyyatlar',
+                timeQuickNow: 'İndi',
+                timeQuickToday: 'Bugünün əvvəli',
+                timeQuickYesterday: 'Dünən',
+                timeQuickWeek: 'Həftənin əvvəli',
+                timeQuickMonth: 'Ayın əvvəli',
                 timeInputTitle: 'Vaxt dəyərləri', timeOutputTitle: 'Nəticə',
                 timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
                 timeRun: 'Çevir', timeRules: 'Formatlar', timeCopyRow: 'Sətri kopyala',
@@ -10812,6 +10900,12 @@
                 unitYear: 'il', unitMonth: 'ay', unitWeek: 'həftə', unitDay: 'gün', unitHour: 'saat', unitMinute: 'dəq', unitSecond: 'san',
             },
             es: {
+                timeQuick: 'Acciones rápidas',
+                timeQuickNow: 'Ahora',
+                timeQuickToday: 'Inicio de hoy',
+                timeQuickYesterday: 'Ayer',
+                timeQuickWeek: 'Inicio de semana',
+                timeQuickMonth: 'Inicio de mes',
                 timeInputTitle: 'Valores de tiempo', timeOutputTitle: 'Resultado',
                 timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
                 timeRun: 'Convertir', timeRules: 'Formatos', timeCopyRow: 'Copiar fila',
@@ -10825,6 +10919,12 @@
                 unitYear: 'a', unitMonth: 'meses', unitWeek: 'sem', unitDay: 'd', unitHour: 'h', unitMinute: 'min', unitSecond: 's',
             },
             id: {
+                timeQuick: 'Aksi cepat',
+                timeQuickNow: 'Sekarang',
+                timeQuickToday: 'Awal hari ini',
+                timeQuickYesterday: 'Kemarin',
+                timeQuickWeek: 'Awal minggu',
+                timeQuickMonth: 'Awal bulan',
                 timeInputTitle: 'Nilai waktu', timeOutputTitle: 'Hasil',
                 timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
                 timeRun: 'Konversi', timeRules: 'Format', timeCopyRow: 'Salin baris',
@@ -10838,6 +10938,12 @@
                 unitYear: 'thn', unitMonth: 'bln', unitWeek: 'mgg', unitDay: 'hr', unitHour: 'jam', unitMinute: 'mnt', unitSecond: 'dtk',
             },
             it: {
+                timeQuick: 'Azioni rapide',
+                timeQuickNow: 'Adesso',
+                timeQuickToday: 'Inizio di oggi',
+                timeQuickYesterday: 'Ieri',
+                timeQuickWeek: 'Inizio settimana',
+                timeQuickMonth: 'Inizio mese',
                 timeInputTitle: 'Valori temporali', timeOutputTitle: 'Risultato',
                 timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
                 timeRun: 'Converti', timeRules: 'Formati', timeCopyRow: 'Copia riga',
@@ -10851,6 +10957,12 @@
                 unitYear: 'anni', unitMonth: 'mesi', unitWeek: 'sett', unitDay: 'g', unitHour: 'ore', unitMinute: 'min', unitSecond: 's',
             },
             ja: {
+                timeQuick: 'クイック操作',
+                timeQuickNow: '現在時刻',
+                timeQuickToday: '今日の始まり',
+                timeQuickYesterday: '昨日',
+                timeQuickWeek: '今週の始まり',
+                timeQuickMonth: '今月の始まり',
                 timeInputTitle: '時間値', timeOutputTitle: '変換結果',
                 timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
                 timeRun: '一括変換', timeRules: '出力形式', timeCopyRow: '行をコピー',
@@ -10864,6 +10976,12 @@
                 unitYear: '年', unitMonth: 'か月', unitWeek: '週間', unitDay: '日', unitHour: '時間', unitMinute: '分', unitSecond: '秒',
             },
             ko: {
+                timeQuick: '빠른 작업',
+                timeQuickNow: '현재 시간',
+                timeQuickToday: '오늘 시작',
+                timeQuickYesterday: '어제',
+                timeQuickWeek: '이번 주 시작',
+                timeQuickMonth: '이번 달 시작',
                 timeInputTitle: '시간 값', timeOutputTitle: '변환 결과',
                 timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
                 timeRun: '일괄 변환', timeRules: '출력 형식', timeCopyRow: '행 복사',
@@ -10877,6 +10995,12 @@
                 unitYear: '년', unitMonth: '개월', unitWeek: '주', unitDay: '일', unitHour: '시간', unitMinute: '분', unitSecond: '초',
             },
             pt: {
+                timeQuick: 'Ações rápidas',
+                timeQuickNow: 'Agora',
+                timeQuickToday: 'Início de hoje',
+                timeQuickYesterday: 'Ontem',
+                timeQuickWeek: 'Início da semana',
+                timeQuickMonth: 'Início do mês',
                 timeInputTitle: 'Valores de tempo', timeOutputTitle: 'Resultado',
                 timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
                 timeRun: 'Converter', timeRules: 'Formatos', timeCopyRow: 'Copiar linha',
@@ -10890,6 +11014,12 @@
                 unitYear: 'a', unitMonth: 'm', unitWeek: 'sem', unitDay: 'd', unitHour: 'h', unitMinute: 'min', unitSecond: 's',
             },
             pl: {
+                timeQuick: 'Szybkie akcje',
+                timeQuickNow: 'Teraz',
+                timeQuickToday: 'Początek dnia',
+                timeQuickYesterday: 'Wczoraj',
+                timeQuickWeek: 'Początek tygodnia',
+                timeQuickMonth: 'Początek miesiąca',
                 timeInputTitle: 'Wartości czasu', timeOutputTitle: 'Wynik',
                 timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
                 timeRun: 'Konwertuj', timeRules: 'Formaty', timeCopyRow: 'Kopiuj wiersz',
@@ -10903,6 +11033,12 @@
                 unitYear: 'l', unitMonth: 'mies.', unitWeek: 'tydz.', unitDay: 'dn', unitHour: 'godz.', unitMinute: 'min', unitSecond: 's',
             },
             ru: {
+                timeQuick: 'Быстрые действия',
+                timeQuickNow: 'Сейчас',
+                timeQuickToday: 'Начало дня',
+                timeQuickYesterday: 'Вчера',
+                timeQuickWeek: 'Начало недели',
+                timeQuickMonth: 'Начало месяца',
                 timeInputTitle: 'Значения времени', timeOutputTitle: 'Результат',
                 timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
                 timeRun: 'Конвертировать', timeRules: 'Форматы', timeCopyRow: 'Копировать строку',
@@ -10916,6 +11052,12 @@
                 unitYear: 'г', unitMonth: 'мес', unitWeek: 'нед', unitDay: 'дн', unitHour: 'ч', unitMinute: 'мин', unitSecond: 'с',
             },
             th: {
+                timeQuick: 'การทำงานด่วน',
+                timeQuickNow: 'เวลาปัจจุบัน',
+                timeQuickToday: 'เริ่มวันนี้',
+                timeQuickYesterday: 'เมื่อวาน',
+                timeQuickWeek: 'เริ่มสัปดาห์นี้',
+                timeQuickMonth: 'เริ่มเดือนนี้',
                 timeInputTitle: 'ค่าเวลา', timeOutputTitle: 'ผลลัพธ์',
                 timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
                 timeRun: 'แปลง', timeRules: 'รูปแบบ', timeCopyRow: 'คัดลอกแถว',
@@ -10929,6 +11071,12 @@
                 unitYear: 'ปี', unitMonth: 'เดือน', unitWeek: 'สัปดาห์', unitDay: 'วัน', unitHour: 'ชม.', unitMinute: 'นาที', unitSecond: 'วินาที',
             },
             tr: {
+                timeQuick: 'Hızlı işlemler',
+                timeQuickNow: 'Şimdi',
+                timeQuickToday: 'Bugünün başlangıcı',
+                timeQuickYesterday: 'Dün',
+                timeQuickWeek: 'Hafta başlangıcı',
+                timeQuickMonth: 'Ay başlangıcı',
                 timeInputTitle: 'Zaman değerleri', timeOutputTitle: 'Sonuç',
                 timeInputPlaceholder: '2020-01-01 · 2020-01-01 00:00:00 · 2020-01-01T00:00:00 · 1577836800 · 1577836800000',
                 timeRun: 'Dönüştür', timeRules: 'Biçimler', timeCopyRow: 'Satırı kopyala',
@@ -13914,13 +14062,49 @@
             if (!target) return;
             timePanel.querySelectorAll('.time-row.locate').forEach((r) => r.classList.remove('locate'));
             target.classList.add('locate');
-            target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            // jsdom 里没有 scrollIntoView，别让定位把整页带崩
+            if (typeof target.scrollIntoView === 'function') {
+                target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
         }
 
         function timeSchedule() {
             clearTimeout(timeTimer);
             timeTimer = setTimeout(timeRun, 180);
         }
+
+        // 快捷操作：算出常用时刻，换行追加到输入框最后一行，再定位到新加的那行
+        // 统一填本地时间 "YYYY-MM-DD HH:mm:ss"——不管勾了哪些输出格式都能解析回来
+        function timeQuickInsert(kind) {
+            const T = window.DBXTime;
+            if (!T || !T.quick) return;
+            if (!timeRules) { timeInitRules(); timeRenderRules(); }
+            const ms = T.quick(kind, Date.now());
+            if (ms == null) return;
+
+            const text = T.fields(ms).local;
+            // 有 CodeMirror 时以编辑器为准（textarea.value 由桥接维护，不一定最新）
+            const cur = String((timeEditor ? timeEditor.getValue() : timeInput.value) || '');
+            const prev = cur.replace(/\s+$/, '');
+            const next = prev ? prev + '\n' + text : text;
+            timeInput.value = next;
+            if (timeEditor) timeEditor.setValue(next);
+            clearTimeout(timeTimer);
+            timeRun();
+
+            const line = next.split('\n').length;
+            if (timeEditor) {
+                timeEditor.setCursor({ line: line - 1, ch: text.length });
+                timeEditor.focus();
+            }
+            timeLocateRow(line);
+        }
+
+        document.getElementById('timeQuickActions').addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-quick]');
+            if (!btn) return;
+            timeQuickInsert(btn.dataset.quick);
+        });
 
         function enterTimeMode() {
             if (timeModeActive) return;

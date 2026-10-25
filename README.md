@@ -19,7 +19,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 | **Query & Validate** | JSONPath / jq expressions over a JSON document, JSON Schema (draft-07) validation with path + reason per error, one-click schema inference from data |
 | **Escape** | URL / Base64 / HTML / JSON string / `\uXXXX` / hex / SQL literal / regex — encode and decode, with a one-click direction flip |
 | **Byte converter** | B / KB / MB / GB / TB / PB on both the 1000 and 1024 scales, exact value ⇄ human readable, batch totals, hex dump / byte array / binary string forms, and every value copies on its own without thousands separators |
-| **Time converter** | Timestamps (seconds / milliseconds / microseconds) ⇄ dates, picking from local time, `T`-separated, UTC, ISO 8601 and relative time; one value per line for batches, results fold away, the card for the line your cursor is on gets highlighted, and copying gives you results only |
+| **Time converter** | Timestamps (seconds / milliseconds / microseconds) ⇄ dates, picking from local time, `T`-separated, UTC, ISO 8601 and relative time; one value per line for batches, Now / Today / Yesterday / Week / Month buttons append a line in one click, results fold away, the card for the line your cursor is on gets highlighted, and copying gives you results only |
 | **JSON to Chart** | An ECharts option (or an array of numbers / objects) drawn as a chart; API responses, task lists and several JSONs at once are unwrapped and listed for picking; custom width & height, PNG export at 1x / 2x / 3x and vector SVG, plus a full-screen lightbox; the chart engine ships inside the package, no network |
 
 ## Convert
@@ -119,6 +119,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 ## Time converter
 
+- **Quick actions fill the input for you** — a row of buttons on top: Now, Today start, Yesterday, Week start and Month start. Each click **appends a new line** with that moment to the end of the input and converts right away (Yesterday means yesterday 00:00:00; the week starts on Monday). Values are truncated to the second and written as `2026-10-25 00:00:00`, a notation this page parses, so there is no format to remember.
 - **One time per line, mixed notations welcome** — paste `2020-01-01`, `2020-01-01 00:00:00`, `2020-01-01T00:00:00`, `1577836800` and `1577836800000` on their own lines and each line gets every notation it can be expressed in. A line that does not parse is flagged on its own card and the rest still convert, so one bad row never fails the batch.
 - **Only the formats you ask for** — seven toggles: Unix timestamp (seconds), Unix timestamp (milliseconds), local time, local time with `T`, UTC, ISO 8601 and relative time. By default only *local time* and *local time (T)* are on, which is the everyday `2020-01-01 00:00:00` ⇄ `2020-01-01T00:00:00` swap; switch another one on and each result card grows a column.
 - **Results fold away** — one card per input line, headed by its line number and the original value; clicking the heading collapses or expands it (`−` / `+`), so dozens of lines stay manageable.
@@ -176,12 +177,12 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## Build & test
 
 ```bash
-./scripts/build.sh test         # all suites (881 cases)
+./scripts/build.sh test         # all suites (890 cases)
 ./scripts/build.sh              # run tests, then package dist/*.dbxp
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
-npm test                        # pure-function suites, no dependencies (881 cases)
-npm install && npm run test:ui  # jsdom smoke test of the UI wiring (229 checks)
+npm test                        # pure-function suites, no dependencies (890 cases)
+npm install && npm run test:ui  # jsdom smoke test of the UI wiring (233 checks)
 ```
 
 On Windows use `scripts\build.cmd` instead (requires Git Bash).

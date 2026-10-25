@@ -9,6 +9,7 @@
  *   parse()      whole text -> { rows, okCount, failCount }
  *   fields(ms)   ms -> { unixSec, unixMs, local, localT, utc, iso, yearMonthDay, time, relative }
  *   describe(ms) ms -> "3 天前 / 5 分钟后"  (relative, at parse time)
+ *   quick(kind)  'now' / 'today' / 'yesterday' / 'week' / 'month' -> ms（截到整秒）
  *
  * Timestamps are ambiguous: a 10-digit integer is treated as seconds, 13-digit
  * as milliseconds, 16-digit (microseconds) is trimmed to ms. A bare 10/13 digit
@@ -166,6 +167,43 @@
         };
     }
 
+    // ---------- 快捷时刻 ----------
+
+    // 页面顶部「快捷操作」用的五个常用时刻。除「当前时间」外都取「起点」：
+    // 今天 / 昨天 / 本周一 / 本月 1 日的 00:00:00，一律截到整秒，
+    // 这样填进输入框的是干净的 "YYYY-MM-DD HH:mm:ss"，不带毫秒尾巴。
+    // 传入 now 便于测试；kind 不认识时返回 null。
+    function quick(kind, now) {
+        var base = (typeof now === 'number' && isFinite(now)) ? now : Date.now();
+        var d = new Date(base);
+        var y = d.getFullYear(), mo = d.getMonth(), day = d.getDate();
+        var ms;
+        switch (kind) {
+            case 'now':
+                ms = base;
+                break;
+            case 'today':
+                ms = new Date(y, mo, day).getTime();
+                break;
+            case 'yesterday':
+                ms = new Date(y, mo, day - 1).getTime();
+                break;
+            case 'week': {
+                // 周一为一周起点（getDay() 里周日是 0，先换成周一=0）
+                var back = (d.getDay() + 6) % 7;
+                ms = new Date(y, mo, day - back).getTime();
+                break;
+            }
+            case 'month':
+                ms = new Date(y, mo, 1).getTime();
+                break;
+            default:
+                return null;
+        }
+        if (!inRange(ms)) return null;
+        return Math.floor(ms / 1000) * 1000;
+    }
+
     // 相对时间：中文里最常用的「多久前 / 多久后」。跨语言文案在页面层做，
     // 这里只给一个稳定的 { delta, future } 描述，方便 i18n。
     function describe(ms) {
@@ -193,6 +231,7 @@
         parseLine: parseLine,
         parse: parse,
         fields: fields,
-        describe: describe
+        describe: describe,
+        quick: quick
     };
 });

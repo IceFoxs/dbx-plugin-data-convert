@@ -1725,6 +1725,11 @@ function check(name, fn) {
     function timeRows() {
         return [].slice.call(doc.querySelectorAll('#timePanel .time-row'));
     }
+    // CodeMirror 接管后 textarea.value 不一定是最新值，统一从这里读
+    function timeInputText() {
+        var wrap = doc.getElementById('timeInput').nextElementSibling;
+        return wrap && wrap.CodeMirror ? wrap.CodeMirror.getValue() : doc.getElementById('timeInput').value;
+    }
     function timeRuleStates() {
         var out = {};
         doc.querySelectorAll('.time-rule').forEach(function (c) {
@@ -1816,11 +1821,52 @@ function check(name, fn) {
         if (timeRows()[0].querySelectorAll('.time-field').length !== 2) throw new Error('还原后字段数不对');
     });
 
+    doc.getElementById('timeClear').click();
+    await wait(300);
+
+    check('快捷操作：五个按钮按顺序排列', function () {
+        var btns = [].slice.call(doc.querySelectorAll('#timeQuickActions [data-quick]'));
+        if (btns.length !== 5) throw new Error('按钮数 ' + btns.length);
+        var kinds = btns.map(function (b) { return b.getAttribute('data-quick'); }).join(',');
+        if (kinds !== 'now,today,yesterday,week,month') throw new Error('按钮顺序 ' + kinds);
+        if (btns[0].textContent.trim() !== '当前时间') throw new Error('按钮文案 ' + btns[0].textContent);
+    });
+
+    doc.querySelector('#timeQuickActions [data-quick="now"]').click();
+    await wait(300);
+
+    check('快捷操作：点「当前时间」换行填入一行', function () {
+        var lines = timeInputText().split('\n');
+        if (lines.length !== 1) throw new Error('行数 ' + lines.length + '：' + timeInputText());
+        if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(lines[0])) throw new Error('格式 ' + lines[0]);
+        if (timeRows().length !== 1) throw new Error('结果卡片数 ' + timeRows().length);
+    });
+
+    doc.querySelector('#timeQuickActions [data-quick="today"]').click();
+    await wait(300);
+
+    check('快捷操作：再点一个另起一行，不打乱已有内容', function () {
+        var lines = timeInputText().split('\n');
+        if (lines.length !== 2) throw new Error('行数 ' + lines.length + '：' + timeInputText());
+        if (!/^(\d{4}-\d{2}-\d{2}) 00:00:00$/.test(lines[1])) throw new Error('今天开始 ' + lines[1]);
+        if (timeRows().length !== 2) throw new Error('结果卡片数 ' + timeRows().length);
+    });
+
+    check('快捷操作：新行定位高亮到最后一张卡片', function () {
+        var located = doc.querySelectorAll('#timePanel .time-row.locate');
+        if (located.length !== 1) throw new Error('高亮数 ' + located.length);
+        if (located[0].getAttribute('data-line') !== '2') throw new Error('高亮行 ' + located[0].getAttribute('data-line'));
+    });
+
+    doc.getElementById('timeClear').click();
+    await wait(200);
+
     doc.getElementById('navBytes').click();
     await wait(200);
     check('切走再切回：时间页状态复位', function () {
         if (timeWs.classList.contains('active')) throw new Error('离开后还 active');
     });
+
     doc.getElementById('navTime').click();
     await wait(200);
     check('切回来还是时间页', function () {

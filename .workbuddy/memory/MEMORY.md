@@ -77,6 +77,10 @@
 - **批量复制格式固定**：每行输入一行，勾选字段值用空格连，行间换行，不带 `#序号` / 原值 / 字段名（用户反复确认过三遍）。
 - 折叠箭头：**展开显示 `−`、收起显示 `+`**（`::before` 竖线只在 collapsed 时出现）。
 - 光标定位：CodeMirror `cursorActivity` → `timeLocateRow(cursor.line + 1)` → `[data-line]` 加 `.locate` + `scrollIntoView`。
+- **快捷操作（2026-10-25 加）**：`#timeQuickActions` 五个按钮 `data-quick="now|today|yesterday|week|month"`，值由纯函数 `T.quick(kind, now)` 给——一律截到整秒，`today`/`yesterday`/`week`/`month` 都落在 00:00:00（「昨天」= 昨天 00:00:00，「本周」按周一算，用 `new Date(y, mo, day)` 走本地时区）。点击 → `timeQuickInsert()` 取 `fields(ms).local` **换行追加**到输入框末尾 → `timeRun()` → 光标落到新行 → `timeLocateRow` 高亮对应卡片。读当前内容用 `timeEditor.getValue()`，别用 `timeInput.value`。
+- 快捷按钮配色：每个 `data-quick` 一个 `--quick` 变量（蓝 / 绿 / 青 / 琥珀 / 灰），暗色下逐个覆盖成亮色系；hover 只换 `--accent-bg` 底，不反转字色（亮色底 + 白字会糊）。
+- `timeLocateRow()` 调 `scrollIntoView` 前必须判 `typeof === 'function'`：jsdom 没实现，而快捷填入会主动定位，不判就在冒烟里抛错。
+- 快捷卡片同样要 `flex-shrink: 0`（时间页是纵向 flex，否则被结果区挤扁）。
 - 文案在独立小表 `TIME_I18N`（14 语），并入 `applyI18n` 与 `tests/i18n.test.js`。
 
 ### 导入体系（0.1.6）

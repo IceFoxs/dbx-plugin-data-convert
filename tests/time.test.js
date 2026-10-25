@@ -123,5 +123,64 @@ check('FIELDS 规则表默认开关：只勾本地时间两种写法', () => {
     eq(T.FIELDS.relative.def, false);
 });
 
+// ---------- 快捷时刻（页面顶部「快捷操作」按钮用） ----------
+
+check('快捷时刻导出齐全', () => {
+    eq(typeof T.quick, 'function');
+});
+
+check('快捷时刻：当前时间截到整秒', () => {
+    const now = new Date(2026, 9, 25, 14, 30, 45, 678).getTime();
+    eq(T.quick('now', now), new Date(2026, 9, 25, 14, 30, 45).getTime());
+});
+
+check('快捷时刻：今天开始 = 本地 00:00:00', () => {
+    const now = new Date(2026, 9, 25, 14, 30, 45, 678).getTime();
+    eq(T.quick('today', now), new Date(2026, 9, 25, 0, 0, 0).getTime());
+});
+
+check('快捷时刻：昨天 = 昨天 00:00:00', () => {
+    const now = new Date(2026, 9, 25, 14, 30, 45).getTime();
+    eq(T.quick('yesterday', now), new Date(2026, 9, 24, 0, 0, 0).getTime());
+});
+
+check('快捷时刻：昨天跨月正确', () => {
+    const now = new Date(2026, 10, 1, 10, 0, 0).getTime();
+    const d = new Date(T.quick('yesterday', now));
+    eq(d.getMonth(), 9);
+    eq(d.getDate(), 31);
+    eq(d.getHours(), 0);
+});
+
+check('快捷时刻：本周开始 = 周一 00:00:00', () => {
+    const now = new Date(2026, 9, 25, 14, 30, 45).getTime(); // 2026-10-25 是周日
+    const d = new Date(T.quick('week', now));
+    eq(d.getDay(), 1);
+    eq(d.getDate(), 19);
+    eq(d.getHours(), 0);
+    eq(d.getMinutes(), 0);
+    eq(d.getSeconds(), 0);
+});
+
+check('快捷时刻：本月开始 = 1 日 00:00:00', () => {
+    const now = new Date(2026, 9, 25, 14, 30, 45).getTime();
+    const d = new Date(T.quick('month', now));
+    eq(d.getDate(), 1);
+    eq(d.getMonth(), 9);
+    eq(d.getHours(), 0);
+});
+
+check('快捷时刻：不认识的口径返回 null', () => {
+    eq(T.quick('nope', Date.now()), null);
+});
+
+check('快捷时刻：填进输入框的文本能被解析回同一秒', () => {
+    const now = new Date(2026, 9, 25, 14, 30, 45, 999).getTime();
+    const ms = T.quick('today', now);
+    const text = T.fields(ms).local;
+    eq(text, '2026-10-25 00:00:00');
+    eq(T.parseLine(text).ms, ms);
+});
+
 console.log('\n  ' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
