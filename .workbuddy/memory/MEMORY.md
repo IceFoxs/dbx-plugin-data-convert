@@ -3,7 +3,7 @@
 ## 用户硬规范（最高优先）
 
 1. **不打 tag、不建分支**；提交 / push 由用户确认。
-2. **不改版本号**（`manifest.json` / `package.json` / CHANGELOG 段落 / `.dbx-store.json` 的 `vX.Y.Z`），连「先升后退」也不做。功能做完留在当前版本。
+2. **版本号以 `manifest.json` 为准**（用户 2026-10-25 明确「以后以 manifest 为准」）：`package.json` / CHANGELOG 段落 / `.dbx-store.json` 的 `source` 跟着 manifest 走，发现不一致就对齐到 manifest，不要反过来改 manifest。**但不要自己决定升版本**——升不升、升到几由用户说（用户说「0.1.7」才升）；「对齐」只在用户已改过 manifest 或明确指定版本时做。
 3. **不用用户给的真实数据**（接口返回、业务 JSON、截图内容、表名 / 字段名 / 业务指标）：代码、测试夹具、文档、截图、CHANGELOG、提交信息一律用自造样本（`orders.json` / `items` / `访问量` 这类）。
 4. **组件样式统一 shadcn**：原生 `<select>` 的弹层跟主题打架，一律自绘 `.custom-select`。
 5. **CSS 变量带 fallback**：`var(--radius-md, 0.5rem)`（独立浏览器里没有定义会退成 0）。
@@ -13,7 +13,7 @@
 ## 文档与截图
 
 1. **截图与当前版本一致**：改到 UI（导航、布局、文案、主题）就重拍 README 用到的图；导航项 / 页面结构 / 按钮文案要与当次打包的 `ui/index.html` 对得上。
-2. **只留核心页**：每个一级功能页一张（现 8 张：格式转换主图 + 对比 / SQL / 图片 / 转义 / 字节 / 代码生成 / 查询校验 / 表格 / 图表，实际以 README 引用为准）。细节图（弹层、暗色、窄屏）不进 README；不再引用的 `docs/*.png` 直接删。
+2. **只留核心页**：每个一级功能页一张（现 11 张：格式转换主图 + 对比 / SQL / 图片 / 转义 / 字节 / 时间 / 代码生成 / 查询校验 / 表格 / 图表，实际以 README 引用为准）。细节图（弹层、暗色、窄屏）不进 README；不再引用的 `docs/*.png` 直接删。
 3. 规格：**1440×900、1x 原生像素、亮色主题**（`--force-device-scale-factor=1`）。截图前清 `.toast`，否则会把上一场景的提示带进来。
 4. 改完用脚本双向校验「README 引用 → 文件存在」「docs 文件 → 是否被引用」。
 5. README 结构：一句话简介 + 主图 → 功能页一览表 → 按页分节（2–5 条短句 + 一张图）→ 通用能力（i18n / 主题 / 剪贴板 / 离线）单列。中英两份条目顺序一一对应。
@@ -61,6 +61,18 @@
 - 打包 `./scripts/build.sh`（先跑全部单测再出 `dist/*.dbxp`）；新测试文件要同时进 `scripts/build.sh` 的 `run_tests()` 与 `package.json` 的 `test`。
 
 ## 已上线能力（改动前必读）
+
+### 时间转换（0.1.7）
+
+- 独立导航页 `navTime` + `#timeWorkspace`，架构照 bytes：纯函数在 `ui/js/time.js`（`window.DBXTime`），UI 在 `ui/index.html`；`timeModeActive` + `enterTimeMode` / `exitTimeMode` + `exitOtherModes('time')`，`currentPageId()` 认 `navTime`，`pageImportTargets()` 给它 `{ editor: timeEditor, el: timeInput, tipId: 'timeTip' }`。
+- `FIELDS` 7 个字段（unixSec / unixMs / local / localT / utc / iso / relative），**默认只开 `local` + `localT`**（用户要求：`2020-01-01 00:00:00` ⇄ `2020-01-01T00:00:00`）。改默认值要同步 `tests/time.test.js` 与冒烟里的「默认只勾两项」。
+- 解析：`parseTimestamp()` 按位数（10 秒 / 13 毫秒 / 16 微秒裁到毫秒）、`parseDate()` 认 `YYYY-MM-DD`、空格、`T`、`Z`、`±hh:mm`（空格与 `T` 必须出同一毫秒）；`parse()` 批量 `maxLines: 2000`，坏行只标自己，超限置 `truncated`。
+- **结果卡片必须 `flex-shrink: 0`**：`.time-panel` 是纵向 flex + 滚动，卡片会被压扁（7 字段时 184 px → 57 px）。
+- **相对时间特殊**：不可单独复制（不加 `data-copy-text`，加 `time-field-static` class 去掉 copy 光标与 hover 变色）、不进「复制整行」、不进批量「复制」——它是给人看的描述性文本。
+- **批量复制格式固定**：每行输入一行，勾选字段值用空格连，行间换行，不带 `#序号` / 原值 / 字段名（用户反复确认过三遍）。
+- 折叠箭头：**展开显示 `−`、收起显示 `+`**（`::before` 竖线只在 collapsed 时出现）。
+- 光标定位：CodeMirror `cursorActivity` → `timeLocateRow(cursor.line + 1)` → `[data-line]` 加 `.locate` + `scrollIntoView`。
+- 文案在独立小表 `TIME_I18N`（14 语），并入 `applyI18n` 与 `tests/i18n.test.js`。
 
 ### 导入体系（0.1.6）
 

@@ -1,6 +1,6 @@
 # 数据转换 (Data Format Converter)
 
-A [DBX](https://dbxio.com) plugin that moves data between formats without leaving the workbench: JSON / YAML / XML / Properties conversion, a field-level diff, a batch-value SQL builder, Excel / CSV → JSON, Image ⇄ Base64, JSON / `CREATE TABLE` straight into model code, JSONPath / jq queries with JSON Schema validation, an escape toolbox, byte conversion (1000 and 1024 scales) and JSON straight into an ECharts chart exported as PNG / SVG. Built from the **frontend-only (universal)** template — one cross-platform `.dbxp`, no native backend, no network calls, works offline.
+A [DBX](https://dbxio.com) plugin that moves data between formats without leaving the workbench: JSON / YAML / XML / Properties conversion, a field-level diff, a batch-value SQL builder, Excel / CSV → JSON, Image ⇄ Base64, JSON / `CREATE TABLE` straight into model code, JSONPath / jq queries with JSON Schema validation, an escape toolbox, byte conversion (1000 and 1024 scales), timestamps and dates in every notation (local / UTC / ISO 8601 / relative, batched) and JSON straight into an ECharts chart exported as PNG / SVG. Built from the **frontend-only (universal)** template — one cross-platform `.dbxp`, no native backend, no network calls, works offline.
 
 ![Data Format Converter workbench](docs/screen.png)
 
@@ -19,6 +19,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 | **Query & Validate** | JSONPath / jq expressions over a JSON document, JSON Schema (draft-07) validation with path + reason per error, one-click schema inference from data |
 | **Escape** | URL / Base64 / HTML / JSON string / `\uXXXX` / hex / SQL literal / regex — encode and decode, with a one-click direction flip |
 | **Byte converter** | B / KB / MB / GB / TB / PB on both the 1000 and 1024 scales, exact value ⇄ human readable, batch totals, hex dump / byte array / binary string forms, and every value copies on its own without thousands separators |
+| **Time converter** | Timestamps (seconds / milliseconds / microseconds) ⇄ dates, picking from local time, `T`-separated, UTC, ISO 8601 and relative time; one value per line for batches, results fold away, the card for the line your cursor is on gets highlighted, and copying gives you results only |
 | **JSON to Chart** | An ECharts option (or an array of numbers / objects) drawn as a chart; API responses, task lists and several JSONs at once are unwrapped and listed for picking; custom width & height, PNG export at 1x / 2x / 3x and vector SVG, plus a full-screen lightbox; the chart engine ships inside the package, no network |
 
 ## Convert
@@ -116,6 +117,17 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 ![Byte converter page](docs/screen-bytes.png)
 
+## Time converter
+
+- **One time per line, mixed notations welcome** — paste `2020-01-01`, `2020-01-01 00:00:00`, `2020-01-01T00:00:00`, `1577836800` and `1577836800000` on their own lines and each line gets every notation it can be expressed in. A line that does not parse is flagged on its own card and the rest still convert, so one bad row never fails the batch.
+- **Only the formats you ask for** — seven toggles: Unix timestamp (seconds), Unix timestamp (milliseconds), local time, local time with `T`, UTC, ISO 8601 and relative time. By default only *local time* and *local time (T)* are on, which is the everyday `2020-01-01 00:00:00` ⇄ `2020-01-01T00:00:00` swap; switch another one on and each result card grows a column.
+- **Results fold away** — one card per input line, headed by its line number and the original value; clicking the heading collapses or expands it (`−` / `+`), so dozens of lines stay manageable.
+- **The card follows your cursor** — move the caret to line N in the input and the results pane scrolls to the Nth card and highlights it, no counting required.
+- **Copying gives you results only** — every value copies on click (with a copy cursor on hover) and **Copy row** gives one TSV line. The **Copy** button writes one output line per input line, joining the enabled fields with spaces and separating lines with newlines: no index, no original value, no field labels, ready to paste into a sheet or code. Relative time is for reading only (things like *3 years ago*) and never enters the batch copy.
+- Timestamps are recognised by length (10 digits seconds, 13 milliseconds, 16 microseconds trimmed to milliseconds) and ISO strings with `Z` or `+08:00` parse as well. A batch is capped at 2000 lines, and hitting that cap is stated rather than silently ignored.
+
+![Time converter page](docs/screen-time.png)
+
 ## JSON to Chart
 
 - **Paste an option, get a chart** — drop a full **ECharts option** on the left (`title` / `xAxis` / `yAxis` / `series` / `dataset` all understood) and the right pane renders exactly that configuration: line, bar, pie, scatter, radar, treemap and every other ECharts chart type works. No API to memorise — copy an option from the official examples and look at it immediately.
@@ -136,7 +148,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 ## Workflow
 
-- **Every page can import a file, and the page never moves** — whichever page you are on, the file is handled by that page. The whole window is a drop target (the veil even states the size limit for this page), and the Import file button in the input pane goes through exactly the same channel. On Convert, `.json` / `.yaml` / `.xml` / `.toml` / `.ini` / `.env` / `.log` / `.md` / `.csv` / `.tsv` set the source format and convert straight away, and unknown extensions (`.dat` / `.out` / `.resp` exports) are read and sniffed just the same; the Compare page has its own Import left / Import right buttons, and a dragged file fills whichever side is still empty; SQL, Escape, Bytes, Chart, Codegen and Query each take their own text and run their own rule right after import. Images and spreadsheets are never read as garbage: dropped on a text page they only tell you to use Image ⇄ Base64 or Sheet → JSON — **the page is never switched for you**.
+- **Every page can import a file, and the page never moves** — whichever page you are on, the file is handled by that page. The whole window is a drop target (the veil even states the size limit for this page), and the Import file button in the input pane goes through exactly the same channel. On Convert, `.json` / `.yaml` / `.xml` / `.toml` / `.ini` / `.env` / `.log` / `.md` / `.csv` / `.tsv` set the source format and convert straight away, and unknown extensions (`.dat` / `.out` / `.resp` exports) are read and sniffed just the same; the Compare page has its own Import left / Import right buttons, and a dragged file fills whichever side is still empty; SQL, Escape, Bytes, Time, Chart, Codegen and Query each take their own text and run their own rule right after import. Images and spreadsheets are never read as garbage: dropped on a text page they only tell you to use Image ⇄ Base64 or Sheet → JSON — **the page is never switched for you**.
 - **The limits are stated up front** — 16 MB per text file (10 MB for an image, 20 MB for a sheet). Over the limit is refused at the door with the actual size and the cap, before anything is read into memory; content that turns out to be binary (NUL bytes / a wall of replacement characters) is refused too. After an import the tip line keeps `file name · size`, and text over 2 M characters is loaded but not auto-converted (so a drop can never freeze the host) — press Convert when you are ready.
 - **Drop several sheets at once** — up to 10 files are parsed with the current options and merged into **one JSON object keyed by file name** (`{"a.csv": [...], "b.csv": [...]}`), with duplicate names numbered `a (2).csv`. The preview table shows the first file, and Copy / Export work on the merged result (`batch-2.json`).
 - A page's own drop zone and the window-wide entry share one rule: the Image page's zone catches the image first (page-level handlers run before the global one, which steps aside when the event was already handled), and dropping anywhere else still hands the file to the current page — same outcome either way.
@@ -144,7 +156,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 ## Everywhere
 
-- **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az. Every page (convert, compare, SQL, sheet, image, code gen, query, escape, bytes, chart) is translated into all 14, including the 20 schema-validation messages.
+- **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az. Every page (convert, compare, SQL, sheet, image, code gen, query, escape, bytes, time, chart) is translated into all 14, including the 20 schema-validation messages.
 - **Theme adaptability** — follows the DBX host theme and shadcn/ui tokens, including hosts that only send theme metadata (no `data-dbx-theme`) and custom palettes. First paint already matches the host, theme switches cross-fade over 300 ms, and `prefers-reduced-motion` turns the animation off. The one exception is the chart itself on the JSON to Chart page: it is output, not interface, so it stays on the light palette with a white background.
 - **Clipboard** — one-click copy through the DBX host API, with a browser fallback.
 - **Offline** — no backend, no CDN, no telemetry; CodeMirror, the YAML library and ECharts (Apache-2.0, `ui/vendor/echarts/` with its LICENSE) all ship inside the package.
@@ -164,12 +176,12 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## Build & test
 
 ```bash
-./scripts/build.sh test         # all suites (840 cases)
+./scripts/build.sh test         # all suites (881 cases)
 ./scripts/build.sh              # run tests, then package dist/*.dbxp
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
-npm test                        # pure-function suites, no dependencies (840 cases)
-npm install && npm run test:ui  # jsdom smoke test of the UI wiring (201 checks)
+npm test                        # pure-function suites, no dependencies (881 cases)
+npm install && npm run test:ui  # jsdom smoke test of the UI wiring (229 checks)
 ```
 
 On Windows use `scripts\build.cmd` instead (requires Git Bash).
@@ -192,6 +204,7 @@ ui/js/schema.js        JSON Schema draft-07 subset — validation errors + infer
 ui/js/escape.js        8 escape kinds — URL / Base64 / HTML / JSON / Unicode / hex / SQL / regex
 ui/js/bytes.js         byte conversion — units ⇄ bytes, batch totals, hex dump / byte array / binary
 ui/js/chart.js         JSON to chart — shape detection, data → option, size clamping and limits
+ui/js/time.js          time conversion — timestamps / dates / UTC / ISO / relative, batched
 ui/js/flow.js          workflow — drop routing, batch merge, recent list, host selection
 tests/                 regression suite, run with plain node
 scripts/build.sh       package | dev | test
