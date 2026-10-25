@@ -1655,10 +1655,9 @@
             width: 8px;
             height: 2px;
         }
-        /* 折叠时隐藏竖线，只剩横线（→ 变成 −），更直观 */
-        .time-row.collapsed .time-row-arrow::before { display: none; }
-        .time-row.collapsed .time-row-arrow { transform: rotate(0deg); }
-        .time-row:not(.collapsed) .time-row-arrow::before { display: block; }
+        /* 展开时只留横线（−，表示点一下收起），折叠时补上竖线（+，表示点一下展开） */
+        .time-row.collapsed .time-row-arrow::before { display: block; }
+        .time-row:not(.collapsed) .time-row-arrow::before { display: none; }
         .time-row header:hover .time-row-arrow::before,
         .time-row header:hover .time-row-arrow::after { background-color: var(--primary); }
         .time-row.collapsed .time-fields { display: none; }
