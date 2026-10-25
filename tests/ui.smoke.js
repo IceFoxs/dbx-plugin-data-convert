@@ -1757,6 +1757,20 @@ function check(name, fn) {
         if (doc.getElementById('chartHeight').value !== '400') throw new Error('高 ' + doc.getElementById('chartHeight').value);
     });
 
+    check('改宽高：输入过程中不被弹回，失焦才夹取边界', function () {
+        var w = doc.getElementById('chartWidth');
+        // 输入合法中间值 9：过程中绝不能被夹成 80（否则「700 改 900」根本敲不进去）
+        w.value = '9';
+        w.dispatchEvent(new win.Event('input', { bubbles: true }));
+        if (w.value !== '9') throw new Error('输入中就被改了: ' + w.value);
+        // 失焦后 9 < 80，才夹回 80
+        w.dispatchEvent(new win.Event('blur', { bubbles: true }));
+        if (w.value !== '80') throw new Error('失焦没夹到 80: ' + w.value);
+        // 恢复默认，别影响后面的用例
+        w.value = '700';
+        w.dispatchEvent(new win.Event('input', { bubbles: true }));
+    });
+
     check('引擎加载失败：只提示，页面不崩', function () {
         var tip = chartTipText();
         if (tip.indexOf('图表引擎') < 0) throw new Error('提示: ' + tip);

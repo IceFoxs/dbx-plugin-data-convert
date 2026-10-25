@@ -1564,6 +1564,14 @@
             border: 1px solid var(--border-light);
             border-radius: var(--radius-md, 0.5rem);
             text-align: center;
+            /* 纯数字输入：不出现 number 自带的上/下步进箭头，聚焦自动全选 */
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+        .chart-size-input::-webkit-outer-spin-button,
+        .chart-size-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
         }
         .chart-size-input:focus { outline: none; border-color: var(--primary); }
         .chart-size-x { color: var(--text-muted); font-size: 0.74rem; }
@@ -3336,10 +3344,10 @@
         <div class="compare-bar">
             <div class="sql-options chart-options">
                 <span class="compare-samples-label" data-i18n="chartSize">尺寸</span>
-                <input type="number" class="chart-size-input" id="chartWidth" value="700" min="80" max="4096" step="10"
+                <input type="text" inputmode="numeric" class="chart-size-input" id="chartWidth" value="700"
                        spellcheck="false" autocomplete="off" data-i18n-title="chartWidthTitle" aria-label="width">
                 <span class="chart-size-x">×</span>
-                <input type="number" class="chart-size-input" id="chartHeight" value="400" min="80" max="4096" step="10"
+                <input type="text" inputmode="numeric" class="chart-size-input" id="chartHeight" value="400"
                        spellcheck="false" autocomplete="off" data-i18n-title="chartHeightTitle" aria-label="height">
                 <button type="button" class="chart-size-reset" id="chartResetSize"
                         data-i18n-title="chartSizeReset" data-i18n="chartSizeReset">重置宽高</button>
@@ -13801,16 +13809,14 @@
             }
             chartApplyZoom();
 
-            // 宽高越界时把输入框改成实际用的值，用户一眼能看到发生了什么
-            let clamped = false;
-            if (size.wCode) { chartWidthInput.value = String(size.width); clamped = true; }
-            if (size.hCode) { chartHeightInput.value = String(size.height); clamped = true; }
-
-            // 内容大到只扫了一部分时先说一句，别让用户以为「这份 JSON 就只有这几张图」
+            // 宽高越界时只在这里提示一句，**不回写输入框**——
+            // 输入过程中用户会经过 9 / 90 这类中间值，此时回写会把人正在敲的字弹掉，
+            // 输入根本进行不下去（这就是「输入之后老是变」的根因）。
+            // 真正把非法值夹回边界，放在 blur（失焦）里做一次即可。
             const notes = [];
             if (parsed.truncated) notes.push(cT('chartTruncated', '内容太多，只扫描了前面一部分'));
 
-            if (clamped) {
+            if (size.wCode || size.hCode) {
                 const C2 = window.DBXChart;
                 notes.push(cT('chartErrSize', '宽高超出范围，已按边界处理')
                     .replace('{min}', String(C2.LIMITS.width.min))
@@ -13963,6 +13969,24 @@
 
         chartWidthInput.addEventListener('input', chartSchedule);
         chartHeightInput.addEventListener('input', chartSchedule);
+        // 输入体验：
+        // 1. 聚焦即全选，点进去直接敲数字覆盖，不用先手动删；
+        // 2. 输入过程中绝不回写输入框（否则敲 9 会被立刻弹成 80，输入进行不下去）；
+        // 3. 失焦时才把空值 / 非数字 / 越界值夹回边界，一次校正到位。
+        [chartWidthInput, chartHeightInput].forEach((el) => {
+            el.addEventListener('focus', () => el.select());
+            el.addEventListener('blur', () => {
+                const C = window.DBXChart;
+                if (!C) return;
+                const axis = el === chartWidthInput ? 'width' : 'height';
+                const r = C.clampSize(el.value, axis);
+                const cur = parseInt(String(el.value).trim(), 10);
+                if (r.value !== cur || r.code) {
+                    el.value = String(r.value);
+                    chartSchedule();
+                }
+            });
+        });
         // 一键回到默认宽高（700 × 400）：改乱了不用记原值
         chartResetSizeBtn.addEventListener('click', () => {
             const C = window.DBXChart;
