@@ -356,8 +356,52 @@
             }
             /* 竖排能放下所有项，「更多」不会再出现 */
             body.nav-left #navMore { display: none; }
-            /* 导航项离场后，把语言与切换按钮顶到右边 */
-            body.nav-left .nav-convert { margin-right: auto; }
+            /* 「格式转换」也是栏内的一项：触发器搬到左列顶部，下拉在栏内展开 */
+            body.nav-left #navConvert {
+                position: fixed;
+                top: 3.5rem;
+                left: 0;
+                flex-direction: column;
+                align-items: stretch;
+                width: var(--nav-left-w, 13rem);
+                margin: 0;
+                padding: 0.75rem 0.625rem 0.25rem;
+                background-color: var(--bg-base);
+                border-right: 1px solid var(--border-light);
+                z-index: 21;
+            }
+            body.nav-left .nav-convert-trigger {
+                width: 100%;
+                justify-content: space-between;
+                padding: 0.5rem 0.75rem;
+            }
+            body.nav-left #navConvertLabel { max-width: none; flex: 1 1 auto; text-align: left; }
+            /* 栏内展开：占位参与排版，打开时把下面的导航项往下推，不盖住它们 */
+            body.nav-left .nav-convert-menu {
+                position: static;
+                display: none;
+                width: 100%;
+                min-width: 0;
+                max-width: none;
+                max-height: 46vh;
+                margin-top: 0.25rem;
+                padding: 0;
+                border: none;
+                border-radius: 0;
+                background-color: transparent;
+                box-shadow: none;
+                transform: none;
+                transition: none;
+            }
+            body.nav-left .nav-convert.open .nav-convert-menu {
+                display: block;
+                opacity: 1;
+                visibility: visible;
+                transform: none;
+            }
+            body.nav-left .nav-convert-menu a { padding: 0.5rem 0.75rem; }
+            /* 触发器离开顶栏后，把语言与切换按钮顶到右边 */
+            body.nav-left .lang-switcher { margin-left: auto; }
             /* 内容区让出左侧栏的宽度 */
             body.nav-left .main-container {
                 margin-left: var(--nav-left-w, 13rem);
@@ -4124,7 +4168,10 @@
             if (!links.length) return;
             // 左侧竖排：宽度固定、纵向滚动，横向永远不会溢出，也就没有「更多」
             // （窄屏会退回顶部布局，那时仍要走下面的溢出逻辑）
-            if (document.body.classList.contains('nav-left') && window.innerWidth > 768) return;
+            if (document.body.classList.contains('nav-left') && window.innerWidth > 768) {
+                syncNavLeftStack();
+                return;
+            }
             // 放得下就不用「更多」按钮（避免占位把内容挤出去）
             if (!navOverflow()) return;
 
@@ -4149,14 +4196,38 @@
 
         captureNavOrder();
 
+        // 左侧模式下「格式转换」占了左列顶部一块，导航条得跟着往下让出这块高度
+        // （顶部布局 / 窄屏不用管，CSS 里是 3.5rem，把 inline 值清掉即可）
+        function syncNavLeftStack() {
+            if (!navLinksEl) return;
+            const stacked = document.body.classList.contains('nav-left') && window.innerWidth > 768;
+            if (!stacked || !navConvertEl) {
+                navLinksEl.style.top = '';
+                return;
+            }
+            const box = navConvertEl.getBoundingClientRect();
+            // 无头环境（jsdom）量不到尺寸，保持 CSS 默认值
+            if (box.bottom > 0) navLinksEl.style.top = Math.round(box.bottom) + 'px';
+        }
+        // 字体加载、下拉展开、切语言都会改这块的高度，盯住它比在某一刻量一次稳
+        function watchNavLeftStack() {
+            if (typeof ResizeObserver !== 'function' || !navConvertEl) return;
+            try {
+                new ResizeObserver(() => syncNavLeftStack()).observe(navConvertEl);
+            } catch (e) { /* 老宿主没有 ResizeObserver 就只靠手动调用 */ }
+        }
+        watchNavLeftStack();
+
         function closeNavConvert() {
             navConvertEl.classList.remove('open');
             navConvertTrigger.setAttribute('aria-expanded', 'false');
+            syncNavLeftStack();
         }
 
         function toggleNavConvert() {
             const open = navConvertEl.classList.toggle('open');
             navConvertTrigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+            syncNavLeftStack();
         }
 
         // 按当前「从 / 转为」两个下拉，捞出对应的那一条
@@ -4211,7 +4282,10 @@
         let navResizeTimer = null;
         window.addEventListener('resize', () => {
             clearTimeout(navResizeTimer);
-            navResizeTimer = setTimeout(layoutNav, 80);
+            navResizeTimer = setTimeout(() => {
+                layoutNav();
+                syncNavLeftStack();
+            }, 80);
         });
         // 字体/样式就绪后宽度会变，再算一次
         window.addEventListener('load', layoutNav);
@@ -4274,8 +4348,11 @@
         // =========================================
         // DBX 工作台是 opaque origin 的沙箱，localStorage 会直接抛 SecurityError，
         // 跨会话记忆只能靠宿主的 window.dbxPlugin.storage（需 host.storage 权限，
-        // 初始化后看 capabilities.storage）。所以做成三级：
-        //   宿主 storage（沙箱里唯一能记住的）→ 浏览器 localStorage（dev / 浏览器预览）→ 内存
+        // 初始化后看 capabilities.storage）。所以做成四级：
+        //   宿主 storage（沙箱里唯一能跨会话记住的）
+        //   → 浏览器 localStorage（浏览器预览）
+        //   → window.name（dev 宿主：没有 storage，localStorage 也抛，但同一 frame 刷新后还在）
+        //   → 只在本会话生效
         const NAV_PREF_KEY = 'navLayout';
         const navToggleBtn = document.getElementById('navToggle');
         let navLeft = false;
@@ -4289,6 +4366,22 @@
         function navWriteLocal(v) {
             // 沙箱里这里必然抛，忽略即可，宿主存储才是真正生效的那一路
             try { localStorage.setItem(NAV_PREF_KEY, v); } catch (e) { /* noop */ }
+        }
+        // 再兜一层 window.name：opaque origin 的沙箱里 localStorage / cookie 全抛
+        // SecurityError，但 window.name 不受同源限制，同一个 frame 反复刷新也还在
+        // （dev 宿主每个标签页就是一个 srcdoc iframe，重载只换内容不换元素）
+        const NAV_NAME_RE = /(?:^|\s)dbx-nav:(left|top)(?=\s|$)/;
+        function navReadName() {
+            try {
+                const m = String(window.name || '').match(NAV_NAME_RE);
+                return m ? m[1] : null;
+            } catch (e) { return null; }
+        }
+        function navWriteName(v) {
+            try {
+                const rest = String(window.name || '').replace(/(?:^|\s)dbx-nav:(left|top)(?=\s|$)/g, '').trim();
+                window.name = (rest ? rest + ' ' : '') + 'dbx-nav:' + v;
+            } catch (e) { /* noop */ }
         }
         function navHostStore() {
             const api = window.dbxPlugin;
@@ -4333,6 +4426,7 @@
             navSyncToggleLabel();
             // 横排 / 竖排换了，谁该收进「更多」也要重算
             layoutNav();
+            syncNavLeftStack();
         }
 
         if (navToggleBtn) {
@@ -4340,15 +4434,20 @@
                 navLeft = !navLeft;
                 const pref = navLeft ? 'left' : 'top';
                 navWriteLocal(pref);
+                navWriteName(pref);
                 navWriteHost(pref);
                 navApplyLayout();
             });
         }
 
-        // 先按同步来源恢复（浏览器 / dev 宿主里 localStorage 可用），避免闪一下顶部
-        const navLocalPref = navReadLocal();
+        // 先按同步来源恢复（localStorage / window.name），避免闪一下顶部
+        const navLocalPref = navReadLocal() || navReadName();
         if (navLocalPref) navLeft = navLocalPref === 'left';
-        if (navLeft) document.body.classList.add('nav-left');
+        if (navLeft) {
+            document.body.classList.add('nav-left');
+            // 先量一次，别让导航条和「格式转换」叠在一起闪一下
+            syncNavLeftStack();
+        }
         navSyncToggleLabel();
 
         // 宿主存储是权威来源：沙箱里只有它能在重开 / 重启后记住

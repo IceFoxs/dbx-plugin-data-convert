@@ -2420,12 +2420,27 @@ function check(name, fn) {
         if (label.indexOf('顶部') === -1) throw new Error('提示没切成「顶部」: ' + label);
     });
 
+    check('左侧模式下布局偏好也写进 window.name（沙箱兜底）', function () {
+        var name = String(win.name || '');
+        if (name.indexOf('dbx-nav:left') === -1) throw new Error('window.name: ' + JSON.stringify(name));
+    });
+
+    check('左侧模式下「格式转换」下拉照常切换格式', function () {
+        doc.getElementById('navConvertTrigger').click();
+        if (!convertEl.classList.contains('open')) throw new Error('没展开');
+        convertMenu.querySelector('a[data-src="json"][data-tgt="properties"]').click();
+        if (convertEl.classList.contains('open')) throw new Error('选完未收起');
+        var label = doc.getElementById('navConvertLabel').textContent.trim();
+        if (label !== 'json转properties') throw new Error('触发器: ' + label);
+    });
+
     doc.getElementById('navToggle').click();
     check('再点一次回到顶部导航', function () {
         if (doc.body.classList.contains('nav-left')) throw new Error('没切回顶部');
         if (inlineNavLinks().length !== 10) throw new Error('回顶部后直属项 ' + inlineNavLinks().length);
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('左侧') === -1) throw new Error('提示没切成「左侧」: ' + label);
+        if (String(win.name || '').indexOf('dbx-nav:top') === -1) throw new Error('window.name 没跟着回到 top: ' + win.name);
     });
 
     check('「格式转换」下拉点开、点空白收起', function () {
