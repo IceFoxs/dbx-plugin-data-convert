@@ -2826,6 +2826,84 @@ function check(name, fn) {
         if (!boundary.disabled) throw new Error('普通块首项还能上移挤进置顶块');
     });
 
+    // ---- 拖拽排序：宿主里 HTML5 拖放收不到事件，走的是自己的 pointer 实现 ----
+    // jsdom 不做布局，这里临时给 .nv-row 造一套「30px 一行、按当前索引堆叠」的几何
+    function stubRowRects(fn) {
+        var proto = win.Element.prototype;
+        var orig = proto.getBoundingClientRect;
+        proto.getBoundingClientRect = function () {
+            if (this.classList && this.classList.contains('nv-row') && this.parentNode === navPanelList) {
+                var i = [].indexOf.call(navPanelList.children, this);
+                return { top: i * 30, bottom: i * 30 + 30, height: 30, left: 0, right: 200, width: 200, x: 0, y: i * 30 };
+            }
+            return { top: 0, bottom: 0, height: 0, left: 0, right: 0, width: 0, x: 0, y: 0 };
+        };
+        try { return fn(); } finally { proto.getBoundingClientRect = orig; }
+    }
+    function pointerDownOn(row, y) {
+        row.querySelector('.nv-grip').dispatchEvent(new win.PointerEvent('pointerdown', {
+            bubbles: true, cancelable: true, clientY: y, button: 0, pointerId: 1
+        }));
+    }
+    function pointerMoveTo(y) {
+        doc.dispatchEvent(new win.PointerEvent('pointermove', { bubbles: true, cancelable: true, clientY: y, pointerId: 1 }));
+    }
+    function pointerUpAt(y) {
+        doc.dispatchEvent(new win.PointerEvent('pointerup', { bubbles: true, clientY: y, pointerId: 1 }));
+    }
+
+    check('拖拽排序：按住行往上拖，拖动中顺序就跟着变，松手落库', function () {
+        stubRowRects(function () {
+            var rows = panelRows();
+            var pinCount = panelPinned().length;
+            var srcId = rows[pinCount + 3];           // 置顶块之后第 4 条，肯定不是置顶
+            var row = navPanelList.querySelector('[data-nav-row="' + srcId + '"]');
+            pointerDownOn(row, (pinCount + 3) * 30 + 15);
+            if (row.classList.contains('dragging')) throw new Error('刚按下就标了 dragging');
+            // 拖到普通块第一行的上半区：应该插到普通块最前面（置顶块之后）
+            pointerMoveTo(pinCount * 30 + 5);
+            if (!row.classList.contains('dragging')) throw new Error('拖动中没标 dragging');
+            if (!doc.body.classList.contains('nv-sorting')) throw new Error('拖动中没加 nv-sorting');
+            if (panelRows()[pinCount] !== srcId) throw new Error('拖动中没插到位: ' + panelRows().join(','));
+            pointerUpAt(pinCount * 30 + 5);
+            if (panelRows()[pinCount] !== srcId) throw new Error('松手后顺序回弹: ' + panelRows().join(','));
+            if (navIds()[pinCount] !== srcId) throw new Error('导航条没跟着: ' + navIds().join(','));
+            if (row.classList.contains('dragging')) throw new Error('松手没摘 dragging');
+            if (doc.body.classList.contains('nv-sorting')) throw new Error('松手没摘 nv-sorting');
+            if (panelPinned().indexOf(srcId) !== -1) throw new Error('拖一下变成置顶了');
+        });
+    });
+
+    check('拖拽不许跨过置顶块（往上拖到顶也只能落在普通块首位）', function () {
+        stubRowRects(function () {
+            var pinCount = panelPinned().length;
+            var rows = panelRows();
+            var srcId = rows[rows.length - 1];        // 最后一条往上拖
+            pointerDownOn(navPanelList.querySelector('[data-nav-row="' + srcId + '"]'), (rows.length - 1) * 30 + 15);
+            pointerMoveTo(0);                          // 拖到置顶块正中也不行
+            pointerUpAt(0);
+            if (panelRows()[pinCount] !== srcId) throw new Error('位置: ' + panelRows().join(','));
+            if (panelPinned().length !== pinCount) throw new Error('置顶块被改动了');
+        });
+    });
+
+    check('只点不拖（位移不到 4px）不算排序，点按钮照常生效', function () {
+        stubRowRects(function () {
+            var before = panelRows();
+            var last = before[before.length - 1];
+            pointerDownOn(navPanelList.querySelector('[data-nav-row="' + last + '"]'), 100);
+            pointerMoveTo(102);
+            pointerUpAt(102);
+            if (panelRows().join(',') !== before.join(',')) throw new Error('抖动一下就被当成拖拽: ' + panelRows().join(','));
+            // 按钮上的按下不进入拖拽状态
+            var pinBtn = navPanelList.querySelector('[data-nav-row="' + last + '"] [data-nav-act="pin"]');
+            pinBtn.dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientY: 100, button: 0, pointerId: 2 }));
+            pointerMoveTo(200);
+            pointerUpAt(200);
+            if (panelRows().join(',') !== before.join(',')) throw new Error('按在按钮上也开始拖了: ' + panelRows().join(','));
+        });
+    });
+
     check('吸顶开关：打开加类、关掉摘掉', function () {
         if (navStickyToggle.checked) throw new Error('默认不该开');
         navStickyToggle.checked = true;

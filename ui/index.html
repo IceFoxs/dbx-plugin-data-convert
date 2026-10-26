@@ -3296,18 +3296,35 @@
             border-radius: var(--radius-sm, 4px);
             font-size: 0.78rem;
             color: var(--text-main);
+            /* 整行当拖拽把手，别把文字选起来（宿主里 HTML5 拖放不可用，只能自己跟指针） */
+            cursor: grab;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: pan-y;
         }
         .nv-row:hover { background-color: var(--accent-bg); }
         .nv-row.is-pinned { border-color: var(--border-light); background-color: var(--accent-bg); }
-        .nv-row.dragging { opacity: 0.45; }
+        /* 拖动中的行：半透明 + 抬起来一点，看得出「在搬哪一条」 */
+        .nv-row.dragging {
+            opacity: 0.55;
+            cursor: grabbing;
+            background-color: var(--accent-bg);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        }
+        /* 拖动期间整页光标跟手，也禁掉文字选择，免得划出一片蓝 */
+        body.nv-sorting, body.nv-sorting * { cursor: grabbing !important; }
+        body.nv-sorting { user-select: none; -webkit-user-select: none; }
         .nv-grip {
             flex: none;
             width: 0.85rem;
             color: var(--text-muted);
             cursor: grab;
             user-select: none;
+            -webkit-user-select: none;
             text-align: center;
             line-height: 1;
+            /* 抓手单独放开手势：触屏在这里起拖，不会被列表滚动抢走 */
+            touch-action: none;
         }
         .nv-name {
             flex: 1;
@@ -5347,7 +5364,8 @@
         const navPanelDoneBtn = document.getElementById('navPanelDone');
         const navPanelResetBtn = document.getElementById('navPanelReset');
         const navStickyToggleEl = document.getElementById('navStickyToggle');
-        let navDragRow = null;
+        // 拖拽靠自己跟 pointer 事件（见下方 navPanelList 那段注释），这里只记状态
+        const navDrag = { id: '', row: null, startY: 0, active: false, pointerId: null };
 
         const NAV_ICON = {
             pin: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>',
@@ -5392,7 +5410,9 @@
                 const row = document.createElement('li');
                 row.className = 'nv-row' + (pinned ? ' is-pinned' : '');
                 row.dataset.navRow = id;
-                row.draggable = true;
+                // 不走 HTML5 拖放：DBX 宿主（Tauri 的 WebView）把原生拖放接管了，
+                // 页面的 dragstart / dragover 收不到，行拖不动也就没有落点（见下方 pointer 那段）
+                row.draggable = false;
 
                 const grip = document.createElement('span');
                 grip.className = 'nv-grip';
@@ -5450,6 +5470,9 @@
             if (navPanelDoneBtn) navPanelDoneBtn.focus();
         }
         function navClosePanel() {
+            // 拖拽中途按 Esc / 点遮罩关面板：先把 document 上的指针监听收掉，
+            // 否则松手时会对着已经不在屏幕上的行提交一次顺序
+            if (navDrag.row && typeof navDragEnd === 'function') navDragEnd();
             if (!navPanelMask || navPanelMask.hidden) return;
             navPanelMask.hidden = true;
             // 关掉后把焦点送回入口，键盘用户不会掉到 body 上
@@ -5499,39 +5522,105 @@
                 else if (act === 'down') navPanelMove(id, 1);
             });
 
-            // 拖放：拖动时直接挪 DOM，松手再按 DOM 顺序落库（比每帧重建列表稳）
-            navPanelList.addEventListener('dragstart', (e) => {
-                const row = e.target.closest('.nv-row');
+            // 拖拽排序：自己跟 pointer 事件，不用 HTML5 拖放。
+            // DBX 是 Tauri 应用，原生拖放由 WebView 层接管（同一个原因让文件拖入也得走宿主
+            // onDragState），页面里既收不到 dragstart 也收不到 drop —— 行设为 draggable 在浏览器
+            // 里能拖，在宿主里就是「拖不动」。这里改成 pointerdown / move / up：鼠标、触屏、
+            // 手写笔同一套，宿主拦不拦都无所谓。拖动中直接挪 DOM（视觉即时），松手再按 DOM 落库。
+            const NAV_DRAG_EVT = window.PointerEvent
+                ? { down: 'pointerdown', move: 'pointermove', up: 'pointerup', cancel: 'pointercancel' }
+                : { down: 'mousedown', move: 'mousemove', up: 'mouseup', cancel: '' };
+
+            // 同一条拖拽里，置顶块和非置顶块之间不许互相插队（跨块用置顶按钮切）
+            function navDragSameGroup(row) {
+                const a = navDrag.id;
+                const b = row && row.dataset ? row.dataset.navRow : '';
+                if (!a || !b) return false;
+                if (!Nav) return true;
+                return Nav.isPinned(navPins, a) === Nav.isPinned(navPins, b);
+            }
+
+            // 按指针的 y 找落点：第一行「中线」在指针下方就插到它前面，都不满足就贴到同组末尾
+            function navDragPlace(y) {
+                const row = navDrag.row;
                 if (!row) return;
-                navDragRow = row;
-                row.classList.add('dragging');
-                try {
-                    e.dataTransfer.effectAllowed = 'move';
-                    e.dataTransfer.setData('text/plain', row.dataset.navRow);
-                } catch (err) { /* 老宿主没有 dataTransfer，箭头按钮照样能用 */ }
-            });
-            navPanelList.addEventListener('dragover', (e) => {
-                if (!navDragRow) return;
-                const row = e.target.closest('.nv-row');
-                if (!row || row === navDragRow) return;
-                // 置顶的永远在前：两块之间不许互相插队，用置顶按钮切换
-                if (Nav && Nav.isPinned(navPins, navDragRow.dataset.navRow) !== Nav.isPinned(navPins, row.dataset.navRow)) {
+                const rows = Array.prototype.slice.call(navPanelList.children)
+                    .filter((el) => el !== row && navDragSameGroup(el));
+                let before = null;
+                for (let i = 0; i < rows.length; i++) {
+                    const rect = rows[i].getBoundingClientRect();
+                    if (y < rect.top + rect.height / 2) { before = rows[i]; break; }
+                }
+                if (before) {
+                    if (row.nextElementSibling !== before) navPanelList.insertBefore(row, before);
                     return;
                 }
-                e.preventDefault();
-                const rect = row.getBoundingClientRect();
-                const after = rect.height > 0 && (e.clientY - rect.top) > rect.height / 2;
-                navPanelList.insertBefore(navDragRow, after ? row.nextSibling : row);
-            });
-            navPanelList.addEventListener('drop', (e) => { e.preventDefault(); });
-            navPanelList.addEventListener('dragend', () => {
-                if (!navDragRow) return;
-                navDragRow.classList.remove('dragging');
-                navDragRow = null;
-                const list = Array.prototype.map.call(navPanelList.children, (row) => row.dataset.navRow);
+                const last = rows.length ? rows[rows.length - 1] : null;
+                if (!last) return;
+                const after = last.nextElementSibling;
+                if (after !== row) navPanelList.insertBefore(row, after);
+            }
+
+            // 指针贴近列表上下沿就滚一点，行多的时候也能拖到看不见的地方
+            function navDragAutoScroll(y) {
+                const rect = navPanelList.getBoundingClientRect();
+                if (!rect || rect.height <= 0) return;
+                if (y < rect.top + 20) navPanelList.scrollTop -= 12;
+                else if (y > rect.bottom - 20) navPanelList.scrollTop += 12;
+            }
+
+            function navDragMove(e) {
+                if (!navDrag.row) return;
+                const y = e.clientY;
+                if (!navDrag.active) {
+                    // 差几个像素才算拖：单纯点一下（想点按钮、想触摸滚动）不该被当成排序
+                    if (Math.abs(y - navDrag.startY) < 4) return;
+                    navDrag.active = true;
+                    navDrag.row.classList.add('dragging');
+                    document.body.classList.add('nv-sorting');
+                }
+                if (e.cancelable) e.preventDefault();
+                navDragPlace(y);
+                navDragAutoScroll(y);
+            }
+
+            function navDragEnd() {
+                document.removeEventListener(NAV_DRAG_EVT.move, navDragMove, true);
+                document.removeEventListener(NAV_DRAG_EVT.up, navDragEnd, true);
+                if (NAV_DRAG_EVT.cancel) document.removeEventListener(NAV_DRAG_EVT.cancel, navDragEnd, true);
+                const row = navDrag.row;
+                const moved = navDrag.active;
+                navDrag.row = null;
+                navDrag.id = '';
+                navDrag.active = false;
+                navDrag.pointerId = null;
+                document.body.classList.remove('nv-sorting');
+                if (row) row.classList.remove('dragging');
+                if (!moved) return;
+                const list = Array.prototype.map.call(navPanelList.children, (el) => el.dataset.navRow);
                 if (list.length) navOrder = list;
                 navCommit();
+                // 重画一次：箭头禁用状态、置顶块的边框都跟着新顺序走
                 navPanelRender();
+            }
+
+            navPanelList.addEventListener(NAV_DRAG_EVT.down, (e) => {
+                // 只认左键 / 主指针；按钮上的按下留给 click
+                if (typeof e.button === 'number' && e.button !== 0) return;
+                const row = e.target.closest('.nv-row');
+                if (!row || e.target.closest('button')) return;
+                // 触屏只认抓手：整行都能拖的话，列表滚动就没了
+                if (e.pointerType === 'touch' && !e.target.closest('.nv-grip')) return;
+                if (navDrag.row) navDragEnd();
+                navDrag.row = row;
+                navDrag.id = row.dataset.navRow;
+                navDrag.startY = e.clientY;
+                navDrag.active = false;
+                navDrag.pointerId = typeof e.pointerId === 'number' ? e.pointerId : null;
+                // 挂在 document 上并走捕获：指针滑出面板（甚至出窗口）也能收到 up，不会卡在「拖拽中」
+                document.addEventListener(NAV_DRAG_EVT.move, navDragMove, true);
+                document.addEventListener(NAV_DRAG_EVT.up, navDragEnd, true);
+                if (NAV_DRAG_EVT.cancel) document.addEventListener(NAV_DRAG_EVT.cancel, navDragEnd, true);
             });
         }
 
