@@ -29,6 +29,7 @@ run_tests() {
     node "$ROOT/tests/bytes.test.js"
     node "$ROOT/tests/chart.test.js"
     node "$ROOT/tests/time.test.js"
+    node "$ROOT/tests/qr.test.js"
     node "$ROOT/tests/flow.test.js"
     node "$ROOT/tests/i18n.test.js"
     node "$ROOT/tests/assets.test.js"

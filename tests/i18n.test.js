@@ -74,6 +74,7 @@ var tables = {
     BYTES_I18N: readLiteral(html, 'BYTES_I18N'),
     TIME_I18N: readLiteral(html, 'TIME_I18N'),
     CHART_I18N: readLiteral(html, 'CHART_I18N'),
+    QR_I18N: readLiteral(html, 'QR_I18N'),
     FLOW_I18N: readLiteral(html, 'FLOW_I18N')
 };
 

@@ -60,6 +60,13 @@ var dom = new JSDOM(html, {
             },
             configurable: true
         });
+        // 二维码的两个库：jsdom 里外部脚本可能晚于 DOMContentLoaded 执行，
+        // 这里直接挂到 window 上，让「进页 → 生成 → 定位 → 折叠」这条链路有得测。
+        // 真实的惰性加载（blob 副本）在 Chrome 里验。
+        window.DBXQr = require(path.join(ROOT, 'ui/js/qr.js'));
+        window.qrcode = new Function(
+            fs.readFileSync(path.join(ROOT, 'ui/vendor/qrcode/qrcode.js'), 'utf8') + '\nreturn qrcode;'
+        )();
     }
 });
 
@@ -2383,12 +2390,130 @@ function check(name, fn) {
         });
     }
 
+    // ---------- 二维码页（生成 / 解码） ----------
+    var qrWs = doc.getElementById('qrWorkspace');
+
+    function qrSetInput(text) {
+        var wrap = doc.getElementById('qrInput').nextElementSibling;
+        if (wrap && wrap.CodeMirror) wrap.CodeMirror.setValue(text);
+        else doc.getElementById('qrInput').value = text;
+    }
+    function qrCards() {
+        return [].slice.call(doc.querySelectorAll('#qrGrid .qr-card'));
+    }
+
+    doc.getElementById('navQr').click();
+    await wait(160);
+
+    check('点导航进二维码转换页：只在页里、一个编辑器', function () {
+        if (!qrWs.classList.contains('active')) throw new Error('没进二维码页');
+        if (!doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('格式转换工具栏还开着');
+        if (doc.querySelectorAll('#qrWorkspace .CodeMirror').length !== 1) {
+            throw new Error('编辑器数量 ' + doc.querySelectorAll('#qrWorkspace .CodeMirror').length);
+        }
+    });
+
+    check('默认生成模式：参数行在、解码区收起', function () {
+        if (doc.getElementById('qrGenGrid').hidden) throw new Error('生成区被藏了');
+        if (!doc.getElementById('qrScanGrid').hidden) throw new Error('解码区没藏');
+        if (doc.getElementById('qrOptions').hidden) throw new Error('参数行没显示');
+        if (doc.getElementById('qrDownloadAll').hidden) throw new Error('「全部导出」没显示');
+        if (!doc.getElementById('qrScanPickTop').hidden) throw new Error('解码按钮显示了');
+    });
+
+    qrSetInput('设备编号 DV-2048\n\n访问量 12 次');
+    await wait(600);
+
+    check('一行一个码：空行跳过，行号跟着原位置', function () {
+        var cards = qrCards();
+        if (cards.length !== 2) throw new Error('卡片数 ' + cards.length);
+        if (cards[0].getAttribute('data-line') !== '1') throw new Error('第一张行号 ' + cards[0].getAttribute('data-line'));
+        if (cards[1].getAttribute('data-line') !== '3') throw new Error('第二张行号 ' + cards[1].getAttribute('data-line'));
+    });
+
+    check('每张卡都有 SVG 码面和序号', function () {
+        var card = qrCards()[0];
+        if (!card.querySelector('.qr-card-media svg')) throw new Error('没有 SVG');
+        if (card.querySelectorAll('.qr-card-media path').length !== 1) throw new Error('path 不是一条');
+        var no = card.querySelector('.qr-card-no').textContent.trim();
+        if (no !== '第 1 个') throw new Error('序号: ' + no);
+    });
+
+    qrSetInput('只有一条内容');
+    await wait(600);
+
+    check('单条内容用大卡片展示', function () {
+        if (!doc.getElementById('qrGrid').classList.contains('is-single')) throw new Error('没切到大卡片');
+        if (qrCards().length !== 1) throw new Error('卡片数 ' + qrCards().length);
+    });
+
+    check('点卡片头可以折叠 / 展开', function () {
+        var card = qrCards()[0];
+        var toggle = card.querySelector('.qr-card-toggle');
+        toggle.click();
+        if (!card.classList.contains('is-collapsed')) throw new Error('没收起');
+        if (toggle.getAttribute('aria-expanded') !== 'false') {
+            throw new Error('aria-expanded: ' + toggle.getAttribute('aria-expanded'));
+        }
+        toggle.click();
+        if (card.classList.contains('is-collapsed')) throw new Error('没收回展开');
+        if (toggle.getAttribute('aria-expanded') !== 'true') throw new Error('收起来后 aria-expanded 没复原');
+    });
+
+    qrSetInput('第一行\n第二行\n第三行');
+    await wait(600);
+
+    var qrWrap = doc.getElementById('qrInput').nextElementSibling;
+    qrWrap.CodeMirror.setCursor({ line: 2, ch: 0 });
+
+    check('光标落在第 3 行 -> 对应卡片高亮', function () {
+        var card = doc.querySelector('#qrGrid .qr-card[data-line="3"]');
+        if (!card) throw new Error('找不到第 3 行的卡片');
+        if (!card.classList.contains('locate')) throw new Error('没高亮');
+        if (doc.querySelectorAll('#qrGrid .qr-card.locate').length !== 1) throw new Error('高亮不止一个');
+    });
+
+    check('取色器与十六进制输入框双向同步', function () {
+        var picker = doc.getElementById('qrFgPicker');
+        var text = doc.getElementById('qrFg');
+        picker.value = '#123456';
+        picker.dispatchEvent(new win.Event('input', { bubbles: true }));
+        if (text.value !== '#123456') throw new Error('取色器没写回文本框: ' + text.value);
+        text.value = '#abc';
+        text.dispatchEvent(new win.Event('input', { bubbles: true }));
+        if (picker.value !== '#aabbcc') throw new Error('文本框没推给取色器: ' + picker.value);
+        text.value = '#000000';
+        text.dispatchEvent(new win.Event('input', { bubbles: true }));
+    });
+
+    doc.querySelector('#qrModeTabs [data-qr-mode="decode"]').click();
+
+    check('切到解码模式：参数行收起、上传区出现', function () {
+        if (!doc.getElementById('qrGenGrid').hidden) throw new Error('生成区没藏');
+        if (doc.getElementById('qrScanGrid').hidden) throw new Error('解码区没显示');
+        if (!doc.getElementById('qrOptions').hidden) throw new Error('参数行没收起');
+        if (doc.getElementById('qrScanPickTop').hidden) throw new Error('「选择图片」没显示');
+        if (!doc.getElementById('qrDownloadAll').hidden) throw new Error('「全部导出」还在');
+    });
+
+    check('解码区初始是空态', function () {
+        if (doc.getElementById('qrScanEmpty').hidden) throw new Error('右侧空态没显示');
+    });
+
+    doc.querySelector('#qrModeTabs [data-qr-mode="encode"]').click();
+    doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
+
+    check('从二维码页回到格式转换页：工具栏回来', function () {
+        if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('工具栏还藏着');
+        if (qrWs.classList.contains('active')) throw new Error('二维码页还开着');
+    });
+
     check('7 个格式入口收在「格式转换」下拉里', function () {
         if (convertMenu.querySelectorAll('a').length !== 7) {
             throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
         }
-        // 直属项（从左到右）：JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / 字节转换 / JSON 转图表 / 时间转换 / 代码生成 / 表格转 JSON / 查询校验
-        if (inlineNavLinks().length !== 10) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
+        // 直属项（从左到右）：JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / 字节转换 / JSON 转图表 / 时间转换 / 二维码转换 / 代码生成 / 表格转 JSON / 查询校验
+        if (inlineNavLinks().length !== 11) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
         if (!doc.getElementById('navConvertTrigger')) throw new Error('缺少「格式转换」触发器');
         // 触发器直接显示当前这一对格式，而不是固定的「格式转换」
         var label = doc.getElementById('navConvertLabel').textContent.trim();
@@ -2405,7 +2530,7 @@ function check(name, fn) {
     check('默认是顶部导航，切换按钮在', function () {
         if (!doc.getElementById('navToggle')) throw new Error('缺少切换按钮');
         if (doc.body.classList.contains('nav-left')) throw new Error('默认不该是左侧');
-        if (inlineNavLinks().length !== 10) throw new Error('顶部直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 11) throw new Error('顶部直属项 ' + inlineNavLinks().length);
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('左侧') === -1) throw new Error('提示文案: ' + label);
     });
@@ -2414,7 +2539,7 @@ function check(name, fn) {
     check('点切换后导航变左侧', function () {
         if (!doc.body.classList.contains('nav-left')) throw new Error('没切到左侧');
         // 竖排能放下全部项，不该再收进「更多」
-        if (inlineNavLinks().length !== 10) throw new Error('左侧直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 11) throw new Error('左侧直属项 ' + inlineNavLinks().length);
         if (moreEl.classList.contains('show')) throw new Error('左侧模式不该出现「更多」');
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('顶部') === -1) throw new Error('提示没切成「顶部」: ' + label);
@@ -2437,7 +2562,7 @@ function check(name, fn) {
     doc.getElementById('navToggle').click();
     check('再点一次回到顶部导航', function () {
         if (doc.body.classList.contains('nav-left')) throw new Error('没切回顶部');
-        if (inlineNavLinks().length !== 10) throw new Error('回顶部后直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 11) throw new Error('回顶部后直属项 ' + inlineNavLinks().length);
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('左侧') === -1) throw new Error('提示没切成「左侧」: ' + label);
         if (String(win.name || '').indexOf('dbx-nav:top') === -1) throw new Error('window.name 没跟着回到 top: ' + win.name);
@@ -2479,7 +2604,7 @@ function check(name, fn) {
         if (!moreEl.classList.contains('show')) throw new Error('「更多」未出现');
         var names = [].map.call(moreMenu.querySelectorAll('a'), function (a) { return a.textContent.trim(); });
         // 收进「更多」的先后顺序取决于「非固定项先挪、固定项兜底」，这里只校验集合
-        var expect = ['SQL 转换', 'JSON 对比', '表格转 JSON', '代码生成', '图片 Base64', '查询校验', '转义工具', '字节转换', 'JSON 转图表', '时间转换'].sort().join('|');
+        var expect = ['SQL 转换', 'JSON 对比', '表格转 JSON', '代码生成', '图片 Base64', '查询校验', '转义工具', '字节转换', 'JSON 转图表', '时间转换', '二维码转换'].sort().join('|');
         if (names.slice().sort().join('|') !== expect) {
             throw new Error('菜单项: ' + names.join(','));
         }
@@ -2515,7 +2640,8 @@ function check(name, fn) {
             navEscape: 'escWorkspace',
             navBytes: 'bytesWorkspace',
             navChart: 'chartWorkspace',
-            navTime: 'timeWorkspace'
+            navTime: 'timeWorkspace',
+            navQr: 'qrWorkspace'
         };
         if (!pageOf[id]) throw new Error('菜单项不是页面入口: ' + item.textContent.trim());
         if (!doc.getElementById(pageOf[id]).classList.contains('active')) {
@@ -2534,7 +2660,7 @@ function check(name, fn) {
     check('宽度恢复后导航项全部回到导航条', function () {
         if (moreEl.classList.contains('show')) throw new Error('「更多」仍显示');
         if (moreMenu.querySelectorAll('a').length !== 0) throw new Error('菜单仍有残留');
-        if (inlineNavLinks().length !== 10) throw new Error('导航项数 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 11) throw new Error('导航项数 ' + inlineNavLinks().length);
         if (convertMenu.querySelectorAll('a').length !== 7) throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
     });
 

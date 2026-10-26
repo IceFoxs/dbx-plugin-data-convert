@@ -47,12 +47,17 @@
     <script src="js/bytes.js"></script>
     <script src="js/chart.js"></script>
     <script src="js/time.js"></script>
+    <script src="js/qr.js"></script>
     <script src="js/flow.js"></script>
 
     <!-- ECharts 引擎的惰性副本。宿主把插件页关进沙箱，CSP 只放行 inline / blob: 脚本，
          外链脚本一律被拦；而带 src 的 <script> 会被宿主内联成文本，所以引擎在这里当「文本」存着，
          进页时再包成 blob: 执行（type 不是 js，浏览器不会提前执行；普通浏览器里它是空标签）。 -->
     <script type="text/plain" id="chartEngineSrc" src="vendor/echarts/echarts.min.js"></script>
+    <!-- 二维码的两个库同样是「文本副本」：生成 56 KB、解码 251 KB，都只在进二维码页时
+         包成 blob: 执行。解码库更重，只有切到「解码」才加载。 -->
+    <script type="text/plain" id="qrGenLibSrc" src="vendor/qrcode/qrcode.js"></script>
+    <script type="text/plain" id="qrScanLibSrc" src="vendor/jsqr/jsQR.js"></script>
     <script>
         if (typeof xml2js === 'undefined' || typeof js2xml === 'undefined') {
             console.warn('xml-js 加载失败，将退回基础解析逻辑');
@@ -2798,6 +2803,264 @@
             .lang-trigger { gap: 0.3rem; padding: 0.4rem 0.5rem; }
             .lang-switcher { margin-left: 0; }
         }
+        /* ================= 二维码页（生成 / 解码） ================= */
+        .qr-workspace { display: none; flex-direction: column; gap: 0.75rem; flex: 1; min-height: 0; }
+        .qr-workspace.active { display: flex; }
+        .qr-workspace [hidden] { display: none !important; }
+
+        /* 参数行：尺寸 / 纠错 / 边距 / 两种颜色 / 导出格式 —— 窄屏自动折行 */
+        .qr-options { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; }
+        .qr-num {
+            width: 4.4rem;
+            padding: 0.18rem 0.4rem;
+            text-align: center;
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm, 4px);
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            outline: none;
+        }
+        .qr-num:focus { border-color: var(--primary); }
+        .qr-color { display: inline-flex; align-items: center; gap: 0.35rem; }
+        /* 取色器本体：点色块直接开系统调色板，旁边再留一个能贴 #rrggbb 的输入框 */
+        .qr-color-picker {
+            width: 1.6rem;
+            height: 1.6rem;
+            padding: 0;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm, 4px);
+            background: none;
+            cursor: pointer;
+            flex: none;
+        }
+        .qr-color-picker::-webkit-color-swatch-wrapper { padding: 2px; }
+        .qr-color-picker::-webkit-color-swatch { border: none; border-radius: 2px; }
+        .qr-color-picker::-moz-color-swatch { border: none; border-radius: 2px; }
+
+        /* 中心图标：一枚缩略图 + 上传 / 移除两个小按钮 */
+        .qr-icon { display: inline-flex; align-items: center; gap: 0.4rem; }
+        .qr-icon-thumb {
+            width: 1.6rem;
+            height: 1.6rem;
+            border-radius: 4px;
+            border: 1px solid var(--border-light);
+            background-color: #ffffff;
+            object-fit: contain;
+            flex: none;
+        }
+        .qr-icon-btn {
+            padding: 0.18rem 0.5rem;
+            font-size: 0.7rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm, 4px);
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+        .qr-icon-btn:hover { background-color: var(--accent-bg); }
+        /* 留着盒子的隐藏 input：display:none 的 file input 在部分 WebView 里 click() 不弹框 */
+        .qr-hidden-input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .qr-color-input {
+            width: 5.6rem;
+            padding: 0.18rem 0.4rem;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm, 4px);
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            outline: none;
+        }
+        .qr-color-input:focus { border-color: var(--primary); }
+        .qr-color-input.is-invalid { border-color: #dc2626; }
+
+        /* 结果网格：卡片按列自动排，滚动交给网格本身，页面不跟着长 */
+        .qr-grid {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+            padding: 0.75rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 0.7rem;
+            align-content: start;
+        }
+        .qr-card {
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md, 0.5rem);
+            background-color: var(--bg-base);
+            padding: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+            min-width: 0;
+        }
+        /* 码面永远白底：颜色是用户选的，跟主题无关，暗色下也必须看得清 */
+        .qr-card-media {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.25rem;
+            border-radius: var(--radius-sm, 4px);
+            background-color: #ffffff;
+            min-height: 4rem;
+        }
+        .qr-card-media svg { display: block; width: 100%; height: auto; max-width: 132px; }
+        /* 只有一条内容时给一张大卡片：单码要看大图，别缩在网格小格子里 */
+        .qr-grid.is-single { grid-template-columns: 1fr; justify-items: center; align-content: start; }
+        .qr-grid.is-single .qr-card { width: min(100%, 24rem); }
+        .qr-grid.is-single .qr-card-media { padding: 0.6rem; }
+        .qr-grid.is-single .qr-card-media svg { max-width: 100%; }
+        .qr-grid.is-single .qr-card-text { max-height: 4.6em; font-size: 0.72rem; }
+        /* 卡片头就是折叠开关；收起后 body 整块隐藏，只留序号 + 一行内容 */
+        .qr-card-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            width: 100%;
+            padding: 0;
+            border: none;
+            background: none;
+            color: inherit;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
+        }
+        .qr-card-body { display: flex; flex-direction: column; gap: 0.45rem; min-width: 0; }
+        .qr-card-peek {
+            display: none;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-family: var(--font-mono);
+            font-size: 0.66rem;
+            color: var(--text-muted);
+        }
+        .qr-card-caret { margin-left: auto; flex: none; font-size: 0.82rem; line-height: 1; color: var(--text-muted); }
+        .qr-card-caret::before { content: '−'; }
+        .qr-card-toggle:hover .qr-card-caret { color: var(--text-main); }
+        .qr-card.is-collapsed { gap: 0; }
+        .qr-card.is-collapsed .qr-card-caret::before { content: '+'; }
+        .qr-card.is-collapsed .qr-card-peek { display: block; }
+        .qr-card.is-collapsed .qr-card-body { display: none; }
+        /* 光标定位到的那张卡片：跟时间页同一套高亮语言 */
+        .qr-card.locate { border-color: var(--primary); box-shadow: 0 0 0 2px var(--accent-bg); }
+        .qr-card-no {
+            font-size: 0.64rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+        .qr-card-text {
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            line-height: 1.45;
+            color: var(--text-muted);
+            word-break: break-all;
+            /* 整段模式下内容自带换行，原样显示；超长就按高度截断 */
+            white-space: pre-wrap;
+            overflow: hidden;
+            max-height: 3.1em;
+            min-height: 1.9em;
+        }
+        .qr-card-foot { display: flex; gap: 0.3rem; }
+        .qr-mini {
+            flex: 1;
+            padding: 0.2rem 0.3rem;
+            font-size: 0.68rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm, 4px);
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            cursor: pointer;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+        .qr-mini:hover { background-color: var(--accent-bg); }
+        .qr-empty {
+            flex: 1;
+            min-height: 6rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        /* 解码：上面一块拖放区，下面是这一批图片的队列 */
+        .qr-drop {
+            margin: 0.75rem;
+            padding: 1.4rem 1rem;
+            border: 1px dashed var(--border-light);
+            border-radius: var(--radius-md, 0.5rem);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.55rem;
+            text-align: center;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: border-color 0.15s ease, background-color 0.15s ease;
+            flex: none;
+        }
+        .qr-drop:hover, .qr-drop.dragover { border-color: var(--primary); background-color: var(--accent-bg); }
+        .qr-drop-title { font-size: 0.82rem; color: var(--text-main); }
+        .qr-drop-hint { font-size: 0.7rem; }
+        .qr-queue { flex: 1; min-height: 0; overflow: auto; padding: 0 0.75rem 0.75rem; display: flex; flex-direction: column; gap: 0.35rem; }
+        .qr-queue-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.38rem 0.55rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm, 4px);
+            font-size: 0.72rem;
+            background-color: var(--bg-base);
+        }
+        .qr-queue-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .qr-queue-meta { font-family: var(--font-mono); font-size: 0.66rem; color: var(--text-muted); flex: none; }
+        .qr-state { font-size: 0.66rem; flex: none; color: var(--text-muted); }
+        .qr-state.is-ok { color: #16a34a; }
+        .qr-state.is-err { color: #dc2626; }
+        [data-dbx-theme="dark"] .qr-state.is-ok { color: #4ade80; }
+        [data-dbx-theme="dark"] .qr-state.is-err { color: #f87171; }
+
+        .qr-result { flex: 1; min-height: 0; overflow: auto; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.55rem; }
+        .qr-result-item {
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md, 0.5rem);
+            padding: 0.5rem 0.6rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            background-color: var(--bg-base);
+        }
+        .qr-result-item.is-failed { border-style: dashed; }
+        .qr-result-head { display: flex; align-items: center; gap: 0.45rem; font-size: 0.68rem; color: var(--text-muted); }
+        .qr-result-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .qr-result-body {
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: var(--text-main);
+            max-height: 9rem;
+            overflow: auto;
+        }
+        .qr-result-item.is-failed .qr-result-body { color: var(--text-muted); font-style: italic; }
     </style>
 </head>
 <body>
@@ -2833,6 +3096,7 @@
         <a id="navBytes" class="nav-bytes" data-i18n="navBytes">字节转换</a>
         <a id="navChart" class="nav-chart" data-i18n="navChart">JSON 转图表</a>
         <a id="navTime" class="nav-time" data-i18n="navTime">时间转换</a>
+        <a id="navQr" class="nav-qr" data-i18n="navQr">二维码</a>
         <a id="navCodegen" class="nav-code" data-i18n="navCodegen">代码生成</a>
         <a id="navSheet" class="nav-sheet" data-i18n="navSheet">表格转 JSON</a>
         <a id="navQuery" class="nav-query" data-i18n="navQuery">查询校验</a>
@@ -3866,6 +4130,142 @@
             </div>
         </div>
     </section>
+
+    <!-- ================= 二维码：生成 / 解码 ================= -->
+    <section class="qr-workspace" id="qrWorkspace">
+        <div class="compare-bar">
+            <div class="compare-tabs" id="qrModeTabs">
+                <button type="button" class="compare-tab active" data-qr-mode="encode" data-i18n="qrModeGen">生成</button>
+                <button type="button" class="compare-tab" data-qr-mode="decode" data-i18n="qrModeScan">解码</button>
+            </div>
+
+            <div class="compare-actions">
+                <!-- 解码模式：一次选多张，或直接粘贴截图 -->
+                <button type="button" class="btn btn-outline" id="qrScanPickTop" data-i18n="qrScanChoose" hidden>选择图片</button>
+                <button type="button" class="btn btn-outline" id="qrScanCopyAll" data-i18n="qrScanCopyAll" hidden>复制全部</button>
+                <button type="button" class="btn btn-outline" id="qrDownloadAll"
+                        data-i18n-title="qrDownloadAllTip" data-i18n="qrDownloadAll">全部导出</button>
+                <button type="button" class="btn btn-primary" id="qrGenBtn" data-i18n="qrGenBtn">生成二维码</button>
+                <button type="button" class="btn btn-outline" id="qrClear" data-i18n="clearBtn">清空</button>
+            </div>
+
+            <div class="compare-tip" id="qrTip"></div>
+        </div>
+
+        <!-- 参数：只服务生成模式，切到解码时整行收起 -->
+        <div class="sheet-options qr-options" id="qrOptions">
+            <span class="compare-samples-label" data-i18n="qrSplit">拆分</span>
+            <div class="compare-tabs sql-seg qr-seg" id="qrSplit">
+                <button type="button" class="compare-tab active" data-split="line" data-i18n="qrSplitLine">一行一个</button>
+                <button type="button" class="compare-tab" data-split="whole" data-i18n="qrSplitWhole">整段一个</button>
+            </div>
+            <span class="compare-samples-label" data-i18n="qrSize">尺寸</span>
+            <input type="text" inputmode="numeric" class="qr-num" id="qrSize" value="256"
+                   spellcheck="false" autocomplete="off" data-i18n-title="qrSizeTip" aria-label="size">
+            <span class="compare-samples-label" data-i18n="qrEcc">纠错</span>
+            <div class="compare-tabs sql-seg qr-seg" id="qrEcc">
+                <button type="button" class="compare-tab" data-ecc="L" data-i18n-title="qrEccL">L</button>
+                <button type="button" class="compare-tab active" data-ecc="M" data-i18n-title="qrEccM">M</button>
+                <button type="button" class="compare-tab" data-ecc="Q" data-i18n-title="qrEccQ">Q</button>
+                <button type="button" class="compare-tab" data-ecc="H" data-i18n-title="qrEccH">H</button>
+            </div>
+            <span class="compare-samples-label" data-i18n="qrMargin">边距</span>
+            <input type="text" inputmode="numeric" class="qr-num" id="qrMargin" value="2"
+                   spellcheck="false" autocomplete="off" data-i18n-title="qrMarginTip" aria-label="margin">
+            <span class="compare-samples-label" data-i18n="qrFg">前景色</span>
+            <span class="qr-color">
+                <input type="color" class="qr-color-picker" id="qrFgPicker" value="#000000" aria-label="foreground">
+                <input type="text" class="qr-color-input" id="qrFg" value="#000000"
+                       spellcheck="false" autocomplete="off" aria-label="foreground hex">
+            </span>
+            <span class="compare-samples-label" data-i18n="qrBg">背景色</span>
+            <span class="qr-color">
+                <input type="color" class="qr-color-picker" id="qrBgPicker" value="#ffffff" aria-label="background">
+                <input type="text" class="qr-color-input" id="qrBg" value="#ffffff"
+                       spellcheck="false" autocomplete="off" aria-label="background hex">
+            </span>
+            <span class="compare-samples-label" data-i18n="qrFormat">格式</span>
+            <div class="compare-tabs sql-seg qr-seg" id="qrFormat">
+                <button type="button" class="compare-tab active" data-format="png">PNG</button>
+                <button type="button" class="compare-tab" data-format="svg">SVG</button>
+            </div>
+            <span class="compare-samples-label" data-i18n="qrIcon">中心图标</span>
+            <span class="qr-icon">
+                <img class="qr-icon-thumb" id="qrIconThumb" alt="" hidden>
+                <button type="button" class="qr-icon-btn" id="qrIconPick"
+                        data-i18n-title="qrIconTip" data-i18n="qrIconPick">上传图标</button>
+                <button type="button" class="qr-icon-btn" id="qrIconClear" data-i18n="qrIconNone" hidden>移除图标</button>
+            </span>
+        </div>
+
+        <!-- ---------- 生成 ---------- -->
+        <div class="compare-grid" id="qrGenGrid">
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="qrInputTitle">待生成内容</span>
+                        <span class="pane-badge" id="qrInBadge">—</span>
+                    </div>
+                    <div class="pane-actions">
+                        <button type="button" class="btn btn-outline" id="qrImport" data-import-page="navQr"
+                                data-i18n="flowImport">导入文件</button>
+                        <button type="button" class="btn btn-outline chart-sample-btn" id="qrSample"
+                                data-i18n="chartSample">示例</button>
+                    </div>
+                </div>
+                <div class="editor-container">
+                    <textarea id="qrInput" class="textarea" spellcheck="false"
+                              data-i18n-placeholder="qrInputPlaceholder"></textarea>
+                </div>
+            </div>
+
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="qrOutputTitle">生成结果</span>
+                        <span class="pane-badge" id="qrOutBadge"></span>
+                    </div>
+                    <div class="pane-actions"><span class="sheet-size" id="qrOutSize"></span></div>
+                </div>
+                <div class="qr-grid" id="qrGrid"></div>
+                <div class="qr-empty" id="qrEmpty" data-i18n="qrResultEmpty">左边贴内容，右边出码</div>
+            </div>
+        </div>
+
+        <!-- ---------- 解码 ---------- -->
+        <div class="compare-grid" id="qrScanGrid" hidden>
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="qrScanTitle">上传或粘贴图片</span>
+                        <span class="pane-badge" id="qrScanBadge">—</span>
+                    </div>
+                </div>
+                <div class="qr-drop" id="qrDrop">
+                    <button type="button" class="btn btn-primary" id="qrPick" data-i18n="qrScanChoose">选择图片</button>
+                    <div class="qr-drop-title" data-i18n="qrScanDrop">或把图片拖到这里</div>
+                    <div class="qr-drop-hint" data-i18n="qrScanHint">支持直接粘贴截图，可一次多张</div>
+                </div>
+                <div class="qr-queue" id="qrScanQueue"></div>
+            </div>
+
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="qrScanResultTitle">解码结果</span>
+                        <span class="pane-badge" id="qrScanOutBadge"></span>
+                    </div>
+                </div>
+                <div class="qr-result" id="qrScanResult"></div>
+                <div class="qr-empty" id="qrScanEmpty" data-i18n="qrScanEmpty">解码结果会显示在这里</div>
+            </div>
+        </div>
+
+        <input type="file" id="qrScanInput" accept="image/*" multiple hidden>
+        <!-- 图标选择框不能加 hidden：部分 WebView 里对 display:none 的 file input
+             调 .click() 不会弹选择框，只能是「视觉隐藏但留着盒子」 -->
+        <input type="file" id="qrIconInput" class="qr-hidden-input" accept="image/*" tabindex="-1">
+    </section>
 </main>
 
 <div id="toastContainer" class="toast-container"></div>
@@ -4475,6 +4875,7 @@
                 BYTES_I18N[currentLang] || BYTES_I18N.en || {},
                 TIME_I18N[currentLang] || TIME_I18N.en || {},
                 CHART_I18N[currentLang] || CHART_I18N.en || {},
+                QR_I18N[currentLang] || QR_I18N.en || {},
                 FLOW_I18N[currentLang] || FLOW_I18N.en || {}
             );
             document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -4521,6 +4922,8 @@
             if (typeof refreshTimeI18n === 'function') refreshTimeI18n();
             // 图表页的提示语与占位符
             if (typeof refreshChartI18n === 'function') refreshChartI18n();
+            // 二维码页的卡片序号、解码状态、提示语
+            if (typeof refreshQrI18n === 'function') refreshQrI18n();
         }
 
         // 宿主（DBX）会给没写 title 的按钮补一个提示，用的却是宿主自己的词表：
@@ -4961,6 +5364,11 @@
                 enterTimeMode();
                 return;
             }
+            // 「二维码」是批量生成 / 解码二维码的独立页
+            if (link.id === 'navQr') {
+                enterQrMode();
+                return;
+            }
             if (compareMode) exitCompareMode();
             if (sqlModeActive) exitSqlMode();
             if (sheetModeActive) exitSheetMode();
@@ -4971,6 +5379,7 @@
             if (chartModeActive) exitChartMode();
             if (escModeActive) exitEscMode();
             if (timeModeActive) exitTimeMode();
+            if (qrModeActive) exitQrMode();
             markConvertActive(link);
             clearTimeout(autoTimer);
             suppressAutoConvert = true;
@@ -6017,6 +6426,7 @@
             if (keep !== 'chart' && chartModeActive) exitChartMode();
             if (keep !== 'esc' && escModeActive) exitEscMode();
             if (keep !== 'time' && timeModeActive) exitTimeMode();
+            if (keep !== 'qr' && qrModeActive) exitQrMode();
         }
 
         // 当前停在哪一页（关掉快捷页时用来回原处），'' 表示格式转换页
@@ -6030,6 +6440,7 @@
             if (bytesModeActive) return 'navBytes';
             if (chartModeActive) return 'navChart';
             if (timeModeActive) return 'navTime';
+            if (qrModeActive) return 'navQr';
             return '';
         }
 
@@ -11372,6 +11783,906 @@
         };
 
         // JSON 转图表页的文案（独立小表，别再把主字典撑大一圈）
+        // 二维码页（生成 / 解码）的文案：一页 45 个键，独立小表，别撑大字典
+        const QR_I18N = {
+            "zh-CN": {
+                qrSplit: "拆分",
+                qrSplitLine: "一行一个",
+                qrSplitWhole: "整段一个",
+                qrIcon: "中心图标",
+                qrIconPick: "上传图标",
+                qrIconNone: "移除图标",
+                qrIconTip: "图标盖住码中心，建议纠错选「H」",
+                qrIconFail: "图标读取失败，请换一张图片",
+                qrIconOk: "图标已应用",
+                qrIconOkEcc: "图标已应用，纠错已调到 H",
+                qrIconNotImage: "请选择图片文件（PNG / JPG / SVG）",
+                qrIconTooBig: "图标不能超过 {size}",
+                qrIconLowEcc: "纠错低于 H 时，中心图标可能让码扫不出来",
+                qrCopyImage: "复制图片",
+                qrToggleRow: "折叠 / 展开",
+                qrLibFail: "二维码引擎加载失败，请重新进入这一页",
+                qrScanNoImage: "请选择图片文件",
+                navQr: "二维码转换",
+                qrModeGen: "生成",
+                qrModeScan: "解码",
+                qrInputTitle: "待生成内容",
+                qrInputPlaceholder: "每行一条内容，一行生成一个二维码",
+                qrGenBtn: "生成二维码",
+                qrOutputTitle: "生成结果",
+                qrResultEmpty: "左边贴内容，右边出码",
+                qrTipIdle: "每行一条内容",
+                qrTipOk: "已生成 {n} 个",
+                qrTipNone: "没有可生成的内容",
+                qrTipSkipLong: "{n} 行超出容量已跳过",
+                qrTipSkipMany: "超出上限，只保留前 {n} 个",
+                qrLowContrast: "前景色与背景色太接近，可能扫不出来",
+                qrSize: "尺寸",
+                qrSizeTip: "导出图片的实际像素，128 - 1024",
+                qrEcc: "纠错",
+                qrEccL: "低（7%）",
+                qrEccM: "中（15%）",
+                qrEccQ: "较高（25%）",
+                qrEccH: "最高（30%）",
+                qrMargin: "边距",
+                qrMarginTip: "四周留白，以模块为单位，0 - 8",
+                qrFg: "前景色",
+                qrBg: "背景色",
+                qrFormat: "格式",
+                qrDownload: "下载",
+                qrDownloadAll: "全部导出",
+                qrDownloadAllTip: "所有二维码拼成一张 PNG，只保存一次",
+                qrItemNo: "第 {n} 个",
+                qrBadge: "{n} 个",
+                qrScanTitle: "上传或粘贴图片",
+                qrScanChoose: "选择图片",
+                qrScanDrop: "或把图片拖到这里",
+                qrScanHint: "支持直接粘贴截图，可一次多张",
+                qrScanResultTitle: "解码结果",
+                qrScanEmpty: "解码结果会显示在这里",
+                qrScanTipOk: "识别成功 {ok} / {n}",
+                qrScanNone: "没有识别到二维码",
+                qrScanFail: "未识别",
+                qrScanErr: "读取失败",
+                qrScanTooBig: "图片超过 {size}",
+                qrScanTooMany: "一次最多 {n} 张",
+                qrScanPending: "识别中…",
+                qrScanCopyAll: "复制全部",
+            },
+            "zh-TW": {
+                qrSplit: "拆分",
+                qrSplitLine: "一行一個",
+                qrSplitWhole: "整段一個",
+                qrIcon: "中心圖示",
+                qrIconPick: "上傳圖示",
+                qrIconNone: "移除圖示",
+                qrIconTip: "圖示會蓋住碼中央，建議容錯選「H」",
+                qrIconFail: "圖示讀取失敗，請換一張圖片",
+                qrIconOk: "圖示已套用",
+                qrIconOkEcc: "圖示已套用，容錯已調到 H",
+                qrIconNotImage: "請選擇圖片檔（PNG / JPG / SVG）",
+                qrIconTooBig: "圖示不能超過 {size}",
+                qrIconLowEcc: "容錯低於 H 時，中央圖示可能讓碼掃不出來",
+                qrCopyImage: "複製圖片",
+                qrToggleRow: "折疊 / 展開",
+                qrLibFail: "二維碼引擎載入失敗，請重新進入這一頁",
+                qrScanNoImage: "請選擇圖片檔案",
+                navQr: "二維碼轉換",
+                qrModeGen: "產生",
+                qrModeScan: "解碼",
+                qrInputTitle: "待產生內容",
+                qrInputPlaceholder: "每行一筆內容，一行產生一個二維碼",
+                qrGenBtn: "產生二維碼",
+                qrOutputTitle: "產生結果",
+                qrResultEmpty: "左邊貼內容，右邊出碼",
+                qrTipIdle: "每行一筆內容",
+                qrTipOk: "已產生 {n} 個",
+                qrTipNone: "沒有可產生的內容",
+                qrTipSkipLong: "{n} 行超出容量已略過",
+                qrTipSkipMany: "超出上限，只保留前 {n} 個",
+                qrLowContrast: "前景色與背景色太接近，可能掃不出來",
+                qrSize: "尺寸",
+                qrSizeTip: "匯出圖片的實際像素，128 - 1024",
+                qrEcc: "容錯",
+                qrEccL: "低（7%）",
+                qrEccM: "中（15%）",
+                qrEccQ: "較高（25%）",
+                qrEccH: "最高（30%）",
+                qrMargin: "邊距",
+                qrMarginTip: "四周留白，以模組為單位，0 - 8",
+                qrFg: "前景色",
+                qrBg: "背景色",
+                qrFormat: "格式",
+                qrDownload: "下載",
+                qrDownloadAll: "全部匯出",
+                qrDownloadAllTip: "所有二維碼拼成一張 PNG，只儲存一次",
+                qrItemNo: "第 {n} 個",
+                qrBadge: "{n} 個",
+                qrScanTitle: "上傳或貼上圖片",
+                qrScanChoose: "選擇圖片",
+                qrScanDrop: "或把圖片拖到這裡",
+                qrScanHint: "支援直接貼上截圖，可一次多張",
+                qrScanResultTitle: "解碼結果",
+                qrScanEmpty: "解碼結果會顯示在這裡",
+                qrScanTipOk: "辨識成功 {ok} / {n}",
+                qrScanNone: "沒有辨識到二維碼",
+                qrScanFail: "未辨識",
+                qrScanErr: "讀取失敗",
+                qrScanTooBig: "圖片超過 {size}",
+                qrScanTooMany: "一次最多 {n} 張",
+                qrScanPending: "辨識中…",
+                qrScanCopyAll: "複製全部",
+            },
+            "en": {
+                qrSplit: "Split",
+                qrSplitLine: "One per line",
+                qrSplitWhole: "Whole text",
+                qrIcon: "Center icon",
+                qrIconPick: "Upload icon",
+                qrIconNone: "Remove icon",
+                qrIconTip: "The icon covers the center — use ECC level H",
+                qrIconFail: "Could not read that icon — try another image",
+                qrIconOk: "Icon applied",
+                qrIconOkEcc: "Icon applied — ECC raised to H",
+                qrIconNotImage: "Pick an image file (PNG / JPG / SVG)",
+                qrIconTooBig: "Icon must be under {size}",
+                qrIconLowEcc: "Below ECC H the center icon may make the code unscannable",
+                qrCopyImage: "Copy image",
+                qrToggleRow: "Collapse / expand",
+                qrLibFail: "QR engine failed to load — reopen this page",
+                qrScanNoImage: "Please choose image files",
+                navQr: "QR Code",
+                qrModeGen: "Generate",
+                qrModeScan: "Decode",
+                qrInputTitle: "Content",
+                qrInputPlaceholder: "One item per line — each line becomes one code",
+                qrGenBtn: "Generate",
+                qrOutputTitle: "Result",
+                qrResultEmpty: "Paste on the left, codes appear here",
+                qrTipIdle: "One item per line",
+                qrTipOk: "{n} generated",
+                qrTipNone: "Nothing to encode",
+                qrTipSkipLong: "{n} line(s) too long, skipped",
+                qrTipSkipMany: "Over the limit — first {n} kept",
+                qrLowContrast: "Foreground and background are too close — may not scan",
+                qrSize: "Size",
+                qrSizeTip: "Exported pixels, 128 - 1024",
+                qrEcc: "ECC",
+                qrEccL: "Low (7%)",
+                qrEccM: "Medium (15%)",
+                qrEccQ: "Quartile (25%)",
+                qrEccH: "High (30%)",
+                qrMargin: "Margin",
+                qrMarginTip: "Quiet zone in modules, 0 - 8",
+                qrFg: "Foreground",
+                qrBg: "Background",
+                qrFormat: "Format",
+                qrDownload: "Download",
+                qrDownloadAll: "Export all",
+                qrDownloadAllTip: "All codes on one PNG sheet — a single save",
+                qrItemNo: "#{n}",
+                qrBadge: "{n}",
+                qrScanTitle: "Upload or paste an image",
+                qrScanChoose: "Choose image",
+                qrScanDrop: "or drop images here",
+                qrScanHint: "Paste a screenshot directly, several at once",
+                qrScanResultTitle: "Decoded",
+                qrScanEmpty: "Decoded text shows up here",
+                qrScanTipOk: "{ok} of {n} decoded",
+                qrScanNone: "No QR code found",
+                qrScanFail: "Not found",
+                qrScanErr: "Read failed",
+                qrScanTooBig: "Image over {size}",
+                qrScanTooMany: "{n} images at a time",
+                qrScanPending: "Decoding…",
+                qrScanCopyAll: "Copy all",
+            },
+            "ja": {
+                qrSplit: "分割",
+                qrSplitLine: "1 行 1 個",
+                qrSplitWhole: "全体で 1 個",
+                qrIcon: "中央アイコン",
+                qrIconPick: "アイコンを選択",
+                qrIconNone: "アイコンを外す",
+                qrIconTip: "中央を覆うため、誤り訂正は「H」推奨",
+                qrIconFail: "アイコンを読み込めません。別の画像をお試しください",
+                qrIconOk: "アイコンを適用しました",
+                qrIconOkEcc: "アイコンを適用し、誤り訂正を H にしました",
+                qrIconNotImage: "画像ファイルを選択してください（PNG / JPG / SVG）",
+                qrIconTooBig: "アイコンは {size} 以下にしてください",
+                qrIconLowEcc: "誤り訂正が H 未満だと中央アイコンで読み取れない場合があります",
+                qrCopyImage: "画像をコピー",
+                qrToggleRow: "折りたたむ / 展開",
+                qrLibFail: "QR エンジンの読み込みに失敗しました。ページを開き直してください",
+                qrScanNoImage: "画像ファイルを選択してください",
+                navQr: "QR コード",
+                qrModeGen: "生成",
+                qrModeScan: "読み取り",
+                qrInputTitle: "生成する内容",
+                qrInputPlaceholder: "1 行に 1 件、行ごとに 1 つのコード",
+                qrGenBtn: "生成する",
+                qrOutputTitle: "生成結果",
+                qrResultEmpty: "左に入力すると右に表示されます",
+                qrTipIdle: "1 行 1 件",
+                qrTipOk: "{n} 件生成しました",
+                qrTipNone: "生成できる内容がありません",
+                qrTipSkipLong: "{n} 行は容量超過でスキップ",
+                qrTipSkipMany: "上限を超えたため先頭 {n} 件のみ",
+                qrLowContrast: "前景と背景が近すぎて読み取れない可能性",
+                qrSize: "サイズ",
+                qrSizeTip: "書き出す画像のピクセル数（128 - 1024）",
+                qrEcc: "誤り訂正",
+                qrEccL: "低 (7%)",
+                qrEccM: "中 (15%)",
+                qrEccQ: "高め (25%)",
+                qrEccH: "最高 (30%)",
+                qrMargin: "余白",
+                qrMarginTip: "周囲の余白（モジュール数、0 - 8）",
+                qrFg: "前景色",
+                qrBg: "背景色",
+                qrFormat: "形式",
+                qrDownload: "ダウンロード",
+                qrDownloadAll: "まとめて書き出し",
+                qrDownloadAllTip: "すべてのコードを 1 枚の PNG にまとめて保存",
+                qrItemNo: "{n} 番目",
+                qrBadge: "{n} 件",
+                qrScanTitle: "画像をアップロード",
+                qrScanChoose: "画像を選択",
+                qrScanDrop: "ここに画像をドロップ",
+                qrScanHint: "スクリーンショットを貼り付け可能、複数枚も可",
+                qrScanResultTitle: "読み取り結果",
+                qrScanEmpty: "結果はここに表示されます",
+                qrScanTipOk: "{n} 枚中 {ok} 枚を認識",
+                qrScanNone: "QR コードが見つかりません",
+                qrScanFail: "認識できず",
+                qrScanErr: "読み込み失敗",
+                qrScanTooBig: "画像が {size} を超えています",
+                qrScanTooMany: "一度に {n} 枚まで",
+                qrScanPending: "読み取り中…",
+                qrScanCopyAll: "すべてコピー",
+            },
+            "ko": {
+                qrSplit: "분할",
+                qrSplitLine: "줄마다 하나",
+                qrSplitWhole: "전체를 하나로",
+                qrIcon: "가운데 아이콘",
+                qrIconPick: "아이콘 업로드",
+                qrIconNone: "아이콘 제거",
+                qrIconTip: "가운데를 가리므로 오류 정정은 H 권장",
+                qrIconFail: "아이콘을 읽지 못했습니다. 다른 이미지를 사용하세요",
+                qrIconOk: "아이콘을 적용했습니다",
+                qrIconOkEcc: "아이콘을 적용하고 오류 정정을 H로 올렸습니다",
+                qrIconNotImage: "이미지 파일을 선택하세요 (PNG / JPG / SVG)",
+                qrIconTooBig: "아이콘은 {size} 이하여야 합니다",
+                qrIconLowEcc: "오류 정정이 H 미만이면 가운데 아이콘 때문에 인식되지 않을 수 있습니다",
+                qrCopyImage: "이미지 복사",
+                qrToggleRow: "접기 / 펼치기",
+                qrLibFail: "QR 엔진을 불러오지 못했습니다. 페이지를 다시 열어 주세요",
+                qrScanNoImage: "이미지 파일을 선택하세요",
+                navQr: "QR 코드",
+                qrModeGen: "생성",
+                qrModeScan: "디코드",
+                qrInputTitle: "생성할 내용",
+                qrInputPlaceholder: "한 줄에 하나씩, 줄마다 코드 하나",
+                qrGenBtn: "생성하기",
+                qrOutputTitle: "생성 결과",
+                qrResultEmpty: "왼쪽에 입력하면 오른쪽에 표시됩니다",
+                qrTipIdle: "한 줄에 하나씩",
+                qrTipOk: "{n}개 생성됨",
+                qrTipNone: "생성할 내용이 없습니다",
+                qrTipSkipLong: "{n}줄은 용량 초과로 건너뜀",
+                qrTipSkipMany: "한도를 넘어 앞의 {n}개만 유지",
+                qrLowContrast: "전경색과 배경색이 비슷해 인식되지 않을 수 있습니다",
+                qrSize: "크기",
+                qrSizeTip: "내보낼 이미지 픽셀 (128 - 1024)",
+                qrEcc: "오류 정정",
+                qrEccL: "낮음 (7%)",
+                qrEccM: "보통 (15%)",
+                qrEccQ: "높음 (25%)",
+                qrEccH: "최고 (30%)",
+                qrMargin: "여백",
+                qrMarginTip: "주변 여백(모듈 수, 0 - 8)",
+                qrFg: "전경색",
+                qrBg: "배경색",
+                qrFormat: "형식",
+                qrDownload: "다운로드",
+                qrDownloadAll: "전체 내보내기",
+                qrDownloadAllTip: "모든 코드를 PNG 한 장으로 저장",
+                qrItemNo: "{n}번째",
+                qrBadge: "{n}개",
+                qrScanTitle: "이미지 업로드 또는 붙여넣기",
+                qrScanChoose: "이미지 선택",
+                qrScanDrop: "또는 여기로 이미지 끌어다 놓기",
+                qrScanHint: "스크린샷을 바로 붙여넣기, 여러 장 가능",
+                qrScanResultTitle: "디코드 결과",
+                qrScanEmpty: "결과가 여기에 표시됩니다",
+                qrScanTipOk: "{n}장 중 {ok}장 인식",
+                qrScanNone: "QR 코드를 찾지 못했습니다",
+                qrScanFail: "인식 실패",
+                qrScanErr: "읽기 실패",
+                qrScanTooBig: "이미지가 {size}를 초과",
+                qrScanTooMany: "한 번에 {n}장까지",
+                qrScanPending: "인식 중…",
+                qrScanCopyAll: "모두 복사",
+            },
+            "es": {
+                qrSplit: "División",
+                qrSplitLine: "Uno por línea",
+                qrSplitWhole: "Todo el texto",
+                qrIcon: "Icono central",
+                qrIconPick: "Subir icono",
+                qrIconNone: "Quitar icono",
+                qrIconTip: "El icono tapa el centro: usa corrección H",
+                qrIconFail: "No se pudo leer el icono. Prueba otra imagen",
+                qrIconOk: "Icono aplicado",
+                qrIconOkEcc: "Icono aplicado: corrección subida a H",
+                qrIconNotImage: "Elige un archivo de imagen (PNG / JPG / SVG)",
+                qrIconTooBig: "El icono debe pesar menos de {size}",
+                qrIconLowEcc: "Con corrección por debajo de H el icono puede impedir el escaneo",
+                qrCopyImage: "Copiar imagen",
+                qrToggleRow: "Contraer / expandir",
+                qrLibFail: "No se pudo cargar el motor QR. Vuelve a abrir la página",
+                qrScanNoImage: "Elige archivos de imagen",
+                navQr: "Código QR",
+                qrModeGen: "Generar",
+                qrModeScan: "Decodificar",
+                qrInputTitle: "Contenido",
+                qrInputPlaceholder: "Un elemento por línea: cada línea genera un código",
+                qrGenBtn: "Generar",
+                qrOutputTitle: "Resultado",
+                qrResultEmpty: "Pega a la izquierda y aparecen aquí",
+                qrTipIdle: "Un elemento por línea",
+                qrTipOk: "{n} generados",
+                qrTipNone: "Nada que codificar",
+                qrTipSkipLong: "{n} línea(s) omitida(s) por tamaño",
+                qrTipSkipMany: "Límite superado: solo los primeros {n}",
+                qrLowContrast: "Primer plano y fondo demasiado parecidos: puede no escanearse",
+                qrSize: "Tamaño",
+                qrSizeTip: "Píxeles exportados, 128 - 1024",
+                qrEcc: "Corrección",
+                qrEccL: "Baja (7%)",
+                qrEccM: "Media (15%)",
+                qrEccQ: "Alta (25%)",
+                qrEccH: "Máxima (30%)",
+                qrMargin: "Margen",
+                qrMarginTip: "Zona de silencio en módulos, 0 - 8",
+                qrFg: "Primer plano",
+                qrBg: "Fondo",
+                qrFormat: "Formato",
+                qrDownload: "Descargar",
+                qrDownloadAll: "Exportar todo",
+                qrDownloadAllTip: "Todos los códigos en una hoja PNG, un solo guardado",
+                qrItemNo: "N.º {n}",
+                qrBadge: "{n}",
+                qrScanTitle: "Sube o pega una imagen",
+                qrScanChoose: "Elegir imagen",
+                qrScanDrop: "o arrastra imágenes aquí",
+                qrScanHint: "Pega una captura directamente, varias a la vez",
+                qrScanResultTitle: "Resultado",
+                qrScanEmpty: "El texto decodificado aparece aquí",
+                qrScanTipOk: "{ok} de {n} decodificados",
+                qrScanNone: "No se encontró ningún código",
+                qrScanFail: "No detectado",
+                qrScanErr: "Error de lectura",
+                qrScanTooBig: "Imagen mayor de {size}",
+                qrScanTooMany: "Máximo {n} imágenes",
+                qrScanPending: "Decodificando…",
+                qrScanCopyAll: "Copiar todo",
+            },
+            "id": {
+                qrSplit: "Pisah",
+                qrSplitLine: "Satu per baris",
+                qrSplitWhole: "Seluruh teks",
+                qrIcon: "Ikon tengah",
+                qrIconPick: "Unggah ikon",
+                qrIconNone: "Hapus ikon",
+                qrIconTip: "Ikon menutup bagian tengah — pakai koreksi H",
+                qrIconFail: "Ikon gagal dibaca — coba gambar lain",
+                qrIconOk: "Ikon diterapkan",
+                qrIconOkEcc: "Ikon diterapkan — koreksi dinaikkan ke H",
+                qrIconNotImage: "Pilih file gambar (PNG / JPG / SVG)",
+                qrIconTooBig: "Ikon tidak boleh lebih dari {size}",
+                qrIconLowEcc: "Di bawah koreksi H, ikon tengah bisa membuat kode gagal dipindai",
+                qrCopyImage: "Salin gambar",
+                qrToggleRow: "Ciutkan / bentangkan",
+                qrLibFail: "Mesin QR gagal dimuat. Buka ulang halaman ini",
+                qrScanNoImage: "Pilih berkas gambar",
+                navQr: "Kode QR",
+                qrModeGen: "Buat",
+                qrModeScan: "Dekode",
+                qrInputTitle: "Konten",
+                qrInputPlaceholder: "Satu item per baris — tiap baris jadi satu kode",
+                qrGenBtn: "Buat kode",
+                qrOutputTitle: "Hasil",
+                qrResultEmpty: "Tempel di kiri, kode muncul di sini",
+                qrTipIdle: "Satu item per baris",
+                qrTipOk: "{n} dibuat",
+                qrTipNone: "Tidak ada yang bisa dibuat",
+                qrTipSkipLong: "{n} baris dilewati (terlalu panjang)",
+                qrTipSkipMany: "Melebihi batas — hanya {n} pertama",
+                qrLowContrast: "Warna depan dan latar terlalu mirip — mungkin tidak terbaca",
+                qrSize: "Ukuran",
+                qrSizeTip: "Piksel hasil ekspor, 128 - 1024",
+                qrEcc: "Koreksi",
+                qrEccL: "Rendah (7%)",
+                qrEccM: "Sedang (15%)",
+                qrEccQ: "Tinggi (25%)",
+                qrEccH: "Tertinggi (30%)",
+                qrMargin: "Margin",
+                qrMarginTip: "Ruang kosong dalam modul, 0 - 8",
+                qrFg: "Warna depan",
+                qrBg: "Latar",
+                qrFormat: "Format",
+                qrDownload: "Unduh",
+                qrDownloadAll: "Ekspor semua",
+                qrDownloadAllTip: "Semua kode dalam satu lembar PNG, sekali simpan",
+                qrItemNo: "#{n}",
+                qrBadge: "{n}",
+                qrScanTitle: "Unggah atau tempel gambar",
+                qrScanChoose: "Pilih gambar",
+                qrScanDrop: "atau tarik gambar ke sini",
+                qrScanHint: "Tempel tangkapan layar langsung, bisa banyak",
+                qrScanResultTitle: "Hasil dekode",
+                qrScanEmpty: "Teks hasil dekode muncul di sini",
+                qrScanTipOk: "{ok} dari {n} terdekode",
+                qrScanNone: "Tidak ada kode QR",
+                qrScanFail: "Tidak terdeteksi",
+                qrScanErr: "Gagal membaca",
+                qrScanTooBig: "Gambar melebihi {size}",
+                qrScanTooMany: "Maksimal {n} gambar",
+                qrScanPending: "Mendekode…",
+                qrScanCopyAll: "Salin semua",
+            },
+            "it": {
+                qrSplit: "Divisione",
+                qrSplitLine: "Uno per riga",
+                qrSplitWhole: "Tutto il testo",
+                qrIcon: "Icona centrale",
+                qrIconPick: "Carica icona",
+                qrIconNone: "Rimuovi icona",
+                qrIconTip: "L'icona copre il centro: usa correzione H",
+                qrIconFail: "Impossibile leggere l'icona. Prova un'altra immagine",
+                qrIconOk: "Icona applicata",
+                qrIconOkEcc: "Icona applicata: correzione portata a H",
+                qrIconNotImage: "Scegli un file immagine (PNG / JPG / SVG)",
+                qrIconTooBig: "L'icona deve essere sotto {size}",
+                qrIconLowEcc: "Sotto la correzione H l'icona centrale può rendere il codice illeggibile",
+                qrCopyImage: "Copia immagine",
+                qrToggleRow: "Comprimi / espandi",
+                qrLibFail: "Impossibile caricare il motore QR. Riapri la pagina",
+                qrScanNoImage: "Scegli file immagine",
+                navQr: "Codice QR",
+                qrModeGen: "Genera",
+                qrModeScan: "Decodifica",
+                qrInputTitle: "Contenuto",
+                qrInputPlaceholder: "Un elemento per riga: ogni riga genera un codice",
+                qrGenBtn: "Genera",
+                qrOutputTitle: "Risultato",
+                qrResultEmpty: "Incolla a sinistra e i codici appaiono qui",
+                qrTipIdle: "Un elemento per riga",
+                qrTipOk: "{n} generati",
+                qrTipNone: "Niente da generare",
+                qrTipSkipLong: "{n} righe saltate (troppo lunghe)",
+                qrTipSkipMany: "Oltre il limite: solo i primi {n}",
+                qrLowContrast: "Primo piano e sfondo troppo simili: potrebbe non leggersi",
+                qrSize: "Dimensione",
+                qrSizeTip: "Pixel esportati, 128 - 1024",
+                qrEcc: "Correzione",
+                qrEccL: "Bassa (7%)",
+                qrEccM: "Media (15%)",
+                qrEccQ: "Alta (25%)",
+                qrEccH: "Massima (30%)",
+                qrMargin: "Margine",
+                qrMarginTip: "Zona vuota in moduli, 0 - 8",
+                qrFg: "Primo piano",
+                qrBg: "Sfondo",
+                qrFormat: "Formato",
+                qrDownload: "Scarica",
+                qrDownloadAll: "Esporta tutto",
+                qrDownloadAllTip: "Tutti i codici in un unico PNG, un solo salvataggio",
+                qrItemNo: "N. {n}",
+                qrBadge: "{n}",
+                qrScanTitle: "Carica o incolla un'immagine",
+                qrScanChoose: "Scegli immagine",
+                qrScanDrop: "oppure trascina qui le immagini",
+                qrScanHint: "Incolla uno screenshot, anche più alla volta",
+                qrScanResultTitle: "Risultato",
+                qrScanEmpty: "Il testo decodificato appare qui",
+                qrScanTipOk: "{ok} su {n} decodificati",
+                qrScanNone: "Nessun codice trovato",
+                qrScanFail: "Non rilevato",
+                qrScanErr: "Lettura fallita",
+                qrScanTooBig: "Immagine oltre {size}",
+                qrScanTooMany: "Massimo {n} immagini",
+                qrScanPending: "Decodifica…",
+                qrScanCopyAll: "Copia tutto",
+            },
+            "pl": {
+                qrSplit: "Podział",
+                qrSplitLine: "Jeden na wiersz",
+                qrSplitWhole: "Cały tekst",
+                qrIcon: "Ikona w środku",
+                qrIconPick: "Wgraj ikonę",
+                qrIconNone: "Usuń ikonę",
+                qrIconTip: "Ikona zasłania środek — użyj korekcji H",
+                qrIconFail: "Nie udało się odczytać ikony. Spróbuj innego obrazu",
+                qrIconOk: "Ikona zastosowana",
+                qrIconOkEcc: "Ikona zastosowana — korekcja podniesiona do H",
+                qrIconNotImage: "Wybierz plik obrazu (PNG / JPG / SVG)",
+                qrIconTooBig: "Ikona nie może przekraczać {size}",
+                qrIconLowEcc: "Poniżej korekcji H ikona w środku może uniemożliwić odczyt",
+                qrCopyImage: "Kopiuj obraz",
+                qrToggleRow: "Zwiń / rozwiń",
+                qrLibFail: "Nie udało się wczytać silnika QR. Otwórz stronę ponownie",
+                qrScanNoImage: "Wybierz pliki obrazów",
+                navQr: "Kod QR",
+                qrModeGen: "Generuj",
+                qrModeScan: "Odczytaj",
+                qrInputTitle: "Treść",
+                qrInputPlaceholder: "Jedna treść w wierszu — każdy wiersz to jeden kod",
+                qrGenBtn: "Generuj kody",
+                qrOutputTitle: "Wynik",
+                qrResultEmpty: "Wklej po lewej, kody pojawią się tutaj",
+                qrTipIdle: "Jedna treść w wierszu",
+                qrTipOk: "Wygenerowano {n}",
+                qrTipNone: "Nie ma czego generować",
+                qrTipSkipLong: "Pominięto {n} zbyt długich wierszy",
+                qrTipSkipMany: "Przekroczono limit — zostaje {n} pierwszych",
+                qrLowContrast: "Zbyt niski kontrast — kod może być nieczytelny",
+                qrSize: "Rozmiar",
+                qrSizeTip: "Piksele eksportu, 128 - 1024",
+                qrEcc: "Korekcja",
+                qrEccL: "Niska (7%)",
+                qrEccM: "Średnia (15%)",
+                qrEccQ: "Wysoka (25%)",
+                qrEccH: "Najwyższa (30%)",
+                qrMargin: "Margines",
+                qrMarginTip: "Margines w modułach, 0 - 8",
+                qrFg: "Kolor kodu",
+                qrBg: "Tło",
+                qrFormat: "Format",
+                qrDownload: "Pobierz",
+                qrDownloadAll: "Eksportuj wszystko",
+                qrDownloadAllTip: "Wszystkie kody na jednym arkuszu PNG, jedno zapisanie",
+                qrItemNo: "#{n}",
+                qrBadge: "{n}",
+                qrScanTitle: "Wgraj lub wklej obraz",
+                qrScanChoose: "Wybierz obraz",
+                qrScanDrop: "albo przeciągnij obrazy tutaj",
+                qrScanHint: "Wklej zrzut ekranu, także wiele naraz",
+                qrScanResultTitle: "Wynik",
+                qrScanEmpty: "Odczytana treść pojawi się tutaj",
+                qrScanTipOk: "Rozpoznano {ok} z {n}",
+                qrScanNone: "Nie znaleziono kodu",
+                qrScanFail: "Nie rozpoznano",
+                qrScanErr: "Błąd odczytu",
+                qrScanTooBig: "Obraz większy niż {size}",
+                qrScanTooMany: "Maksymalnie {n} obrazów",
+                qrScanPending: "Odczytuję…",
+                qrScanCopyAll: "Kopiuj wszystko",
+            },
+            "pt": {
+                qrSplit: "Divisão",
+                qrSplitLine: "Um por linha",
+                qrSplitWhole: "Texto inteiro",
+                qrIcon: "Ícone central",
+                qrIconPick: "Enviar ícone",
+                qrIconNone: "Remover ícone",
+                qrIconTip: "O ícone cobre o centro: use correção H",
+                qrIconFail: "Não foi possível ler o ícone. Tente outra imagem",
+                qrIconOk: "Ícone aplicado",
+                qrIconOkEcc: "Ícone aplicado: correção elevada para H",
+                qrIconNotImage: "Escolha um arquivo de imagem (PNG / JPG / SVG)",
+                qrIconTooBig: "O ícone deve ter menos de {size}",
+                qrIconLowEcc: "Abaixo da correção H o ícone central pode impedir a leitura",
+                qrCopyImage: "Copiar imagem",
+                qrToggleRow: "Recolher / expandir",
+                qrLibFail: "Falha ao carregar o motor QR. Abra a página novamente",
+                qrScanNoImage: "Escolha arquivos de imagem",
+                navQr: "Código QR",
+                qrModeGen: "Gerar",
+                qrModeScan: "Decodificar",
+                qrInputTitle: "Conteúdo",
+                qrInputPlaceholder: "Um item por linha — cada linha gera um código",
+                qrGenBtn: "Gerar",
+                qrOutputTitle: "Resultado",
+                qrResultEmpty: "Cole à esquerda e os códigos aparecem aqui",
+                qrTipIdle: "Um item por linha",
+                qrTipOk: "{n} gerados",
+                qrTipNone: "Nada para gerar",
+                qrTipSkipLong: "{n} linha(s) ignorada(s) por tamanho",
+                qrTipSkipMany: "Limite excedido: apenas os primeiros {n}",
+                qrLowContrast: "Frente e fundo muito próximos: pode não ser lido",
+                qrSize: "Tamanho",
+                qrSizeTip: "Pixels exportados, 128 - 1024",
+                qrEcc: "Correção",
+                qrEccL: "Baixa (7%)",
+                qrEccM: "Média (15%)",
+                qrEccQ: "Alta (25%)",
+                qrEccH: "Máxima (30%)",
+                qrMargin: "Margem",
+                qrMarginTip: "Zona de silêncio em módulos, 0 - 8",
+                qrFg: "Cor do código",
+                qrBg: "Fundo",
+                qrFormat: "Formato",
+                qrDownload: "Baixar",
+                qrDownloadAll: "Exportar tudo",
+                qrDownloadAllTip: "Todos os códigos numa folha PNG, um só salvamento",
+                qrItemNo: "N.º {n}",
+                qrBadge: "{n}",
+                qrScanTitle: "Envie ou cole uma imagem",
+                qrScanChoose: "Escolher imagem",
+                qrScanDrop: "ou arraste imagens aqui",
+                qrScanHint: "Cole uma captura diretamente, várias de uma vez",
+                qrScanResultTitle: "Resultado",
+                qrScanEmpty: "O texto decodificado aparece aqui",
+                qrScanTipOk: "{ok} de {n} decodificados",
+                qrScanNone: "Nenhum código encontrado",
+                qrScanFail: "Não detectado",
+                qrScanErr: "Falha ao ler",
+                qrScanTooBig: "Imagem acima de {size}",
+                qrScanTooMany: "Máximo de {n} imagens",
+                qrScanPending: "Decodificando…",
+                qrScanCopyAll: "Copiar tudo",
+            },
+            "ru": {
+                qrSplit: "Разбивка",
+                qrSplitLine: "По одному в строке",
+                qrSplitWhole: "Весь текст",
+                qrIcon: "Иконка в центре",
+                qrIconPick: "Загрузить иконку",
+                qrIconNone: "Убрать иконку",
+                qrIconTip: "Иконка закрывает центр — выберите уровень H",
+                qrIconFail: "Не удалось прочитать иконку. Попробуйте другое изображение",
+                qrIconOk: "Иконка применена",
+                qrIconOkEcc: "Иконка применена, уровень коррекции поднят до H",
+                qrIconNotImage: "Выберите файл изображения (PNG / JPG / SVG)",
+                qrIconTooBig: "Иконка не должна превышать {size}",
+                qrIconLowEcc: "При коррекции ниже H иконка в центре может сделать код нечитаемым",
+                qrCopyImage: "Копировать изображение",
+                qrToggleRow: "Свернуть / развернуть",
+                qrLibFail: "Не удалось загрузить движок QR. Откройте страницу заново",
+                qrScanNoImage: "Выберите файлы изображений",
+                navQr: "QR-код",
+                qrModeGen: "Создать",
+                qrModeScan: "Декодировать",
+                qrInputTitle: "Содержимое",
+                qrInputPlaceholder: "По одной строке на код",
+                qrGenBtn: "Создать коды",
+                qrOutputTitle: "Результат",
+                qrResultEmpty: "Вставьте слева — коды появятся здесь",
+                qrTipIdle: "По одной строке",
+                qrTipOk: "Создано: {n}",
+                qrTipNone: "Нечего кодировать",
+                qrTipSkipLong: "{n} строк пропущено (не влезают)",
+                qrTipSkipMany: "Лимит превышен — оставлены первые {n}",
+                qrLowContrast: "Слишком низкий контраст — код может не считаться",
+                qrSize: "Размер",
+                qrSizeTip: "Пиксели экспорта, 128 - 1024",
+                qrEcc: "Коррекция",
+                qrEccL: "Низкий (7%)",
+                qrEccM: "Средний (15%)",
+                qrEccQ: "Высокий (25%)",
+                qrEccH: "Максимальный (30%)",
+                qrMargin: "Отступ",
+                qrMarginTip: "Отступ в модулях, 0 - 8",
+                qrFg: "Цвет кода",
+                qrBg: "Фон",
+                qrFormat: "Формат",
+                qrDownload: "Скачать",
+                qrDownloadAll: "Экспорт всех",
+                qrDownloadAllTip: "Все коды на одном PNG-листе — одно сохранение",
+                qrItemNo: "№{n}",
+                qrBadge: "{n}",
+                qrScanTitle: "Загрузите или вставьте изображение",
+                qrScanChoose: "Выбрать изображение",
+                qrScanDrop: "или перетащите изображения сюда",
+                qrScanHint: "Вставьте скриншот прямо сюда, можно несколько",
+                qrScanResultTitle: "Результат",
+                qrScanEmpty: "Распознанный текст появится здесь",
+                qrScanTipOk: "Распознано {ok} из {n}",
+                qrScanNone: "Код не найден",
+                qrScanFail: "Не распознан",
+                qrScanErr: "Ошибка чтения",
+                qrScanTooBig: "Изображение больше {size}",
+                qrScanTooMany: "Не более {n} изображений",
+                qrScanPending: "Распознаю…",
+                qrScanCopyAll: "Копировать всё",
+            },
+            "th": {
+                qrSplit: "การแบ่ง",
+                qrSplitLine: "หนึ่งต่อบรรทัด",
+                qrSplitWhole: "ทั้งข้อความ",
+                qrIcon: "ไอคอนกลาง",
+                qrIconPick: "อัปโหลดไอคอน",
+                qrIconNone: "เอาไอคอนออก",
+                qrIconTip: "ไอคอนบังตรงกลาง แนะนำให้ใช้แก้ไขข้อผิดพลาดระดับ H",
+                qrIconFail: "อ่านไอคอนไม่สำเร็จ ลองใช้รูปอื่น",
+                qrIconOk: "ใช้ไอคอนแล้ว",
+                qrIconOkEcc: "ใช้ไอคอนแล้ว ปรับระดับแก้ไขข้อผิดพลาดเป็น H",
+                qrIconNotImage: "เลือกไฟล์รูปภาพ (PNG / JPG / SVG)",
+                qrIconTooBig: "ไอคอนต้องมีขนาดไม่เกิน {size}",
+                qrIconLowEcc: "ถ้าระดับแก้ไขข้อผิดพลาดต่ำกว่า H ไอคอนกลางอาจทำให้สแกนไม่ได้",
+                qrCopyImage: "คัดลอกรูป",
+                qrToggleRow: "ย่อ / ขยาย",
+                qrLibFail: "โหลดเอนจิน QR ไม่สำเร็จ เปิดหน้านี้ใหม่",
+                qrScanNoImage: "กรุณาเลือกไฟล์รูปภาพ",
+                navQr: "คิวอาร์โค้ด",
+                qrModeGen: "สร้าง",
+                qrModeScan: "ถอดรหัส",
+                qrInputTitle: "เนื้อหา",
+                qrInputPlaceholder: "หนึ่งบรรทัดต่อหนึ่งรายการ แต่ละบรรทัดได้หนึ่งโค้ด",
+                qrGenBtn: "สร้างโค้ด",
+                qrOutputTitle: "ผลลัพธ์",
+                qrResultEmpty: "วางทางซ้าย โค้ดจะแสดงที่นี่",
+                qrTipIdle: "หนึ่งบรรทัดต่อรายการ",
+                qrTipOk: "สร้างแล้ว {n} รายการ",
+                qrTipNone: "ไม่มีข้อมูลให้สร้าง",
+                qrTipSkipLong: "ข้าม {n} บรรทัดที่ยาวเกิน",
+                qrTipSkipMany: "เกินขีดจำกัด เก็บไว้ {n} รายการแรก",
+                qrLowContrast: "สีโค้ดกับสีพื้นใกล้กันเกินไป อาจสแกนไม่ได้",
+                qrSize: "ขนาด",
+                qrSizeTip: "พิกเซลของไฟล์ที่ส่งออก 128 - 1024",
+                qrEcc: "แก้ไขข้อผิดพลาด",
+                qrEccL: "ต่ำ (7%)",
+                qrEccM: "กลาง (15%)",
+                qrEccQ: "สูง (25%)",
+                qrEccH: "สูงสุด (30%)",
+                qrMargin: "ระยะขอบ",
+                qrMarginTip: "ระยะขอบหน่วยโมดูล 0 - 8",
+                qrFg: "สีโค้ด",
+                qrBg: "สีพื้นหลัง",
+                qrFormat: "รูปแบบ",
+                qrDownload: "ดาวน์โหลด",
+                qrDownloadAll: "ส่งออกทั้งหมด",
+                qrDownloadAllTip: "รวมโค้ดทั้งหมดเป็น PNG แผ่นเดียว บันทึกครั้งเดียว",
+                qrItemNo: "ลำดับ {n}",
+                qrBadge: "{n}",
+                qrScanTitle: "อัปโหลดหรือวางรูปภาพ",
+                qrScanChoose: "เลือกรูปภาพ",
+                qrScanDrop: "หรือลากรูปภาพมาที่นี่",
+                qrScanHint: "วางภาพหน้าจอได้เลย ทีละหลายรูป",
+                qrScanResultTitle: "ผลการถอดรหัส",
+                qrScanEmpty: "ข้อความที่ถอดได้จะแสดงที่นี่",
+                qrScanTipOk: "ถอดได้ {ok} จาก {n}",
+                qrScanNone: "ไม่พบคิวอาร์โค้ด",
+                qrScanFail: "ตรวจไม่พบ",
+                qrScanErr: "อ่านไม่สำเร็จ",
+                qrScanTooBig: "รูปใหญ่เกิน {size}",
+                qrScanTooMany: "สูงสุด {n} รูป",
+                qrScanPending: "กำลังถอดรหัส…",
+                qrScanCopyAll: "คัดลอกทั้งหมด",
+            },
+            "tr": {
+                qrSplit: "Bölme",
+                qrSplitLine: "Satır başına bir",
+                qrSplitWhole: "Tüm metin",
+                qrIcon: "Orta simge",
+                qrIconPick: "Simge yükle",
+                qrIconNone: "Simgeyi kaldır",
+                qrIconTip: "Simge ortayı kapatır — H düzeltme düzeyini seçin",
+                qrIconFail: "Simge okunamadı — başka bir görsel deneyin",
+                qrIconOk: "Simge uygulandı",
+                qrIconOkEcc: "Simge uygulandı — düzeltme H seviyesine çıkarıldı",
+                qrIconNotImage: "Bir görsel dosyası seçin (PNG / JPG / SVG)",
+                qrIconTooBig: "Simge {size} boyutunu aşamaz",
+                qrIconLowEcc: "H'nin altında düzeltmede orta simge kodu okutulamaz hale getirebilir",
+                qrCopyImage: "Görseli kopyala",
+                qrToggleRow: "Daralt / genişlet",
+                qrLibFail: "QR motoru yüklenemedi. Sayfayı yeniden açın",
+                qrScanNoImage: "Lütfen görsel dosyaları seçin",
+                navQr: "QR kod",
+                qrModeGen: "Oluştur",
+                qrModeScan: "Çöz",
+                qrInputTitle: "İçerik",
+                qrInputPlaceholder: "Her satıra bir içerik — her satır bir kod",
+                qrGenBtn: "Kod üret",
+                qrOutputTitle: "Sonuç",
+                qrResultEmpty: "Sol tarafa yapıştırın, kodlar burada görünür",
+                qrTipIdle: "Her satıra bir içerik",
+                qrTipOk: "{n} kod üretildi",
+                qrTipNone: "Kodlanacak içerik yok",
+                qrTipSkipLong: "{n} satır kapasiteyi aştığı için atlandı",
+                qrTipSkipMany: "Sınır aşıldı — ilk {n} korundu",
+                qrLowContrast: "Ön plan ve arka plan çok yakın — okunamayabilir",
+                qrSize: "Boyut",
+                qrSizeTip: "Dışa aktarılan piksel, 128 - 1024",
+                qrEcc: "Hata düzeltme",
+                qrEccL: "Düşük (%7)",
+                qrEccM: "Orta (%15)",
+                qrEccQ: "Yüksek (%25)",
+                qrEccH: "En yüksek (%30)",
+                qrMargin: "Kenar",
+                qrMarginTip: "Modül cinsinden kenar boşluğu, 0 - 8",
+                qrFg: "Ön plan",
+                qrBg: "Arka plan",
+                qrFormat: "Biçim",
+                qrDownload: "İndir",
+                qrDownloadAll: "Tümünü dışa aktar",
+                qrDownloadAllTip: "Tüm kodlar tek PNG sayfasında, tek kayıt",
+                qrItemNo: "#{n}",
+                qrBadge: "{n}",
+                qrScanTitle: "Görsel yükle veya yapıştır",
+                qrScanChoose: "Görsel seç",
+                qrScanDrop: "veya görselleri buraya bırakın",
+                qrScanHint: "Ekran görüntüsünü doğrudan yapıştırın, birden fazla",
+                qrScanResultTitle: "Sonuç",
+                qrScanEmpty: "Çözülen metin burada görünür",
+                qrScanTipOk: "{n} görselden {ok} tanındı",
+                qrScanNone: "QR kod bulunamadı",
+                qrScanFail: "Tanınmadı",
+                qrScanErr: "Okunamadı",
+                qrScanTooBig: "Görsel {size} sınırını aşıyor",
+                qrScanTooMany: "En fazla {n} görsel",
+                qrScanPending: "Çözülüyor…",
+                qrScanCopyAll: "Tümünü kopyala",
+            },
+            "az": {
+                qrSplit: "Bölmə",
+                qrSplitLine: "Hər sətirdə bir",
+                qrSplitWhole: "Bütün mətn",
+                qrIcon: "Mərkəz ikonu",
+                qrIconPick: "İkon yüklə",
+                qrIconNone: "İkonu sil",
+                qrIconTip: "İkon mərkəzi örtür — H səviyyəsini seçin",
+                qrIconFail: "İkon oxunmadı — başqa şəkil sınayın",
+                qrIconOk: "İkon tətbiq edildi",
+                qrIconOkEcc: "İkon tətbiq edildi — korreksiya H səviyyəsinə qaldırıldı",
+                qrIconNotImage: "Şəkil faylı seçin (PNG / JPG / SVG)",
+                qrIconTooBig: "İkon {size} ölçüsünü keçməməlidir",
+                qrIconLowEcc: "H-dən aşağı korreksiyada mərkəz ikonu kodu oxunmaz edə bilər",
+                qrCopyImage: "Şəkli kopyala",
+                qrToggleRow: "Yığ / aç",
+                qrLibFail: "QR mühərriki yüklənmədi. Səhifəni yenidən açın",
+                qrScanNoImage: "Zəhmət olmasa şəkil faylları seçin",
+                navQr: "QR kod",
+                qrModeGen: "Yarat",
+                qrModeScan: "Dekodla",
+                qrInputTitle: "Məzmun",
+                qrInputPlaceholder: "Hər sətirdə bir məzmun — hər sətir bir kod",
+                qrGenBtn: "Kod yarat",
+                qrOutputTitle: "Nəticə",
+                qrResultEmpty: "Solda yapışdırın, kodlar burada görünəcək",
+                qrTipIdle: "Hər sətirdə bir məzmun",
+                qrTipOk: "{n} kod yaradıldı",
+                qrTipNone: "Kodlanacaq məzmun yoxdur",
+                qrTipSkipLong: "{n} sətir tutumdan böyük olduğu üçün atlandı",
+                qrTipSkipMany: "Limit aşıldı — yalnız ilk {n} saxlanıldı",
+                qrLowContrast: "Ön plan və fon çox yaxındır — oxunmaya bilər",
+                qrSize: "Ölçü",
+                qrSizeTip: "İxrac pikseli, 128 - 1024",
+                qrEcc: "Xəta düzəltmə",
+                qrEccL: "Aşağı (7%)",
+                qrEccM: "Orta (15%)",
+                qrEccQ: "Yüksək (25%)",
+                qrEccH: "Ən yüksək (30%)",
+                qrMargin: "Haşiyə",
+                qrMarginTip: "Modul ilə haşiyə, 0 - 8",
+                qrFg: "Ön plan",
+                qrBg: "Fon",
+                qrFormat: "Format",
+                qrDownload: "Yüklə",
+                qrDownloadAll: "Hamısını ixrac et",
+                qrDownloadAllTip: "Bütün kodlar bir PNG vərəqində, bir yadda saxlama",
+                qrItemNo: "#{n}",
+                qrBadge: "{n}",
+                qrScanTitle: "Şəkil yükləyin və ya yapışdırın",
+                qrScanChoose: "Şəkil seç",
+                qrScanDrop: "və ya şəkilləri buraya atın",
+                qrScanHint: "Ekran şəklini birbaşa yapışdırın, bir neçə də",
+                qrScanResultTitle: "Nəticə",
+                qrScanEmpty: "Dekodlanmış mətn burada görünəcək",
+                qrScanTipOk: "{n} şəkildən {ok} tanındı",
+                qrScanNone: "QR kod tapılmadı",
+                qrScanFail: "Tanınmadı",
+                qrScanErr: "Oxunmadı",
+                qrScanTooBig: "Şəkil {size} həddini aşır",
+                qrScanTooMany: "Maksimum {n} şəkil",
+                qrScanPending: "Dekodlanır…",
+                qrScanCopyAll: "Hamısını kopyala",
+            },
+        };
+
         const CHART_I18N = {
             'zh-CN': {
                 chartInputTitle: 'ECharts option / 数据',
@@ -15545,12 +16856,1119 @@
             try { ft.cancel(entry.handleId); } catch (err) { /* 句柄可能已回收 */ }
         }
 
+        // ================= 二维码（生成 / 解码） =================
+        // 生成用 qrcode-generator、解码用 jsQR，两个库都以「文本副本」躺在 index.html 里，
+        // 进页时才包成 blob: 执行——沙箱 CSP 只放行 inline / blob:，外链脚本一律被拦。
+        // 纯函数库（ui/js/qr.js）。取不到时页面只是不响应，不能让整页跟着崩：
+        // 宿主或 jsdom 里外部脚本有可能晚于 DOMContentLoaded 执行。
+        const QR = window.DBXQr || null;
+        const QR_LIMITS = {
+            decodeFiles: (QR && QR.LIMITS.decodeFiles) || 60,
+            decodeBytes: (QR && QR.LIMITS.decodeBytes) || 25165824
+        };
+
+        function qrT(key, fallback) {
+            const table = QR_I18N[currentLang] || {};
+            return table[key] || (QR_I18N.en || {})[key] || (QR_I18N['zh-CN'] || {})[key] || fallback || key;
+        }
+
+        function qrFmt(key, vars, fallback) {
+            let text = qrT(key, fallback);
+            Object.keys(vars || {}).forEach((k) => {
+                text = text.split('{' + k + '}').join(String(vars[k]));
+            });
+            return text;
+        }
+
+        const qrWorkspaceEl = document.getElementById('qrWorkspace');
+        const qrModeTabs = document.getElementById('qrModeTabs');
+        const qrGenGrid = document.getElementById('qrGenGrid');
+        const qrScanGrid = document.getElementById('qrScanGrid');
+        const qrOptionsEl = document.getElementById('qrOptions');
+        const qrInput = document.getElementById('qrInput');
+        const qrGridEl = document.getElementById('qrGrid');
+        const qrEmptyEl = document.getElementById('qrEmpty');
+        const qrInBadge = document.getElementById('qrInBadge');
+        const qrOutBadge = document.getElementById('qrOutBadge');
+        const qrOutSize = document.getElementById('qrOutSize');
+        const qrTipEl = document.getElementById('qrTip');
+        const qrSizeInput = document.getElementById('qrSize');
+        const qrMarginInput = document.getElementById('qrMargin');
+        const qrEccEl = document.getElementById('qrEcc');
+        const qrFormatEl = document.getElementById('qrFormat');
+        const qrSplitEl = document.getElementById('qrSplit');
+        const qrIconPickBtn = document.getElementById('qrIconPick');
+        const qrIconClearBtn = document.getElementById('qrIconClear');
+        const qrIconInput = document.getElementById('qrIconInput');
+        const qrIconThumb = document.getElementById('qrIconThumb');
+        const qrFgInput = document.getElementById('qrFg');
+        const qrBgInput = document.getElementById('qrBg');
+        const qrFgPicker = document.getElementById('qrFgPicker');
+        const qrBgPicker = document.getElementById('qrBgPicker');
+        const qrGenBtn = document.getElementById('qrGenBtn');
+        const qrDownloadAllBtn = document.getElementById('qrDownloadAll');
+        const qrScanPickTop = document.getElementById('qrScanPickTop');
+        const qrScanCopyAllBtn = document.getElementById('qrScanCopyAll');
+        const qrScanPick = document.getElementById('qrPick');
+        const qrDropEl = document.getElementById('qrDrop');
+        const qrScanQueueEl = document.getElementById('qrScanQueue');
+        const qrScanResultEl = document.getElementById('qrScanResult');
+        const qrScanEmptyEl = document.getElementById('qrScanEmpty');
+        const qrScanInput = document.getElementById('qrScanInput');
+        const qrScanBadge = document.getElementById('qrScanBadge');
+        const qrScanOutBadge = document.getElementById('qrScanOutBadge');
+        const navQrLink = document.getElementById('navQr');
+
+        let qrMode = 'encode';           // 'encode' | 'decode'
+        let qrModeActive = false;
+        let qrEditor = null;
+        let qrTimer = null;
+        let qrEcc = 'M';
+        let qrFormat = 'png';
+        let qrSplit = 'line';            // 'line' 一行一个 | 'whole' 整段一个（保留换行）
+        let qrIcon = null;               // 中心图标：{ href, image, name }
+        let qrItems = [];                // [{ text, bytes, matrix }]
+        let qrGenLib = null;
+        let qrGenLibPromise = null;
+        let qrScanLib = null;
+        let qrScanLibPromise = null;
+        let qrScanItems = [];            // [{ file, name, size, state, text, error }]
+        let qrDecodePump = null;
+        // 收起状态按序号记（重新生成后同一格还是收着的）：{ [index]: true }
+        const qrCollapsed = {};
+
+        // 示例：一批自造内容（链接 / 资产号 / 单据号 / 联系人各一条），正好演示「一行一个码」
+        const QR_SAMPLE = [
+            'https://example.com/item/1001',
+            '设备编号 DV-2048 · 机房 A-12',
+            '单据 O-0001 · 批次 B-07',
+            '联系人 样例用户 · 分机 0001'
+        ].join('\n');
+
+        /* ---------- 两个库：惰性加载 ---------- */
+
+        /** 宿主把带 src 的脚本内联成文本，这里就地把文本包成 blob: 地址 */
+        function qrLibSource(holderId) {
+            const holder = document.getElementById(holderId);
+            if (!holder) return null;
+            const text = holder.textContent || '';
+            if (text.length >= 4096) {
+                try {
+                    return { url: URL.createObjectURL(new Blob([text], { type: 'text/javascript' })), revoke: true };
+                } catch (err) { /* 退到相对路径 */ }
+            }
+            const src = holder.getAttribute('src');
+            return src ? { url: src, revoke: false } : null;
+        }
+
+        function qrLoadLib(holderId, globalName) {
+            if (typeof window[globalName] !== 'undefined') return Promise.resolve(window[globalName]);
+            return new Promise((resolve, reject) => {
+                const source = qrLibSource(holderId);
+                if (!source) { reject(new Error('lib-missing')); return; }
+                const script = document.createElement('script');
+                script.async = true;
+                const cleanup = () => {
+                    if (source.revoke) URL.revokeObjectURL(source.url);
+                    if (script.parentNode) script.parentNode.removeChild(script);
+                };
+                script.onload = () => {
+                    cleanup();
+                    const lib = window[globalName];
+                    if (lib) resolve(lib); else reject(new Error('global-missing'));
+                };
+                script.onerror = () => { cleanup(); reject(new Error('load-failed')); };
+                script.src = source.url;
+                document.head.appendChild(script);
+            });
+        }
+
+        function qrEnsureGenLib() {
+            if (qrGenLib) return Promise.resolve(qrGenLib);
+            if (qrGenLibPromise) return qrGenLibPromise;
+            qrGenLibPromise = qrLoadLib('qrGenLibSrc', 'qrcode')
+                .then((lib) => { qrGenLib = lib; return lib; })
+                .catch((err) => { qrGenLibPromise = null; throw err; });   // 失败不缓存，下次还能再试
+            return qrGenLibPromise;
+        }
+
+        function qrEnsureScanLib() {
+            if (qrScanLib) return Promise.resolve(qrScanLib);
+            if (qrScanLibPromise) return qrScanLibPromise;
+            qrScanLibPromise = qrLoadLib('qrScanLibSrc', 'jsQR')
+                .then((lib) => { qrScanLib = lib; return lib; })
+                .catch((err) => { qrScanLibPromise = null; throw err; });
+            return qrScanLibPromise;
+        }
+
+        /* ---------- 参数 ---------- */
+
+        function qrOpts() {
+            const base = {
+                ecc: qrEcc,
+                // 图标：canvas 用已加载的 Image，SVG 用 base64 data URI
+                icon: qrIcon ? qrIcon.image : null,
+                iconHref: qrIcon ? qrIcon.href : '',
+                iconRatio: 0.22
+            };
+            if (!QR) {
+                return Object.assign({ size: 256, margin: 2, dark: '#000000', light: '#ffffff' }, base);
+            }
+            return Object.assign({
+                size: QR.clampInt(qrSizeInput.value, QR.LIMITS.size.min, QR.LIMITS.size.max, QR.LIMITS.size.def),
+                margin: QR.clampInt(qrMarginInput.value, QR.LIMITS.margin.min, QR.LIMITS.margin.max, QR.LIMITS.margin.def),
+                dark: qrColorOf(qrFgInput.value) || '#000000',
+                light: qrColorOf(qrBgInput.value) || '#ffffff'
+            }, base);
+        }
+
+        /** 颜色值校验：库没加载时也用同一条规则（#rgb / #rrggbb） */
+        function qrColorOf(value) {
+            if (QR) return QR.normalizeColor(value);
+            const s = String(value == null ? '' : value).trim();
+            const hex = s.charAt(0) === '#' ? s : '#' + s;
+            return /^#[0-9a-fA-F]{6}$/.test(hex) ? hex.toLowerCase() : null;
+        }
+
+        /** 文本框与取色器双向对齐：文本合法就推给取色器，取色器的值原样写回文本 */
+        function qrSyncColor(input, picker) {
+            const color = qrColorOf(input.value);
+            input.classList.toggle('is-invalid', !color);
+            if (color && picker && picker.value !== color) picker.value = color;
+            return color;
+        }
+
+        function qrSetTip(text, tone) {
+            qrTipEl.textContent = text || '';
+            qrTipEl.className = 'compare-tip' + (tone ? ' ' + tone : '');
+        }
+
+        function qrEl(tag, cls, text) {
+            const node = document.createElement(tag);
+            if (cls) node.className = cls;
+            if (text != null) node.textContent = text;
+            return node;
+        }
+
+        /* ---------- 生成 ---------- */
+
+        function qrSchedule() {
+            clearTimeout(qrTimer);
+            qrTimer = setTimeout(() => { qrRun(); }, 320);
+        }
+
+        async function qrRun() {
+            if (!qrModeActive || !QR) return;
+            const opts = qrOpts();
+            const source = qrEditor ? qrEditor.getValue() : qrInput.value;
+            // 拆分方式：一行一个（批量）或整段一个（保留换行，名片 / 多行说明走这条）
+            const split = qrSplit === 'whole'
+                ? QR.splitWhole(source, { ecc: opts.ecc })
+                : QR.splitItems(source, { ecc: opts.ecc });
+            qrInBadge.textContent = split.items.length ? String(split.items.length) : '—';
+
+            if (!split.items.length) {
+                qrItems = [];
+                qrRenderGrid(opts);
+                qrSetTip(qrT('qrTipNone', '没有可生成的内容'), 'diff');
+                return;
+            }
+
+            let lib;
+            try {
+                lib = await qrEnsureGenLib();
+            } catch (err) {
+                qrSetTip(qrT('qrLibFail', '二维码引擎加载失败'), 'err');
+                return;
+            }
+
+            // 生成是同步的（每条几十微秒），200 条也就一二十毫秒，不需要分块
+            const built = [];
+            let longCount = split.dropped.tooLong;
+            for (let i = 0; i < split.items.length; i++) {
+                const item = split.items[i];
+                try {
+                    built.push({ line: item.line, text: item.text, bytes: item.bytes, matrix: QR.matrixOf(item.text, opts.ecc, lib) });
+                } catch (err) {
+                    longCount++;
+                }
+            }
+            qrItems = built;
+            qrRenderGrid(opts);
+
+            const notes = [qrFmt('qrTipOk', { n: built.length }, built.length + ' generated')];
+            if (longCount) {
+                notes.push(qrFmt('qrTipSkipLong', { n: longCount }, longCount + ' too long'));
+            }
+            if (split.dropped.overflow) {
+                notes.push(qrFmt('qrTipSkipMany', { n: QR.LIMITS.maxItems }, 'first ' + QR.LIMITS.maxItems + ' kept'));
+            }
+            // 前景和背景撞色时码扫不出来，宁可提前说一声
+            const lowContrast = QR.contrast(opts.dark, opts.light) < 3;
+            if (lowContrast) notes.push(qrT('qrLowContrast', '前景色与背景色太接近，可能扫不出来'));
+            // 中心图标会盖掉中间一块，纠错没到 H 时全靠冗余恢复，提前提醒一句
+            if (opts.iconHref && opts.ecc !== 'H') notes.push(qrT('qrIconLowEcc', '已加中心图标，建议纠错选「H」'));
+            qrSetTip(notes.join(' · '), lowContrast ? 'diff' : 'ok');
+        }
+
+        function qrRenderGrid(opts) {
+            if (!QR) return;
+            const o = opts || qrOpts();
+            qrGridEl.innerHTML = '';
+            const has = qrItems.length > 0;
+            qrEmptyEl.hidden = has;
+            qrGridEl.hidden = !has;
+            // 只有一条时给一张大卡片：单码本来就该看大图，别缩在网格的小格子里
+            qrGridEl.classList.toggle('is-single', qrItems.length === 1);
+            if (!has) {
+                qrOutBadge.textContent = '';
+                qrOutSize.textContent = '';
+                return;
+            }
+            const frag = document.createDocumentFragment();
+            qrItems.forEach((item, index) => {
+                const card = qrEl('div', 'qr-card');
+                card.dataset.index = String(index);
+                if (item.line) card.dataset.line = String(item.line);
+                if (qrCollapsed[index]) card.classList.add('is-collapsed');
+
+                // 卡片头就是折叠开关：收起后只留序号 + 一行内容，几十个码也能一眼扫完
+                const toggle = qrEl('button', 'qr-card-toggle');
+                toggle.type = 'button';
+                toggle.setAttribute('aria-expanded', qrCollapsed[index] ? 'false' : 'true');
+                toggle.title = qrT('qrToggleRow', '折叠 / 展开');
+                toggle.appendChild(qrEl('span', 'qr-card-no', qrFmt('qrItemNo', { n: index + 1 }, '#' + (index + 1))));
+                toggle.appendChild(qrEl('span', 'qr-card-peek', item.text));
+                toggle.appendChild(qrEl('span', 'qr-card-caret'));
+                toggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (qrCollapsed[index]) delete qrCollapsed[index];
+                    else qrCollapsed[index] = true;
+                    card.classList.toggle('is-collapsed', !!qrCollapsed[index]);
+                    toggle.setAttribute('aria-expanded', qrCollapsed[index] ? 'false' : 'true');
+                    qrLocateLine(item.line, index, 'card');
+                });
+
+                const body = qrEl('div', 'qr-card-body');
+                const media = qrEl('div', 'qr-card-media');
+                media.insertAdjacentHTML('beforeend', QR.svgMarkup(item.matrix, o));
+                const text = qrEl('div', 'qr-card-text', item.text);
+                text.title = item.text;
+                const foot = qrEl('div', 'qr-card-foot');
+                const download = qrEl('button', 'qr-mini', qrT('qrDownload', '下载'));
+                download.type = 'button';
+                download.addEventListener('click', () => { qrDownloadOne(index); });
+                const copy = qrEl('button', 'qr-mini', currentDict.copyBtn || '复制');
+                copy.type = 'button';
+                copy.addEventListener('click', () => { qrCopyText(item.text); });
+                const copyImage = qrEl('button', 'qr-mini', qrT('qrCopyImage', '复制图片'));
+                copyImage.type = 'button';
+                copyImage.addEventListener('click', () => { qrCopyImage(index); });
+                foot.appendChild(download);
+                foot.appendChild(copy);
+                foot.appendChild(copyImage);
+                body.appendChild(media);
+                body.appendChild(text);
+                body.appendChild(foot);
+
+                // 点卡片任意空白处 -> 输入框光标跳到那一行（反向定位）
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('button')) return;
+                    qrLocateLine(item.line, index, 'card');
+                });
+
+                card.appendChild(toggle);
+                card.appendChild(body);
+                frag.appendChild(card);
+            });
+            qrGridEl.appendChild(frag);
+            qrOutBadge.textContent = qrFmt('qrBadge', { n: qrItems.length }, String(qrItems.length));
+            qrOutSize.textContent = o.size + ' × ' + o.size + ' px';
+        }
+
+        function qrFileName(index, ext) {
+            return 'qr-' + String(index + 1).padStart(2, '0') + '.' + ext;
+        }
+
+        function qrCanvasBase64(canvas) {
+            try {
+                const url = canvas.toDataURL('image/png');
+                const at = url.indexOf(',');
+                return at > 0 ? url.slice(at + 1) : '';
+            } catch (err) {
+                return '';
+            }
+        }
+
+        async function qrDownloadOne(index) {
+            const item = qrItems[index];
+            if (!item || !QR) return;
+            const opts = qrOpts();
+            const name = qrFileName(index, qrFormat);
+            let status;
+            if (qrFormat === 'svg') {
+                status = await saveTextFile(name, QR.svgMarkup(item.matrix, opts), 'image/svg+xml');
+            } else {
+                const canvas = document.createElement('canvas');
+                if (!QR.drawToCanvas(canvas, item.matrix, opts)) {
+                    showToast(currentDict.saveFailed || '导出失败', 'error');
+                    return;
+                }
+                const base64 = qrCanvasBase64(canvas);
+                canvas.width = 0;
+                canvas.height = 0;
+                if (!base64) {
+                    showToast(currentDict.saveFailed || '导出失败', 'error');
+                    return;
+                }
+                status = await saveBinaryFile(name, base64, 'image/png');
+            }
+            saveToast(status, name);
+        }
+
+        /** 按宽度裁剪一段文字，末尾补省略号（拼图里的序号标签用） */
+        function qrClampText(ctx, text, maxWidth) {
+            if (ctx.measureText(text).width <= maxWidth) return text;
+            let out = '';
+            for (let i = 0; i < text.length; i++) {
+                if (ctx.measureText(out + text[i] + '…').width > maxWidth) break;
+                out += text[i];
+            }
+            return out ? out + '…' : '';
+        }
+
+        /**
+         * 全部导出：拼成一张 PNG。
+         * 宿主里每存一次都要过一次保存框，200 个码逐个存等于 200 次点击；
+         * 拼图只点一次，也能直接当「打印表」用。
+         */
+        async function qrDownloadAll() {
+            if (!QR) return;
+            if (!qrItems.length) {
+                qrSetTip(qrT('qrTipNone', '没有可生成的内容'), 'diff');
+                return;
+            }
+            const opts = qrOpts();
+            const labelH = 24;
+            const layout = QR.tileLayout(qrItems.length, {
+                size: opts.size,
+                pad: 24,
+                maxCols: 4,
+                labelH: labelH
+            });
+            const canvas = document.createElement('canvas');
+            canvas.width = layout.width;
+            canvas.height = layout.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                showToast(currentDict.saveFailed || '导出失败', 'error');
+                return;
+            }
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, layout.width, layout.height);
+            ctx.font = '12px ' + (getComputedStyle(document.body).getPropertyValue('--font-mono') || 'monospace');
+            ctx.textBaseline = 'middle';
+
+            // 单码先画到一张离屏 canvas 上，再贴进拼图（drawToCanvas 会改画布尺寸）
+            const one = document.createElement('canvas');
+            qrItems.forEach((item, index) => {
+                const col = index % layout.cols;
+                const row = Math.floor(index / layout.cols);
+                const x = layout.pad + col * (layout.size + layout.pad);
+                const y = layout.pad + row * (layout.size + labelH + layout.pad);
+                if (!QR.drawToCanvas(one, item.matrix, Object.assign({}, opts, { size: layout.size }))) return;
+                ctx.drawImage(one, x, y);
+                const label = qrFmt('qrItemNo', { n: index + 1 }, '#' + (index + 1)) + ' · ' + item.text;
+                ctx.fillStyle = '#555555';
+                ctx.fillText(qrClampText(ctx, label, layout.size), x, y + layout.size + labelH / 2);
+            });
+            one.width = 0;
+            one.height = 0;
+
+            const base64 = qrCanvasBase64(canvas);
+            canvas.width = 0;
+            canvas.height = 0;
+            const name = 'qr-codes.png';
+            if (!base64) {
+                showToast(currentDict.saveFailed || '导出失败', 'error');
+                return;
+            }
+            const status = await saveBinaryFile(name, base64, 'image/png');
+            saveToast(status, name);
+        }
+
+        async function qrCopyText(text) {
+            try {
+                await writeClipboardText(String(text));
+                showToast(currentDict.toastCopySuccess || '已复制');
+            } catch (err) {
+                showToast(currentDict.toastCopyError || '复制失败', 'error');
+            }
+        }
+
+        function qrBlobBase64(blob) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const url = String(reader.result || '');
+                    const at = url.indexOf(',');
+                    resolve(at > 0 ? url.slice(at + 1) : '');
+                };
+                reader.onerror = () => resolve('');
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        /**
+         * 复制图片到剪贴板。沙箱里 clipboard.write 不一定放行图片，
+         * 写不进去就退成「存一张 PNG」——用户点了一次，总得拿到东西。
+         */
+        async function qrCopyImage(index) {
+            const item = qrItems[index];
+            if (!item || !QR) return;
+            const opts = qrOpts();
+            const canvas = document.createElement('canvas');
+            if (!QR.drawToCanvas(canvas, item.matrix, opts)) {
+                showToast(currentDict.toastCopyError || '复制失败', 'error');
+                return;
+            }
+            const blob = await new Promise((resolve) => {
+                if (typeof canvas.toBlob === 'function') canvas.toBlob(resolve, 'image/png');
+                else resolve(null);
+            });
+            canvas.width = 0;
+            canvas.height = 0;
+            if (!blob) {
+                showToast(currentDict.toastCopyError || '复制失败', 'error');
+                return;
+            }
+            const canWriteImage = typeof ClipboardItem !== 'undefined'
+                && navigator.clipboard && typeof navigator.clipboard.write === 'function';
+            if (canWriteImage) {
+                try {
+                    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                    showToast(currentDict.toastCopySuccess || '已复制');
+                    return;
+                } catch (err) { /* 没有 clipboard-write 权限：退到写文件 */ }
+            }
+            const base64 = await qrBlobBase64(blob);
+            if (!base64) {
+                showToast(currentDict.toastCopyError || '复制失败', 'error');
+                return;
+            }
+            const name = qrFileName(index, 'png');
+            const status = await saveBinaryFile(name, base64, 'image/png');
+            saveToast(status, name);
+        }
+
+        /** 输入行 ↔ 结果卡片互相定位：光标落在哪行，哪张卡片就亮起来 */
+        function qrLocateLine(line, index, source) {
+            if (!qrGridEl) return;
+            let target = null;
+            if (index != null) target = qrGridEl.querySelector('.qr-card[data-index="' + index + '"]');
+            if (!target && line) {
+                // 那一行可能被跳过（空行 / 超容量），往下找最近的一张
+                const cards = qrGridEl.querySelectorAll('.qr-card');
+                for (let i = 0; i < cards.length; i++) {
+                    if (Number(cards[i].dataset.line || 0) >= line) { target = cards[i]; break; }
+                }
+                if (!target && cards.length) target = cards[cards.length - 1];
+            }
+            if (!target) return;
+            qrGridEl.querySelectorAll('.qr-card.locate').forEach((card) => card.classList.remove('locate'));
+            target.classList.add('locate');
+            if (typeof target.scrollIntoView === 'function') {
+                target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+            // 反向：从卡片跳回输入框。光标驱动的方向不再回跳，否则两边互相打架
+            if (source === 'card' && qrEditor && target.dataset.line) {
+                const at = Number(target.dataset.line) - 1;
+                qrEditor.setCursor({ line: at, ch: 0 });
+                if (typeof qrEditor.scrollIntoView === 'function') {
+                    qrEditor.scrollIntoView({ line: at, ch: 0 }, 80);
+                }
+                qrEditor.focus();
+            }
+        }
+
+        /* ---------- 解码 ---------- */
+
+        function qrIsImageFile(file) {
+            if (!file) return false;
+            if (/^image\//i.test(file.type || '')) return true;
+            return /\.(png|jpe?g|gif|webp|bmp|avif)$/i.test(file.name || '');
+        }
+
+        function qrLoadImage(file) {
+            return new Promise((resolve, reject) => {
+                const url = URL.createObjectURL(file);
+                const img = new Image();
+                let settled = false;
+                const release = () => {
+                    URL.revokeObjectURL(url);
+                    img.onload = null;
+                    img.onerror = null;
+                    img.src = '';
+                };
+                img.onload = () => {
+                    if (settled) return;
+                    settled = true;
+                    // 宽高必须在释放前读出来（release 之后 img 就空了）
+                    resolve({
+                        node: img,
+                        width: img.naturalWidth || img.width,
+                        height: img.naturalHeight || img.height,
+                        release: release
+                    });
+                };
+                img.onerror = () => {
+                    if (settled) return;
+                    settled = true;
+                    release();
+                    reject(new Error('load-failed'));
+                };
+                img.src = url;
+            });
+        }
+
+        async function qrScanFiles(fileList) {
+            const incoming = Array.from(fileList || []);
+            const images = incoming.filter(qrIsImageFile);
+            if (!images.length) {
+                qrSetTip(qrT('qrScanNoImage', '请选择图片文件'), 'err');
+                return;
+            }
+            const room = QR_LIMITS.decodeFiles - qrScanItems.length;
+            if (room <= 0) {
+                showToast(qrFmt('qrScanTooMany', { n: QR_LIMITS.decodeFiles }, 'too many'), 'error');
+                return;
+            }
+            const take = images.slice(0, room);
+            if (take.length < images.length) {
+                showToast(qrFmt('qrScanTooMany', { n: QR_LIMITS.decodeFiles }, 'too many'), 'error');
+            }
+            take.forEach((file) => {
+                qrScanItems.push({
+                    file: file,
+                    name: file.name || 'image',
+                    size: Number(file.size || 0),
+                    state: 'pending',
+                    text: '',
+                    error: ''
+                });
+            });
+            qrRenderScanQueue();
+            qrRenderScanResult();
+            qrSetTip(qrT('qrScanPending', '识别中…'), '');
+            await qrDecodeQueue();
+            qrFinishScanTip();
+        }
+
+        /** 串行泵：一次只解一张，2000×1500 的图同时开三张就能把宿主顶住 */
+        async function qrDecodeQueue() {
+            if (qrDecodePump) return qrDecodePump;
+            qrDecodePump = (async () => {
+                for (;;) {
+                    const next = qrScanItems.find((item) => item.state === 'pending');
+                    if (!next) break;
+                    await qrDecodeEntry(next);
+                    qrRenderScanQueue();
+                    qrRenderScanResult();
+                    await new Promise((resolve) => setTimeout(resolve, 0));   // 让出主线程
+                }
+            })();
+            try {
+                await qrDecodePump;
+            } finally {
+                qrDecodePump = null;
+            }
+        }
+
+        async function qrDecodeEntry(entry) {
+            if (!entry) return;
+            if (!QR) {
+                entry.state = 'error';
+                entry.error = 'lib';
+                entry.file = null;
+                return;
+            }
+            if (entry.size > QR_LIMITS.decodeBytes) {
+                entry.state = 'error';
+                entry.error = 'too-big';
+                entry.file = null;
+                return;
+            }
+            let lib;
+            try {
+                lib = await qrEnsureScanLib();
+            } catch (err) {
+                entry.state = 'error';
+                entry.error = 'lib';
+                entry.file = null;
+                return;
+            }
+            let image = null;
+            try {
+                image = await qrLoadImage(entry.file);
+                const fit = QR.fitDecodeSide(image.width, image.height, QR.LIMITS.decodeSide);
+                const canvas = document.createElement('canvas');
+                canvas.width = fit.width;
+                canvas.height = fit.height;
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                if (!ctx) throw new Error('no-context');
+                ctx.drawImage(image.node, 0, 0, fit.width, fit.height);
+                const pixels = ctx.getImageData(0, 0, fit.width, fit.height);
+                canvas.width = 0;   // 立刻放掉这块位图，别攒到下一张
+                canvas.height = 0;
+                const result = lib(pixels.data, pixels.width, pixels.height);
+                if (result && result.data) {
+                    entry.state = 'ok';
+                    entry.text = String(result.data);
+                } else {
+                    entry.state = 'fail';
+                }
+            } catch (err) {
+                entry.state = 'error';
+                entry.error = 'io';
+            } finally {
+                if (image) image.release();
+                entry.file = null;   // 解完就不留 File，否则整批图片一直压在内存里
+            }
+        }
+
+        function qrFinishScanTip() {
+            const done = qrScanItems.filter((item) => item.state !== 'pending');
+            const okCount = done.filter((item) => item.state === 'ok').length;
+            if (!okCount) {
+                qrSetTip(qrFmt('qrScanTipOk', { ok: 0, n: done.length }, '0/' + done.length) +
+                    ' · ' + qrT('qrScanNone', '没有识别到二维码'), 'err');
+                return;
+            }
+            qrSetTip(qrFmt('qrScanTipOk', { ok: okCount, n: done.length }, okCount + '/' + done.length), 'ok');
+        }
+
+        function qrRenderScanQueue() {
+            qrScanQueueEl.innerHTML = '';
+            if (!qrScanItems.length) {
+                qrScanBadge.textContent = '—';
+                return;
+            }
+            const frag = document.createDocumentFragment();
+            qrScanItems.forEach((entry) => {
+                const row = qrEl('div', 'qr-queue-item');
+                row.appendChild(qrEl('span', 'qr-queue-name', entry.name));
+                if (entry.size) row.appendChild(qrEl('span', 'qr-queue-meta', DBXImg.formatBytes(entry.size)));
+                const state = qrEl('span', 'qr-state');
+                if (entry.state === 'pending') {
+                    state.textContent = qrT('qrScanPending', '识别中…');
+                } else if (entry.state === 'ok') {
+                    state.textContent = 'OK';
+                    state.classList.add('is-ok');
+                } else if (entry.state === 'fail') {
+                    state.textContent = qrT('qrScanFail', '未识别');
+                    state.classList.add('is-err');
+                } else if (entry.error === 'too-big') {
+                    state.textContent = qrFmt('qrScanTooBig', { size: DBXImg.formatBytes(QR_LIMITS.decodeBytes) }, 'too big');
+                    state.classList.add('is-err');
+                } else {
+                    state.textContent = qrT('qrScanErr', '读取失败');
+                    state.classList.add('is-err');
+                }
+                row.appendChild(state);
+                frag.appendChild(row);
+            });
+            qrScanQueueEl.appendChild(frag);
+            qrScanBadge.textContent = String(qrScanItems.length);
+        }
+
+        function qrRenderScanResult() {
+            qrScanResultEl.innerHTML = '';
+            const done = qrScanItems.filter((item) => item.state !== 'pending');
+            const has = done.length > 0;
+            qrScanEmptyEl.hidden = has;
+            qrScanResultEl.hidden = !has;
+            if (!has) {
+                qrScanOutBadge.textContent = '';
+                return;
+            }
+            const frag = document.createDocumentFragment();
+            done.forEach((entry) => {
+                const ok = entry.state === 'ok';
+                const card = qrEl('div', 'qr-result-item' + (ok ? '' : ' is-failed'));
+                const head = qrEl('div', 'qr-result-head');
+                head.appendChild(qrEl('span', 'qr-result-name', entry.name));
+                const body = qrEl('div', 'qr-result-body');
+                if (ok) {
+                    body.textContent = entry.text;
+                    const copy = qrEl('button', 'qr-mini', currentDict.copyBtn || '复制');
+                    copy.type = 'button';
+                    copy.style.flex = 'none';
+                    copy.addEventListener('click', () => { qrCopyText(entry.text); });
+                    head.appendChild(copy);
+                } else if (entry.state === 'fail') {
+                    body.textContent = qrT('qrScanFail', '未识别到二维码');
+                } else if (entry.error === 'too-big') {
+                    body.textContent = qrFmt('qrScanTooBig', { size: DBXImg.formatBytes(QR_LIMITS.decodeBytes) }, 'too big');
+                } else {
+                    body.textContent = qrT('qrScanErr', '读取失败');
+                }
+                card.appendChild(head);
+                card.appendChild(body);
+                frag.appendChild(card);
+            });
+            qrScanResultEl.appendChild(frag);
+            const okCount = done.filter((item) => item.state === 'ok').length;
+            qrScanOutBadge.textContent = okCount + '/' + done.length;
+        }
+
+        /* ---------- 模式 / 进出页面 ---------- */
+
+        function qrApplyMode() {
+            const encode = qrMode === 'encode';
+            qrModeTabs.querySelectorAll('.compare-tab').forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.qrMode === qrMode);
+            });
+            qrGenGrid.hidden = !encode;
+            qrScanGrid.hidden = encode;
+            qrOptionsEl.hidden = !encode;
+            qrGenBtn.hidden = !encode;
+            qrDownloadAllBtn.hidden = !encode;
+            qrScanPickTop.hidden = encode;
+            qrScanCopyAllBtn.hidden = encode;
+            if (encode) {
+                qrSetTip(qrItems.length
+                    ? qrFmt('qrTipOk', { n: qrItems.length }, qrItems.length + ' generated')
+                    : qrT('qrTipIdle', '每行一条内容'), qrItems.length ? 'ok' : '');
+                qrRun();
+            } else {
+                qrRenderScanQueue();
+                qrRenderScanResult();
+                qrSetTip(qrScanItems.length ? '' : qrT('qrScanHint', '支持直接粘贴截图，可一次多张'), '');
+            }
+        }
+
+        function qrEnsureEditor() {
+            if (qrEditor) return;
+            qrEditor = CodeMirror.fromTextArea(qrInput, editorConfig('text/plain', qrInput.placeholder, qrSchedule));
+            qrEditor.on('change', () => {
+                const next = qrEditor.getValue();
+                if (qrInput.value !== next) qrInput.value = next;
+                qrSchedule();
+            });
+            // 光标落在第几行，右边就高亮第几个码（和时间页同一套定位手感）
+            qrEditor.on('cursorActivity', () => {
+                if (!qrModeActive || qrMode !== 'encode') return;
+                qrLocateLine(qrEditor.getCursor().line + 1);
+            });
+            linkTextareaToEditor(qrInput, qrEditor);
+            syncEditorTheme();
+        }
+
+        function enterQrMode() {
+            if (qrModeActive) return;
+            exitOtherModes('qr');
+            qrModeActive = true;
+            markConvertActive(null);
+            mainWorkspace.classList.add('hidden');
+            toolbarEl.classList.add('hidden');
+            qrEnsureEditor();
+            qrWorkspaceEl.classList.add('active');
+            navQrLink.classList.add('active');
+            qrApplyMode();
+            requestAnimationFrame(() => { if (qrEditor) qrEditor.refresh(); });
+        }
+
+        function exitQrMode() {
+            if (!qrModeActive) return;
+            qrModeActive = false;
+            clearTimeout(qrTimer);
+            qrWorkspaceEl.classList.remove('active');
+            navQrLink.classList.remove('active');
+            toolbarEl.classList.remove('hidden');
+            mainWorkspace.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                inputEditor.refresh();
+                outputEditor.refresh();
+            });
+        }
+
+        function refreshQrI18n() {
+            if (qrEditor) qrEditor.setOption('placeholder', qrInput.placeholder || '');
+            qrRenderGrid(qrOpts());
+            qrRenderScanQueue();
+            qrRenderScanResult();
+            if (qrModeActive) qrRun();
+        }
+
+        /* ---------- 交互 ---------- */
+
+        qrModeTabs.addEventListener('click', (e) => {
+            const tab = e.target.closest('[data-qr-mode]');
+            if (!tab || tab.dataset.qrMode === qrMode) return;
+            qrMode = tab.dataset.qrMode;
+            qrApplyMode();
+        });
+
+        /** 切纠错级别：状态 + 高亮一起改（上传图标时要自动提到 H，也走同一条路） */
+        function qrSetEcc(level) {
+            const next = String(level || '').toUpperCase();
+            const chip = qrEccEl.querySelector('[data-ecc="' + next + '"]');
+            if (!chip) return false;
+            qrEcc = next;
+            qrEccEl.querySelectorAll('.compare-tab').forEach((el) => {
+                el.classList.toggle('active', el === chip);
+            });
+            return true;
+        }
+
+        qrEccEl.addEventListener('click', (e) => {
+            const chip = e.target.closest('[data-ecc]');
+            if (!chip) return;
+            if (!qrSetEcc(chip.dataset.ecc)) return;
+            qrRun();
+        });
+
+        qrFormatEl.addEventListener('click', (e) => {
+            const chip = e.target.closest('[data-format]');
+            if (!chip) return;
+            qrFormat = chip.dataset.format;
+            qrFormatEl.querySelectorAll('.compare-tab').forEach((el) => {
+                el.classList.toggle('active', el === chip);
+            });
+        });
+
+        qrSplitEl.addEventListener('click', (e) => {
+            const chip = e.target.closest('[data-split]');
+            if (!chip || chip.dataset.split === qrSplit) return;
+            qrSplit = chip.dataset.split;
+            qrSplitEl.querySelectorAll('.compare-tab').forEach((el) => {
+                el.classList.toggle('active', el === chip);
+            });
+            // 卡片数量变了，收起来的序号就对不上了，全部展开重来
+            Object.keys(qrCollapsed).forEach((key) => { delete qrCollapsed[key]; });
+            qrRun();
+        });
+
+        /* ---------- 中心图标 ---------- */
+
+        const QR_ICON_BYTES = 8 * 1024 * 1024;   // 原图上限，再大就不是「图标」了
+        // 归一化后的长边：每张卡片都会嵌一份 base64，原图（尤其照片 JPG）直接塞会把 DOM 撑爆
+        const QR_ICON_SIDE = 256;
+
+        function qrIconExtOk(name) {
+            return /\.(png|jpe?g|jfif|webp|gif|bmp|svg|ico|avif)$/i.test(String(name || ''));
+        }
+
+        /** 任意图片 -> 长边不超过 256 的 PNG data URI（透明区保留，照片也不会带出噪点） */
+        function qrNormalizeIcon(image) {
+            const w = image.naturalWidth || image.width || 0;
+            const h = image.naturalHeight || image.height || 0;
+            if (!w || !h) return '';
+            const scale = Math.min(1, QR_ICON_SIDE / Math.max(w, h));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(w * scale));
+            canvas.height = Math.max(1, Math.round(h * scale));
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return '';
+            let href = '';
+            try {
+                ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+                href = canvas.toDataURL('image/png');
+            } catch (err) {
+                href = '';
+            }
+            canvas.width = 0;
+            canvas.height = 0;
+            return href;
+        }
+
+        function qrApplyIconUi() {
+            const has = !!qrIcon;
+            qrIconThumb.hidden = !has;
+            qrIconClearBtn.hidden = !has;
+            if (has) qrIconThumb.src = qrIcon.href;
+            else qrIconThumb.removeAttribute('src');
+        }
+
+        function qrIconFail() {
+            showToast(qrT('qrIconFail', '图标读取失败，请换一张图片'), 'error');
+        }
+
+        /** 图标落地：href 给 SVG，image 给 canvas，两边用同一份归一化后的图 */
+        function qrSetIcon(href, image, name) {
+            qrIcon = { href: href, image: image, name: name || 'icon' };
+            qrApplyIconUi();
+            // 中心被图标盖掉一块，实测只有 H 级扛得住：L / M / Q 都会让码直接扫不出来，
+            // 所以贴图标就把纠错顶到 H，别生成一张「看着有图、扫了没反应」的码
+            const bumped = qrEcc !== 'H' && qrSetEcc('H');
+            qrRun();   // 走完整流程，顺带把提示刷出来
+            showToast(
+                bumped ? qrT('qrIconOkEcc', '图标已应用，纠错已调到 H') : qrT('qrIconOk', '图标已应用'),
+                'success'
+            );
+        }
+
+        function qrReadIconFile(file) {
+            if (!file) return;
+            // 只看 file.type 会漏：有些环境拿到的 MIME 是空的（拖进来的、改过扩展名的），
+            // 这时按扩展名兜一次，再不匹配就明确报错——静默 return 是最难查的一类反馈
+            if (!/^image\//i.test(file.type || '') && !qrIconExtOk(file.name)) {
+                showToast(qrT('qrIconNotImage', '请选择图片文件（PNG / JPG / SVG）'), 'error');
+                return;
+            }
+            if (Number(file.size || 0) > QR_ICON_BYTES) {
+                showToast(qrFmt('qrIconTooBig', { size: '8 MB' }, '图标不能超过 8 MB'), 'error');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+                const raw = String(reader.result || '');
+                if (raw.indexOf('data:image/') !== 0) { qrIconFail(); return; }
+                const big = new Image();
+                big.onload = () => {
+                    const href = qrNormalizeIcon(big) || raw;
+                    // 归一化后再解一张小的交给 canvas，原图（可能几十 MB）不常驻内存
+                    const small = new Image();
+                    small.onload = () => { qrSetIcon(href, small, file.name); };
+                    small.onerror = () => { qrSetIcon(href, big, file.name); };
+                    small.src = href;
+                };
+                big.onerror = () => { qrIconFail(); };
+                big.src = raw;
+            };
+            reader.onerror = () => { qrIconFail(); };
+            reader.readAsDataURL(file);
+        }
+
+        qrIconPickBtn.addEventListener('click', () => { qrIconInput.click(); });
+        qrIconInput.addEventListener('change', () => {
+            const file = (qrIconInput.files || [])[0];
+            qrIconInput.value = '';
+            if (file) qrReadIconFile(file);
+        });
+        qrIconClearBtn.addEventListener('click', () => {
+            qrIcon = null;
+            qrApplyIconUi();
+            qrRenderGrid(qrOpts());
+        });
+
+        [qrSizeInput, qrMarginInput].forEach((input) => {
+            input.addEventListener('input', () => { qrSchedule(); });
+            input.addEventListener('blur', () => {
+                // 失焦时把越界值写回输入框，别让用户以为 5000 生效了
+                const opts = qrOpts();
+                input.value = String(input === qrSizeInput ? opts.size : opts.margin);
+                qrRenderGrid(opts);
+            });
+        });
+
+        [[qrFgInput, qrFgPicker], [qrBgInput, qrBgPicker]].forEach(([input, picker]) => {
+            input.addEventListener('input', () => {
+                if (qrSyncColor(input, picker)) qrSchedule();
+            });
+            input.addEventListener('blur', () => {
+                const color = qrSyncColor(input, picker);
+                if (!color) {
+                    input.value = input === qrFgInput ? '#000000' : '#ffffff';
+                    qrSyncColor(input, picker);
+                }
+                qrRenderGrid(qrOpts());
+            });
+            // 取色器：系统调色板选完立刻出图，文本框跟着更新
+            picker.addEventListener('input', () => {
+                input.value = picker.value;
+                input.classList.remove('is-invalid');
+                qrSchedule();
+            });
+        });
+
+        qrGenBtn.addEventListener('click', () => { qrRun(); });
+        qrDownloadAllBtn.addEventListener('click', () => { qrDownloadAll(); });
+
+        document.getElementById('qrSample').addEventListener('click', () => {
+            if (qrEditor) qrEditor.setValue(QR_SAMPLE);
+            else qrInput.value = QR_SAMPLE;
+            qrRun();
+        });
+
+        document.getElementById('qrClear').addEventListener('click', () => {
+            if (qrMode === 'encode') {
+                clearTimeout(qrTimer);
+                if (qrEditor) qrEditor.setValue('');
+                else qrInput.value = '';
+                qrItems = [];
+                qrInBadge.textContent = '—';
+                qrRenderGrid(qrOpts());
+                qrSetTip(qrT('qrTipIdle', '每行一条内容'), '');
+            } else {
+                qrScanItems = [];
+                qrRenderScanQueue();
+                qrRenderScanResult();
+                qrSetTip('', '');
+            }
+        });
+
+        qrScanPick.addEventListener('click', (e) => {
+            e.stopPropagation();
+            qrScanInput.click();
+        });
+        qrScanPickTop.addEventListener('click', () => { qrScanInput.click(); });
+        qrDropEl.addEventListener('click', () => { qrScanInput.click(); });
+        qrScanInput.addEventListener('change', () => {
+            const files = Array.from(qrScanInput.files || []);
+            qrScanInput.value = '';   // 允许重复选同一批文件
+            if (files.length) qrScanFiles(files);
+        });
+
+        ['dragenter', 'dragover'].forEach((type) => {
+            qrDropEl.addEventListener(type, (e) => {
+                e.preventDefault();
+                qrDropEl.classList.add('dragover');
+            });
+        });
+        ['dragleave', 'dragend'].forEach((type) => {
+            qrDropEl.addEventListener(type, () => qrDropEl.classList.remove('dragover'));
+        });
+        qrDropEl.addEventListener('drop', (e) => {
+            e.preventDefault();
+            qrDropEl.classList.remove('dragover');
+            const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []);
+            if (files.length) qrScanFiles(files);
+        });
+
+        qrScanCopyAllBtn.addEventListener('click', () => {
+            const lines = qrScanItems.filter((item) => item.state === 'ok').map((item) => item.text);
+            if (!lines.length) {
+                qrSetTip(qrT('qrScanNone', '没有识别到二维码'), 'diff');
+                return;
+            }
+            qrCopyText(lines.join('\n'));
+        });
+
+        // 粘贴截图：只在解码模式下接管，图片页那条监听各管各的
+        document.addEventListener('paste', (e) => {
+            if (!qrModeActive || qrMode !== 'decode') return;
+            const items = (e.clipboardData && e.clipboardData.items) || [];
+            const files = [];
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.kind === 'file' && /^image\//i.test(item.type || '')) {
+                    const file = item.getAsFile();
+                    if (file) files.push(file);
+                }
+            }
+            if (!files.length) return;
+            e.preventDefault();
+            qrScanFiles(files);
+        });
+
         // ---------- 统一的文件导入（拖进来 / 点「导入文件」） ----------
         // 各页能接什么：图片页编码只吃图片、解码只吃文本；表格页只吃表格；
         // 其余页面都是「文本页」——除了图片和二进制表格，扩展名不认识也照收，
         // 因为大量导出文件叫 .dat / .out / .resp，按扩展名拒收等于把人挡在门外。
         function importKindForPage(page) {
             if (page === 'navImage') return imgMode === 'encode' ? 'image' : 'text';
+            if (page === 'navQr') return qrMode === 'encode' ? 'text' : 'image';
             if (page === 'navSheet') return 'sheet';
             return 'text';
         }
@@ -15580,6 +17998,8 @@
             if (page === 'navEscape') return { editor: escInputEditor, el: escInput, tipId: 'escTip' };
             if (page === 'navBytes') return { editor: bytesEditor, el: bytesInput, tipId: 'bytesTip' };
             if (page === 'navTime') return { editor: timeEditor, el: timeInput, tipId: 'timeTip' };
+            // 二维码页只有「生成」吃文本；「解码」吃图片，走 qrScanFiles（见 importKindForPage）
+            if (page === 'navQr') return qrMode === 'encode' ? { editor: qrEditor, el: qrInput, tipId: 'qrTip' } : null;
             if (page === 'navChart') return { editor: chartEditor, el: chartInput, tipId: 'chartTip' };
             if (page === 'navCodegen') return { editor: codeInputEditor, el: codeInput, tipId: 'codeTip' };
             if (page === 'navQuery') {
@@ -15738,7 +18158,10 @@
         // 每页在入口就该拦下的体积（读完之前先按声明的 size 拦一次，别先读进内存）
         function dropLimitFor(page) {
             const kind = importKindForPage(page);
-            if (kind === 'image') return DBXImg.LIMITS.maxImageBytes;
+            if (kind === 'image') {
+                // 二维码解码只读像素，不吃原图尺寸，24 MB 比图片页宽一档
+                return page === 'navQr' ? QR_LIMITS.decodeBytes : DBXImg.LIMITS.maxImageBytes;
+            }
             if (kind === 'sheet') return SHEET_LIMITS.maxFileBytes;
             return TEXT_IMPORT_MAX;
         }
@@ -15752,6 +18175,11 @@
                 // 编码页收图片，解码页收 Base64 文本文件——两条路都在 imgImportFile 里判
                 if (kind === 'image') imgOpenFile(files[0]);
                 else imgImportFile(files[0]);
+                return;
+            }
+            if (page === 'navQr' && kind === 'image') {
+                // 二维码解码页一次能吃多张，直接进识别队列
+                qrScanFiles(files);
                 return;
             }
             if (kind === 'sheet') {
@@ -15771,8 +18199,10 @@
             showDropVeil(false);
             const page = currentPageId();
             const kind = importKindForPage(page);
-            // 表格页能批量合并，其它页一次只读一个，多拖的连字节都不用读
-            const max = kind === 'sheet' ? flow.LIMITS.batchFiles : 1;
+            // 表格页能批量合并、二维码解码页能批量识别，其它页一次只读一个
+            const max = kind === 'sheet'
+                ? flow.LIMITS.batchFiles
+                : (page === 'navQr' ? QR_LIMITS.decodeFiles : 1);
             let list = entries;
             if (list.length > max) {
                 if (kind === 'sheet') {
@@ -16044,6 +18474,7 @@
             if (!file) return;
             const page = pageImportFor || currentPageId();
             if (page === 'navImage') { imgImportFile(file); return; }
+            if (page === 'navQr' && qrMode === 'decode') { qrScanFiles([file]); return; }
             if (page === 'navSheet') { openSheetFile(file); return; }
             // 和拖入走同一套守门：图片 / 二进制表格指路到对应页面，别读成乱码
             const verdict = checkDropRoute([file.name]);
