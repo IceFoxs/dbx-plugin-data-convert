@@ -15,12 +15,13 @@
   ],
   "permissions": [
     "host.clipboard:read",
-    "host.workbench"
+    "host.workbench",
+    "host.storage"
   ],
-  "source": "https://github.com/IceFoxs/dbx-plugin-data-convert/tree/v0.1.7",
+  "source": "https://github.com/IceFoxs/dbx-plugin-data-convert/tree/v0.1.8",
   "homepage": "https://github.com/IceFoxs/dbx-plugin-data-convert",
   "license": "MIT",
-  "releaseNotes": "A new Time Converter page turns timestamps and dates into each other. Paste one value per line — 2020-01-01, 2020-01-01 00:00:00, 2020-01-01T00:00:00, 1577836800 or 1577836800000 — and every line is converted into the notations you enable. Five shortcut buttons — Now, Today start, Yesterday, Week start and Month start — append the matching moment as a new line in one click, truncated to the second. Seven toggles cover Unix seconds, Unix milliseconds, local time, local time with T, UTC, ISO 8601 and relative time; local and local-with-T are on by default, so the everyday 2020-01-01 00:00:00 <-> 2020-01-01T00:00:00 swap works out of the box. Results come as one card per line: the header folds it away, moving the caret to line N highlights card N, every value copies on click, and the Copy button writes results only — one output line per input line, fields joined by spaces, no index, no original value, no labels. Relative time stays for reading and never enters the copy. A batch caps at 2000 lines and a bad line is flagged on its own. All eleven pages are translated into 14 languages, and everything runs locally: no network, no eval.",
+  "releaseNotes": "Your navigation can now live on the left. A layout button at the far right of the top bar moves the ten navigation entries into a vertical column (13rem wide) and hands the content area the same space back; click again to return to the top, which stays the default. On the left the top bar keeps only the brand, the format-convert dropdown, the language switcher and this button, and the vertical column fits every entry, so \"More\" no longer appears. Your choice is remembered across reloads and app restarts through the host plugin storage (the workbench sandbox has an opaque origin, so localStorage is not available there); when the host cannot store it, the plugin falls back to browser localStorage and then to the current session only. A small fix rides along: navigation entries are 2.4px tighter on each side, so all ten still fit a 1440-wide window now that the button is there. All eleven pages stay translated into 14 languages, and everything still runs locally: no network, no eval.",
   "localizations": {
     "zh-CN": {
       "name": "数据转换",

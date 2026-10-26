@@ -13,7 +13,7 @@
 ## 文档与截图
 
 1. **截图与当前版本一致**：改到 UI（导航、布局、文案、主题）就重拍 README 用到的图；导航项 / 页面结构 / 按钮文案要与当次打包的 `ui/index.html` 对得上。
-1.1 **加一个导航项 = 全部核心页截图都过时**（2026-10-25 教训）：导航是每张图都有的公共区域，新增「时间转换」后其余 10 张图里的导航就少了一项，用户一眼看出「截图好像是旧的」。所以加页面 / 改导航后要**整套重拍**，不能只补新页那张；拍完逐张确认导航里含新项。
+1.1 **动到公共区域 = 全部核心页截图都过时**（2026-10-25 教训）：导航是每张图都有的公共区域，新增「时间转换」后其余 10 张图里的导航就少了一项，用户一眼看出「截图好像是旧的」。所以加页面 / 改导航后要**整套重拍**，不能只补新页那张；拍完逐张确认导航里含新项。0.1.8 加顶栏布局按钮 + 改导航项 padding 同样触发整套重拍。
 1.2 重拍脚本：`/tmp/imgh/shoot-readme-all.js` 一次跑 11 张（1440×900、1x、亮色、清 toast），另有 `shoot-readme-main.js`（格式转换页）、`shoot-readme-fill.js`、`shoot-readme-sql.js` 处理要手工装内容的页。三个坑：
    - **只有部分页会自动装示例**（代码 / 查询 / 转义 / 字节 / 图表点导航就有；表格要点「用户信息」、图片要点「示例图片」）；**格式转换、对比、SQL、时间转换是空的**，格式转换点 `#genMockBtn` + `#convertBtn`，对比点 `#cmpJsonSamples` 里的「用户信息」+ `#cmpRun`，SQL 要往 `#sqlInputText` 灌值再点 `#sqlGenerate`，时间转换往 CM 里灌 5 行（`2020-01-01` / 空格 / `T` / 两个时间戳）。时间页的空态看着像有字，其实是 `timeInputPlaceholder` 的灰色占位（一行用 `·` 连起来）。
    - 判断内容有没有进去**别读 `textarea.value`**（CodeMirror 会返回空），读 `el.CodeMirror.getValue()`；懒创建的 CM 要等 ~500 ms 再取。
@@ -82,6 +82,14 @@
 - `timeLocateRow()` 调 `scrollIntoView` 前必须判 `typeof === 'function'`：jsdom 没实现，而快捷填入会主动定位，不判就在冒烟里抛错。
 - 快捷卡片同样要 `flex-shrink: 0`（时间页是纵向 flex，否则被结果区挤扁）。
 - 文案在独立小表 `TIME_I18N`（14 语），并入 `applyI18n` 与 `tests/i18n.test.js`。
+
+### 导航位置切换（0.1.8）
+
+- 默认顶部。顶栏最右 `#navToggle` 切换，给 `body` 加 `nav-left` 生效。左侧时 `#navLinks` 变 `position: fixed; top: 3.5rem; left: 0; width: 13rem` 竖排，`.main-container` 让出同宽；`#navMore` 隐藏（竖排放得下全部 10 项）；`.nav-convert { margin-right: auto }` 把语言/切换顶到右边。
+- **偏好只能靠宿主存**：DBX 工作台是 opaque origin 沙箱，`localStorage` 抛 SecurityError。用 `window.dbxPlugin.storage`（manifest 要有 `host.storage`，且 `capabilities.storage` 为真），浏览器 / dev 退回 `localStorage`，再不行只在本会话生效。键 `navLayout`，值 `top` / `left`。启动先同步 localStorage 预读避免闪，再 `await dbxPlugin.ready` 用宿主值校正。
+- `layoutNav()` 在 `nav-left` 且 `innerWidth > 768` 时短路：竖排横向不溢出，别把项搬进那个被隐藏的 `#navMore`。窄屏（≤768）仍走顶部布局，切换按钮直接隐藏。
+- **加按钮会挤掉导航项**：1440 宽下 10 项原本刚好排满，新按钮让末尾两项进了「更多」。`.nav-links a` 左右 padding 从 `0.8rem` 收到 `0.65rem` 才保住 10 项（实测 0.6 / 0.65 都行）。左侧栏的项单独设 `padding: 0.5rem 0.75rem`，不受影响。
+- `timeLocateRow` 之外又一例 jsdom 差异：`window.innerWidth` 在 jsdom 默认 1024，短路判断在冒烟里能正常走左侧分支。
 
 ### 导入体系（0.1.6）
 

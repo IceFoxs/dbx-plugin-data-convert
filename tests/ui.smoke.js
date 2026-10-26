@@ -2401,6 +2401,33 @@ function check(name, fn) {
         if (doc.getElementById('navMoreTrigger').textContent.indexOf('更多') === -1) throw new Error('「更多」文案缺失');
     });
 
+    // 导航位置切换：默认顶部，可切到左侧（偏好由宿主 storage 记忆，这里只验布局）
+    check('默认是顶部导航，切换按钮在', function () {
+        if (!doc.getElementById('navToggle')) throw new Error('缺少切换按钮');
+        if (doc.body.classList.contains('nav-left')) throw new Error('默认不该是左侧');
+        if (inlineNavLinks().length !== 10) throw new Error('顶部直属项 ' + inlineNavLinks().length);
+        var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
+        if (label.indexOf('左侧') === -1) throw new Error('提示文案: ' + label);
+    });
+
+    doc.getElementById('navToggle').click();
+    check('点切换后导航变左侧', function () {
+        if (!doc.body.classList.contains('nav-left')) throw new Error('没切到左侧');
+        // 竖排能放下全部项，不该再收进「更多」
+        if (inlineNavLinks().length !== 10) throw new Error('左侧直属项 ' + inlineNavLinks().length);
+        if (moreEl.classList.contains('show')) throw new Error('左侧模式不该出现「更多」');
+        var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
+        if (label.indexOf('顶部') === -1) throw new Error('提示没切成「顶部」: ' + label);
+    });
+
+    doc.getElementById('navToggle').click();
+    check('再点一次回到顶部导航', function () {
+        if (doc.body.classList.contains('nav-left')) throw new Error('没切回顶部');
+        if (inlineNavLinks().length !== 10) throw new Error('回顶部后直属项 ' + inlineNavLinks().length);
+        var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
+        if (label.indexOf('左侧') === -1) throw new Error('提示没切成「左侧」: ' + label);
+    });
+
     check('「格式转换」下拉点开、点空白收起', function () {
         doc.getElementById('navConvertTrigger').click();
         if (!convertEl.classList.contains('open')) throw new Error('未展开');
