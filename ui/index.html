@@ -274,10 +274,11 @@
         .nav-links {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            /* 11 个导航项要在一行里排开，项之间的缝比原来收了一半 */
+            gap: 0.25rem;
             /* 和「格式转换」下拉之间再留一点，两个胶囊不会黏在一起 */
             margin-left: 0.25rem;
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
             color: var(--text-muted);
             flex: 1;
             min-width: 0;
@@ -289,9 +290,10 @@
             text-decoration: none;
             color: inherit;
             cursor: pointer;
-            /* 比原来的 0.8rem 收一点：给右上角的布局切换按钮腾出位置，
-               1440 宽下 10 个导航项仍然全部留在顶栏上 */
-            padding: 0.4rem 0.65rem;
+            /* 比原来的 0.8rem 收两档：先给右上角的布局切换按钮腾位置，
+               再给第 11 个导航项（二维码转换）腾位置，
+               1440 宽下 11 项全部留在顶栏上，不进「更多」 */
+            padding: 0.4rem 0.45rem;
             border-radius: var(--radius-md, 0.5rem);
             transition: all 0.15s ease;
             font-weight: 500;

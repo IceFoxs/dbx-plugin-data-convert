@@ -1,6 +1,6 @@
 # 数据转换 (Data Format Converter)
 
-A [DBX](https://dbxio.com) plugin that moves data between formats without leaving the workbench: JSON / YAML / XML / Properties conversion, a field-level diff, a batch-value SQL builder, Excel / CSV → JSON, Image ⇄ Base64, JSON / `CREATE TABLE` straight into model code, JSONPath / jq queries with JSON Schema validation, an escape toolbox, byte conversion (1000 and 1024 scales), timestamps and dates in every notation (local / UTC / ISO 8601 / relative, batched) and JSON straight into an ECharts chart exported as PNG / SVG. Built from the **frontend-only (universal)** template — one cross-platform `.dbxp`, no native backend, no network calls, works offline.
+A [DBX](https://dbxio.com) plugin that moves data between formats without leaving the workbench: JSON / YAML / XML / Properties conversion, a field-level diff, a batch-value SQL builder, Excel / CSV → JSON, Image ⇄ Base64, JSON / `CREATE TABLE` straight into model code, JSONPath / jq queries with JSON Schema validation, an escape toolbox, byte conversion (1000 and 1024 scales), timestamps and dates in every notation (local / UTC / ISO 8601 / relative, batched), JSON straight into an ECharts chart exported as PNG / SVG, and QR codes both ways — batch generation, or decoding pictures back into text. Built from the **frontend-only (universal)** template — one cross-platform `.dbxp`, no native backend, no network calls, works offline.
 
 ![Data Format Converter workbench](docs/screen.png)
 
@@ -21,6 +21,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 | **Byte converter** | B / KB / MB / GB / TB / PB on both the 1000 and 1024 scales, exact value ⇄ human readable, batch totals, hex dump / byte array / binary string forms, and every value copies on its own without thousands separators |
 | **Time converter** | Timestamps (seconds / milliseconds / microseconds) ⇄ dates, picking from local time, `T`-separated, UTC, ISO 8601 and relative time; one value per line for batches, Now / Today / Yesterday / Week / Month buttons append a line in one click, results fold away, the card for the line your cursor is on gets highlighted, and copying gives you results only |
 | **JSON to Chart** | An ECharts option (or an array of numbers / objects) drawn as a chart; API responses, task lists and several JSONs at once are unwrapped and listed for picking; custom width & height, PNG export at 1x / 2x / 3x and vector SVG, plus a full-screen lightbox; the chart engine ships inside the package, no network |
+| **QR code** | Any text → one code per line, or one code for the whole block with its line breaks kept; size, error correction, margin and colours are all settings, an icon can sit in the middle; cards fold and jump back to the line they came from, copy the image, or export everything as one PNG; drop pictures and they are decoded back into text |
 
 ## Convert
 
@@ -147,9 +148,21 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 ![JSON to Chart page](docs/screen-chart.png)
 
+## QR code
+
+- **Batch in, batch out** — one line becomes one code: a column of links, ids or any short text turns into a wall of codes in one press, numbered down the side, and an empty line never becomes a blank code. Switch the split to **whole block** and the line breaks stay inside a single code (postal addresses, JSON snippets, multi-line notes), with only the leading and trailing blank lines trimmed.
+- **The code is made of settings** — size (128–1024 px, 256 by default), margin (0–8 modules), error correction (L / M / Q / H) and foreground / background colours, picked from a colour picker or typed as `#rrggbb`. A foreground too close to the background raises a warning up front instead of handing you a code nobody can scan.
+- **A centre icon, with the correction level tuned for it** — pick an image and it is normalised to a 256 px PNG and drawn in the middle over a rounded white pad. The error correction jumps to **H** by itself, because that is the level at which a code with a hole in the middle still decodes; L / M / Q do not. Set it back by hand and the tip line says it may no longer scan.
+- **PNG or SVG** — PNG for sharing, SVG for print: every run of dark modules on a row is merged into one path line, so even 200 codes do not weigh the DOM down. Each card downloads on its own, copies its own text, and **Copy image** puts the picture on the clipboard through `ClipboardItem`; **Export all** tiles every code into a single `qr-codes.png` sized to a near square, instead of opening 200 save dialogs.
+- **Folded, and tied to the line it came from** — a card folds down to its number plus a one-line preview (`+` / `−`), and clicking a card (or its number) puts the cursor back on the line that produced it, so a long list stays navigable in both directions.
+- **Decode pictures back into text** — the second tab takes dropped images, pasted screenshots or a whole batch of files, decodes them one after another (each scaled to a 1600 px long edge and released immediately) and lists the text with a copy button. Single codes and batches both work, and content that had line breaks comes back with them.
+- Both engines (qrcode-generator and jsQR) **ship offline** and travel as inert text that becomes a `blob:` URL when the page opens — the decoder (251 KB) only loads when you actually switch to that tab. Text is encoded as UTF-8, so Chinese content decodes correctly instead of turning into mojibake.
+
+![QR code page](docs/screen-qr.png)
+
 ## Workflow
 
-- **Every page can import a file, and the page never moves** — whichever page you are on, the file is handled by that page. The whole window is a drop target (the veil even states the size limit for this page), and the Import file button in the input pane goes through exactly the same channel. On Convert, `.json` / `.yaml` / `.xml` / `.toml` / `.ini` / `.env` / `.log` / `.md` / `.csv` / `.tsv` set the source format and convert straight away, and unknown extensions (`.dat` / `.out` / `.resp` exports) are read and sniffed just the same; the Compare page has its own Import left / Import right buttons, and a dragged file fills whichever side is still empty; SQL, Escape, Bytes, Time, Chart, Codegen and Query each take their own text and run their own rule right after import. Images and spreadsheets are never read as garbage: dropped on a text page they only tell you to use Image ⇄ Base64 or Sheet → JSON — **the page is never switched for you**.
+- **Every page can import a file, and the page never moves** — whichever page you are on, the file is handled by that page. The whole window is a drop target (the veil even states the size limit for this page), and the Import file button in the input pane goes through exactly the same channel. On Convert, `.json` / `.yaml` / `.xml` / `.toml` / `.ini` / `.env` / `.log` / `.md` / `.csv` / `.tsv` set the source format and convert straight away, and unknown extensions (`.dat` / `.out` / `.resp` exports) are read and sniffed just the same; the Compare page has its own Import left / Import right buttons, and a dragged file fills whichever side is still empty; SQL, Escape, Bytes, Time, Chart, Codegen and Query each take their own text and run their own rule right after import, and QR code takes text for generation and pictures for decoding. Images and spreadsheets are never read as garbage: dropped on a text page they only tell you to use Image ⇄ Base64 or Sheet → JSON — **the page is never switched for you**.
 - **The limits are stated up front** — 16 MB per text file (10 MB for an image, 20 MB for a sheet). Over the limit is refused at the door with the actual size and the cap, before anything is read into memory; content that turns out to be binary (NUL bytes / a wall of replacement characters) is refused too. After an import the tip line keeps `file name · size`, and text over 2 M characters is loaded but not auto-converted (so a drop can never freeze the host) — press Convert when you are ready.
 - **Drop several sheets at once** — up to 10 files are parsed with the current options and merged into **one JSON object keyed by file name** (`{"a.csv": [...], "b.csv": [...]}`), with duplicate names numbered `a (2).csv`. The preview table shows the first file, and Copy / Export work on the merged result (`batch-2.json`).
 - A page's own drop zone and the window-wide entry share one rule: the Image page's zone catches the image first (page-level handlers run before the global one, which steps aside when the event was already handled), and dropping anywhere else still hands the file to the current page — same outcome either way.
@@ -157,9 +170,9 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 ## Everywhere
 
-- **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az. Every page (convert, compare, SQL, sheet, image, code gen, query, escape, bytes, time, chart) is translated into all 14, including the 20 schema-validation messages.
+- **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az. Every page (convert, compare, SQL, sheet, image, code gen, query, escape, bytes, time, chart, QR code) is translated into all 14, including the 20 schema-validation messages.
 - **Theme adaptability** — follows the DBX host theme and shadcn/ui tokens, including hosts that only send theme metadata (no `data-dbx-theme`) and custom palettes. First paint already matches the host, theme switches cross-fade over 300 ms, and `prefers-reduced-motion` turns the animation off. The one exception is the chart itself on the JSON to Chart page: it is output, not interface, so it stays on the light palette with a white background.
-- **Navigation layout** — the button at the far right of the top bar moves the navigation between top and left, top by default. On the left the ten entries stack into one 13rem column and the content area shifts over; the conversion picker sits at the top of that column too and expands inside it, pushing the entries down instead of covering them. The column fits every entry, so "More" never appears. The choice is remembered — host `dbxPlugin.storage` first, then browser `localStorage`, then `window.name` (the only channel that works inside the `dbx-plugin dev` sandbox) — so reopening keeps the last layout.
+- **Navigation layout** — the button at the far right of the top bar moves the navigation between top and left, top by default. On the left the eleven entries stack into one 13rem column and the content area shifts over; the conversion picker sits at the top of that column too and expands inside it, pushing the entries down instead of covering them. The column fits every entry, so "More" never appears. The choice is remembered — host `dbxPlugin.storage` first, then browser `localStorage`, then `window.name` (the only channel that works inside the `dbx-plugin dev` sandbox) — so reopening keeps the last layout.
 - **Clipboard** — one-click copy through the DBX host API, with a browser fallback.
 - **Offline** — no backend, no CDN, no telemetry; CodeMirror, the YAML library and ECharts (Apache-2.0, `ui/vendor/echarts/` with its LICENSE) all ship inside the package.
 
@@ -178,12 +191,12 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## Build & test
 
 ```bash
-./scripts/build.sh test         # all suites (890 cases)
+./scripts/build.sh test         # all suites (888 cases)
 ./scripts/build.sh              # run tests, then package dist/*.dbxp
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
-npm test                        # pure-function suites, no dependencies (890 cases)
-npm install && npm run test:ui  # jsdom smoke test of the UI wiring (236 checks)
+npm test                        # pure-function suites, no dependencies (888 cases)
+npm install && npm run test:ui  # jsdom smoke test of the UI wiring (249 checks)
 ```
 
 On Windows use `scripts\build.cmd` instead (requires Git Bash).
@@ -207,6 +220,7 @@ ui/js/escape.js        8 escape kinds — URL / Base64 / HTML / JSON / Unicode /
 ui/js/bytes.js         byte conversion — units ⇄ bytes, batch totals, hex dump / byte array / binary
 ui/js/chart.js         JSON to chart — shape detection, data → option, size clamping and limits
 ui/js/time.js          time conversion — timestamps / dates / UTC / ISO / relative, batched
+ui/js/qr.js            QR code — matrix generation, SVG / canvas rendering, tiling, decode helpers
 ui/js/flow.js          workflow — drop routing, batch merge, recent list, host selection
 tests/                 regression suite, run with plain node
 scripts/build.sh       package | dev | test
