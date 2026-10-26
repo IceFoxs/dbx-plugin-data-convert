@@ -415,5 +415,17 @@ check('拼后缀：正常拼、大小写不同的重复后缀剥掉、非法扩�
     eq(Q.fileNameFor('.png', 'png', 'qr-03'), 'qr-03.png');
 });
 
+check('灯箱标题：换行压成空格、超长截断、空内容不报错', () => {
+    // 整段一个的内容自带换行，塞进标题栏会被撑成多行
+    eq(Q.shortLabel('第一行\n第二行', 32), '第一行 第二行');
+    eq(Q.shortLabel('  前后空白  ', 32), '前后空白');
+    eq(Q.shortLabel('x'.repeat(40), 32), 'x'.repeat(32) + '…');
+    eq(Q.shortLabel('短内容', 32), '短内容');
+    eq(Q.shortLabel(null, 32), '');
+    eq(Q.shortLabel(undefined, 32), '');
+    // max 会夹到 4–200，传 0 也不会把标题清空
+    eq(Q.shortLabel('abcdefgh', 0), 'abcd…');
+});
+
 console.log('\n--- qr: ' + passed + '/' + (passed + failed) + ' passed ---\n');
 process.exit(failed ? 1 : 0);

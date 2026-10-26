@@ -2915,6 +2915,7 @@
             padding: 0.25rem;
             border-radius: var(--radius-sm, 4px);
             background-color: #ffffff;
+            cursor: zoom-in;
             min-height: 4rem;
         }
         .qr-card-media svg { display: block; width: 100%; height: auto; max-width: 132px; }
@@ -2923,7 +2924,13 @@
         .qr-grid.is-single .qr-card { width: min(100%, 24rem); }
         .qr-grid.is-single .qr-card-media { padding: 0.6rem; }
         .qr-grid.is-single .qr-card-media svg { max-width: 100%; }
-        .qr-grid.is-single .qr-card-text { max-height: 4.6em; font-size: 0.72rem; }
+        /* 单张卡片就是这张码的全部内容：不裁行，只有极端长才在卡片里滚 */
+        .qr-grid.is-single .qr-card-text {
+            display: block;
+            max-height: 20rem;
+            overflow-y: auto;
+            font-size: 0.72rem;
+        }
         /* 卡片头就是折叠开关；收起后 body 整块隐藏，只留序号 + 一行内容 */
         .qr-card-toggle {
             display: flex;
@@ -2970,10 +2977,13 @@
             line-height: 1.45;
             color: var(--text-muted);
             word-break: break-all;
-            /* 整段模式下内容自带换行，原样显示；超长就按高度截断 */
+            /* 整段模式下内容自带换行，原样显示；网格里只留两行，
+               但必须带省略号——不然看着像内容就这么多 */
             white-space: pre-wrap;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
             overflow: hidden;
-            max-height: 3.1em;
             min-height: 1.9em;
         }
         .qr-card-foot { display: flex; gap: 0.3rem; }
@@ -11967,6 +11977,8 @@
                 qrExportDo: "导出",
                 qrExportCancel: "取消",
                 qrExportSvgHint: "SVG 是矢量图，放大不糊；尺寸只写进 width / height",
+                qrZoomHint: "双击放大查看",
+                qrZoomFail: "放大失败，请重试",
                 qrItemNo: "第 {n} 个",
                 qrBadge: "{n} 个",
                 qrScanTitle: "上传或粘贴图片",
@@ -12039,6 +12051,8 @@
                 qrExportDo: "匯出",
                 qrExportCancel: "取消",
                 qrExportSvgHint: "SVG 是向量圖，放大不糊；尺寸只寫進 width / height",
+                qrZoomHint: "雙擊放大檢視",
+                qrZoomFail: "放大失敗，請重試",
                 qrItemNo: "第 {n} 個",
                 qrBadge: "{n} 個",
                 qrScanTitle: "上傳或貼上圖片",
@@ -12111,6 +12125,8 @@
                 qrExportDo: "Export",
                 qrExportCancel: "Cancel",
                 qrExportSvgHint: "SVG is vector, it stays sharp at any size; the size only sets width / height",
+                qrZoomHint: "Double-click to zoom in",
+                qrZoomFail: "Could not zoom in — please try again",
                 qrItemNo: "#{n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Upload or paste an image",
@@ -12183,6 +12199,8 @@
                 qrExportDo: "書き出し",
                 qrExportCancel: "キャンセル",
                 qrExportSvgHint: "SVG はベクター画像なので拡大しても劣化しません。サイズは width / height にのみ入ります",
+                qrZoomHint: "ダブルクリックで拡大",
+                qrZoomFail: "拡大できませんでした。もう一度お試しください",
                 qrItemNo: "{n} 番目",
                 qrBadge: "{n} 件",
                 qrScanTitle: "画像をアップロード",
@@ -12255,6 +12273,8 @@
                 qrExportDo: "내보내기",
                 qrExportCancel: "취소",
                 qrExportSvgHint: "SVG는 벡터라 확대해도 선명합니다. 크기는 width / height에만 들어갑니다",
+                qrZoomHint: "더블클릭하면 확대됩니다",
+                qrZoomFail: "확대하지 못했습니다. 다시 시도해 주세요",
                 qrItemNo: "{n}번째",
                 qrBadge: "{n}개",
                 qrScanTitle: "이미지 업로드 또는 붙여넣기",
@@ -12327,6 +12347,8 @@
                 qrExportDo: "Exportar",
                 qrExportCancel: "Cancelar",
                 qrExportSvgHint: "El SVG es vectorial y no se pixela; el tamaño solo define width / height",
+                qrZoomHint: "Doble clic para ampliar",
+                qrZoomFail: "No se pudo ampliar, inténtalo de nuevo",
                 qrItemNo: "N.º {n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Sube o pega una imagen",
@@ -12399,6 +12421,8 @@
                 qrExportDo: "Ekspor",
                 qrExportCancel: "Batal",
                 qrExportSvgHint: "SVG bersifat vektor, tetap tajam saat diperbesar; ukuran hanya mengisi width / height",
+                qrZoomHint: "Klik dua kali untuk memperbesar",
+                qrZoomFail: "Gagal memperbesar, coba lagi",
                 qrItemNo: "#{n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Unggah atau tempel gambar",
@@ -12471,6 +12495,8 @@
                 qrExportDo: "Esporta",
                 qrExportCancel: "Annulla",
                 qrExportSvgHint: "L'SVG è vettoriale, resta nitido ingrandendo; la dimensione imposta solo width / height",
+                qrZoomHint: "Doppio clic per ingrandire",
+                qrZoomFail: "Ingrandimento non riuscito, riprova",
                 qrItemNo: "N. {n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Carica o incolla un'immagine",
@@ -12543,6 +12569,8 @@
                 qrExportDo: "Eksportuj",
                 qrExportCancel: "Anuluj",
                 qrExportSvgHint: "SVG jest wektorowy i nie rozmywa się; rozmiar trafia tylko do width / height",
+                qrZoomHint: "Kliknij dwukrotnie, aby powiększyć",
+                qrZoomFail: "Nie udało się powiększyć, spróbuj ponownie",
                 qrItemNo: "#{n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Wgraj lub wklej obraz",
@@ -12615,6 +12643,8 @@
                 qrExportDo: "Exportar",
                 qrExportCancel: "Cancelar",
                 qrExportSvgHint: "O SVG é vetorial e não perde nitidez; o tamanho só define width / height",
+                qrZoomHint: "Clique duas vezes para ampliar",
+                qrZoomFail: "Não foi possível ampliar, tente novamente",
                 qrItemNo: "N.º {n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Envie ou cole uma imagem",
@@ -12687,6 +12717,8 @@
                 qrExportDo: "Экспорт",
                 qrExportCancel: "Отмена",
                 qrExportSvgHint: "SVG — векторный, при увеличении не мылится; размер задаёт только width / height",
+                qrZoomHint: "Двойной щелчок — увеличить",
+                qrZoomFail: "Не удалось увеличить, попробуйте ещё раз",
                 qrItemNo: "№{n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Загрузите или вставьте изображение",
@@ -12759,6 +12791,8 @@
                 qrExportDo: "ส่งออก",
                 qrExportCancel: "ยกเลิก",
                 qrExportSvgHint: "SVG เป็นเวกเตอร์ ขยายแล้วไม่แตก ขนาดมีผลแค่ width / height",
+                qrZoomHint: "ดับเบิลคลิกเพื่อขยาย",
+                qrZoomFail: "ขยายไม่สำเร็จ ลองอีกครั้ง",
                 qrItemNo: "ลำดับ {n}",
                 qrBadge: "{n}",
                 qrScanTitle: "อัปโหลดหรือวางรูปภาพ",
@@ -12831,6 +12865,8 @@
                 qrExportDo: "Dışa aktar",
                 qrExportCancel: "İptal",
                 qrExportSvgHint: "SVG vektördür, büyütünce bozulmaz; boyut yalnızca width / height değerini belirler",
+                qrZoomHint: "Büyütmek için çift tıklayın",
+                qrZoomFail: "Büyütülemedi, tekrar deneyin",
                 qrItemNo: "#{n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Görsel yükle veya yapıştır",
@@ -12903,6 +12939,8 @@
                 qrExportDo: "İxrac et",
                 qrExportCancel: "Ləğv et",
                 qrExportSvgHint: "SVG vektordur, böyüdəndə pozulmur; ölçü yalnız width / height dəyərini verir",
+                qrZoomHint: "Böyütmək üçün iki dəfə klikləyin",
+                qrZoomFail: "Böyütmək alınmadı, yenidən cəhd edin",
                 qrItemNo: "#{n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Şəkil yükləyin və ya yapışdırın",
@@ -17408,6 +17446,9 @@
                 const body = qrEl('div', 'qr-card-body');
                 const media = qrEl('div', 'qr-card-media');
                 media.insertAdjacentHTML('beforeend', QR.svgMarkup(item.matrix, o));
+                // 双击码面进灯箱看大图（矢量重画，不是把这张小图拉大）
+                media.title = qrT('qrZoomHint', '双击放大查看');
+                media.addEventListener('dblclick', () => { qrZoom(index, media); });
                 const text = qrEl('div', 'qr-card-text', item.text);
                 text.title = item.text;
                 const foot = qrEl('div', 'qr-card-foot');
@@ -17532,6 +17573,31 @@
             qrExportMask.hidden = true;
             qrExportIndex = -1;
             if (wasOpen && document.activeElement === qrExportNameInput) qrExportNameInput.blur();
+        }
+
+        /**
+         * 双击码面：借图片页那套灯箱放大看（滚轮 / 双击切 1:1 / Esc 关闭）。
+         * 这里按 ≥1024 重新矢量画一份再交给灯箱，而不是把卡片上那张小图拉伸——
+         * 拉伸只会糊，重画放到 400% 边角还是硬的。
+         */
+        function qrZoom(index, opener) {
+            const item = qrItems[index];
+            if (!item || !QR || typeof lbOpen !== 'function') return;
+            const opts = qrOpts();
+            const size = Math.max(1024, opts.size);
+            let src = '';
+            try {
+                src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+                    QR.svgMarkup(item.matrix, Object.assign({}, opts, { size: size }))
+                );
+            } catch (err) {
+                src = '';
+            }
+            if (!src) {
+                showToast(qrT('qrZoomFail', '放大失败，请重试'), 'error');
+                return;
+            }
+            lbOpen(src, lbLabel(QR.shortLabel(item.text, 32), size, size), opener || null);
         }
 
         async function qrConfirmExport() {
@@ -18004,6 +18070,8 @@
             if (!qrModeActive) return;
             qrModeActive = false;
             qrCloseExport();
+            // 灯箱是全局的：换页时要把二维码那张大图关掉，别带到别的页面上
+            if (typeof lbClose === 'function' && imgLightbox && !imgLightbox.hidden) lbClose();
             clearTimeout(qrTimer);
             qrWorkspaceEl.classList.remove('active');
             navQrLink.classList.remove('active');

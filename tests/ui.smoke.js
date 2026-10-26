@@ -2531,6 +2531,33 @@ function check(name, fn) {
         if (!qrExportMaskEl.hidden) throw new Error('点遮罩没关');
     });
 
+    check('双击码面：灯箱里是重新矢量画的大图，标题带内容与尺寸', function () {
+        var lb = doc.getElementById('imgLightbox');
+        if (!lb) throw new Error('页面里没有灯箱');
+        if (!lb.hidden) throw new Error('灯箱一开始就是开的');
+        var media = qrCards()[1].querySelector('.qr-card-media');
+        if (media.getAttribute('title') !== '双击放大查看') {
+            throw new Error('码面提示: ' + media.getAttribute('title'));
+        }
+        media.dispatchEvent(new win.MouseEvent('dblclick', { bubbles: true }));
+        if (lb.hidden) throw new Error('双击没开灯箱');
+        var src = doc.getElementById('imgLightboxImg').getAttribute('src') || '';
+        if (src.indexOf('data:image/svg+xml') !== 0) throw new Error('大图源不是 SVG: ' + src.slice(0, 40));
+        var label = doc.getElementById('imgLightboxName').textContent;
+        if (!label.trim()) throw new Error('标题是空的');
+        if (label.indexOf('1024') < 0) throw new Error('标题里没有尺寸: ' + label);
+    });
+
+    check('灯箱：Esc 关闭，点图外空白也关闭', function () {
+        var lb = doc.getElementById('imgLightbox');
+        doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        if (!lb.hidden) throw new Error('Esc 没关掉灯箱');
+        qrCards()[0].querySelector('.qr-card-media').dispatchEvent(new win.MouseEvent('dblclick', { bubbles: true }));
+        if (lb.hidden) throw new Error('第二张双击没开');
+        doc.getElementById('imgLightboxStage').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        if (!lb.hidden) throw new Error('点空白没关掉');
+    });
+
     doc.querySelector('#qrModeTabs [data-qr-mode="decode"]').click();
 
     check('切到解码模式：参数行收起、上传区出现', function () {
@@ -2546,11 +2573,14 @@ function check(name, fn) {
     });
 
     doc.querySelector('#qrModeTabs [data-qr-mode="encode"]').click();
+    // 灯箱开着的时候换页：不该把二维码大图带到格式转换页上
+    qrCards()[0].querySelector('.qr-card-media').dispatchEvent(new win.MouseEvent('dblclick', { bubbles: true }));
     doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
 
     check('从二维码页回到格式转换页：工具栏回来', function () {
         if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('工具栏还藏着');
         if (qrWs.classList.contains('active')) throw new Error('二维码页还开着');
+        if (!doc.getElementById('imgLightbox').hidden) throw new Error('灯箱还盖在页面上');
     });
 
     check('7 个格式入口收在「格式转换」下拉里', function () {

@@ -97,6 +97,36 @@ check('注释 / 字符串里没有指向不存在文件的假标签', () => {
     eq(commented, [], 'HTML 注释里的引用（宿主照样会去读）');
 });
 
+/* ---- 结果卡的内容截断：这条只能对样式做静态断言，jsdom 不做布局 ----
+ * 踩过的坑：`max-height + overflow: hidden` 硬裁，第 4 行往后凭空消失，
+ * 既没有省略号也不会滚，看上去就像「只生成了三行」。 */
+function cssRule(selector) {
+    const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ');
+    const re = /([^{}]+)\{([^{}]*)\}/g;
+    let m;
+    while ((m = re.exec(html))) {
+        // 选择器前面可能挂着注释，会串进来，先摘掉
+        const sel = strip(m[1]).split('\n').map((s) => s.trim()).filter(Boolean).join(' ');
+        if (sel === selector) return strip(m[2]);
+    }
+    return null;
+}
+
+check('单张卡片的内容完整显示，不限行', () => {
+    const rule = cssRule('.qr-grid.is-single .qr-card-text');
+    if (!rule) throw new Error('找不到单张卡片的文字规则');
+    if (!/display:\s*block/.test(rule)) throw new Error('还留着 -webkit-box，超出的行会被裁掉');
+    if (/-webkit-line-clamp/.test(rule)) throw new Error('单张卡片还在限制行数');
+    if (!/overflow-y:\s*(auto|scroll)/.test(rule)) throw new Error('超长内容要能滚，不能直接裁掉');
+});
+
+check('网格卡片截断时带省略号，别装成内容就这么多', () => {
+    const rule = cssRule('.qr-card-text');
+    if (!rule) throw new Error('找不到 .qr-card-text 规则');
+    if (!/-webkit-line-clamp:\s*[1-9]/.test(rule)) throw new Error('缺少行数限制（要配省略号）');
+    if (/(^|[;{\s])max-height\s*:/.test(rule)) throw new Error('又用 max-height 硬裁了，截断处不会出现省略号');
+});
+
 console.log('');
 console.log('--- assets: ' + pass + '/' + (pass + fail) + ' passed ---');
 if (fail) process.exit(1);

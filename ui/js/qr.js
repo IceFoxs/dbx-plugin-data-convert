@@ -14,6 +14,7 @@
  *   drawToCanvas(canvas, matrix, o)  matrix -> painted canvas
  *   tileLayout(n, opts)              n codes -> one sheet's geometry
  *   fileNameFor(base, ext, fallback) export name -> "base.ext" (sanitised)
+ *   shortLabel(text, max)           any text -> one-line caption (collapsed, clipped)
  *
  * A QR symbol has four error-correction levels; the byte-mode capacity of
  * version 40 caps how much text one symbol can hold. Both are enforced here so
@@ -395,6 +396,13 @@
         return name + '.' + e;
     }
 
+    /** 灯箱标题用的一行摘要：换行压成空格、超长截断，别把整段内容塞进标题栏 */
+    function shortLabel(text, max) {
+        var s = String(text == null ? '' : text).replace(/\s+/g, ' ').trim();
+        var n = clampInt(max, 4, 200, 32);
+        return s.length > n ? s.slice(0, n) + '…' : s;
+    }
+
     /** 解码前的缩放尺寸：只缩不放，长边不超过 maxSide */
     function fitDecodeSide(width, height, maxSide) {
         var w = Math.max(1, Math.round(width) || 1);
@@ -426,6 +434,7 @@
         tileLayout: tileLayout,
         safeFileName: safeFileName,
         fileNameFor: fileNameFor,
+        shortLabel: shortLabel,
         fitDecodeSide: fitDecodeSide
     };
 });

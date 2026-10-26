@@ -154,6 +154,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 - **The code is made of settings** — size (128–1024 px, 256 by default), margin (0–8 modules), error correction (L / M / Q / H) and foreground / background colours, picked from a colour picker or typed as `#rrggbb`. A foreground too close to the background raises a warning up front instead of handing you a code nobody can scan.
 - **A centre icon, with the correction level tuned for it** — pick an image and it is normalised to a 256 px PNG and drawn in the middle over a rounded white pad. The error correction jumps to **H** by itself, because that is the level at which a code with a hole in the middle still decodes; L / M / Q do not. Set it back by hand and the tip line says it may no longer scan.
 - **PNG or SVG** — PNG for sharing, SVG for print: every run of dark modules on a row is merged into one path line, so even 200 codes do not weigh the DOM down. A single export opens a small panel where **format, size and file name are settled on the spot** (PNG / SVG, 256 / 512 / 1024 or any 128–1024, rename as you like — Enter saves, and the next card remembers the choice); text copies on its own, and **Copy image** puts the picture on the clipboard through `ClipboardItem`; **Export all** tiles every code into a single `qr-codes.png` sized to a near square, instead of opening 200 save dialogs.
+- **Double-click to zoom in** — double-clicking a code opens it in the lightbox: full screen, wheel zoom towards the cursor, double-click toggles fit / 1:1, `Esc` or a click on the backdrop closes it. The picture inside is redrawn as vector at 1024 instead of the small card image stretched, so it stays sharp at 147%; the title reads "first line · 1024 × 1024" so you know which code you are looking at. The lightbox is shared with the image page.
 - **Folded, and tied to the line it came from** — a card folds down to its number plus a one-line preview (`+` / `−`), and clicking a card (or its number) puts the cursor back on the line that produced it, so a long list stays navigable in both directions.
 - **Decode pictures back into text** — the second tab takes dropped images, pasted screenshots or a whole batch of files, decodes them one after another (each scaled to a 1600 px long edge and released immediately) and lists the text with a copy button. Single codes and batches both work, and content that had line breaks comes back with them.
 - Both engines (qrcode-generator and jsQR) **ship offline** and travel as inert text that becomes a `blob:` URL when the page opens — the decoder (251 KB) only loads when you actually switch to that tab. Text is encoded as UTF-8, so Chinese content decodes correctly instead of turning into mojibake.
@@ -191,11 +192,11 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## Build & test
 
 ```bash
-./scripts/build.sh test         # all suites (893 cases)
+./scripts/build.sh test         # all suites (896 cases)
 ./scripts/build.sh              # run tests, then package dist/*.dbxp
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
-npm test                        # pure-function suites, no dependencies (893 cases)
+npm test                        # pure-function suites, no dependencies (896 cases)
 npm install && npm run test:ui  # jsdom smoke test of the UI wiring (253 checks)
 ```
 
