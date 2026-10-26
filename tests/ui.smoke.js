@@ -2486,6 +2486,51 @@ function check(name, fn) {
         text.dispatchEvent(new win.Event('input', { bubbles: true }));
     });
 
+    var qrExportMaskEl = doc.getElementById('qrExportMask');
+
+    check('单张导出：卡片按钮打开面板，默认文件名是 qr-01', function () {
+        var btn = qrCards()[0].querySelector('.qr-mini');
+        if (!btn || btn.textContent.trim() !== '导出') {
+            throw new Error('按钮文字: ' + (btn && btn.textContent.trim()));
+        }
+        if (!qrExportMaskEl.hidden) throw new Error('面板一开始就是开的');
+        btn.click();
+        if (qrExportMaskEl.hidden) throw new Error('点了没开面板');
+        if (doc.getElementById('qrExportName').value !== 'qr-01') {
+            throw new Error('默认文件名: ' + doc.getElementById('qrExportName').value);
+        }
+        if (doc.getElementById('qrExportExt').textContent !== '.png') {
+            throw new Error('后缀: ' + doc.getElementById('qrExportExt').textContent);
+        }
+        var fmt = doc.querySelector('#qrExportFormat .compare-tab.active');
+        if (!fmt || fmt.dataset.exportFormat !== 'png') throw new Error('格式没高亮 PNG');
+    });
+
+    check('导出面板：切 SVG 后后缀、提示、尺寸快选一起变', function () {
+        doc.querySelector('#qrExportFormat [data-export-format="svg"]').click();
+        if (doc.getElementById('qrExportExt').textContent !== '.svg') throw new Error('后缀没变');
+        if (!doc.getElementById('qrExportNote').textContent) throw new Error('没有矢量提示');
+        doc.querySelector('#qrExportSizeChips [data-export-size="1024"]').click();
+        if (doc.getElementById('qrExportSize').value !== '1024') throw new Error('尺寸没写进输入框');
+        var chip = doc.querySelector('#qrExportSizeChips .compare-tab.active');
+        if (!chip || chip.dataset.exportSize !== '1024') throw new Error('快选没高亮');
+    });
+
+    check('导出面板：Esc 关闭，下一张默认名字跟序号、格式记得上次', function () {
+        qrExportMaskEl.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        if (!qrExportMaskEl.hidden) throw new Error('Esc 没关掉');
+        qrCards()[1].querySelector('.qr-mini').click();
+        if (doc.getElementById('qrExportName').value !== 'qr-02') {
+            throw new Error('第二张的默认名字: ' + doc.getElementById('qrExportName').value);
+        }
+        if (doc.getElementById('qrExportExt').textContent !== '.svg') throw new Error('没记住上次的格式');
+    });
+
+    check('导出面板：点遮罩空白处也关闭', function () {
+        qrExportMaskEl.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        if (!qrExportMaskEl.hidden) throw new Error('点遮罩没关');
+    });
+
     doc.querySelector('#qrModeTabs [data-qr-mode="decode"]').click();
 
     check('切到解码模式：参数行收起、上传区出现', function () {

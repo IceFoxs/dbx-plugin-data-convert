@@ -13,6 +13,7 @@
  *   svgMarkup(matrix, opts)          matrix -> "<svg …>" string (crisp, one <path>)
  *   drawToCanvas(canvas, matrix, o)  matrix -> painted canvas
  *   tileLayout(n, opts)              n codes -> one sheet's geometry
+ *   fileNameFor(base, ext, fallback) export name -> "base.ext" (sanitised)
  *
  * A QR symbol has four error-correction levels; the byte-mode capacity of
  * version 40 caps how much text one symbol can hold. Both are enforced here so
@@ -368,6 +369,32 @@
         };
     }
 
+    /**
+     * 文件名净化：用户会在导出面板里自己改名，名字最终进的是宿主保存框。
+     * 路径分隔符和 Windows 保留字符一律剔掉（带进去轻则存不下来，重则存到别处）；
+     * 结尾的空格和点要被系统吞掉，一并去掉；太长也截断，免得超文件系统上限。
+     */
+    function safeFileName(base, fallback) {
+        var name = String(base == null ? '' : base)
+            .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '')
+            .replace(/^[\s.]+/, '')
+            .replace(/[\s.]+$/, '');
+        name = name.slice(0, 64);
+        return name || String(fallback || 'qr');
+    }
+
+    /** 拼出「名字.扩展名」；用户自己把后缀打进去了就别叠成 qr-01.png.png */
+    function fileNameFor(base, ext, fallback) {
+        var e = String(ext || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
+        var name = safeFileName(base, fallback);
+        if (name.length > e.length + 1 && name.slice(-(e.length + 1)).toLowerCase() === '.' + e) {
+            name = safeFileName(name.slice(0, -(e.length + 1)), fallback);
+        }
+        // 只打了个「.png」时净化完只剩下后缀本身，这时用兜底名
+        if (name.toLowerCase() === e) name = safeFileName(fallback, 'qr');
+        return name + '.' + e;
+    }
+
     /** 解码前的缩放尺寸：只缩不放，长边不超过 maxSide */
     function fitDecodeSide(width, height, maxSide) {
         var w = Math.max(1, Math.round(width) || 1);
@@ -397,6 +424,8 @@
         svgMarkup: svgMarkup,
         drawToCanvas: drawToCanvas,
         tileLayout: tileLayout,
+        safeFileName: safeFileName,
+        fileNameFor: fileNameFor,
         fitDecodeSide: fitDecodeSide
     };
 });

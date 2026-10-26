@@ -383,5 +383,37 @@ check('SVG：图标比例有上下限', () => {
     eq(width(big), Number((25 * 0.12).toFixed(3)));
 });
 
+// ---------- 导出文件名 ----------
+
+check('文件名：路径分隔符和 Windows 保留字符一律剔掉', () => {
+    eq(Q.safeFileName('a/b\\c:d*e?f"g<h>i|j', 'qr'), 'abcdefghij');
+    // 换行 / 制表这类控制字符也不能留
+    eq(Q.safeFileName('x\u0000y\u001fz\n', 'qr'), 'xyz');
+});
+
+check('文件名：首尾的空格和点去掉（系统会自己吞掉，留着等于没写）', () => {
+    eq(Q.safeFileName('  qr-01  ', 'qr'), 'qr-01');
+    eq(Q.safeFileName('qr-01...', 'qr'), 'qr-01');
+});
+
+check('文件名：清干净后为空就用兜底名', () => {
+    eq(Q.safeFileName('', 'qr-07'), 'qr-07');
+    eq(Q.safeFileName('///', 'qr-07'), 'qr-07');
+    eq(Q.safeFileName(null, 'qr-07'), 'qr-07');
+});
+
+check('文件名：超长截断到 64 个字符', () => {
+    eq(Q.safeFileName('x'.repeat(200), 'qr').length, 64);
+});
+
+check('拼后缀：正常拼、大小写不同的重复后缀剥掉、非法扩展名兜底', () => {
+    eq(Q.fileNameFor('活动码', 'png', 'qr-01'), '活动码.png');
+    eq(Q.fileNameFor('qr-01.PNG', 'png', 'qr-01'), 'qr-01.png');
+    eq(Q.fileNameFor('qr-01.png', 'svg', 'qr-01'), 'qr-01.png.svg');
+    eq(Q.fileNameFor('qr-01', 's/v*g', 'qr-01'), 'qr-01.svg');
+    // 名字只剩后缀本身时不能拼出 ".png"
+    eq(Q.fileNameFor('.png', 'png', 'qr-03'), 'qr-03.png');
+});
+
 console.log('\n--- qr: ' + passed + '/' + (passed + failed) + ' passed ---\n');
 process.exit(failed ? 1 : 0);

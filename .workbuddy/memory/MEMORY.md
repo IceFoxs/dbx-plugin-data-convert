@@ -26,6 +26,7 @@
 ## 页级坑
 - **导航**：`#navToggle` 加 `body.nav-left`；「格式转换」也进左列，菜单 `position: static`；`syncNavLeftStack()` 按 `navConvert.bottom` 定 `#navLinks.top` + `ResizeObserver`；左侧 >768px 时 `layoutNav()` 短路。**加导航项会挤掉项**：11 项要 `padding: .4rem .45rem` + `gap: .25rem` + `font-size: .8125rem`（1440 容器 948 / 内容 877，余 71px；`0.65rem` 只够 10 项）。冒烟导航断言（直属项数 / 「更多」集合 / `pageOf`）三处同步。
 - **二维码**：qrcode-generator 默认按 latin-1 取字节（中文必乱码），`matrixOf()` 切 `stringToBytesFuncs['UTF-8']`；jsQR 251 KB 只在切「解码」时懒载，串行泵 + 长边压 1600 + 解完释放位图。**中心图标必须把纠错顶到 H**（L / M / Q 解不回，测试钉着）；图标先缩到长边 256 的 PNG，否则每张卡片都嵌一份原图。
+- **单张导出面板**：卡片「导出」开模态（`#qrExportMask`），格式 / 尺寸 / 文件名当场定，落盘只走 `qrExportOne()` 一个口子；名字净化在 `QR.fileNameFor()`（纯函数，单测钉着）。`qrRenderGrid()` 与 `exitQrMode()` 都先关面板（重绘后序号会指错张）；改格式 / 尺寸即写 `qrExportPref`（只在确认时记会漏掉取消场景）。`.btn-primary` 全局 `flex:1`，面板里要 `flex:0 0 auto`。
 - **时间**：结果卡 `flex-shrink: 0`；相对时间不进批量复制；`scrollIntoView` 前判 `typeof === 'function'`（jsdom 没实现）。
 - **图表**：出图不跟主题；预览 1:1 靠 `flex-start` + `margin:auto`；导出 PNG 显式传 `pixelRatio`；测试 stub 掉 echarts。
 - **表格 / 拖放**：`textLooksBinary()` 拦二进制；批量表格走 `mergeFiles()`。

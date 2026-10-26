@@ -2989,6 +2989,90 @@
             transition: background-color 0.15s ease, color 0.15s ease;
         }
         .qr-mini:hover { background-color: var(--accent-bg); }
+
+        /* ---------- 单张导出面板 ---------- */
+        .qr-export-mask {
+            position: fixed;
+            inset: 0;
+            z-index: 90;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background-color: rgba(15, 18, 24, 0.42);
+        }
+        /* display:flex 会盖掉 hidden，这里单独兜一次 */
+        .qr-export-mask[hidden] { display: none; }
+        .qr-export-card {
+            width: min(100%, 23rem);
+            display: flex;
+            flex-direction: column;
+            gap: 0.7rem;
+            padding: 0.9rem 1rem 1rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg, 0.75rem);
+            background-color: var(--bg-base);
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
+        }
+        .qr-export-head { display: flex; align-items: center; gap: 0.5rem; }
+        .qr-export-title { flex: 1; font-size: 0.86rem; font-weight: 600; color: var(--text-main); }
+        .qr-export-close {
+            flex: none;
+            width: 1.5rem;
+            height: 1.5rem;
+            padding: 0;
+            border: 0;
+            border-radius: var(--radius-sm, 4px);
+            background: none;
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .qr-export-close:hover { background-color: var(--accent-bg); color: var(--text-main); }
+        .qr-export-row { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+        .qr-export-label { flex: none; width: 3.2rem; font-size: 0.74rem; color: var(--text-muted); }
+        .qr-export-file {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 0.2rem;
+            min-width: 0;
+            padding: 0 0.5rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm, 4px);
+            background-color: var(--bg-card);
+        }
+        .qr-export-file:focus-within { border-color: var(--primary); }
+        .qr-export-input {
+            flex: 1;
+            min-width: 0;
+            padding: 0.36rem 0;
+            border: 0;
+            outline: none;
+            background: none;
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            font-size: 0.76rem;
+        }
+        .qr-export-ext {
+            flex: none;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+        }
+        .qr-export-row .qr-num { width: 3.6rem; }
+        .qr-export-note {
+            font-size: 0.68rem;
+            line-height: 1.45;
+            color: var(--text-muted);
+            min-height: 0;
+        }
+        .qr-export-note:empty { display: none; }
+        .qr-export-foot { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.15rem; }
+        /* .btn-primary 全局带 flex:1（工具栏里要撑满），面板里只想按内容宽 */
+        .qr-export-foot .btn { flex: 0 0 auto; }
+        #qrExportOk { min-width: 5rem; }
         .qr-empty {
             flex: 1;
             min-height: 6rem;
@@ -4269,6 +4353,47 @@
         <input type="file" id="qrIconInput" class="qr-hidden-input" accept="image/*" tabindex="-1">
     </section>
 </main>
+
+<!-- 单张导出面板：格式 / 尺寸 / 文件名三样都当场定，回车即导出 -->
+<div class="qr-export-mask" id="qrExportMask" hidden>
+    <div class="qr-export-card" role="dialog" aria-modal="true" aria-labelledby="qrExportHead">
+        <div class="qr-export-head">
+            <span class="qr-export-title" id="qrExportHead" data-i18n="qrExportTitle">导出二维码</span>
+            <button type="button" class="qr-export-close" id="qrExportClose"
+                    data-i18n-title="qrExportCancel" aria-label="close">×</button>
+        </div>
+        <div class="qr-export-row">
+            <span class="qr-export-label" data-i18n="qrExportName">文件名</span>
+            <span class="qr-export-file">
+                <input type="text" class="qr-export-input" id="qrExportName" spellcheck="false"
+                       autocomplete="off" data-i18n-title="qrExportNameTip">
+                <span class="qr-export-ext" id="qrExportExt">.png</span>
+            </span>
+        </div>
+        <div class="qr-export-row">
+            <span class="qr-export-label" data-i18n="qrFormat">格式</span>
+            <div class="compare-tabs sql-seg qr-seg" id="qrExportFormat">
+                <button type="button" class="compare-tab active" data-export-format="png">PNG</button>
+                <button type="button" class="compare-tab" data-export-format="svg">SVG</button>
+            </div>
+        </div>
+        <div class="qr-export-row">
+            <span class="qr-export-label" data-i18n="qrSize">尺寸</span>
+            <div class="compare-tabs sql-seg qr-seg" id="qrExportSizeChips">
+                <button type="button" class="compare-tab" data-export-size="256">256</button>
+                <button type="button" class="compare-tab" data-export-size="512">512</button>
+                <button type="button" class="compare-tab" data-export-size="1024">1024</button>
+            </div>
+            <input type="text" inputmode="numeric" class="qr-num" id="qrExportSize" value="256"
+                   spellcheck="false" autocomplete="off" aria-label="export size">
+        </div>
+        <div class="qr-export-note" id="qrExportNote"></div>
+        <div class="qr-export-foot">
+            <button type="button" class="btn btn-outline" id="qrExportCancel" data-i18n="qrExportCancel">取消</button>
+            <button type="button" class="btn btn-primary" id="qrExportOk" data-i18n="qrExportDo">导出</button>
+        </div>
+    </div>
+</div>
 
 <div id="toastContainer" class="toast-container"></div>
 
@@ -11834,6 +11959,14 @@
                 qrDownload: "下载",
                 qrDownloadAll: "全部导出",
                 qrDownloadAllTip: "所有二维码拼成一张 PNG，只保存一次",
+                qrExportCard: "导出",
+                qrExportCardTip: "单独导出这张：可选格式、尺寸和文件名",
+                qrExportTitle: "导出二维码",
+                qrExportName: "文件名",
+                qrExportNameTip: "不用写扩展名，格式决定后缀",
+                qrExportDo: "导出",
+                qrExportCancel: "取消",
+                qrExportSvgHint: "SVG 是矢量图，放大不糊；尺寸只写进 width / height",
                 qrItemNo: "第 {n} 个",
                 qrBadge: "{n} 个",
                 qrScanTitle: "上传或粘贴图片",
@@ -11898,6 +12031,14 @@
                 qrDownload: "下載",
                 qrDownloadAll: "全部匯出",
                 qrDownloadAllTip: "所有二維碼拼成一張 PNG，只儲存一次",
+                qrExportCard: "匯出",
+                qrExportCardTip: "單獨匯出這張：可選格式、尺寸和檔名",
+                qrExportTitle: "匯出二維碼",
+                qrExportName: "檔名",
+                qrExportNameTip: "不用寫副檔名，格式決定後綴",
+                qrExportDo: "匯出",
+                qrExportCancel: "取消",
+                qrExportSvgHint: "SVG 是向量圖，放大不糊；尺寸只寫進 width / height",
                 qrItemNo: "第 {n} 個",
                 qrBadge: "{n} 個",
                 qrScanTitle: "上傳或貼上圖片",
@@ -11962,6 +12103,14 @@
                 qrDownload: "Download",
                 qrDownloadAll: "Export all",
                 qrDownloadAllTip: "All codes on one PNG sheet — a single save",
+                qrExportCard: "Export",
+                qrExportCardTip: "Export just this code: format, size and file name",
+                qrExportTitle: "Export QR code",
+                qrExportName: "File name",
+                qrExportNameTip: "No extension needed — the format sets it",
+                qrExportDo: "Export",
+                qrExportCancel: "Cancel",
+                qrExportSvgHint: "SVG is vector, it stays sharp at any size; the size only sets width / height",
                 qrItemNo: "#{n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Upload or paste an image",
@@ -12026,6 +12175,14 @@
                 qrDownload: "ダウンロード",
                 qrDownloadAll: "まとめて書き出し",
                 qrDownloadAllTip: "すべてのコードを 1 枚の PNG にまとめて保存",
+                qrExportCard: "書き出し",
+                qrExportCardTip: "このコードだけ書き出す：形式・サイズ・ファイル名を指定",
+                qrExportTitle: "QR コードを書き出し",
+                qrExportName: "ファイル名",
+                qrExportNameTip: "拡張子は不要（形式で決まります）",
+                qrExportDo: "書き出し",
+                qrExportCancel: "キャンセル",
+                qrExportSvgHint: "SVG はベクター画像なので拡大しても劣化しません。サイズは width / height にのみ入ります",
                 qrItemNo: "{n} 番目",
                 qrBadge: "{n} 件",
                 qrScanTitle: "画像をアップロード",
@@ -12090,6 +12247,14 @@
                 qrDownload: "다운로드",
                 qrDownloadAll: "전체 내보내기",
                 qrDownloadAllTip: "모든 코드를 PNG 한 장으로 저장",
+                qrExportCard: "내보내기",
+                qrExportCardTip: "이 코드만 내보내기: 형식·크기·파일 이름 선택",
+                qrExportTitle: "QR 코드 내보내기",
+                qrExportName: "파일 이름",
+                qrExportNameTip: "확장자는 쓰지 않아도 됩니다 (형식이 결정)",
+                qrExportDo: "내보내기",
+                qrExportCancel: "취소",
+                qrExportSvgHint: "SVG는 벡터라 확대해도 선명합니다. 크기는 width / height에만 들어갑니다",
                 qrItemNo: "{n}번째",
                 qrBadge: "{n}개",
                 qrScanTitle: "이미지 업로드 또는 붙여넣기",
@@ -12154,6 +12319,14 @@
                 qrDownload: "Descargar",
                 qrDownloadAll: "Exportar todo",
                 qrDownloadAllTip: "Todos los códigos en una hoja PNG, un solo guardado",
+                qrExportCard: "Exportar",
+                qrExportCardTip: "Exportar solo este código: formato, tamaño y nombre",
+                qrExportTitle: "Exportar código QR",
+                qrExportName: "Nombre del archivo",
+                qrExportNameTip: "Sin extensión: la decide el formato",
+                qrExportDo: "Exportar",
+                qrExportCancel: "Cancelar",
+                qrExportSvgHint: "El SVG es vectorial y no se pixela; el tamaño solo define width / height",
                 qrItemNo: "N.º {n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Sube o pega una imagen",
@@ -12218,6 +12391,14 @@
                 qrDownload: "Unduh",
                 qrDownloadAll: "Ekspor semua",
                 qrDownloadAllTip: "Semua kode dalam satu lembar PNG, sekali simpan",
+                qrExportCard: "Ekspor",
+                qrExportCardTip: "Ekspor kode ini saja: format, ukuran, dan nama file",
+                qrExportTitle: "Ekspor kode QR",
+                qrExportName: "Nama file",
+                qrExportNameTip: "Tanpa ekstensi — format menentukan akhiran",
+                qrExportDo: "Ekspor",
+                qrExportCancel: "Batal",
+                qrExportSvgHint: "SVG bersifat vektor, tetap tajam saat diperbesar; ukuran hanya mengisi width / height",
                 qrItemNo: "#{n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Unggah atau tempel gambar",
@@ -12282,6 +12463,14 @@
                 qrDownload: "Scarica",
                 qrDownloadAll: "Esporta tutto",
                 qrDownloadAllTip: "Tutti i codici in un unico PNG, un solo salvataggio",
+                qrExportCard: "Esporta",
+                qrExportCardTip: "Esporta solo questo codice: formato, dimensione e nome file",
+                qrExportTitle: "Esporta codice QR",
+                qrExportName: "Nome file",
+                qrExportNameTip: "Senza estensione: la decide il formato",
+                qrExportDo: "Esporta",
+                qrExportCancel: "Annulla",
+                qrExportSvgHint: "L'SVG è vettoriale, resta nitido ingrandendo; la dimensione imposta solo width / height",
                 qrItemNo: "N. {n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Carica o incolla un'immagine",
@@ -12346,6 +12535,14 @@
                 qrDownload: "Pobierz",
                 qrDownloadAll: "Eksportuj wszystko",
                 qrDownloadAllTip: "Wszystkie kody na jednym arkuszu PNG, jedno zapisanie",
+                qrExportCard: "Eksportuj",
+                qrExportCardTip: "Eksportuj tylko ten kod: format, rozmiar i nazwa pliku",
+                qrExportTitle: "Eksportuj kod QR",
+                qrExportName: "Nazwa pliku",
+                qrExportNameTip: "Bez rozszerzenia — decyduje format",
+                qrExportDo: "Eksportuj",
+                qrExportCancel: "Anuluj",
+                qrExportSvgHint: "SVG jest wektorowy i nie rozmywa się; rozmiar trafia tylko do width / height",
                 qrItemNo: "#{n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Wgraj lub wklej obraz",
@@ -12410,6 +12607,14 @@
                 qrDownload: "Baixar",
                 qrDownloadAll: "Exportar tudo",
                 qrDownloadAllTip: "Todos os códigos numa folha PNG, um só salvamento",
+                qrExportCard: "Exportar",
+                qrExportCardTip: "Exportar só este código: formato, tamanho e nome do arquivo",
+                qrExportTitle: "Exportar código QR",
+                qrExportName: "Nome do arquivo",
+                qrExportNameTip: "Sem extensão: o formato decide",
+                qrExportDo: "Exportar",
+                qrExportCancel: "Cancelar",
+                qrExportSvgHint: "O SVG é vetorial e não perde nitidez; o tamanho só define width / height",
                 qrItemNo: "N.º {n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Envie ou cole uma imagem",
@@ -12474,6 +12679,14 @@
                 qrDownload: "Скачать",
                 qrDownloadAll: "Экспорт всех",
                 qrDownloadAllTip: "Все коды на одном PNG-листе — одно сохранение",
+                qrExportCard: "Экспорт",
+                qrExportCardTip: "Экспортировать только этот код: формат, размер и имя файла",
+                qrExportTitle: "Экспорт QR-кода",
+                qrExportName: "Имя файла",
+                qrExportNameTip: "Расширение не нужно — его задаёт формат",
+                qrExportDo: "Экспорт",
+                qrExportCancel: "Отмена",
+                qrExportSvgHint: "SVG — векторный, при увеличении не мылится; размер задаёт только width / height",
                 qrItemNo: "№{n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Загрузите или вставьте изображение",
@@ -12538,6 +12751,14 @@
                 qrDownload: "ดาวน์โหลด",
                 qrDownloadAll: "ส่งออกทั้งหมด",
                 qrDownloadAllTip: "รวมโค้ดทั้งหมดเป็น PNG แผ่นเดียว บันทึกครั้งเดียว",
+                qrExportCard: "ส่งออก",
+                qrExportCardTip: "ส่งออกเฉพาะโค้ดนี้: เลือกรูปแบบ ขนาด และชื่อไฟล์",
+                qrExportTitle: "ส่งออกคิวอาร์โค้ด",
+                qrExportName: "ชื่อไฟล์",
+                qrExportNameTip: "ไม่ต้องพิมพ์นามสกุล รูปแบบกำหนดให้เอง",
+                qrExportDo: "ส่งออก",
+                qrExportCancel: "ยกเลิก",
+                qrExportSvgHint: "SVG เป็นเวกเตอร์ ขยายแล้วไม่แตก ขนาดมีผลแค่ width / height",
                 qrItemNo: "ลำดับ {n}",
                 qrBadge: "{n}",
                 qrScanTitle: "อัปโหลดหรือวางรูปภาพ",
@@ -12602,6 +12823,14 @@
                 qrDownload: "İndir",
                 qrDownloadAll: "Tümünü dışa aktar",
                 qrDownloadAllTip: "Tüm kodlar tek PNG sayfasında, tek kayıt",
+                qrExportCard: "Dışa aktar",
+                qrExportCardTip: "Yalnızca bu kodu dışa aktar: biçim, boyut ve dosya adı",
+                qrExportTitle: "QR kodunu dışa aktar",
+                qrExportName: "Dosya adı",
+                qrExportNameTip: "Uzantı gerekmez — biçim belirler",
+                qrExportDo: "Dışa aktar",
+                qrExportCancel: "İptal",
+                qrExportSvgHint: "SVG vektördür, büyütünce bozulmaz; boyut yalnızca width / height değerini belirler",
                 qrItemNo: "#{n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Görsel yükle veya yapıştır",
@@ -12666,6 +12895,14 @@
                 qrDownload: "Yüklə",
                 qrDownloadAll: "Hamısını ixrac et",
                 qrDownloadAllTip: "Bütün kodlar bir PNG vərəqində, bir yadda saxlama",
+                qrExportCard: "İxrac et",
+                qrExportCardTip: "Yalnız bu kodu ixrac et: format, ölçü və fayl adı",
+                qrExportTitle: "QR kodu ixrac et",
+                qrExportName: "Fayl adı",
+                qrExportNameTip: "Uzantı lazım deyil — formatı təyin edir",
+                qrExportDo: "İxrac et",
+                qrExportCancel: "Ləğv et",
+                qrExportSvgHint: "SVG vektordur, böyüdəndə pozulmur; ölçü yalnız width / height dəyərini verir",
                 qrItemNo: "#{n}",
                 qrBadge: "{n}",
                 qrScanTitle: "Şəkil yükləyin və ya yapışdırın",
@@ -16909,6 +17146,16 @@
         const qrBgPicker = document.getElementById('qrBgPicker');
         const qrGenBtn = document.getElementById('qrGenBtn');
         const qrDownloadAllBtn = document.getElementById('qrDownloadAll');
+        const qrExportMask = document.getElementById('qrExportMask');
+        const qrExportNameInput = document.getElementById('qrExportName');
+        const qrExportExtEl = document.getElementById('qrExportExt');
+        const qrExportFormatEl = document.getElementById('qrExportFormat');
+        const qrExportSizeChips = document.getElementById('qrExportSizeChips');
+        const qrExportSizeInput = document.getElementById('qrExportSize');
+        const qrExportNoteEl = document.getElementById('qrExportNote');
+        const qrExportOkBtn = document.getElementById('qrExportOk');
+        const qrExportCancelBtn = document.getElementById('qrExportCancel');
+        const qrExportCloseBtn = document.getElementById('qrExportClose');
         const qrScanPickTop = document.getElementById('qrScanPickTop');
         const qrScanCopyAllBtn = document.getElementById('qrScanCopyAll');
         const qrScanPick = document.getElementById('qrPick');
@@ -16938,6 +17185,11 @@
         let qrDecodePump = null;
         // 收起状态按序号记（重新生成后同一格还是收着的）：{ [index]: true }
         const qrCollapsed = {};
+        // 单张导出面板：-1 表示没开；pref 记住最近一次选的格式 / 尺寸，
+        // 连着导十几张时不用每张都重选
+        let qrExportIndex = -1;
+        let qrExportFormat = 'png';
+        let qrExportPref = null;
 
         // 示例：一批自造内容（链接 / 资产号 / 单据号 / 联系人各一条），正好演示「一行一个码」
         const QR_SAMPLE = [
@@ -17115,6 +17367,8 @@
 
         function qrRenderGrid(opts) {
             if (!QR) return;
+            // 重绘会换掉卡片，面板里的序号可能已经指不到原来那张，先收起
+            if (qrExportMask && !qrExportMask.hidden) qrCloseExport();
             const o = opts || qrOpts();
             qrGridEl.innerHTML = '';
             const has = qrItems.length > 0;
@@ -17157,16 +17411,19 @@
                 const text = qrEl('div', 'qr-card-text', item.text);
                 text.title = item.text;
                 const foot = qrEl('div', 'qr-card-foot');
-                const download = qrEl('button', 'qr-mini', qrT('qrDownload', '下载'));
-                download.type = 'button';
-                download.addEventListener('click', () => { qrDownloadOne(index); });
+                const exportBtn = qrEl('button', 'qr-mini', qrT('qrExportCard', '导出'));
+                exportBtn.type = 'button';
+                // 动态内容：标上 data-keep-title，才不会被宿主的提示清理扫掉
+                exportBtn.setAttribute('data-keep-title', '');
+                exportBtn.title = qrT('qrExportCardTip', '单独导出这张：可选格式、尺寸和文件名');
+                exportBtn.addEventListener('click', () => { qrOpenExport(index); });
                 const copy = qrEl('button', 'qr-mini', currentDict.copyBtn || '复制');
                 copy.type = 'button';
                 copy.addEventListener('click', () => { qrCopyText(item.text); });
                 const copyImage = qrEl('button', 'qr-mini', qrT('qrCopyImage', '复制图片'));
                 copyImage.type = 'button';
                 copyImage.addEventListener('click', () => { qrCopyImage(index); });
-                foot.appendChild(download);
+                foot.appendChild(exportBtn);
                 foot.appendChild(copy);
                 foot.appendChild(copyImage);
                 body.appendChild(media);
@@ -17188,8 +17445,9 @@
             qrOutSize.textContent = o.size + ' × ' + o.size + ' px';
         }
 
-        function qrFileName(index, ext) {
-            return 'qr-' + String(index + 1).padStart(2, '0') + '.' + ext;
+        /** 默认文件名（不含扩展名）：qr-01 / qr-02… */
+        function qrBaseName(index) {
+            return 'qr-' + String(index + 1).padStart(2, '0');
         }
 
         function qrCanvasBase64(canvas) {
@@ -17202,30 +17460,92 @@
             }
         }
 
-        async function qrDownloadOne(index) {
+        /**
+         * 单张落盘：格式 / 尺寸 / 文件名都由面板给。
+         * 只有面板一个调用方，好处是「面板上写的」和「真正导出的」永远不会是两份东西。
+         */
+        async function qrExportOne(index, format, size, name) {
             const item = qrItems[index];
-            if (!item || !QR) return;
-            const opts = qrOpts();
-            const name = qrFileName(index, qrFormat);
-            let status;
-            if (qrFormat === 'svg') {
-                status = await saveTextFile(name, QR.svgMarkup(item.matrix, opts), 'image/svg+xml');
-            } else {
-                const canvas = document.createElement('canvas');
-                if (!QR.drawToCanvas(canvas, item.matrix, opts)) {
-                    showToast(currentDict.saveFailed || '导出失败', 'error');
-                    return;
-                }
-                const base64 = qrCanvasBase64(canvas);
-                canvas.width = 0;
-                canvas.height = 0;
-                if (!base64) {
-                    showToast(currentDict.saveFailed || '导出失败', 'error');
-                    return;
-                }
-                status = await saveBinaryFile(name, base64, 'image/png');
+            if (!item || !QR) return 'failed';
+            const base = qrOpts();
+            const opts = Object.assign({}, base, {
+                size: QR.clampInt(size, QR.LIMITS.size.min, QR.LIMITS.size.max, base.size)
+            });
+            if (format === 'svg') {
+                return saveTextFile(name, QR.svgMarkup(item.matrix, opts), 'image/svg+xml');
             }
-            saveToast(status, name);
+            const canvas = document.createElement('canvas');
+            if (!QR.drawToCanvas(canvas, item.matrix, opts)) return 'failed';
+            const base64 = qrCanvasBase64(canvas);
+            canvas.width = 0;
+            canvas.height = 0;
+            return base64 ? saveBinaryFile(name, base64, 'image/png') : 'failed';
+        }
+
+        /** 面板联动：扩展名、格式高亮、尺寸快选；SVG 是矢量，尺寸只写进 width / height */
+        function qrSyncExportUi() {
+            const svg = qrExportFormat === 'svg';
+            qrExportExtEl.textContent = svg ? '.svg' : '.png';
+            qrExportFormatEl.querySelectorAll('[data-export-format]').forEach((el) => {
+                el.classList.toggle('active', el.dataset.exportFormat === qrExportFormat);
+            });
+            const fallback = qrOpts().size;
+            const size = QR
+                ? String(QR.clampInt(qrExportSizeInput.value, QR.LIMITS.size.min, QR.LIMITS.size.max, fallback))
+                : String(fallback);
+            qrExportSizeChips.querySelectorAll('[data-export-size]').forEach((el) => {
+                el.classList.toggle('active', el.dataset.exportSize === size);
+            });
+            qrExportNoteEl.textContent = svg
+                ? qrT('qrExportSvgHint', 'SVG 是矢量图，放大不糊；尺寸只写进 width / height')
+                : '';
+        }
+
+        /** 面板里动过格式 / 尺寸就记住，下一张不用重选（取消也算，反正是用户的选择） */
+        function qrRememberExportPref() {
+            const opts = qrOpts();
+            qrExportPref = {
+                format: qrExportFormat,
+                size: QR
+                    ? QR.clampInt(qrExportSizeInput.value, QR.LIMITS.size.min, QR.LIMITS.size.max, opts.size)
+                    : opts.size
+            };
+        }
+
+        function qrOpenExport(index) {
+            if (!QR || !qrItems[index]) return;
+            const opts = qrOpts();
+            const pref = qrExportPref || { format: qrFormat, size: opts.size };
+            qrExportIndex = index;
+            qrExportFormat = pref.format === 'svg' ? 'svg' : 'png';
+            qrExportSizeInput.value = String(pref.size || opts.size);
+            qrExportNameInput.value = qrBaseName(index);
+            qrSyncExportUi();
+            qrExportMask.hidden = false;
+            // 名字默认全选：想改名直接打字，不改就回车
+            qrExportNameInput.focus();
+            if (typeof qrExportNameInput.select === 'function') qrExportNameInput.select();
+        }
+
+        function qrCloseExport() {
+            const wasOpen = !qrExportMask.hidden;
+            qrExportMask.hidden = true;
+            qrExportIndex = -1;
+            if (wasOpen && document.activeElement === qrExportNameInput) qrExportNameInput.blur();
+        }
+
+        async function qrConfirmExport() {
+            const index = qrExportIndex;
+            if (index < 0 || !QR) {
+                qrCloseExport();
+                return;
+            }
+            const format = qrExportFormat === 'svg' ? 'svg' : 'png';
+            const size = QR.clampInt(qrExportSizeInput.value, QR.LIMITS.size.min, QR.LIMITS.size.max, qrOpts().size);
+            const name = QR.fileNameFor(qrExportNameInput.value, format, qrBaseName(index));
+            qrExportPref = { format: format, size: size };
+            qrCloseExport();
+            saveToast(await qrExportOne(index, format, size, name), name);
         }
 
         /** 按宽度裁剪一段文字，末尾补省略号（拼图里的序号标签用） */
@@ -17683,6 +18003,7 @@
         function exitQrMode() {
             if (!qrModeActive) return;
             qrModeActive = false;
+            qrCloseExport();
             clearTimeout(qrTimer);
             qrWorkspaceEl.classList.remove('active');
             navQrLink.classList.remove('active');
@@ -17886,6 +18207,46 @@
 
         qrGenBtn.addEventListener('click', () => { qrRun(); });
         qrDownloadAllBtn.addEventListener('click', () => { qrDownloadAll(); });
+
+        /* ---------- 单张导出面板 ---------- */
+
+        qrExportFormatEl.addEventListener('click', (e) => {
+            const chip = e.target.closest('[data-export-format]');
+            if (!chip) return;
+            qrExportFormat = chip.dataset.exportFormat === 'svg' ? 'svg' : 'png';
+            qrSyncExportUi();
+            qrRememberExportPref();
+        });
+
+        qrExportSizeChips.addEventListener('click', (e) => {
+            const chip = e.target.closest('[data-export-size]');
+            if (!chip) return;
+            qrExportSizeInput.value = chip.dataset.exportSize;
+            qrSyncExportUi();
+            qrRememberExportPref();
+        });
+
+        // 手输尺寸时只同步高亮，不就地夹值（边打边夹的话，敲「1」就被吃掉了）
+        qrExportSizeInput.addEventListener('input', () => { qrSyncExportUi(); });
+        qrExportSizeInput.addEventListener('blur', () => {
+            const opts = qrOpts();
+            qrExportSizeInput.value = String(QR
+                ? QR.clampInt(qrExportSizeInput.value, QR.LIMITS.size.min, QR.LIMITS.size.max, opts.size)
+                : opts.size);
+            qrSyncExportUi();
+            qrRememberExportPref();
+        });
+
+        qrExportMask.addEventListener('click', (e) => {
+            if (e.target === qrExportMask) qrCloseExport();   // 点遮罩空白处 = 取消
+        });
+        qrExportMask.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') { e.preventDefault(); qrCloseExport(); return; }
+            if (e.key === 'Enter') { e.preventDefault(); qrConfirmExport(); }
+        });
+        qrExportCancelBtn.addEventListener('click', () => { qrCloseExport(); });
+        qrExportCloseBtn.addEventListener('click', () => { qrCloseExport(); });
+        qrExportOkBtn.addEventListener('click', () => { qrConfirmExport(); });
 
         document.getElementById('qrSample').addEventListener('click', () => {
             if (qrEditor) qrEditor.setValue(QR_SAMPLE);
