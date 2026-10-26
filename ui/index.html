@@ -49,6 +49,7 @@
     <script src="js/time.js"></script>
     <script src="js/qr.js"></script>
     <script src="js/flow.js"></script>
+    <script src="js/nav.js"></script>
 
     <!-- ECharts 引擎的惰性副本。宿主把插件页关进沙箱，CSP 只放行 inline / blob: 脚本，
          外链脚本一律被拦；而带 src 的 <script> 会被宿主内联成文本，所以引擎在这里当「文本」存着，
@@ -348,8 +349,10 @@
                 flex-direction: column;
                 align-items: stretch;
                 gap: 0.25rem;
-                margin: 0;
-                padding: 0.75rem 0.625rem;
+                margin: 0.75rem 0 0;
+                /* 顶部不留内边距：置顶项要贴着滚动口粘住，留白改用 margin，
+                   否则滚动时下面的项会从这条缝里透出来 */
+                padding: 0 0.625rem 0.75rem;
                 overflow-x: hidden;
                 overflow-y: auto;
                 white-space: normal;
@@ -3157,6 +3160,188 @@
             overflow: auto;
         }
         .qr-result-item.is-failed .qr-result-body { color: var(--text-muted); font-style: italic; }
+
+        /* =========================================
+           导航设置：吸顶 / 置顶 / 自定义顺序
+           ========================================= */
+        /* 吸顶：贴着最近的可滚动祖先（现在外壳是固定高度，只有宿主把插件放进
+           可滚动页面时才会真正滚起来；左侧栏模式下列内滚动也吃这条） */
+        body.nav-sticky .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+        }
+        /* 左侧竖排：置顶项在列内滚动时粘在栏顶（top 由 navSyncPinnedSticky() 逐个量高度写死） */
+        @media (min-width: 769px) {
+            body.nav-left.nav-sticky #navLinks a.is-pinned {
+                position: sticky;
+                z-index: 1;
+                background-color: var(--bg-base);
+            }
+        }
+
+        .nv-mask {
+            position: fixed;
+            inset: 0;
+            z-index: 95;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background-color: rgba(15, 18, 24, 0.42);
+        }
+        /* display:flex 会盖掉 hidden，这里单独兜一次 */
+        .nv-mask[hidden] { display: none; }
+        .nv-card {
+            width: min(100%, 25rem);
+            /* 11 行 + 头/说明/开关/底栏约 590px，给到 40rem 让常见窗口一次看全，不再切掉半行 */
+            max-height: min(86vh, 40rem);
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+            padding: 0.9rem 1rem 1rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg, 0.75rem);
+            background-color: var(--bg-base);
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
+        }
+        .nv-head { display: flex; align-items: center; gap: 0.5rem; }
+        .nv-title { flex: 1; font-size: 0.86rem; font-weight: 600; color: var(--text-main); }
+        .nv-close {
+            flex: none;
+            width: 1.5rem;
+            height: 1.5rem;
+            padding: 0;
+            border: 0;
+            border-radius: var(--radius-sm, 4px);
+            background: none;
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .nv-close:hover { color: var(--text-main); background-color: var(--accent-bg); }
+        .nv-hint {
+            margin: 0;
+            font-size: 0.68rem;
+            line-height: 1.5;
+            color: var(--text-muted);
+        }
+        .nv-switch-row {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            padding: 0.5rem 0.6rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md, 0.5rem);
+            background-color: var(--bg-card);
+            cursor: pointer;
+        }
+        .nv-switch-text {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.1rem;
+            font-size: 0.76rem;
+            color: var(--text-main);
+        }
+        .nv-switch-text small { font-size: 0.66rem; line-height: 1.4; color: var(--text-muted); }
+        /* 自绘开关：系统 checkbox 跟主题不搭，和 .custom-select 一个思路 */
+        input.nv-switch {
+            appearance: none;
+            -webkit-appearance: none;
+            flex: none;
+            position: relative;
+            width: 2rem;
+            height: 1.15rem;
+            margin: 0;
+            border: 1px solid var(--border-light);
+            border-radius: 999px;
+            background-color: var(--bg-base);
+            cursor: pointer;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+        input.nv-switch::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0.15rem;
+            width: 0.75rem;
+            height: 0.75rem;
+            border-radius: 50%;
+            background-color: var(--text-muted);
+            transform: translateY(-50%);
+            transition: left 0.15s ease, background-color 0.15s ease;
+        }
+        input.nv-switch:checked { background-color: var(--primary); border-color: var(--primary); }
+        input.nv-switch:checked::after { left: calc(100% - 0.9rem); background-color: #fff; }
+        input.nv-switch:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .nv-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            min-height: 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+        .nv-row {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.3rem 0.4rem;
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm, 4px);
+            font-size: 0.78rem;
+            color: var(--text-main);
+        }
+        .nv-row:hover { background-color: var(--accent-bg); }
+        .nv-row.is-pinned { border-color: var(--border-light); background-color: var(--accent-bg); }
+        .nv-row.dragging { opacity: 0.45; }
+        .nv-grip {
+            flex: none;
+            width: 0.85rem;
+            color: var(--text-muted);
+            cursor: grab;
+            user-select: none;
+            text-align: center;
+            line-height: 1;
+        }
+        .nv-name {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .nv-btn {
+            flex: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.5rem;
+            height: 1.5rem;
+            padding: 0;
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm, 4px);
+            background: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+        }
+        .nv-btn svg { width: 0.95rem; height: 0.95rem; }
+        .nv-btn:hover:not(:disabled) {
+            color: var(--text-main);
+            background-color: var(--bg-base);
+            border-color: var(--border-light);
+        }
+        .nv-btn.on { color: var(--primary); border-color: var(--primary); }
+        .nv-btn:disabled { opacity: 0.28; cursor: default; }
+        .nv-foot { display: flex; justify-content: space-between; gap: 0.5rem; margin-top: 0.1rem; }
+        /* .btn-primary 全局带 flex:1，面板里只想按内容宽 */
+        .nv-foot .btn { flex: 0 0 auto; }
     </style>
 </head>
 <body>
@@ -3215,6 +3400,11 @@
         </button>
         <div class="lang-menu" id="langMenu"></div>
     </div>
+
+    <!-- 导航设置：顺序 / 置顶 / 吸顶（列表由 navPanelRender() 生成） -->
+    <button type="button" class="nav-toggle" id="navCustomize" data-keep-title aria-haspopup="dialog" aria-label="自定义导航">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+    </button>
 
     <!-- 导航位置切换：顶部 ⇄ 左侧，偏好记在 localStorage（默认顶部） -->
     <button type="button" class="nav-toggle" id="navToggle" data-keep-title aria-label="切换到左侧导航">
@@ -4405,6 +4595,30 @@
     </div>
 </div>
 
+<!-- 导航设置面板：调整顺序 / 置顶 / 导航条吸顶 -->
+<div class="nv-mask" id="navPanelMask" hidden>
+    <div class="nv-card" role="dialog" aria-modal="true" aria-labelledby="navPanelTitle">
+        <div class="nv-head">
+            <span class="nv-title" id="navPanelTitle" data-i18n="navPanelTitle">导航设置</span>
+            <button type="button" class="nv-close" id="navPanelClose"
+                    data-i18n-title="navClose" aria-label="close">×</button>
+        </div>
+        <p class="nv-hint" data-i18n="navPanelHint">拖动或用箭头调整顺序；置顶的项排在最前，窗口变窄也不会被收进「更多」。</p>
+        <label class="nv-switch-row">
+            <span class="nv-switch-text">
+                <span data-i18n="navSticky">导航条吸顶</span>
+                <small data-i18n="navStickyHint">内容滚动时导航条固定在窗口顶部</small>
+            </span>
+            <input type="checkbox" class="nv-switch" id="navStickyToggle">
+        </label>
+        <ul class="nv-list" id="navPanelList"></ul>
+        <div class="nv-foot">
+            <button type="button" class="btn btn-outline" id="navPanelReset" data-i18n="navReset">恢复默认</button>
+            <button type="button" class="btn btn-primary" id="navPanelDone" data-i18n="navDone">完成</button>
+        </div>
+    </div>
+</div>
+
 <div id="toastContainer" class="toast-container"></div>
 
 <script>
@@ -4665,8 +4879,9 @@
         const navConvertEl = document.getElementById('navConvert');
         const navConvertTrigger = document.getElementById('navConvertTrigger');
         const navConvertMenu = document.getElementById('navConvertMenu');
-        // 「JSON 对比」是主入口，优先留在导航条上，实在放不下才收起来
-        const NAV_PIN_SELECTOR = '.nav-compare, .nav-sql';
+        // 默认置顶：「JSON 对比」「SQL 转换」是主入口，优先留在导航条上。
+        // 用户可以在「导航设置」里改（见 3.7），这份只是出厂值。
+        const NAV_DEFAULT_PINS = ['navCompare', 'navSql'];
 
         function navOverflow() {
             return navLinksEl.scrollWidth - navLinksEl.clientWidth > 1;
@@ -4678,6 +4893,50 @@
             return Array.prototype.slice.call(
                 document.querySelectorAll('#navLinks > a, #navMoreMenu > a')
             );
+        }
+
+        // ---- 自定义顺序 / 置顶 / 吸顶的状态（排序规则全在 js/nav.js）----
+        const NAV_CUSTOM_KEY = 'navCustom';
+        const Nav = window.DBXNav || null;
+        let navOrder = [];                      // 用户排出来的顺序（置顶项在前）
+        let navPins = NAV_DEFAULT_PINS.slice(); // 置顶项
+        let navSticky = false;                  // 导航条吸顶
+        let navExtra = {};                      // 这一版读不懂的字段，原样存回去
+
+        // 出厂顺序 = DOM 里写的那一份（captureNavOrder 记下的 data-nav-idx）
+        function navDefaultOrder() {
+            const list = navLinkList();
+            // 运行时新加的项（以后新增页面）还没记序号，补一个排在原有的后面，
+            // 否则缺失会当成 0，被排到最前面
+            list.forEach((el, i) => {
+                if (!el.hasAttribute('data-nav-idx')) el.setAttribute('data-nav-idx', String(1000 + i));
+            });
+            return list
+                .slice()
+                .sort((a, b) => Number(a.getAttribute('data-nav-idx') || 0) - Number(b.getAttribute('data-nav-idx') || 0))
+                .map((el) => el.id)
+                .filter(Boolean);
+        }
+
+        function navIsPinned(el) {
+            return !!el && navPins.indexOf(el.id) >= 0;
+        }
+
+        // 左侧竖排：置顶项在列内滚动时粘在栏顶。sticky 的 top 要自己算，
+        // 否则多个置顶项会叠在同一行（jsdom 量不到高度，offsetHeight 为 0）
+        function navSyncPinnedSticky(links) {
+            const leftMode = document.body.classList.contains('nav-left') && window.innerWidth > 768;
+            let offset = 0;
+            (links || []).forEach((el) => {
+                const pinned = navIsPinned(el);
+                el.classList.toggle('is-pinned', pinned);
+                if (!leftMode || !pinned) {
+                    el.style.top = '';
+                    return;
+                }
+                el.style.top = Math.round(offset) + 'px';
+                offset += el.offsetHeight || 0;
+            });
         }
 
         // 首次布局时记下原始顺序，之后靠它复原
@@ -4694,13 +4953,20 @@
 
         // 装得下就全部放回导航条；装不下就把末尾的项依次收进「更多」
         function layoutNav() {
-            const links = navLinkList().sort((a, b) => {
-                return Number(a.getAttribute('data-nav-idx') || 0) - Number(b.getAttribute('data-nav-idx') || 0);
-            });
+            // 顺序 = 用户排的那一份（置顶项已在最前）；没排过就按 DOM 顺序
+            const rank = {};
+            const order = navOrder.length ? navOrder : navDefaultOrder();
+            order.forEach((id, i) => { rank[id] = i; });
+            const rankOf = (el) => {
+                const r = rank[el.id];
+                return typeof r === 'number' ? r : 999 + Number(el.getAttribute('data-nav-idx') || 0);
+            };
+            const links = navLinkList().sort((a, b) => rankOf(a) - rankOf(b));
             navLinksEl.classList.remove('is-empty');
             links.forEach((el) => navLinksEl.appendChild(el));
             navMoreEl.classList.remove('show');
             closeNavMore();
+            navSyncPinnedSticky(links);
 
             if (!links.length) return;
             // 左侧竖排：宽度固定、纵向滚动，横向永远不会溢出，也就没有「更多」
@@ -4713,18 +4979,20 @@
             if (!navOverflow()) return;
 
             navMoreEl.classList.add('show');
-            // 从后往前挪；先只挪非固定项
-            const movable = links.filter((el) => !el.matches(NAV_PIN_SELECTOR));
+            // 从末尾往外搬：先搬没置顶的，还不够再搬置顶的
+            const queue = links.filter((el) => !navIsPinned(el)).reverse()
+                .concat(links.filter((el) => navIsPinned(el)).reverse());
+            const moved = [];
             let guard = 0;
-            while (navOverflow() && movable.length && guard++ < 64) {
-                navMoreMenu.insertBefore(movable.pop(), navMoreMenu.firstChild);
+            while (navOverflow() && queue.length && guard++ < 64) {
+                const el = queue.shift();
+                // 先塞进菜单（这样 scrollWidth 才会缩），顺序最后统一摆
+                navMoreMenu.appendChild(el);
+                moved.push(el);
             }
-            // 极端窄屏：连固定项也放不下了
-            if (navOverflow()) {
-                links.filter((el) => el.matches(NAV_PIN_SELECTOR)).forEach((el) => {
-                    navMoreMenu.appendChild(el);
-                });
-            }
+            // 菜单里的顺序必须跟导航条一致（置顶的仍在最前）：
+            // 上面是从末尾往前搬的，这里按 rank 重新摆一遍
+            moved.sort((a, b) => rankOf(a) - rankOf(b)).forEach((el) => navMoreMenu.appendChild(el));
             // 一项都没挪出去时不该出现空菜单
             if (!navMoreMenu.children.length) navMoreEl.classList.remove('show');
             // 导航条被搬空时收起这块空白，让「更多」贴着品牌走
@@ -4850,6 +5118,7 @@
             if (e.key === 'Escape') {
                 closeNavMore();
                 closeNavConvert();
+                if (typeof navClosePanel === 'function') navClosePanel();
             }
         });
 
@@ -4858,20 +5127,20 @@
         // =========================================
         // 导航「格式转换」下拉的标题：14 种语言的小表，同样由 applyI18n 合并查询
         const NAV_I18N = {
-            'zh-CN': { navConvert: '格式转换', navBytes: '字节转换', navChart: 'JSON 转图表', navTime: '时间转换', navToggleToLeft: '切换到左侧导航', navToggleToTop: '切换到顶部导航' },
-            'zh-TW': { navConvert: '格式轉換', navBytes: '位元組轉換', navChart: 'JSON 轉圖表', navTime: '時間轉換', navToggleToLeft: '切換到左側導覽', navToggleToTop: '切換到頂部導覽' },
-            en: { navConvert: 'Convert', navBytes: 'Bytes', navChart: 'JSON to Chart', navTime: 'Time', navToggleToLeft: 'Move navigation to the left', navToggleToTop: 'Move navigation to the top' },
-            az: { navConvert: 'Format', navBytes: 'Bayt', navChart: 'JSON → Diaqram', navTime: 'Vaxt', navToggleToLeft: 'Naviqasiyanı sola keçir', navToggleToTop: 'Naviqasiyanı yuxarı keçir' },
-            es: { navConvert: 'Formato', navBytes: 'Bytes', navChart: 'JSON a gráfico', navTime: 'Tiempo', navToggleToLeft: 'Mover la navegación a la izquierda', navToggleToTop: 'Mover la navegación arriba' },
-            id: { navConvert: 'Format', navBytes: 'Byte', navChart: 'JSON ke grafik', navTime: 'Waktu', navToggleToLeft: 'Pindahkan navigasi ke kiri', navToggleToTop: 'Pindahkan navigasi ke atas' },
-            it: { navConvert: 'Formato', navBytes: 'Byte', navChart: 'JSON in grafico', navTime: 'Tempo', navToggleToLeft: 'Sposta la navigazione a sinistra', navToggleToTop: 'Sposta la navigazione in alto' },
-            ja: { navConvert: '形式変換', navBytes: 'バイト変換', navChart: 'JSON → グラフ', navTime: '時間変換', navToggleToLeft: 'ナビゲーションを左へ', navToggleToTop: 'ナビゲーションを上へ' },
-            ko: { navConvert: '형식 변환', navBytes: '바이트 변환', navChart: 'JSON → 차트', navTime: '시간 변환', navToggleToLeft: '탐색을 왼쪽으로', navToggleToTop: '탐색을 위로' },
-            pt: { navConvert: 'Formato', navBytes: 'Bytes', navChart: 'JSON para gráfico', navTime: 'Tempo', navToggleToLeft: 'Mover a navegação para a esquerda', navToggleToTop: 'Mover a navegação para o topo' },
-            pl: { navConvert: 'Format', navBytes: 'Bajty', navChart: 'JSON na wykres', navTime: 'Czas', navToggleToLeft: 'Przenieś nawigację w lewo', navToggleToTop: 'Przenieś nawigację na górę' },
-            ru: { navConvert: 'Формат', navBytes: 'Байты', navChart: 'JSON в график', navTime: 'Время', navToggleToLeft: 'Переместить навигацию влево', navToggleToTop: 'Переместить навигацию наверх' },
-            th: { navConvert: 'รูปแบบ', navBytes: 'ไบต์', navChart: 'JSON เป็นกราฟ', navTime: 'เวลา', navToggleToLeft: 'ย้ายเมนูไปทางซ้าย', navToggleToTop: 'ย้ายเมนูไปด้านบน' },
-            tr: { navConvert: 'Format', navBytes: 'Bayt', navChart: 'JSON → Grafik', navTime: 'Zaman', navToggleToLeft: 'Gezinmeyi sola taşı', navToggleToTop: 'Gezinmeyi üste taşı' }
+            'zh-CN': { navConvert: '格式转换', navBytes: '字节转换', navChart: 'JSON 转图表', navTime: '时间转换', navToggleToLeft: '切换到左侧导航', navToggleToTop: '切换到顶部导航', navCustomize: '自定义导航', navPanelTitle: '导航设置', navPanelHint: '拖动或用箭头调整顺序；置顶的项排在最前，实在放不下才会被收进「更多」。', navSticky: '导航条吸顶', navStickyHint: '内容滚动时导航条固定在窗口顶部', navPin: '置顶', navUnpin: '取消置顶', navMoveUp: '上移', navMoveDown: '下移', navReset: '恢复默认', navDone: '完成', navClose: '关闭', navPinFull: '最多置顶 {n} 项', navResetDone: '导航已恢复默认' },
+            'zh-TW': { navConvert: '格式轉換', navBytes: '位元組轉換', navChart: 'JSON 轉圖表', navTime: '時間轉換', navToggleToLeft: '切換到左側導覽', navToggleToTop: '切換到頂部導覽', navCustomize: '自訂導覽', navPanelTitle: '導覽設定', navPanelHint: '拖曳或用箭頭調整順序；置頂的項目排在最前，真的放不下才會被收進「更多」。', navSticky: '導覽列吸頂', navStickyHint: '內容捲動時導覽列固定在視窗頂端', navPin: '置頂', navUnpin: '取消置頂', navMoveUp: '上移', navMoveDown: '下移', navReset: '恢復預設', navDone: '完成', navClose: '關閉', navPinFull: '最多置頂 {n} 項', navResetDone: '導覽已恢復預設' },
+            en: { navConvert: 'Convert', navBytes: 'Bytes', navChart: 'JSON to Chart', navTime: 'Time', navToggleToLeft: 'Move navigation to the left', navToggleToTop: 'Move navigation to the top', navCustomize: 'Customize navigation', navPanelTitle: 'Navigation settings', navPanelHint: 'Drag a row or use the arrows to reorder. Pinned entries stay in front and only move into More when nothing else fits.', navSticky: 'Sticky navigation bar', navStickyHint: 'Keep the bar at the top of the window while content scrolls', navPin: 'Pin', navUnpin: 'Unpin', navMoveUp: 'Move up', navMoveDown: 'Move down', navReset: 'Reset', navDone: 'Done', navClose: 'Close', navPinFull: 'Up to {n} pinned entries', navResetDone: 'Navigation reset to default' },
+            az: { navConvert: 'Format', navBytes: 'Bayt', navChart: 'JSON → Diaqram', navTime: 'Vaxt', navToggleToLeft: 'Naviqasiyanı sola keçir', navToggleToTop: 'Naviqasiyanı yuxarı keçir', navCustomize: 'Naviqasiyanı fərdiləşdir', navPanelTitle: 'Naviqasiya parametrləri', navPanelHint: 'Sıranı dəyişmək üçün sətri dartın və ya oxlardan istifadə edin. Bərkidilmiş elementlər öndə qalır və yalnız heç nə sığmadıqda «Daha çox» menyusuna keçir.', navSticky: 'Naviqasiya paneli yuxarıda sabit', navStickyHint: 'Məzmun sürüşdükdə panel pəncərənin yuxarısında qalır', navPin: 'Bərkit', navUnpin: 'Bərkitməni ləğv et', navMoveUp: 'Yuxarı', navMoveDown: 'Aşağı', navReset: 'Susmaya qaytar', navDone: 'Hazır', navClose: 'Bağla', navPinFull: 'Ən çoxu {n} element bərkidilə bilər', navResetDone: 'Naviqasiya susmaya qaytarıldı' },
+            es: { navConvert: 'Formato', navBytes: 'Bytes', navChart: 'JSON a gráfico', navTime: 'Tiempo', navToggleToLeft: 'Mover la navegación a la izquierda', navToggleToTop: 'Mover la navegación arriba', navCustomize: 'Personalizar navegación', navPanelTitle: 'Ajustes de navegación', navPanelHint: 'Arrastra una fila o usa las flechas para reordenar. Lo fijado queda delante y solo pasa a «Más» cuando ya no cabe nada más.', navSticky: 'Barra de navegación fija', navStickyHint: 'Mantener la barra arriba mientras se desplaza el contenido', navPin: 'Fijar', navUnpin: 'Quitar fijado', navMoveUp: 'Subir', navMoveDown: 'Bajar', navReset: 'Restaurar', navDone: 'Listo', navClose: 'Cerrar', navPinFull: 'Máximo {n} fijados', navResetDone: 'Navegación restaurada' },
+            id: { navConvert: 'Format', navBytes: 'Byte', navChart: 'JSON ke grafik', navTime: 'Waktu', navToggleToLeft: 'Pindahkan navigasi ke kiri', navToggleToTop: 'Pindahkan navigasi ke atas', navCustomize: 'Sesuaikan navigasi', navPanelTitle: 'Pengaturan navigasi', navPanelHint: 'Seret baris atau pakai panah untuk mengurutkan. Item yang disematkan tetap di depan dan hanya masuk "Lainnya" jika tidak ada ruang lagi.', navSticky: 'Bilah navigasi menempel', navStickyHint: 'Bilah tetap di atas jendela saat konten digulir', navPin: 'Sematkan', navUnpin: 'Lepas sematan', navMoveUp: 'Naik', navMoveDown: 'Turun', navReset: 'Kembalikan default', navDone: 'Selesai', navClose: 'Tutup', navPinFull: 'Maksimal {n} sematan', navResetDone: 'Navigasi dikembalikan ke default' },
+            it: { navConvert: 'Formato', navBytes: 'Byte', navChart: 'JSON in grafico', navTime: 'Tempo', navToggleToLeft: 'Sposta la navigazione a sinistra', navToggleToTop: 'Sposta la navigazione in alto', navCustomize: 'Personalizza navigazione', navPanelTitle: 'Impostazioni navigazione', navPanelHint: 'Trascina una riga o usa le frecce per riordinare. Gli elementi fissati restano davanti e finiscono in «Altro» solo quando non c’è più spazio.', navSticky: 'Barra di navigazione fissa', navStickyHint: 'Mantieni la barra in alto mentre il contenuto scorre', navPin: 'Fissa', navUnpin: 'Rimuovi', navMoveUp: 'Sposta su', navMoveDown: 'Sposta giù', navReset: 'Ripristina', navDone: 'Fatto', navClose: 'Chiudi', navPinFull: 'Massimo {n} elementi fissati', navResetDone: 'Navigazione ripristinata' },
+            ja: { navConvert: '形式変換', navBytes: 'バイト変換', navChart: 'JSON → グラフ', navTime: '時間変換', navToggleToLeft: 'ナビゲーションを左へ', navToggleToTop: 'ナビゲーションを上へ', navCustomize: 'ナビゲーションをカスタマイズ', navPanelTitle: 'ナビゲーション設定', navPanelHint: '行をドラッグするか矢印で並べ替えます。固定した項目は先頭に残り、入りきらないときに限り「その他」へ移動します。', navSticky: 'ナビゲーションバーを固定', navStickyHint: '内容をスクロールしてもバーをウィンドウ上部に固定します', navPin: '固定', navUnpin: '固定を解除', navMoveUp: '上へ', navMoveDown: '下へ', navReset: '既定に戻す', navDone: '完了', navClose: '閉じる', navPinFull: '固定できるのは最大 {n} 件', navResetDone: 'ナビゲーションを既定に戻しました' },
+            ko: { navConvert: '형식 변환', navBytes: '바이트 변환', navChart: 'JSON → 차트', navTime: '시간 변환', navToggleToLeft: '탐색을 왼쪽으로', navToggleToTop: '탐색을 위로', navCustomize: '탐색 맞춤설정', navPanelTitle: '탐색 설정', navPanelHint: '행을 끌거나 화살표로 순서를 바꾸세요. 고정한 항목은 맨 앞에 남고 공간이 정말 부족할 때만 "더보기"로 이동합니다.', navSticky: '탐색 막대 고정', navStickyHint: '내용을 스크롤해도 막대를 창 위쪽에 고정합니다', navPin: '고정', navUnpin: '고정 해제', navMoveUp: '위로', navMoveDown: '아래로', navReset: '기본값 복원', navDone: '완료', navClose: '닫기', navPinFull: '최대 {n}개까지 고정', navResetDone: '탐색을 기본값으로 복원했습니다' },
+            pt: { navConvert: 'Formato', navBytes: 'Bytes', navChart: 'JSON para gráfico', navTime: 'Tempo', navToggleToLeft: 'Mover a navegação para a esquerda', navToggleToTop: 'Mover a navegação para o topo', navCustomize: 'Personalizar navegação', navPanelTitle: 'Configurações de navegação', navPanelHint: 'Arraste uma linha ou use as setas para reordenar. Os itens fixados ficam à frente e só vão para «Mais» quando não cabe mais nada.', navSticky: 'Barra de navegação fixa', navStickyHint: 'Manter a barra no topo enquanto o conteúdo rola', navPin: 'Fixar', navUnpin: 'Desafixar', navMoveUp: 'Mover para cima', navMoveDown: 'Mover para baixo', navReset: 'Restaurar', navDone: 'Concluir', navClose: 'Fechar', navPinFull: 'Máximo de {n} fixados', navResetDone: 'Navegação restaurada' },
+            pl: { navConvert: 'Format', navBytes: 'Bajty', navChart: 'JSON na wykres', navTime: 'Czas', navToggleToLeft: 'Przenieś nawigację w lewo', navToggleToTop: 'Przenieś nawigację na górę', navCustomize: 'Dostosuj nawigację', navPanelTitle: 'Ustawienia nawigacji', navPanelHint: 'Przeciągnij wiersz lub użyj strzałek, aby zmienić kolejność. Przypięte pozycje zostają z przodu i trafiają do „Więcej” tylko wtedy, gdy naprawdę brakuje miejsca.', navSticky: 'Przyklejony pasek nawigacji', navStickyHint: 'Pasek pozostaje u góry podczas przewijania treści', navPin: 'Przypnij', navUnpin: 'Odepnij', navMoveUp: 'W górę', navMoveDown: 'W dół', navReset: 'Przywróć domyślne', navDone: 'Gotowe', navClose: 'Zamknij', navPinFull: 'Maksymalnie {n} przypiętych', navResetDone: 'Przywrócono domyślną nawigację' },
+            ru: { navConvert: 'Формат', navBytes: 'Байты', navChart: 'JSON в график', navTime: 'Время', navToggleToLeft: 'Переместить навигацию влево', navToggleToTop: 'Переместить навигацию наверх', navCustomize: 'Настроить навигацию', navPanelTitle: 'Настройки навигации', navPanelHint: 'Перетащите строку или используйте стрелки. Закреплённые пункты остаются впереди и уходят в «Ещё» только если места совсем нет.', navSticky: 'Закрепить панель навигации', navStickyHint: 'Панель остаётся сверху при прокрутке содержимого', navPin: 'Закрепить', navUnpin: 'Открепить', navMoveUp: 'Вверх', navMoveDown: 'Вниз', navReset: 'Сбросить', navDone: 'Готово', navClose: 'Закрыть', navPinFull: 'Не более {n} закреплённых', navResetDone: 'Навигация сброшена' },
+            th: { navConvert: 'รูปแบบ', navBytes: 'ไบต์', navChart: 'JSON เป็นกราฟ', navTime: 'เวลา', navToggleToLeft: 'ย้ายเมนูไปทางซ้าย', navToggleToTop: 'ย้ายเมนูไปด้านบน', navCustomize: 'ปรับแต่งเมนูนำทาง', navPanelTitle: 'ตั้งค่าเมนูนำทาง', navPanelHint: 'ลากแถวหรือใช้ลูกศรเพื่อจัดลำดับ รายการที่ปักหมุดจะอยู่หน้าสุดและจะถูกย้ายไปที่ "เพิ่มเติม" เมื่อไม่มีที่ว่างจริง ๆ เท่านั้น', navSticky: 'แถบนำทางติดด้านบน', navStickyHint: 'ให้แถบอยู่ด้านบนของหน้าต่างขณะเลื่อนเนื้อหา', navPin: 'ปักหมุด', navUnpin: 'เลิกปักหมุด', navMoveUp: 'เลื่อนขึ้น', navMoveDown: 'เลื่อนลง', navReset: 'คืนค่าเริ่มต้น', navDone: 'เสร็จสิ้น', navClose: 'ปิด', navPinFull: 'ปักหมุดได้สูงสุด {n} รายการ', navResetDone: 'คืนค่าเมนูนำทางเริ่มต้นแล้ว' },
+            tr: { navConvert: 'Format', navBytes: 'Bayt', navChart: 'JSON → Grafik', navTime: 'Zaman', navToggleToLeft: 'Gezinmeyi sola taşı', navToggleToTop: 'Gezinmeyi üste taşı', navCustomize: 'Gezinmeyi özelleştir', navPanelTitle: 'Gezinme ayarları', navPanelHint: 'Sıralamak için satırı sürükleyin veya okları kullanın. Sabitlenen öğeler önde kalır ve yalnızca hiç yer kalmadığında "Diğer"e taşınır.', navSticky: 'Gezinme çubuğu sabit', navStickyHint: 'İçerik kaydırılırken çubuk pencerenin üstünde kalır', navPin: 'Sabitle', navUnpin: 'Sabitlemeyi kaldır', navMoveUp: 'Yukarı', navMoveDown: 'Aşağı', navReset: 'Varsayılana dön', navDone: 'Bitti', navClose: 'Kapat', navPinFull: 'En fazla {n} öğe sabitlenebilir', navResetDone: 'Gezinme varsayılana döndü' },
         };
 
         // 导航小表的取值（主字典里没有这些键）
@@ -4894,30 +5163,33 @@
         const navToggleBtn = document.getElementById('navToggle');
         let navLeft = false;
 
-        function navReadLocal() {
-            try {
-                const v = localStorage.getItem(NAV_PREF_KEY);
-                return v === 'left' || v === 'top' ? v : null;
-            } catch (e) { return null; }
+        // ---- 四级存储：下面这组读写由「导航布局」和「导航自定义」共用 ----
+        // 一个 key 一个字符串：布局存 'left' / 'top'，自定义存一段 JSON
+        function prefReadLocal(key) {
+            try { return localStorage.getItem(key); } catch (e) { return null; }
         }
-        function navWriteLocal(v) {
+        function prefWriteLocal(key, value) {
             // 沙箱里这里必然抛，忽略即可，宿主存储才是真正生效的那一路
-            try { localStorage.setItem(NAV_PREF_KEY, v); } catch (e) { /* noop */ }
+            try { localStorage.setItem(key, value); } catch (e) { /* noop */ }
         }
         // 再兜一层 window.name：opaque origin 的沙箱里 localStorage / cookie 全抛
         // SecurityError，但 window.name 不受同源限制，同一个 frame 反复刷新也还在
-        // （dev 宿主每个标签页就是一个 srcdoc iframe，重载只换内容不换元素）
-        const NAV_NAME_RE = /(?:^|\s)dbx-nav:(left|top)(?=\s|$)/;
-        function navReadName() {
+        // （dev 宿主每个标签页就是一个 srcdoc iframe，重载只换内容不换元素）。
+        // token 形如 dbx-nav:left / dbx-navc:%7B...，值做 URL 编码，不然 JSON 里的空格会把 token 切断
+        function prefNameEscape(tag) {
+            return tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+        function prefNameGet(tag) {
             try {
-                const m = String(window.name || '').match(NAV_NAME_RE);
-                return m ? m[1] : null;
+                const m = String(window.name || '').match(new RegExp('(?:^|\\s)' + prefNameEscape(tag) + '([^\\s]*)'));
+                return m ? decodeURIComponent(m[1]) : null;
             } catch (e) { return null; }
         }
-        function navWriteName(v) {
+        function prefNameSet(tag, value) {
             try {
-                const rest = String(window.name || '').replace(/(?:^|\s)dbx-nav:(left|top)(?=\s|$)/g, '').trim();
-                window.name = (rest ? rest + ' ' : '') + 'dbx-nav:' + v;
+                const rest = String(window.name || '').split(/\s+/)
+                    .filter((t) => t && t.indexOf(tag) !== 0).join(' ');
+                window.name = (rest ? rest + ' ' : '') + tag + encodeURIComponent(value);
             } catch (e) { /* noop */ }
         }
         function navHostStore() {
@@ -4926,7 +5198,7 @@
             if (!(api.capabilities || {}).storage) return null;
             return api.storage;
         }
-        async function navReadHost() {
+        async function prefHostGet(key) {
             try {
                 const api = window.dbxPlugin;
                 if (!api) return null;
@@ -4934,19 +5206,34 @@
                 if (api.ready && typeof api.ready.then === 'function') await api.ready;
                 const store = navHostStore();
                 if (!store) return null;
-                const v = await store.get(NAV_PREF_KEY);
-                return v === 'left' || v === 'top' ? v : null;
+                return await store.get(key);
             } catch (e) { return null; }
         }
-        async function navWriteHost(v) {
+        async function prefHostSet(key, value) {
             try {
                 const api = window.dbxPlugin;
                 if (!api) return;
                 if (api.ready && typeof api.ready.then === 'function') await api.ready;
                 const store = navHostStore();
-                if (store) await store.set(NAV_PREF_KEY, v);
+                if (store) await store.set(key, value);
             } catch (e) { /* 旧宿主 / 未授权：静默降级，不打扰用户 */ }
         }
+
+        function navReadLocal() {
+            const v = prefReadLocal(NAV_PREF_KEY);
+            return v === 'left' || v === 'top' ? v : null;
+        }
+        function navWriteLocal(v) { prefWriteLocal(NAV_PREF_KEY, v); }
+        function navReadName() {
+            const v = prefNameGet('dbx-nav:');
+            return v === 'left' || v === 'top' ? v : null;
+        }
+        function navWriteName(v) { prefNameSet('dbx-nav:', v); }
+        async function navReadHost() {
+            const v = await prefHostGet(NAV_PREF_KEY);
+            return v === 'left' || v === 'top' ? v : null;
+        }
+        async function navWriteHost(v) { await prefHostSet(NAV_PREF_KEY, v); }
 
         function navSyncToggleLabel() {
             if (!navToggleBtn) return;
@@ -4956,6 +5243,49 @@
             navToggleBtn.setAttribute('aria-label', label);
             // 宿主会给没 title 的按钮塞自己的提示词，这个要留着自己的
             navToggleBtn.title = label;
+        }
+
+        // ---- 自定义顺序 / 置顶 / 吸顶的读写 ----
+        // 存的是 { v, order, pins, sticky, … }：v 是数据格式版本，以后加了新字段
+        // （分组、密度之类）旧版本也要原样带着走，不能一保存就把新版本的设置抹了
+        function navSavePrefs() {
+            const raw = Nav
+                ? Nav.serializePrefs({ order: navOrder, pins: navPins, sticky: navSticky, extra: navExtra })
+                : JSON.stringify({ order: navOrder, pins: navPins, sticky: navSticky });
+            prefWriteLocal(NAV_CUSTOM_KEY, raw);
+            prefNameSet('dbx-navc:', raw);
+            prefHostSet(NAV_CUSTOM_KEY, raw);
+        }
+
+        // 读回一份偏好：陌生的 id 丢掉、新加的导航项接在末尾（见 Nav.normalizeOrder）
+        function navAdoptPrefs(raw) {
+            const prefs = Nav ? Nav.parsePrefs(raw) : { found: false };
+            if (!prefs.found) {
+                navOrder = navDefaultOrder();
+                navPins = NAV_DEFAULT_PINS.slice();
+                navSticky = false;
+                navExtra = {};
+            } else {
+                navOrder = Nav.normalizeOrder(prefs.order, navDefaultOrder());
+                navPins = Nav.cleanPins(prefs.pins, navOrder);
+                navSticky = !!prefs.sticky;
+                navExtra = prefs.extra || {};
+            }
+            document.body.classList.toggle('nav-sticky', !!navSticky);
+        }
+
+        // 任何一次改动都走这里：归一 -> 应用 -> 三个来源一起存
+        function navCommit() {
+            if (Nav) {
+                navOrder = Nav.normalizeOrder(navOrder, navDefaultOrder());
+                navPins = Nav.cleanPins(navPins, navOrder);
+                // 置顶项必须落在最前：新置顶的夹在中间，这里一并提上去
+                navOrder = Nav.effectiveOrder(navOrder, navPins);
+            }
+            document.body.classList.toggle('nav-sticky', !!navSticky);
+            layoutNav();
+            syncNavLeftStack();
+            navSavePrefs();
         }
 
         function navApplyLayout() {
@@ -4980,6 +5310,8 @@
         // 先按同步来源恢复（localStorage / window.name），避免闪一下顶部
         const navLocalPref = navReadLocal() || navReadName();
         if (navLocalPref) navLeft = navLocalPref === 'left';
+        // 顺序 / 置顶 / 吸顶同样先取同步来源，宿主存储到手后再覆盖一次
+        navAdoptPrefs(prefReadLocal(NAV_CUSTOM_KEY) || prefNameGet('dbx-navc:'));
         if (navLeft) {
             document.body.classList.add('nav-left');
             // 先量一次，别让导航条和「格式转换」叠在一起闪一下
@@ -4995,6 +5327,213 @@
             navLeft = want;
             navApplyLayout();
         }).catch(() => {});
+
+        // 自定义顺序也以宿主存储为准（换设备 / 重装后跟着账号走）
+        prefHostGet(NAV_CUSTOM_KEY).then((raw) => {
+            if (!raw || !Nav) return;
+            if (!Nav.parsePrefs(raw).found) return;
+            navAdoptPrefs(raw);
+            layoutNav();
+            syncNavLeftStack();
+        }).catch(() => {});
+
+        // =========================================
+        // 3.7 导航设置面板：自定义顺序 / 置顶 / 吸顶
+        // =========================================
+        const navCustomizeBtn = document.getElementById('navCustomize');
+        const navPanelMask = document.getElementById('navPanelMask');
+        const navPanelList = document.getElementById('navPanelList');
+        const navPanelCloseBtn = document.getElementById('navPanelClose');
+        const navPanelDoneBtn = document.getElementById('navPanelDone');
+        const navPanelResetBtn = document.getElementById('navPanelReset');
+        const navStickyToggleEl = document.getElementById('navStickyToggle');
+        let navDragRow = null;
+
+        const NAV_ICON = {
+            pin: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>',
+            up: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>',
+            down: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>'
+        };
+
+        function navSyncCustomizeLabel() {
+            if (!navCustomizeBtn) return;
+            const label = navT('navCustomize', '自定义导航');
+            navCustomizeBtn.setAttribute('aria-label', label);
+            // 宿主会给没 title 的按钮塞自己的提示词，这个要留着自己的
+            navCustomizeBtn.title = label;
+        }
+
+        function navPanelButton(act, id, label, icon) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'nv-btn nv-btn-' + act;
+            btn.dataset.navAct = act;
+            btn.dataset.navFor = id;
+            // title 是动态的（置顶 / 取消置顶），别被宿主的提示清理扫掉
+            btn.setAttribute('data-keep-title', '');
+            btn.setAttribute('aria-label', label);
+            btn.title = label;
+            btn.innerHTML = icon;
+            return btn;
+        }
+
+        // 行内容按当前顺序重画：置顶的排在最前（navOrder 本身就保持这个不变量）
+        function navPanelRender() {
+            if (!navPanelList) return;
+            const base = navOrder.length ? navOrder : navDefaultOrder();
+            // 以后新增的页面还没进过用户顺序，这里现补到末尾，面板里马上能排
+            const ids = Nav ? Nav.normalizeOrder(base, navDefaultOrder()) : base;
+            const pinnedCount = ids.filter((id) => navPins.indexOf(id) >= 0).length;
+            navPanelList.textContent = '';
+            ids.forEach((id, i) => {
+                const link = document.getElementById(id);
+                if (!link) return;
+                const pinned = navPins.indexOf(id) >= 0;
+                const row = document.createElement('li');
+                row.className = 'nv-row' + (pinned ? ' is-pinned' : '');
+                row.dataset.navRow = id;
+                row.draggable = true;
+
+                const grip = document.createElement('span');
+                grip.className = 'nv-grip';
+                grip.setAttribute('aria-hidden', 'true');
+                grip.textContent = '⠿';
+                row.appendChild(grip);
+
+                const name = document.createElement('span');
+                name.className = 'nv-name';
+                name.textContent = link.textContent.trim();
+                row.appendChild(name);
+
+                const pinBtn = navPanelButton('pin', id,
+                    pinned ? navT('navUnpin', '取消置顶') : navT('navPin', '置顶'), NAV_ICON.pin);
+                pinBtn.classList.toggle('on', pinned);
+                pinBtn.setAttribute('aria-pressed', pinned ? 'true' : 'false');
+                row.appendChild(pinBtn);
+
+                const up = navPanelButton('up', id, navT('navMoveUp', '上移'), NAV_ICON.up);
+                const down = navPanelButton('down', id, navT('navMoveDown', '下移'), NAV_ICON.down);
+                // 置顶块与非置顶块之间不靠箭头跨（用置顶按钮切），其余到两头就禁用
+                up.disabled = i === 0 || (!pinned && i === pinnedCount);
+                down.disabled = i === ids.length - 1 || (pinned && i === pinnedCount - 1);
+                row.appendChild(up);
+                row.appendChild(down);
+
+                navPanelList.appendChild(row);
+            });
+            if (navStickyToggleEl) navStickyToggleEl.checked = !!navSticky;
+        }
+
+        function navPanelMove(id, delta) {
+            if (!Nav) return;
+            navOrder = Nav.moveBy(navOrder.length ? navOrder : navDefaultOrder(), id, delta);
+            navCommit();
+            navPanelRender();
+        }
+
+        function navPanelTogglePin(id) {
+            if (!Nav) return;
+            const wasPinned = Nav.isPinned(navPins, id);
+            if (!wasPinned && navPins.length >= Nav.MAX_PINS) {
+                showToast(navT('navPinFull', '最多置顶 {n} 项').replace('{n}', String(Nav.MAX_PINS)), 'error');
+                return;
+            }
+            navPins = Nav.togglePin(navPins, id, Nav.MAX_PINS);
+            navCommit();
+            navPanelRender();
+        }
+
+        function navOpenPanel() {
+            if (!navPanelMask) return;
+            navPanelRender();
+            navPanelMask.hidden = false;
+            if (navPanelDoneBtn) navPanelDoneBtn.focus();
+        }
+        function navClosePanel() {
+            if (!navPanelMask || navPanelMask.hidden) return;
+            navPanelMask.hidden = true;
+            // 关掉后把焦点送回入口，键盘用户不会掉到 body 上
+            if (navCustomizeBtn && typeof navCustomizeBtn.focus === 'function') navCustomizeBtn.focus();
+        }
+        // 切语言后：按钮提示和（开着的）面板文案都跟着重画
+        function refreshNavPanelI18n() {
+            navSyncCustomizeLabel();
+            if (navPanelMask && !navPanelMask.hidden) navPanelRender();
+        }
+
+        if (navCustomizeBtn) navCustomizeBtn.addEventListener('click', () => { navOpenPanel(); });
+        if (navPanelMask) {
+            // 点遮罩空白处关闭（点面板内部不关）
+            navPanelMask.addEventListener('click', (e) => {
+                if (e.target === navPanelMask) navClosePanel();
+            });
+        }
+        [navPanelCloseBtn, navPanelDoneBtn].forEach((btn) => {
+            if (btn) btn.addEventListener('click', navClosePanel);
+        });
+        if (navPanelResetBtn) {
+            navPanelResetBtn.addEventListener('click', () => {
+                navOrder = navDefaultOrder();
+                navPins = NAV_DEFAULT_PINS.slice();
+                navSticky = false;
+                navCommit();
+                navPanelRender();
+                showToast(navT('navResetDone', '导航已恢复默认'), 'success');
+            });
+        }
+        if (navStickyToggleEl) {
+            navStickyToggleEl.addEventListener('change', () => {
+                navSticky = !!navStickyToggleEl.checked;
+                navCommit();
+            });
+        }
+
+        if (navPanelList) {
+            navPanelList.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-nav-act]');
+                if (!btn || btn.disabled) return;
+                const id = btn.dataset.navFor;
+                const act = btn.dataset.navAct;
+                if (act === 'pin') navPanelTogglePin(id);
+                else if (act === 'up') navPanelMove(id, -1);
+                else if (act === 'down') navPanelMove(id, 1);
+            });
+
+            // 拖放：拖动时直接挪 DOM，松手再按 DOM 顺序落库（比每帧重建列表稳）
+            navPanelList.addEventListener('dragstart', (e) => {
+                const row = e.target.closest('.nv-row');
+                if (!row) return;
+                navDragRow = row;
+                row.classList.add('dragging');
+                try {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', row.dataset.navRow);
+                } catch (err) { /* 老宿主没有 dataTransfer，箭头按钮照样能用 */ }
+            });
+            navPanelList.addEventListener('dragover', (e) => {
+                if (!navDragRow) return;
+                const row = e.target.closest('.nv-row');
+                if (!row || row === navDragRow) return;
+                // 置顶的永远在前：两块之间不许互相插队，用置顶按钮切换
+                if (Nav && Nav.isPinned(navPins, navDragRow.dataset.navRow) !== Nav.isPinned(navPins, row.dataset.navRow)) {
+                    return;
+                }
+                e.preventDefault();
+                const rect = row.getBoundingClientRect();
+                const after = rect.height > 0 && (e.clientY - rect.top) > rect.height / 2;
+                navPanelList.insertBefore(navDragRow, after ? row.nextSibling : row);
+            });
+            navPanelList.addEventListener('drop', (e) => { e.preventDefault(); });
+            navPanelList.addEventListener('dragend', () => {
+                if (!navDragRow) return;
+                navDragRow.classList.remove('dragging');
+                navDragRow = null;
+                const list = Array.prototype.map.call(navPanelList.children, (row) => row.dataset.navRow);
+                if (list.length) navOrder = list;
+                navCommit();
+                navPanelRender();
+            });
+        }
 
         function applyI18n() {
             // SQL 页与导航下拉的文案各放一张小表（见第 8 节 / 上面），这里合并进来查，
@@ -5042,6 +5581,8 @@
             if (typeof layoutNav === 'function') layoutNav();
             // 导航位置切换按钮的 title / aria-label 也跟着语言走
             if (typeof navSyncToggleLabel === 'function') navSyncToggleLabel();
+            // 导航设置按钮与（开着的）面板文案
+            if (typeof refreshNavPanelI18n === 'function') refreshNavPanelI18n();
             // SQL 页的提示语是按当前语言拼出来的，切语言后重算一次
             if (typeof refreshSqlI18n === 'function') refreshSqlI18n();
             // 表格页的文件信息 / 提示语同理

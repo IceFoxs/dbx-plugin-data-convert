@@ -2675,15 +2675,18 @@ function check(name, fn) {
     dom.window.dispatchEvent(new dom.window.Event('resize'));
     await wait(250);
 
-    check('导航装不下时把固定项也收进「更多」', function () {
+    check('导航装不下时连置顶项也会被收进「更多」，顺序仍按导航来', function () {
         if (!moreEl.classList.contains('show')) throw new Error('「更多」未出现');
         var names = [].map.call(moreMenu.querySelectorAll('a'), function (a) { return a.textContent.trim(); });
-        // 收进「更多」的先后顺序取决于「非固定项先挪、固定项兜底」，这里只校验集合
-        var expect = ['SQL 转换', 'JSON 对比', '表格转 JSON', '代码生成', '图片 Base64', '查询校验', '转义工具', '字节转换', 'JSON 转图表', '时间转换', '二维码转换'].sort().join('|');
-        if (names.slice().sort().join('|') !== expect) {
+        // 120px 只塞得下一项：先是非置顶的搬走，还不够才动置顶项，塞得下就停；
+        // 菜单顺序必须接着导航条往下排（置顶项在最前）
+        var expect = ['SQL 转换', '图片 Base64', '转义工具', '字节转换', 'JSON 转图表',
+            '时间转换', '二维码转换', '代码生成', '表格转 JSON', '查询校验'];
+        if (names.join('|') !== expect.join('|')) {
             throw new Error('菜单项: ' + names.join(','));
         }
-        if (inlineNavLinks().length !== 0) throw new Error('导航条上还剩 ' + inlineNavLinks().length + ' 项');
+        var inline = inlineNavLinks().map(function (a) { return a.id; });
+        if (inline.join(',') !== 'navCompare') throw new Error('导航条上还剩 ' + inline.join(','));
     });
 
     check('「格式转换」下拉不会被搬进「更多」', function () {
@@ -2737,6 +2740,176 @@ function check(name, fn) {
         if (moreMenu.querySelectorAll('a').length !== 0) throw new Error('菜单仍有残留');
         if (inlineNavLinks().length !== 11) throw new Error('导航项数 ' + inlineNavLinks().length);
         if (convertMenu.querySelectorAll('a').length !== 7) throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
+    });
+
+    // ---- 导航设置：自定义顺序 / 置顶 / 吸顶 ----
+    var navCustomizeBtn = doc.getElementById('navCustomize');
+    var navPanelMask = doc.getElementById('navPanelMask');
+    var navPanelList = doc.getElementById('navPanelList');
+    var navStickyToggle = doc.getElementById('navStickyToggle');
+
+    function panelRows() {
+        return [].map.call(navPanelList.children, function (row) { return row.dataset.navRow; });
+    }
+    function panelPinned() {
+        return [].filter.call(navPanelList.children, function (row) {
+            return row.classList.contains('is-pinned');
+        }).map(function (row) { return row.dataset.navRow; });
+    }
+    function navIds() {
+        return inlineNavLinks().map(function (a) { return a.id; });
+    }
+
+    check('顶栏有「自定义导航」入口，面板默认收起', function () {
+        if (!navCustomizeBtn) throw new Error('缺少按钮');
+        if ((navCustomizeBtn.getAttribute('aria-label') || '').indexOf('自定义') === -1) {
+            throw new Error('提示文案: ' + navCustomizeBtn.getAttribute('aria-label'));
+        }
+        if (navCustomizeBtn.title.indexOf('自定义') === -1) throw new Error('缺 title');
+        if (!navPanelMask.hidden) throw new Error('面板默认就开着');
+    });
+
+    navCustomizeBtn.click();
+    check('面板列出全部 11 项，顺序跟导航条一致', function () {
+        if (navPanelMask.hidden) throw new Error('面板没打开');
+        var rows = panelRows();
+        if (rows.length !== 11) throw new Error('行数 ' + rows.length);
+        if (rows.join(',') !== navIds().join(',')) {
+            throw new Error('面板 ' + rows.join(',') + ' / 导航 ' + navIds().join(','));
+        }
+    });
+
+    check('默认置顶就是原来那两个主入口', function () {
+        if (panelPinned().join(',') !== 'navCompare,navSql') throw new Error('置顶项: ' + panelPinned().join(','));
+        var btn = navPanelList.querySelector('[data-nav-row="navCompare"] [data-nav-act="pin"]');
+        if (btn.getAttribute('aria-pressed') !== 'true') throw new Error('置顶按钮没标 aria-pressed');
+        if (!btn.classList.contains('on')) throw new Error('置顶按钮没高亮');
+    });
+
+    check('点置顶：该项跳到置顶块末尾，导航条同步', function () {
+        navPanelList.querySelector('[data-nav-row="navQr"] [data-nav-act="pin"]').click();
+        if (navIds().slice(0, 3).join(',') !== 'navCompare,navSql,navQr') {
+            throw new Error('导航顺序: ' + navIds().join(','));
+        }
+        if (panelRows().slice(0, 3).join(',') !== 'navCompare,navSql,navQr') {
+            throw new Error('面板顺序: ' + panelRows().join(','));
+        }
+        if (panelPinned().length !== 3) throw new Error('置顶数 ' + panelPinned().length);
+    });
+
+    check('取消置顶：回到普通块的最前面', function () {
+        navPanelList.querySelector('[data-nav-row="navQr"] [data-nav-act="pin"]').click();
+        var rows = panelRows();
+        if (rows.slice(0, 3).join(',') !== 'navCompare,navSql,navQr') {
+            throw new Error('取消置顶后位置: ' + rows.slice(0, 3).join(','));
+        }
+        if (panelPinned().join(',') !== 'navCompare,navSql') throw new Error('置顶项: ' + panelPinned().join(','));
+    });
+
+    check('箭头：上移 / 下移改顺序，导航条跟着变', function () {
+        var before = panelRows();
+        navPanelList.querySelector('[data-nav-row="' + before[2] + '"] [data-nav-act="down"]').click();
+        var after = panelRows();
+        if (after[2] !== before[3] || after[3] !== before[2]) {
+            throw new Error('没换位: ' + before.slice(2, 4).join(',') + ' -> ' + after.slice(2, 4).join(','));
+        }
+        navPanelList.querySelector('[data-nav-row="' + before[2] + '"] [data-nav-act="up"]').click();
+        if (panelRows().join(',') !== before.join(',')) throw new Error('上移没还原: ' + panelRows().join(','));
+        if (navIds().join(',') !== before.join(',')) throw new Error('导航条没跟着: ' + navIds().join(','));
+    });
+
+    check('两头和置顶边界上的箭头禁用（不能靠箭头跨块）', function () {
+        if (!navPanelList.children[0].querySelector('[data-nav-act="up"]').disabled) {
+            throw new Error('首项还能上移');
+        }
+        var boundary = navPanelList.children[2].querySelector('[data-nav-act="up"]');
+        if (!boundary.disabled) throw new Error('普通块首项还能上移挤进置顶块');
+    });
+
+    check('吸顶开关：打开加类、关掉摘掉', function () {
+        if (navStickyToggle.checked) throw new Error('默认不该开');
+        navStickyToggle.checked = true;
+        navStickyToggle.dispatchEvent(new win.Event('change'));
+        if (!doc.body.classList.contains('nav-sticky')) throw new Error('没加上 nav-sticky');
+        navStickyToggle.checked = false;
+        navStickyToggle.dispatchEvent(new win.Event('change'));
+        if (doc.body.classList.contains('nav-sticky')) throw new Error('关掉后类还在');
+    });
+
+    check('恢复默认：顺序、置顶、吸顶一起回出厂', function () {
+        navPanelList.querySelector('[data-nav-row="navQr"] [data-nav-act="pin"]').click();
+        doc.getElementById('navPanelReset').click();
+        if (navIds().slice(0, 3).join(',') !== 'navCompare,navSql,navImage') {
+            throw new Error('顺序: ' + navIds().join(','));
+        }
+        if (panelPinned().join(',') !== 'navCompare,navSql') throw new Error('置顶项: ' + panelPinned().join(','));
+        if (navStickyToggle.checked) throw new Error('吸顶没复位');
+    });
+
+    // 以后新增页面：直接往导航条里加一个 <a>，不改任何已存偏好也得能排上
+    var navFuture = doc.createElement('a');
+    navFuture.id = 'navFuture';
+    navFuture.textContent = '未来功能';
+    navEl.appendChild(navFuture);
+    dom.window.dispatchEvent(new dom.window.Event('resize'));
+    await wait(250);
+
+    // 重新打开面板：行是在打开时按当前导航现画的
+    navCustomizeBtn.click();
+    check('新增的导航项自动排在末尾（不用迁移已存偏好）', function () {
+        var ids = navIds();
+        if (ids[ids.length - 1] !== 'navFuture') throw new Error('顺序: ' + ids.join(','));
+        if (panelRows().indexOf('navFuture') === -1) throw new Error('面板里没出现新项: ' + panelRows().join(','));
+    });
+    check('新项也能置顶、也能被记住', function () {
+        navPanelList.querySelector('[data-nav-row="navFuture"] [data-nav-act="pin"]').click();
+        if (navIds()[2] !== 'navFuture') throw new Error('置顶后顺序: ' + navIds().join(','));
+        var name = String(win.name || '');
+        if (name.indexOf('navFuture') === -1) throw new Error('没写进窗口记忆: ' + name);
+        // 面板行数跟着长到 12
+        if (panelRows().length !== 12) throw new Error('行数 ' + panelRows().length);
+    });
+
+    check('偏好存在独立 key/token 里，旧版本那套读写不会碰它', function () {
+        var name = String(win.name || '');
+        if (name.indexOf('dbx-navc:') === -1) throw new Error('缺 dbx-navc token: ' + name);
+        if (name.indexOf('dbx-nav:') === -1) throw new Error('旧的 dbx-nav token 丢了: ' + name);
+        // 0.1.8 的写法：把 dbx-nav:xxx 整段替换掉再写回
+        var legacy = name.replace(/(?:^|\s)dbx-nav:(left|top)(?=\s|$)/g, '').trim();
+        if (legacy.indexOf('dbx-navc:') === -1) throw new Error('回退到旧版本后新 token 被抹掉: ' + legacy);
+        if (legacy.indexOf('dbx-nav:') !== -1) throw new Error('旧版本没清掉自己的 token: ' + legacy);
+        // 布局偏好仍然是 left / top 两个值，没被 JSON 污染
+        var layoutOk = true;
+        try {
+            var v = win.localStorage.getItem('navLayout');
+            layoutOk = !v || v === 'left' || v === 'top';
+        } catch (e) { /* 沙箱里 localStorage 会抛，走 window.name 那一路 */ }
+        if (!layoutOk) throw new Error('navLayout 被写脏');
+    });
+
+    check('Esc 与点遮罩都能关面板', function () {
+        doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        if (!navPanelMask.hidden) throw new Error('Esc 没关');
+        navCustomizeBtn.click();
+        if (navPanelMask.hidden) throw new Error('没重新打开');
+        navPanelMask.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        if (!navPanelMask.hidden) throw new Error('点遮罩没关');
+        navCustomizeBtn.click();
+        doc.getElementById('navPanelDone').click();
+        if (!navPanelMask.hidden) throw new Error('「完成」没关');
+    });
+
+    // 收尾：把临时加的项摘掉，顺序恢复出厂，后面的用例按默认状态断言
+    navFuture.parentNode.removeChild(navFuture);
+    navCustomizeBtn.click();
+    doc.getElementById('navPanelReset').click();
+    doc.getElementById('navPanelDone').click();
+    dom.window.dispatchEvent(new dom.window.Event('resize'));
+    await wait(250);
+
+    check('摘掉临时项后回到 11 项、出厂顺序', function () {
+        if (inlineNavLinks().length !== 11) throw new Error('项数 ' + inlineNavLinks().length);
+        if (navIds().slice(0, 2).join(',') !== 'navCompare,navSql') throw new Error('顺序: ' + navIds().join(','));
     });
 
 

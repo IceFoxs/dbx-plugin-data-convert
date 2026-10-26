@@ -172,6 +172,7 @@
 - **国际化**——14 种语言：zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。切换器里列出前三种，其余随宿主 locale 自动匹配；十二个页面（格式转换、对比、SQL、表格、图片、代码生成、查询校验、转义工具、字节转换、时间转换、图表、二维码）的文案都已覆盖全部 14 种，连 20 条 Schema 校验错误也有译文，缺一条会退回英文而不是中文。
 - **主题适配**——跟随 DBX 宿主主题与 shadcn/ui 设计令牌，宿主只下发主题信息（不写 `data-dbx-theme`）或自定义调色板同样生效。首屏按宿主主题直接落定、不闪白底，明暗切换有 300 ms 整页过渡，`prefers-reduced-motion` 下自动关掉。唯一的例外是「JSON 转图表」画出来的图：它是产物，固定浅色配色 + 白底，不跟着变暗。
 - **导航布局**——顶栏右上角的按钮让导航在「顶部」和「左侧」之间切换，默认顶部。切到左侧后十一个入口竖排成一列（13rem），内容区自动让出同样的宽度；「格式转换」这一组也排在这个列的最上面，下拉在栏内展开、把下面的入口往下推，不会盖住谁。一列放得下全部入口，所以不会出现「更多」。选择会记住：优先宿主 `dbxPlugin.storage`，没有该能力时退回浏览器 `localStorage`、再退回 `window.name`（`dbx-plugin dev` 的沙箱里只有它管用），重开还是上次的样子。
+- **导航顺序、置顶与吸顶**——顶栏的滑杆按钮打开「导航设置」：拖动行或点箭头给十一个入口排序，常用的点「置顶」（出厂置顶「JSON 对比」「SQL 转换」），顺序与置顶立刻生效，窗口变窄时置顶项最后才被收进「更多」；打开「导航条吸顶」后滚动时导航条固定在窗口顶部，左侧模式下置顶项在列内滚动时也粘在栏顶。这些设置跟布局选择一起跨会话保存（宿主 `dbxPlugin.storage` → `localStorage` → `window.name`），存在独立的 `navCustom` 键里并带格式版本号，旧版本读不懂的字段原样保留——装回旧版再升级回来设置还在。以后新增入口不用迁移：自动接到顺序末尾，在面板里拖到想要的位置即可。
 - **剪贴板**——通过 DBX Host API 一键复制，没有宿主时走浏览器降级方案。
 - **离线**——无后端、无 CDN、无遥测；CodeMirror、YAML 库与 ECharts（Apache-2.0，`ui/vendor/echarts/` 连同 LICENSE）都打在包里，跑起来一次网络请求都没有。
 
@@ -190,11 +191,11 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## 构建与测试
 
 ```bash
-./scripts/build.sh test         # 全部用例（896 条）
+./scripts/build.sh test         # 全部用例（924 条）
 ./scripts/build.sh              # 先跑用例，再打包 dist/*.dbxp
 ./scripts/run.sh                # 等价于 build.sh dev
 
-npm test                        # 纯函数用例，无第三方依赖（896 条）
+npm test                        # 纯函数用例，无第三方依赖（924 条）
 npm install && npm run test:ui  # jsdom 页面接线冒烟（253 项）
 ```
 

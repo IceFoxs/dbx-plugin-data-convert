@@ -174,6 +174,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 - **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az. Every page (convert, compare, SQL, sheet, image, code gen, query, escape, bytes, time, chart, QR code) is translated into all 14, including the 20 schema-validation messages.
 - **Theme adaptability** — follows the DBX host theme and shadcn/ui tokens, including hosts that only send theme metadata (no `data-dbx-theme`) and custom palettes. First paint already matches the host, theme switches cross-fade over 300 ms, and `prefers-reduced-motion` turns the animation off. The one exception is the chart itself on the JSON to Chart page: it is output, not interface, so it stays on the light palette with a white background.
 - **Navigation layout** — the button at the far right of the top bar moves the navigation between top and left, top by default. On the left the eleven entries stack into one 13rem column and the content area shifts over; the conversion picker sits at the top of that column too and expands inside it, pushing the entries down instead of covering them. The column fits every entry, so "More" never appears. The choice is remembered — host `dbxPlugin.storage` first, then browser `localStorage`, then `window.name` (the only channel that works inside the `dbx-plugin dev` sandbox) — so reopening keeps the last layout.
+- **Order, pins, and a sticky bar** — the sliders button in the top bar opens Navigation settings: drag a row or use the arrows to order the eleven entries, and pin the ones you use most (JSON Compare and SQL Conversion start pinned). Order and pins apply at once, and pinned entries are the last to fall into More when the window narrows; Sticky navigation bar keeps the bar at the top while content scrolls, and in the left column pinned entries stay glued to the top as the column scrolls. These settings travel with the layout choice (host `dbxPlugin.storage` → `localStorage` → `window.name`), live under their own `navCustom` key with a format version, and fields a build does not understand are passed through untouched — so downgrading and upgrading again keeps your setup. New entries need no migration: they are appended to the end of the order and can be dragged where you want them.
 - **Clipboard** — one-click copy through the DBX host API, with a browser fallback.
 - **Offline** — no backend, no CDN, no telemetry; CodeMirror, the YAML library and ECharts (Apache-2.0, `ui/vendor/echarts/` with its LICENSE) all ship inside the package.
 
@@ -192,11 +193,11 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## Build & test
 
 ```bash
-./scripts/build.sh test         # all suites (896 cases)
+./scripts/build.sh test         # all suites (924 cases)
 ./scripts/build.sh              # run tests, then package dist/*.dbxp
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
-npm test                        # pure-function suites, no dependencies (896 cases)
+npm test                        # pure-function suites, no dependencies (924 cases)
 npm install && npm run test:ui  # jsdom smoke test of the UI wiring (253 checks)
 ```
 
