@@ -5571,6 +5571,8 @@
 
             function navDragMove(e) {
                 if (!navDrag.row) return;
+                // 多点触控时只跟当初按下的那根手指
+                if (navDrag.pointerId !== null && typeof e.pointerId === 'number' && e.pointerId !== navDrag.pointerId) return;
                 const y = e.clientY;
                 if (!navDrag.active) {
                     // 差几个像素才算拖：单纯点一下（想点按钮、想触摸滚动）不该被当成排序
@@ -5584,7 +5586,9 @@
                 navDragAutoScroll(y);
             }
 
-            function navDragEnd() {
+            function navDragEnd(e) {
+                // 别的指头松开不算（Esc 关闭面板时是手动调用，没有 event）
+                if (e && navDrag.pointerId !== null && typeof e.pointerId === 'number' && e.pointerId !== navDrag.pointerId) return;
                 document.removeEventListener(NAV_DRAG_EVT.move, navDragMove, true);
                 document.removeEventListener(NAV_DRAG_EVT.up, navDragEnd, true);
                 if (NAV_DRAG_EVT.cancel) document.removeEventListener(NAV_DRAG_EVT.cancel, navDragEnd, true);

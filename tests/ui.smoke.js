@@ -2904,6 +2904,27 @@ function check(name, fn) {
         });
     });
 
+    check('拖到一半按 Esc 关面板：顺序照样落库，指针监听收掉不会继续跟手', function () {
+        stubRowRects(function () {
+            var rows = panelRows();
+            var pinCount = panelPinned().length;
+            var srcId = rows[rows.length - 1];
+            pointerDownOn(navPanelList.querySelector('[data-nav-row="' + srcId + '"]'), (rows.length - 1) * 30 + 15);
+            pointerMoveTo(pinCount * 30 + 5);
+            if (panelRows()[pinCount] !== srcId) throw new Error('拖动中没插到位: ' + panelRows().join(','));
+            doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            if (!navPanelMask.hidden) throw new Error('Esc 没关面板');
+            if (panelRows()[pinCount] !== srcId) throw new Error('顺序没保留: ' + panelRows().join(','));
+            if (doc.body.classList.contains('nv-sorting')) throw new Error('nv-sorting 没摘掉');
+            // 监听已收：关面板后再移动指针不该继续改顺序
+            var frozen = panelRows().join(',');
+            pointerMoveTo(0);
+            pointerUpAt(0);
+            if (panelRows().join(',') !== frozen) throw new Error('指针监听没收掉: ' + panelRows().join(','));
+        });
+        navCustomizeBtn.click();
+    });
+
     check('吸顶开关：打开加类、关掉摘掉', function () {
         if (navStickyToggle.checked) throw new Error('默认不该开');
         navStickyToggle.checked = true;
