@@ -1,7 +1,7 @@
 /* 数据转换插件 · 全部界面样式
  *
- * 从 ui/index.html 的内联 <style> 拆出来：宿主会把 <link rel="stylesheet">
- * 内联回文档，CSP 与打包方式都不用变。改样式只动这里。
+ * 从 ui/index.html 的内联 style 块拆出来：宿主会把样式表链接内联回文档，
+ * CSP 与打包方式都不用变。改样式只动这里。
  */
 /* =========================================
    基于 DBX 设计令牌的主题样式
@@ -349,54 +349,74 @@ body.nav-left .nav-search-wrap { display: block; }
 /* 翻到按钮上方时，三角挪到底边 */
 .tip.is-above::after { top: auto; bottom: -3px; }
 
+/* 导航容器：顶部布局下它不参与排版（里面的两块还是顶栏的直接 flex 项），
+   只有切到左侧布局时它才变成一个定位列 */
+.nav-side { display: contents; }
+
 @media (min-width: 769px) {
     /* 图标跟着当前布局走：顶部显示「顶栏」图，左侧显示「侧栏」图 */
     body.nav-left .nav-toggle-icon-top { display: none; }
     body.nav-left .nav-toggle-icon-left { display: block; }
 
-    /* 导航项整列贴到左边，顶栏只留品牌 / 格式转换 / 语言 / 切换 */
+    /* 导航整列：左侧布局下 #navSide 自己定位，里面「格式转换」和下面那排
+       都是普通流内元素。以前两块各自 fixed、各自画右边框、各自滚动，
+       两块交界处就是一条断掉的分割线 */
     body.nav-left { --nav-left-w: 13rem; }
-    body.nav-left #navLinks {
+    body.nav-left .nav-side {
         position: fixed;
         top: 3.5rem;
         left: 0;
         bottom: 0;
         width: var(--nav-left-w, 13rem);
-        height: auto;
-        flex: 0 0 auto;
+        display: flex;
         flex-direction: column;
         align-items: stretch;
         gap: 0.25rem;
-        margin: 0.75rem 0 0;
-        /* 顶部不留内边距：置顶项要贴着滚动口粘住，留白改用 margin，
-           否则滚动时下面的项会从这条缝里透出来 */
-        padding: 0 0.625rem 0.75rem;
+        padding: 0.75rem 0.625rem 0.75rem;
         overflow-x: hidden;
         overflow-y: auto;
-        white-space: normal;
         background-color: var(--bg-base);
         border-right: 1px solid var(--border-light);
         z-index: 20;
+        transition: transform 0.2s ease, opacity 0.16s ease;
+    }
+    /* 列里的两块不再自己定位 / 画边框 / 滚动 */
+    body.nav-left #navLinks,
+    body.nav-left #navConvert {
+        position: static;
+        flex: 0 0 auto;
+        width: auto;
+        height: auto;
+        margin: 0;
+        padding: 0;
+        overflow: visible;
+        background: none;
+        border-right: 0;
+        z-index: auto;
+    }
+    body.nav-left #navLinks {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.25rem;
+        white-space: normal;
     }
     body.nav-left #navLinks a {
         display: block;
         padding: 0.5rem 0.75rem;
     }
+    /* 左列不显示滚动条：滚轮 / 触控板照样能滚，但那条 10px 的浅灰轨道
+       正好贴着分割线，留着就像线上又糊了一条缝 */
+    body.nav-left .nav-side {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    body.nav-left .nav-side::-webkit-scrollbar { width: 0; height: 0; }
     /* 竖排能放下所有项，「更多」不会再出现 */
     body.nav-left #navMore { display: none; }
-    /* 「格式转换」也是栏内的一项：触发器搬到左列顶部，下拉在栏内展开 */
-    body.nav-left #navConvert {
-        position: fixed;
-        top: 3.5rem;
-        left: 0;
+    /* 「格式转换」是列里的第一项：触发器占满一行，点开在栏内展开二级功能 */
+    body.nav-left .nav-convert {
         flex-direction: column;
         align-items: stretch;
-        width: var(--nav-left-w, 13rem);
-        margin: 0;
-        padding: 0.75rem 0.625rem 0.25rem;
-        background-color: var(--bg-base);
-        border-right: 1px solid var(--border-light);
-        z-index: 21;
     }
     body.nav-left .nav-convert-trigger {
         width: 100%;
@@ -411,7 +431,8 @@ body.nav-left .nav-search-wrap { display: block; }
         width: 100%;
         min-width: 0;
         max-width: none;
-        max-height: 46vh;
+        max-height: none;
+        overflow: visible;
         margin-top: 0.25rem;
         padding: 0;
         border: none;
@@ -436,27 +457,20 @@ body.nav-left .nav-search-wrap { display: block; }
         margin-right: 0;
         width: auto;
         transition: margin-left 0.2s ease;
-        /* 左边不留内边距：侧栏 1px 边框 + 24px 留白 + 卡片 1px 边框会看成
-           「两根竖线夹一条缝」，卡片直接贴到侧栏边、由卡片自己的边框当那条线 */
-        padding-left: 0;
+        /* 左边只留 5px：原来 24px 的留白夹在侧栏 1px 边框和卡片 1px 边框之间，
+           会看成「两根竖线夹一条缝」；现在卡片贴着那条分割线，只留一点呼吸 */
+        padding-left: 5px;
     }
-    /* 卡片已经贴边，侧栏再画一条竖线就成双线了 */
-    body.nav-left #navLinks,
-    body.nav-left #navConvert { border-right-color: transparent; }
 
     /* 收起左列：整列滑到屏幕外，内容区补满（收起时连按钮也没了，
        所以顶栏那个按钮始终在，用它展开） */
     body.nav-left .nav-collapse { display: inline-flex; }
-    body.nav-left #navLinks,
-    body.nav-left #navConvert {
-        transition: transform 0.2s ease, opacity 0.16s ease;
-    }
-    body.nav-left.nav-collapsed #navLinks,
-    body.nav-left.nav-collapsed #navConvert {
+    body.nav-left.nav-collapsed .nav-side {
         transform: translateX(-100%);
         opacity: 0;
         /* 收起来就点不到，也不会挡住下面的内容 */
         pointer-events: none;
+        border-right-color: transparent;
     }
     body.nav-left.nav-collapsed .main-container { margin-left: 0; }
     /* 收起时把两条边框一起收掉，避免屏幕左缘留一道线 */

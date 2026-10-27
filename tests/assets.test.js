@@ -104,6 +104,23 @@ check('注释 / 字符串里没有指向不存在文件的假标签', () => {
     eq(commented, [], 'HTML 注释里的引用（宿主照样会去读）');
 });
 
+/* 被内联的文件本身也会被"再解析"一遍：
+ *   - 脚本里的 `</script` 会让浏览器提前截断，后面的源码直接变成页面上的文字
+ *     （真的踩过：一句注释里写了完整的 script 标签，插件在 DBX 里加载失败）；
+ *   - 脚本 / 样式里再写一个带 src / href 的标签，宿主会当成新依赖去读，
+ *     文件不存在就整页 400。
+ * 这两条只能靠扫全量文件守住。 */
+check('被内联的脚本 / 样式里没有会被二次解析的标签', () => {
+    const problems = [];
+    refs.forEach((r) => {
+        const text = fs.readFileSync(path.join(UI, r.url), 'utf8');
+        if (r.kind === 'script' && /<\/script/i.test(text)) problems.push(r.url + ' 里有 </script');
+        if (r.kind === 'style' && /<\/style/i.test(text)) problems.push(r.url + ' 里有 </style');
+        collectRefs(text).forEach((x) => problems.push(r.url + ' 里写了假标签 ' + x.url));
+    });
+    eq(problems, [], '会被宿主 / 浏览器二次解析的写法');
+});
+
 /* ---- 结果卡的内容截断：这条只能对样式做静态断言，jsdom 不做布局 ----
  * 踩过的坑：`max-height + overflow: hidden` 硬裁，第 4 行往后凭空消失，
  * 既没有省略号也不会滚，看上去就像「只生成了三行」。 */

@@ -4,8 +4,13 @@
  *
  * 加新功能：
  *   1. 在 ui/js/app/ 建一个 18-xxx.js，写自己的状态和函数；
- *   2. 在 ui/index.html 末尾按顺序加一行 <script src="js/app/18-xxx.js"></script>；
+ *   2. 在 ui/index.html 末尾按加载顺序补一行引入（src 指向这个新文件）；
  *   3. 别跟 window 上已有的属性重名（location / name / top 这类），重名会直接语法报错。
+ *
+ * ⚠️ 这个目录里的任何文件都别写出真正的 script / link 标签（注释里也不行）：
+ * 宿主是用正则扫 index.html 收集依赖的，扫到就去读文件，读不到整页 400；
+ * 浏览器也会在脚本的闭合标签处提前截断，剩下的源码全变成页面上的文字
+ * （tests/assets.test.js 守着这条）。
  *
  * 之所以不用 ES module：宿主沙箱只放行内联脚本与 blob:，模块的 import 用不了；
  * 而把所有东西塞回一个立即执行函数，就会回到「一个 1.5 万行的文件」。

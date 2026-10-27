@@ -107,17 +107,17 @@ function navApplyCollapsed() {
     // 窄屏走顶部布局，CSS 里的左列规则根本不生效，这时候不能把栏设成 inert
     const hidden = navLeft && navCollapsed && window.innerWidth > 768;
     document.body.classList.toggle('nav-collapsed', hidden);
-    [navLinksEl, navConvertEl].forEach((el) => {
-        if (!el) return;
+    // 整列现在是同一个容器（#navSide），标记一次就够，不用挨个标里面的块
+    if (navSideEl) {
         // 收起的栏只是视觉上滑出去，不加 inert 的话 Tab / 读屏还能进去
         if (hidden) {
-            el.setAttribute('inert', '');
-            el.setAttribute('aria-hidden', 'true');
+            navSideEl.setAttribute('inert', '');
+            navSideEl.setAttribute('aria-hidden', 'true');
         } else {
-            el.removeAttribute('inert');
-            el.removeAttribute('aria-hidden');
+            navSideEl.removeAttribute('inert');
+            navSideEl.removeAttribute('aria-hidden');
         }
-    });
+    }
     if (!navCollapseBtn) return;
     const label = hidden ? navT('navExpand', '展开侧边栏') : navT('navCollapse', '收起侧边栏');
     navCollapseBtn.setAttribute('aria-label', label);

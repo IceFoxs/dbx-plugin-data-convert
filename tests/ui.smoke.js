@@ -2381,6 +2381,8 @@ function check(name, fn) {
 
     // 导航：7 个格式互转收进「格式转换」下拉，导航条上只剩 3 个单元
     var navEl = doc.getElementById('navLinks');
+    // 左侧布局下整列是同一个容器（#navSide），收起时标记打在它身上
+    var navSide = doc.getElementById('navSide');
     var moreEl = doc.getElementById('navMore');
     var moreMenu = doc.getElementById('navMoreMenu');
     var convertEl = doc.getElementById('navConvert');
@@ -2657,8 +2659,8 @@ function check(name, fn) {
         }
         navCollapseBtn.click();
         if (!doc.body.classList.contains('nav-collapsed')) throw new Error('没加上 nav-collapsed');
-        if (!navEl.hasAttribute('inert')) throw new Error('收起后 Tab 还能进导航');
-        if (navEl.getAttribute('aria-hidden') !== 'true') throw new Error('没标 aria-hidden');
+        if (!navSide.hasAttribute('inert')) throw new Error('收起后 Tab 还能进导航');
+        if (navSide.getAttribute('aria-hidden') !== 'true') throw new Error('没标 aria-hidden');
         if (navCollapseBtn.getAttribute('aria-expanded') !== 'false') throw new Error('aria-expanded 没跟着变');
         if ((navCollapseBtn.getAttribute('aria-label') || '').indexOf('展开') === -1) {
             throw new Error('提示没切成展开: ' + navCollapseBtn.getAttribute('aria-label'));
@@ -2669,8 +2671,8 @@ function check(name, fn) {
     check('再点一次展开：类摘掉、导航重新可点', function () {
         navCollapseBtn.click();
         if (doc.body.classList.contains('nav-collapsed')) throw new Error('nav-collapsed 还在');
-        if (navEl.hasAttribute('inert')) throw new Error('展开后还是 inert');
-        if (navEl.hasAttribute('aria-hidden')) throw new Error('aria-hidden 没摘掉');
+        if (navSide.hasAttribute('inert')) throw new Error('展开后还是 inert');
+        if (navSide.hasAttribute('aria-hidden')) throw new Error('aria-hidden 没摘掉');
         if (navCollapseBtn.getAttribute('aria-expanded') !== 'true') throw new Error('aria-expanded 没还原');
         if (storedPrefs().collapsed !== false) throw new Error('偏好没更新');
     });
@@ -2681,11 +2683,11 @@ function check(name, fn) {
         if (doc.body.classList.contains('nav-left')) throw new Error('没切到顶部');
         // 顶部布局下收起不成立：类要摘掉，否则顶部导航整条都点不到
         if (doc.body.classList.contains('nav-collapsed')) throw new Error('顶部布局还带着收起类');
-        if (navEl.hasAttribute('inert')) throw new Error('顶部布局的导航被设成 inert');
+        if (navSide.hasAttribute('inert')) throw new Error('顶部布局的导航被设成 inert');
         if (inlineNavLinks().length !== 11) throw new Error('顶部直属项 ' + inlineNavLinks().length);
         doc.getElementById('navToggle').click();      // 切回左侧
         if (!doc.body.classList.contains('nav-collapsed')) throw new Error('切回左侧没恢复收起状态');
-        if (!navEl.hasAttribute('inert')) throw new Error('恢复收起后没设 inert');
+        if (!navSide.hasAttribute('inert')) throw new Error('恢复收起后没设 inert');
         navCollapseBtn.click();                       // 展开，给后面的用例留干净状态
         if (doc.body.classList.contains('nav-collapsed')) throw new Error('收尾没展开');
     });
@@ -2948,7 +2950,8 @@ function check(name, fn) {
 
     check('「格式转换」下拉不会被搬进「更多」', function () {
         if (!convertEl.isConnected) throw new Error('下拉被搬走了');
-        if (convertEl.parentNode !== doc.querySelector('.topbar')) throw new Error('下拉不在顶栏里了');
+        // 「格式转换」和那排导航项一起装在 #navSide 里（顶部布局下它是 display: contents）
+        if (convertEl.parentNode !== doc.getElementById('navSide')) throw new Error('下拉不在导航容器里了');
         if (moreMenu.querySelector('#navConvertTrigger')) throw new Error('触发器进了「更多」');
         if (navEl.querySelector('#navConvert')) throw new Error('下拉又被塞回 nav-links，菜单会被 overflow 裁掉');
     });

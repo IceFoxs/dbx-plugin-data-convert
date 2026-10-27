@@ -5,6 +5,8 @@ const navMoreEl = document.getElementById('navMore');
 const navMoreTrigger = document.getElementById('navMoreTrigger');
 const navMoreMenu = document.getElementById('navMoreMenu');
 const navLinksEl = document.getElementById('navLinks');
+// 左侧布局下整列的外壳：「格式转换」和下面那排都装在里面，一起定位、一起滚动
+const navSideEl = document.getElementById('navSide');
 const navConvertEl = document.getElementById('navConvert');
 const navConvertTrigger = document.getElementById('navConvertTrigger');
 const navConvertMenu = document.getElementById('navConvertMenu');
@@ -132,16 +134,10 @@ captureNavOrder();
 
 // 左侧模式下「格式转换」占了左列顶部一块，导航条得跟着往下让出这块高度
 // （顶部布局 / 窄屏不用管，CSS 里是 3.5rem，把 inline 值清掉即可）
+// 左列现在是一整列 flex（#navSide），上下两块由排版自己排，
+// 「按 #navConvert 的底边给 #navLinks 算 top」那套不用了：留着只会写一个无效的 top
 function syncNavLeftStack() {
-    if (!navLinksEl) return;
-    const stacked = document.body.classList.contains('nav-left') && window.innerWidth > 768;
-    if (!stacked || !navConvertEl) {
-        navLinksEl.style.top = '';
-        return;
-    }
-    const box = navConvertEl.getBoundingClientRect();
-    // 无头环境（jsdom）量不到尺寸，保持 CSS 默认值
-    if (box.bottom > 0) navLinksEl.style.top = Math.round(box.bottom) + 'px';
+    if (navLinksEl) navLinksEl.style.top = '';
 }
 // 字体加载、下拉展开、切语言都会改这块的高度，盯住它比在某一刻量一次稳
 function watchNavLeftStack() {
