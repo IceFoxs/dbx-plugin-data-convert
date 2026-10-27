@@ -23,6 +23,8 @@ try {
 }
 
 var html = fs.readFileSync(path.join(ROOT, 'ui/index.html'), 'utf8');
+// 样式已经搬到 ui/css/app.css（index.html 里只剩 <link>），布局断言直接读样式表
+var CSS_TEXT = fs.readFileSync(path.join(ROOT, 'ui/css/app.css'), 'utf8');
 var pageErrors = [];
 var results = [];
 
@@ -148,7 +150,7 @@ function check(name, fn) {
     });
 
     check('工作区行高锁定为 1fr', function () {
-        var css = doc.querySelector('style').textContent;
+        var css = CSS_TEXT;
         if (css.indexOf('grid-template-rows: minmax(0, 1fr)') === -1) {
             throw new Error('缺少 grid-template-rows: minmax(0, 1fr)');
         }
@@ -821,7 +823,7 @@ function check(name, fn) {
     });
 
     check('下拉菜单贴在触发器下方（.custom-select 自己定位）', function () {
-        var css = Array.prototype.map.call(doc.querySelectorAll('style'), function (s) { return s.textContent; }).join('\n');
+        var css = CSS_TEXT;
         // 以前只有 .select-group 带 relative，表格页这个下拉没有定位祖先，
         // 菜单被算到页面底部、再被 overflow: hidden 裁掉，点了只有箭头翻转
         if (!/\.custom-select\s*\{[^}]*position:\s*relative/.test(css)) {
@@ -942,7 +944,7 @@ function check(name, fn) {
 
     // ---- 预览表横向滚动 + 双击看详情 ----
     check('预览表按内容撑开，带常驻的横向滚动条', function () {
-        var css = Array.prototype.map.call(doc.querySelectorAll('style'), function (s) { return s.textContent; }).join('\n');
+        var css = CSS_TEXT;
         if (css.indexOf('.sheet-hscroll-thumb') === -1) throw new Error('没有自绘横向滚动条样式');
         if (!/\.sheet-table\s*\{[^}]*width:\s*max-content/.test(css)) throw new Error('表格没按内容撑开');
         if (!doc.querySelector('#sheetTableWrap table')) throw new Error('预览表丢了');
@@ -2632,6 +2634,261 @@ function check(name, fn) {
         if (convertEl.classList.contains('open')) throw new Error('选完未收起');
         var label = doc.getElementById('navConvertLabel').textContent.trim();
         if (label !== 'json转properties') throw new Error('触发器: ' + label);
+    });
+
+    // ---- 左列收起 / 展开 ----
+    var navCollapseBtn = doc.getElementById('navCollapse');
+
+    function storedPrefs() {
+        // window.name 里是 `dbx-nav:left dbx-navc:%7B...`，值做过 URL 编码
+        var name = String(win.name || '');
+        var at = name.indexOf('dbx-navc:');
+        if (at < 0) return {};
+        try { return JSON.parse(decodeURIComponent(name.slice(at + 'dbx-navc:'.length))) || {}; } catch (e) { return {}; }
+    }
+
+    check('左侧导航能收起：整列让开、栏从无障碍树里摘掉', function () {
+        if (!navCollapseBtn) throw new Error('缺少收起按钮');
+        if (navCollapseBtn.getAttribute('aria-expanded') !== 'true') {
+            throw new Error('初始 aria-expanded: ' + navCollapseBtn.getAttribute('aria-expanded'));
+        }
+        if ((navCollapseBtn.getAttribute('aria-label') || '').indexOf('收起') === -1) {
+            throw new Error('初始提示: ' + navCollapseBtn.getAttribute('aria-label'));
+        }
+        navCollapseBtn.click();
+        if (!doc.body.classList.contains('nav-collapsed')) throw new Error('没加上 nav-collapsed');
+        if (!navEl.hasAttribute('inert')) throw new Error('收起后 Tab 还能进导航');
+        if (navEl.getAttribute('aria-hidden') !== 'true') throw new Error('没标 aria-hidden');
+        if (navCollapseBtn.getAttribute('aria-expanded') !== 'false') throw new Error('aria-expanded 没跟着变');
+        if ((navCollapseBtn.getAttribute('aria-label') || '').indexOf('展开') === -1) {
+            throw new Error('提示没切成展开: ' + navCollapseBtn.getAttribute('aria-label'));
+        }
+        if (storedPrefs().collapsed !== true) throw new Error('没写进偏好: ' + String(win.name || '').slice(0, 80));
+    });
+
+    check('再点一次展开：类摘掉、导航重新可点', function () {
+        navCollapseBtn.click();
+        if (doc.body.classList.contains('nav-collapsed')) throw new Error('nav-collapsed 还在');
+        if (navEl.hasAttribute('inert')) throw new Error('展开后还是 inert');
+        if (navEl.hasAttribute('aria-hidden')) throw new Error('aria-hidden 没摘掉');
+        if (navCollapseBtn.getAttribute('aria-expanded') !== 'true') throw new Error('aria-expanded 没还原');
+        if (storedPrefs().collapsed !== false) throw new Error('偏好没更新');
+    });
+
+    check('收起状态跨布局保留：切到顶部自动失效，切回左侧还是收起的', function () {
+        navCollapseBtn.click();                       // 收起
+        doc.getElementById('navToggle').click();      // 切到顶部
+        if (doc.body.classList.contains('nav-left')) throw new Error('没切到顶部');
+        // 顶部布局下收起不成立：类要摘掉，否则顶部导航整条都点不到
+        if (doc.body.classList.contains('nav-collapsed')) throw new Error('顶部布局还带着收起类');
+        if (navEl.hasAttribute('inert')) throw new Error('顶部布局的导航被设成 inert');
+        if (inlineNavLinks().length !== 11) throw new Error('顶部直属项 ' + inlineNavLinks().length);
+        doc.getElementById('navToggle').click();      // 切回左侧
+        if (!doc.body.classList.contains('nav-collapsed')) throw new Error('切回左侧没恢复收起状态');
+        if (!navEl.hasAttribute('inert')) throw new Error('恢复收起后没设 inert');
+        navCollapseBtn.click();                       // 展开，给后面的用例留干净状态
+        if (doc.body.classList.contains('nav-collapsed')) throw new Error('收尾没展开');
+    });
+
+    // ---- 图标按钮的悬浮提示（自己画的气泡，不靠原生 title） ----
+    var tipEl = doc.getElementById('tip');
+    var tipTitleBefore = navCollapseBtn.getAttribute('title');
+    navCollapseBtn.dispatchEvent(new win.MouseEvent('mouseover', { bubbles: true }));
+    await wait(220);
+
+    check('图标按钮悬停后弹出功能提示（不靠原生 title）', function () {
+        if (!tipEl) throw new Error('缺少提示气泡');
+        if (tipEl.hidden) throw new Error('悬停 220ms 还没出现');
+        if (!tipEl.classList.contains('show')) throw new Error('没进入显示状态');
+        if (tipEl.textContent !== navCollapseBtn.getAttribute('aria-label')) {
+            throw new Error('文案没跟着按钮走: ' + tipEl.textContent);
+        }
+        if (tipEl.textContent.indexOf('收起') === -1) throw new Error('文案: ' + tipEl.textContent);
+        // 原生 title 会另弹一个气泡叠在上面，悬停期间先摘掉
+        if (navCollapseBtn.hasAttribute('title')) throw new Error('title 还挂着，会跟自绘气泡重叠');
+        if (tipEl.getAttribute('role') !== 'tooltip') throw new Error('没标 role=tooltip');
+    });
+
+    navCollapseBtn.dispatchEvent(new win.MouseEvent('mouseout', { bubbles: true, relatedTarget: doc.body }));
+    check('移开指针：气泡收起，title 还回去', function () {
+        if (!tipEl.hidden) throw new Error('移开没收起');
+        if (tipEl.classList.contains('show')) throw new Error('show 类没摘掉');
+        if (navCollapseBtn.getAttribute('title') !== tipTitleBefore) {
+            throw new Error('title 没还原: ' + navCollapseBtn.getAttribute('title'));
+        }
+    });
+
+    check('键盘聚焦也弹提示，Esc 收起', function () {
+        navCollapseBtn.dispatchEvent(new win.FocusEvent('focusin', { bubbles: true }));
+        if (tipEl.hidden) throw new Error('聚焦没弹提示');
+        doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        if (!tipEl.hidden) throw new Error('Esc 没收起');
+    });
+
+    // ---- 功能搜索：中文 / 近义词 / 英文 / 全拼 / 首字母缩写 ----
+    var searchInput = doc.getElementById('navSearchInput');
+    var searchList = doc.getElementById('navSearchList');
+
+    function typeSearch(q) {
+        searchInput.value = q;
+        searchInput.dispatchEvent(new win.Event('input', { bubbles: true }));
+        // 空态那一条没有 key，别把它当成结果
+        return [].map.call(searchList.children, function (li) { return li.dataset.navSearchKey || ''; })
+            .filter(function (k) { return !!k; });
+    }
+
+    check('搜索框在、提示语走 i18n、初始不显示结果', function () {
+        if (!searchInput) throw new Error('缺少搜索框');
+        if (searchInput.getAttribute('data-i18n-placeholder') !== 'navSearchPlaceholder') {
+            throw new Error('占位符没接 i18n');
+        }
+        if (searchInput.placeholder.indexOf('搜索') === -1) throw new Error('占位符: ' + searchInput.placeholder);
+        if (!searchList.hidden) throw new Error('初始就显示结果');
+    });
+
+    check('首字母缩写能命中：ewm / sj / tp / jsondb / sjzh', function () {
+        var ewm = typeSearch('ewm');
+        if (ewm[0] !== 'navQr') throw new Error('ewm -> ' + ewm.join(','));
+        var sj = typeSearch('sj');
+        if (sj[0] !== 'navTime') throw new Error('sj -> ' + sj.join(','));
+        var tp = typeSearch('tp');
+        if (tp[0] !== 'navImage') throw new Error('tp -> ' + tp.join(','));
+        var jsondb = typeSearch('jsondb');
+        if (jsondb[0] !== 'navCompare') throw new Error('jsondb -> ' + jsondb.join(','));
+        var sjzh = typeSearch('sjzh');
+        if (sjzh[0] !== 'navTime') throw new Error('sjzh -> ' + sjzh.join(','));
+    });
+
+    check('全拼与中文近义词都能命中', function () {
+        var shijian = typeSearch('shijian');
+        if (shijian[0] !== 'navTime') throw new Error('shijian -> ' + shijian.join(','));
+        var tupian = typeSearch('tupian');
+        if (tupian[0] !== 'navImage') throw new Error('tupian -> ' + tupian.join(','));
+        var ts = typeSearch('时间戳');
+        if (ts[0] !== 'navTime') throw new Error('时间戳 -> ' + ts.join(','));
+        var diff = typeSearch('差异');
+        if (diff[0] !== 'navCompare') throw new Error('差异 -> ' + diff.join(','));
+        var excel = typeSearch('excel');
+        if (excel[0] !== 'navSheet') throw new Error('excel -> ' + excel.join(','));
+    });
+
+    check('命中近义词时右侧标出命中的词，找不到就给空态文案', function () {
+        typeSearch('差异');
+        var first = searchList.querySelector('[data-nav-search-key]');
+        var hint = first && first.querySelector('.ns-hit');
+        if (!hint || hint.textContent !== '差异') throw new Error('没标命中词: ' + (hint && hint.textContent));
+        var none = typeSearch('zzz');
+        if (none.length) throw new Error('不该有结果: ' + none.join(','));
+        var empty = searchList.querySelector('.nav-search-empty');
+        if (!empty || empty.textContent.indexOf('没有') === -1) throw new Error('空态没出来');
+    });
+
+    check('回车打开第一条（走导航自己的点击链路），打开后收起并清空', function () {
+        // 把目标项的 click 换成桩：只记「点了谁」，不真的切页，免得影响后面的用例
+        var link = doc.getElementById('navQr');
+        var real = link.click;
+        var picked = '';
+        link.click = function () { picked = 'navQr'; };
+        try {
+            typeSearch('ewm');
+            searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+            if (picked !== 'navQr') throw new Error('回车没打开第一条');
+            if (!searchList.hidden) throw new Error('打开后没收起');
+            if (searchInput.value !== '') throw new Error('打开后没清空');
+            if (searchInput.getAttribute('aria-expanded') !== 'false') throw new Error('aria-expanded 没复位');
+        } finally {
+            link.click = real;
+        }
+    });
+
+    check('格式转换下拉里的方向也能搜到，页面排在它们前面', function () {
+        var yaml = typeSearch('yaml');
+        var convertRows = yaml.filter(function (k) { return k.indexOf('convert:') === 0; });
+        if (!convertRows.length) throw new Error('没搜到转换方向: ' + yaml.join(','));
+        if (convertRows.length > 3) throw new Error('转换方向太多了: ' + convertRows.length);
+        var json = typeSearch('json');
+        // 页面（JSON 对比 / JSON 转图表 / 表格转 JSON）必须排在二级入口前面
+        var isSecondary = function (k) { return k.indexOf('convert:') === 0 || k.indexOf('format:') === 0; };
+        var firstSecondary = -1;
+        for (var i = 0; i < json.length; i++) {
+            if (isSecondary(json[i])) { firstSecondary = i; break; }
+        }
+        var pageCount = json.filter(function (k) { return !isSecondary(k); }).length;
+        if (firstSecondary >= 0 && firstSecondary < pageCount) throw new Error('二级入口插到页面前面了: ' + json.join(','));
+        typeSearch('格式转换');
+        if (!searchList.querySelector('[data-nav-search-key] .ns-hit')) throw new Error('转换方向没标「格式转换」');
+    });
+
+    check('选一个转换方向：走下拉自己的点击链路，直接切到那一对', function () {
+        var item = doc.querySelector('#navConvertMenu a[data-src="yaml"][data-tgt="json"]');
+        var real = item.click;
+        var picked = '';
+        item.click = function () { picked = 'yaml>json'; };
+        try {
+            typeSearch('yaml转json');
+            searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+            if (picked !== 'yaml>json') throw new Error('没选中转换方向');
+            if (!searchList.hidden) throw new Error('选完没收起');
+        } finally {
+            item.click = real;
+        }
+    });
+
+    check('工具栏「从 / 转为」里的格式也能搜到：名字带方向', function () {
+        var rows = typeSearch('toml');
+        if (rows.indexOf('format:sourceSelect:toml') < 0) throw new Error('没搜到「从 TOML」: ' + rows.join(','));
+        if (rows.indexOf('format:targetSelect:toml') < 0) throw new Error('没搜到「转为 TOML」: ' + rows.join(','));
+        var names = [].map.call(searchList.querySelectorAll('.ns-name'), function (el) { return el.textContent; });
+        if (names.indexOf('从 TOML') < 0 || names.indexOf('转为 TOML') < 0) throw new Error('名字没带方向: ' + names.join('|'));
+        // 下拉值当关键词：.env 这种显示文字和值不一样的也搜得到
+        var env = typeSearch('env');
+        if (env.indexOf('format:sourceSelect:env') < 0) throw new Error('env 没搜到 .env: ' + env.join(','));
+        // 页面仍然排在格式前面
+        var csv = typeSearch('csv');
+        if (csv[0] !== 'navSheet') throw new Error('csv 第一条应该是表格页: ' + csv.join(','));
+    });
+
+    doc.getElementById('navQr').click();
+    await wait(160);
+
+    check('在别的页面搜格式：选完先回格式转换页，再把那一栏切过去', function () {
+        if (!doc.getElementById('qrWorkspace').classList.contains('active')) throw new Error('没进二维码页');
+        var inWrap = doc.getElementById('inputText').nextElementSibling;
+        if (inWrap && inWrap.CodeMirror) inWrap.CodeMirror.setValue('');
+        var rows = typeSearch('toml');
+        var idx = rows.indexOf('format:targetSelect:toml');
+        if (idx < 0) throw new Error('没搜到「转为 TOML」: ' + rows.join(','));
+        for (var i = 0; i < idx; i++) {
+            searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+        }
+        searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        if (doc.getElementById('qrWorkspace').classList.contains('active')) throw new Error('没退出二维码页');
+        if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('格式转换工具栏没回来');
+        var on = doc.querySelector('#targetSelect .custom-option.selected');
+        if (!on || on.dataset.value !== 'toml') throw new Error('转为那一栏没切到 toml: ' + (on && on.dataset.value));
+        var label = doc.querySelector('#targetSelect .custom-select-trigger .label').textContent.trim();
+        if (label.toLowerCase() !== 'toml') throw new Error('触发器文案 ' + label);
+    });
+
+    check('上下键循环选中，Esc 先收列表再清空', function () {
+        var rows = typeSearch('t');
+        if (rows.length < 2) throw new Error('结果太少，测不出上下键: ' + rows.join(','));
+        if (!searchList.querySelector('.is-active')) throw new Error('没有默认高亮');
+        searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+        var active = [].findIndex.call(searchList.children, function (li) {
+            return li.classList.contains('is-active');
+        });
+        if (active !== 1) throw new Error('下键没换到第二条: ' + active);
+        searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+        var back = [].findIndex.call(searchList.children, function (li) {
+            return li.classList.contains('is-active');
+        });
+        if (back !== 0) throw new Error('上键没回到第一条: ' + back);
+        searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        if (!searchList.hidden) throw new Error('Esc 没收列表');
+        if (searchInput.value !== '') throw new Error('Esc 没收列表时不该清输入');
+        searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        if (searchInput.value !== '') throw new Error('再按 Esc 没清空');
     });
 
     doc.getElementById('navToggle').click();

@@ -38,6 +38,13 @@ function eq(a, b, label) {
 }
 
 const html = fs.readFileSync(ENTRY, 'utf8');
+// 样式已从内联 <style> 搬到 ui/css/*.css（宿主把 <link> 内联回文档），
+// 下面几条布局断言照着真实样式表跑
+const css = fs.readdirSync(path.join(UI, 'css'))
+    .filter((f) => /\.css$/.test(f))
+    .sort()
+    .map((f) => fs.readFileSync(path.join(UI, 'css', f), 'utf8'))
+    .join('\n');
 
 /** 与宿主 frameDocument() 完全一致的两条收集规则 */
 function collectRefs(source) {
@@ -104,7 +111,7 @@ function cssRule(selector) {
     const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ');
     const re = /([^{}]+)\{([^{}]*)\}/g;
     let m;
-    while ((m = re.exec(html))) {
+    while ((m = re.exec(css))) {
         // 选择器前面可能挂着注释，会串进来，先摘掉
         const sel = strip(m[1]).split('\n').map((s) => s.trim()).filter(Boolean).join(' ');
         if (sel === selector) return strip(m[2]);

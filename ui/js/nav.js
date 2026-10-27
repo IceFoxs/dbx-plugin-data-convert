@@ -18,8 +18,8 @@
  *   moveBy(order, id, delta)     id -> id ± delta
  *   togglePin(pins, id, maxPins) pin <-> unpin (capped)
  *   isPinned(pins, id)           membership test
- *   parsePrefs(raw)              stored JSON -> { order, pins, sticky, found }
- *   serializePrefs(prefs)        { order, pins, sticky } -> JSON
+ *   parsePrefs(raw)              stored JSON -> { order, pins, sticky, collapsed, found }
+ *   serializePrefs(prefs)        { order, pins, sticky, collapsed } -> JSON
  */
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
@@ -35,7 +35,12 @@
     var MAX_ID = 64;
 
     // 这一版认识的字段；其余字段当「未来版本的扩展」原样保留（见 parsePrefs）
-    var RESERVED = { v: 1, order: 1, pins: 1, sticky: 1 };
+    var RESERVED = { v: 1, order: 1, pins: 1, sticky: 1, collapsed: 1 };
+
+    /** 宽松的布尔：true / 1 / '1' / 'true' 都算开，其余算关 */
+    function flag(value) {
+        return value === true || value === 1 || value === '1' || value === 'true';
+    }
 
     /** 任何输入 -> 干净的 id 数组（去空、去重、截断），顺序保留 */
     function idList(value) {
@@ -138,7 +143,7 @@
 
     /** 存的一坨 JSON -> 归一后的偏好；坏数据当「没存过」处理，不抛错 */
     function parsePrefs(raw) {
-        var out = { order: [], pins: [], sticky: false, found: false, extra: {} };
+        var out = { order: [], pins: [], sticky: false, collapsed: false, found: false, extra: {} };
         if (typeof raw !== 'string' || !raw.trim()) return out;
         var parsed;
         try {
@@ -149,7 +154,9 @@
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return out;
         out.order = idList(parsed.order);
         out.pins = idList(parsed.pins);
-        out.sticky = parsed.sticky === true || parsed.sticky === 1 || parsed.sticky === '1' || parsed.sticky === 'true';
+        out.sticky = flag(parsed.sticky);
+        // 左列收起状态：老版本存下来的 JSON 里没有这个字段，缺省就是展开
+        out.collapsed = flag(parsed.collapsed);
         out.found = true;
         // 未来版本可能往里塞新字段（分组、图标、每项宽度…）。这一版读不懂，
         // 但原样留着再写回去，别让旧版本把新版本存的东西抹掉。
@@ -171,7 +178,8 @@
         });
         out.order = idList(src.order);
         out.pins = idList(src.pins);
-        out.sticky = src.sticky === true || src.sticky === 1 || src.sticky === '1' || src.sticky === 'true';
+        out.sticky = flag(src.sticky);
+        out.collapsed = flag(src.collapsed);
         return JSON.stringify(out);
     }
 

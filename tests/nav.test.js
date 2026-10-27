@@ -203,5 +203,35 @@ check('扩展字段不能顶掉这一版的字段', () => {
     eq(back.sticky, true);
 });
 
+// ---- 左列收起状态（后加的字段，老数据里没有） ----
+check('老数据没有 collapsed 字段 -> 默认展开', () => {
+    const p = N.parsePrefs(JSON.stringify({ v: 1, order: ['navSql'], pins: [], sticky: true }));
+    eq(p.collapsed, false);
+    eq(p.found, true);
+});
+
+check('collapsed 读回与写回', () => {
+    const p = N.parsePrefs(JSON.stringify({ v: 1, order: ['navSql'], pins: [], collapsed: true }));
+    eq(p.collapsed, true);
+    const back = N.parsePrefs(N.serializePrefs(p));
+    eq(back.collapsed, true);
+    eq(back.order, ['navSql']);
+});
+
+check('collapsed 认宽松布尔，坏值当展开', () => {
+    eq(N.parsePrefs(JSON.stringify({ collapsed: 1 })).collapsed, true);
+    eq(N.parsePrefs(JSON.stringify({ collapsed: 'true' })).collapsed, true);
+    eq(N.parsePrefs(JSON.stringify({ collapsed: 'yes' })).collapsed, false);
+    eq(N.parsePrefs(JSON.stringify({ collapsed: 0 })).collapsed, false);
+});
+
+check('collapsed 算这一版认识的字段，不会被当扩展字段重复写', () => {
+    const raw = N.serializePrefs({ order: [], pins: [], collapsed: true, extra: { collapsed: false, density: 'compact' } });
+    const obj = JSON.parse(raw);
+    eq(obj.collapsed, true);
+    eq(obj.density, 'compact');
+    eq(Object.keys(obj).filter((k) => k === 'collapsed').length, 1);
+});
+
 console.log('\n--- nav: ' + passed + '/' + (passed + failed) + ' passed ---\n');
 if (failed) process.exit(1);

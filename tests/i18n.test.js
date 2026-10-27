@@ -16,7 +16,16 @@ var fs = require('fs');
 var path = require('path');
 
 var ROOT = path.join(__dirname, '..');
-var html = fs.readFileSync(path.join(ROOT, 'ui/index.html'), 'utf8');
+// 页面拆成了「index.html 只放结构 + js/app/*.js 一个功能一个文件」，
+// 字典在脚本里、data-i18n 在结构里，两处都要读，所以拼在一起再解析
+function readSources() {
+    var dir = path.join(ROOT, 'ui/js/app');
+    var parts = [fs.readFileSync(path.join(ROOT, 'ui/index.html'), 'utf8')];
+    fs.readdirSync(dir).filter(function (f) { return /\.js$/.test(f); }).sort()
+        .forEach(function (f) { parts.push(fs.readFileSync(path.join(dir, f), 'utf8')); });
+    return parts.join('\n');
+}
+var html = readSources();
 
 var passed = 0;
 var failed = 0;
