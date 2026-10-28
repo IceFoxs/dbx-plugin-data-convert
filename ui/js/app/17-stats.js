@@ -28,6 +28,7 @@ const STATS_I18N = {
         statsCopyCols: '复制所选列',
         statsCopyColsN: '复制所选列（{n}）',
         statsCopyCol: '复制该列全部值',
+        statsLineTip: '跳到第 {n} 行',
         statsTipIdle: '贴一段数据，勾选要统计的列',
         statsTipPreview: '{r} 行 × {c} 列',
         statsTipTruncated: '超过上限，只统计前 {n} 行',
@@ -37,12 +38,19 @@ const STATS_I18N = {
         statsEmptyPickMetrics: '选择统计方式',
         statsColIndex: '列 {n}',
         statsColNamed: '列 {n}（{name}）',
-        statsMoreRows: '… 共 {n} 行，只显示前 20 行',
+        statsMoreRows: '已显示 {shown} / {n} 行',
+        statsLoadMore: '加载更多',
+        statsColsAll: '全部列',
+        statsColsPicked: '列 {a}/{n}',
+        statsColsTitle: '选择预览里显示哪些列',
+        statsToastLastCol: '至少要留一列',
         statsToastCopied: '已复制该列 {n} 行',
         statsToastResult: '已复制统计结果（{n} 行）',
         statsToastCopiedCols: '已复制 {c} 列 / {r} 行',
         statsToastNoData: '还没有可复制的数据',
         statsToastPickCols: '请先勾选要复制的列',
+        statsToastCell: '已复制：{v}',
+        statsToastCellEmpty: '这一格是空的',
         statsMetricCount: '计数',
         statsMetricSum: '求和',
         statsMetricMean: '均值',
@@ -69,6 +77,7 @@ const STATS_I18N = {
         statsCopyCols: '複製所選欄',
         statsCopyColsN: '複製所選欄（{n}）',
         statsCopyCol: '複製該欄全部值',
+        statsLineTip: '跳到第 {n} 列',
         statsTipIdle: '貼上一段資料，勾選要統計的欄',
         statsTipPreview: '{r} 列 × {c} 欄',
         statsTipTruncated: '超過上限，只統計前 {n} 列',
@@ -78,12 +87,19 @@ const STATS_I18N = {
         statsEmptyPickMetrics: '選擇統計方式',
         statsColIndex: '欄 {n}',
         statsColNamed: '欄 {n}（{name}）',
-        statsMoreRows: '… 共 {n} 列，只顯示前 20 列',
+        statsMoreRows: '已顯示 {shown} / {n} 列',
+        statsLoadMore: '載入更多',
+        statsColsAll: '全部欄',
+        statsColsPicked: '欄 {a}/{n}',
+        statsColsTitle: '選擇預覽要顯示哪些欄',
+        statsToastLastCol: '至少要留一欄',
         statsToastCopied: '已複製該欄 {n} 列',
         statsToastResult: '已複製統計結果（{n} 列）',
         statsToastCopiedCols: '已複製 {c} 欄 / {r} 列',
         statsToastNoData: '還沒有可複製的資料',
         statsToastPickCols: '請先勾選要複製的欄',
+        statsToastCell: '已複製：{v}',
+        statsToastCellEmpty: '這一格是空的',
         statsMetricCount: '計數',
         statsMetricSum: '求和',
         statsMetricMean: '平均',
@@ -110,6 +126,7 @@ const STATS_I18N = {
         statsCopyCols: 'Copy columns',
         statsCopyColsN: 'Copy columns ({n})',
         statsCopyCol: 'Copy every value in this column',
+        statsLineTip: 'Jump to line {n}',
         statsTipIdle: 'Paste data, then tick the columns to measure',
         statsTipPreview: '{r} rows × {c} columns',
         statsTipTruncated: 'Over the limit — only the first {n} rows are measured',
@@ -119,12 +136,19 @@ const STATS_I18N = {
         statsEmptyPickMetrics: 'Pick at least one metric',
         statsColIndex: 'Column {n}',
         statsColNamed: 'Column {n} ({name})',
-        statsMoreRows: '… {n} rows in total, first 20 shown',
+        statsMoreRows: 'Showing {shown} of {n} rows',
+        statsLoadMore: 'Load more',
+        statsColsAll: 'All columns',
+        statsColsPicked: 'Columns {a}/{n}',
+        statsColsTitle: 'Choose which columns the preview shows',
+        statsToastLastCol: 'Keep at least one column',
         statsToastCopied: 'Copied {n} rows from this column',
         statsToastResult: 'Copied the result ({n} rows)',
         statsToastCopiedCols: 'Copied {c} columns / {r} rows',
         statsToastNoData: 'Nothing to copy yet',
         statsToastPickCols: 'Tick the columns to copy first',
+        statsToastCell: 'Copied: {v}',
+        statsToastCellEmpty: 'This cell is empty',
         statsMetricCount: 'Count',
         statsMetricSum: 'Sum',
         statsMetricMean: 'Mean',
@@ -151,6 +175,7 @@ const STATS_I18N = {
         statsCopyCols: '選択列をコピー',
         statsCopyColsN: '選択列をコピー（{n}）',
         statsCopyCol: 'この列の値をすべてコピー',
+        statsLineTip: '行 {n} へ移動',
         statsTipIdle: 'データを貼り付け、統計する列にチェック',
         statsTipPreview: '{r} 行 × {c} 列',
         statsTipTruncated: '上限を超えたため先頭 {n} 行のみ統計します',
@@ -160,12 +185,19 @@ const STATS_I18N = {
         statsEmptyPickMetrics: '統計方法を選んでください',
         statsColIndex: '列 {n}',
         statsColNamed: '列 {n}（{name}）',
-        statsMoreRows: '… 全 {n} 行、先頭 20 行のみ表示',
+        statsMoreRows: '{shown} / {n} 行を表示中',
+        statsLoadMore: 'さらに読み込む',
+        statsColsAll: 'すべての列',
+        statsColsPicked: '列 {a}/{n}',
+        statsColsTitle: 'プレビューに表示する列を選択',
+        statsToastLastCol: '列は最低 1 つ残してください',
         statsToastCopied: 'この列の {n} 行をコピーしました',
         statsToastResult: '統計結果をコピーしました（{n} 行）',
         statsToastCopiedCols: '{c} 列 / {r} 行をコピーしました',
         statsToastNoData: 'コピーできるデータがありません',
         statsToastPickCols: 'コピーする列にチェックしてください',
+        statsToastCell: 'コピーしました：{v}',
+        statsToastCellEmpty: 'このセルは空です',
         statsMetricCount: '件数',
         statsMetricSum: '合計',
         statsMetricMean: '平均',
@@ -192,6 +224,7 @@ const STATS_I18N = {
         statsCopyCols: '선택 열 복사',
         statsCopyColsN: '선택 열 복사({n})',
         statsCopyCol: '이 열의 모든 값 복사',
+        statsLineTip: '{n}행으로 이동',
         statsTipIdle: '데이터를 붙여넣고 통계할 열을 선택하세요',
         statsTipPreview: '{r} 행 × {c} 열',
         statsTipTruncated: '한도를 넘어 앞 {n}행만 통계합니다',
@@ -201,12 +234,19 @@ const STATS_I18N = {
         statsEmptyPickMetrics: '통계 방식을 선택하세요',
         statsColIndex: '{n}열',
         statsColNamed: '{n}열({name})',
-        statsMoreRows: '… 전체 {n}행, 앞 20행만 표시',
+        statsMoreRows: '{shown} / {n}행 표시 중',
+        statsLoadMore: '더 불러오기',
+        statsColsAll: '모든 열',
+        statsColsPicked: '열 {a}/{n}',
+        statsColsTitle: '미리보기에 표시할 열 선택',
+        statsToastLastCol: '열을 최소 하나 남겨야 합니다',
         statsToastCopied: '이 열 {n}행을 복사했습니다',
         statsToastResult: '통계 결과를 복사했습니다({n}행)',
         statsToastCopiedCols: '{c}개 열 / {r}행을 복사했습니다',
         statsToastNoData: '복사할 데이터가 없습니다',
         statsToastPickCols: '복사할 열을 먼저 선택하세요',
+        statsToastCell: '복사했습니다: {v}',
+        statsToastCellEmpty: '이 셀은 비어 있습니다',
         statsMetricCount: '개수',
         statsMetricSum: '합계',
         statsMetricMean: '평균',
@@ -233,6 +273,7 @@ const STATS_I18N = {
         statsCopyCols: 'Copiar columnas',
         statsCopyColsN: 'Copiar columnas ({n})',
         statsCopyCol: 'Copiar todos los valores de esta columna',
+        statsLineTip: 'Ir a la línea {n}',
         statsTipIdle: 'Pega los datos y marca las columnas a medir',
         statsTipPreview: '{r} filas × {c} columnas',
         statsTipTruncated: 'Se superó el límite: solo se miden las primeras {n} filas',
@@ -242,12 +283,19 @@ const STATS_I18N = {
         statsEmptyPickMetrics: 'Elige al menos una métrica',
         statsColIndex: 'Columna {n}',
         statsColNamed: 'Columna {n} ({name})',
-        statsMoreRows: '… {n} filas en total, se muestran las primeras 20',
+        statsMoreRows: 'Mostrando {shown} de {n} filas',
+        statsLoadMore: 'Cargar más',
+        statsColsAll: 'Todas las columnas',
+        statsColsPicked: 'Columnas {a}/{n}',
+        statsColsTitle: 'Elige qué columnas muestra la vista previa',
+        statsToastLastCol: 'Deja al menos una columna',
         statsToastCopied: 'Se copiaron {n} filas de esta columna',
         statsToastResult: 'Resultado copiado ({n} filas)',
         statsToastCopiedCols: 'Se copiaron {c} columnas / {r} filas',
         statsToastNoData: 'Todavía no hay nada que copiar',
         statsToastPickCols: 'Marca primero las columnas a copiar',
+        statsToastCell: 'Copiado: {v}',
+        statsToastCellEmpty: 'Esta celda está vacía',
         statsMetricCount: 'Recuento',
         statsMetricSum: 'Suma',
         statsMetricMean: 'Media',
@@ -274,6 +322,7 @@ const STATS_I18N = {
         statsCopyCols: 'Salin kolom',
         statsCopyColsN: 'Salin kolom ({n})',
         statsCopyCol: 'Salin semua nilai kolom ini',
+        statsLineTip: 'Lompat ke baris {n}',
         statsTipIdle: 'Tempel data, lalu centang kolom yang dihitung',
         statsTipPreview: '{r} baris × {c} kolom',
         statsTipTruncated: 'Melebihi batas — hanya {n} baris pertama yang dihitung',
@@ -283,12 +332,19 @@ const STATS_I18N = {
         statsEmptyPickMetrics: 'Pilih minimal satu metrik',
         statsColIndex: 'Kolom {n}',
         statsColNamed: 'Kolom {n} ({name})',
-        statsMoreRows: '… total {n} baris, 20 pertama ditampilkan',
+        statsMoreRows: 'Menampilkan {shown} dari {n} baris',
+        statsLoadMore: 'Muat lebih banyak',
+        statsColsAll: 'Semua kolom',
+        statsColsPicked: 'Kolom {a}/{n}',
+        statsColsTitle: 'Pilih kolom yang ditampilkan di pratinjau',
+        statsToastLastCol: 'Sisakan minimal satu kolom',
         statsToastCopied: 'Menyalin {n} baris dari kolom ini',
         statsToastResult: 'Hasil disalin ({n} baris)',
         statsToastCopiedCols: 'Menyalin {c} kolom / {r} baris',
         statsToastNoData: 'Belum ada data untuk disalin',
         statsToastPickCols: 'Centang dulu kolom yang ingin disalin',
+        statsToastCell: 'Disalin: {v}',
+        statsToastCellEmpty: 'Sel ini kosong',
         statsMetricCount: 'Jumlah',
         statsMetricSum: 'Total',
         statsMetricMean: 'Rata-rata',
@@ -315,6 +371,7 @@ const STATS_I18N = {
         statsCopyCols: 'Copia colonne',
         statsCopyColsN: 'Copia colonne ({n})',
         statsCopyCol: 'Copia tutti i valori di questa colonna',
+        statsLineTip: 'Vai alla riga {n}',
         statsTipIdle: 'Incolla i dati e spunta le colonne da misurare',
         statsTipPreview: '{r} righe × {c} colonne',
         statsTipTruncated: 'Limite superato: misurate solo le prime {n} righe',
@@ -324,12 +381,19 @@ const STATS_I18N = {
         statsEmptyPickMetrics: 'Scegli almeno una metrica',
         statsColIndex: 'Colonna {n}',
         statsColNamed: 'Colonna {n} ({name})',
-        statsMoreRows: '… {n} righe in totale, mostrate le prime 20',
+        statsMoreRows: 'Mostrate {shown} di {n} righe',
+        statsLoadMore: 'Carica altro',
+        statsColsAll: 'Tutte le colonne',
+        statsColsPicked: 'Colonne {a}/{n}',
+        statsColsTitle: 'Scegli quali colonne mostrare nell’anteprima',
+        statsToastLastCol: 'Lascia almeno una colonna',
         statsToastCopied: 'Copiate {n} righe di questa colonna',
         statsToastResult: 'Risultato copiato ({n} righe)',
         statsToastCopiedCols: 'Copiate {c} colonne / {r} righe',
         statsToastNoData: 'Non c’è ancora nulla da copiare',
         statsToastPickCols: 'Spunta prima le colonne da copiare',
+        statsToastCell: 'Copiato: {v}',
+        statsToastCellEmpty: 'Questa cella è vuota',
         statsMetricCount: 'Conteggio',
         statsMetricSum: 'Somma',
         statsMetricMean: 'Media',
@@ -356,6 +420,7 @@ const STATS_I18N = {
         statsCopyCols: 'Kopiuj kolumny',
         statsCopyColsN: 'Kopiuj kolumny ({n})',
         statsCopyCol: 'Kopiuj wszystkie wartości tej kolumny',
+        statsLineTip: 'Przejdź do wiersza {n}',
         statsTipIdle: 'Wklej dane i zaznacz kolumny do obliczeń',
         statsTipPreview: '{r} wierszy × {c} kolumn',
         statsTipTruncated: 'Przekroczono limit — liczone tylko pierwsze {n} wierszy',
@@ -365,12 +430,19 @@ const STATS_I18N = {
         statsEmptyPickMetrics: 'Wybierz co najmniej jedną metrykę',
         statsColIndex: 'Kolumna {n}',
         statsColNamed: 'Kolumna {n} ({name})',
-        statsMoreRows: '… łącznie {n} wierszy, pokazano pierwsze 20',
+        statsMoreRows: 'Pokazano {shown} z {n} wierszy',
+        statsLoadMore: 'Wczytaj więcej',
+        statsColsAll: 'Wszystkie kolumny',
+        statsColsPicked: 'Kolumny {a}/{n}',
+        statsColsTitle: 'Wybierz kolumny widoczne w podglądzie',
+        statsToastLastCol: 'Zostaw co najmniej jedną kolumnę',
         statsToastCopied: 'Skopiowano {n} wierszy tej kolumny',
         statsToastResult: 'Skopiowano wynik ({n} wierszy)',
         statsToastCopiedCols: 'Skopiowano {c} kolumn / {r} wierszy',
         statsToastNoData: 'Nie ma jeszcze czego kopiować',
         statsToastPickCols: 'Najpierw zaznacz kolumny do skopiowania',
+        statsToastCell: 'Skopiowano: {v}',
+        statsToastCellEmpty: 'Ta komórka jest pusta',
         statsMetricCount: 'Liczba',
         statsMetricSum: 'Suma',
         statsMetricMean: 'Średnia',
@@ -397,6 +469,7 @@ const STATS_I18N = {
         statsCopyCols: 'Copiar colunas',
         statsCopyColsN: 'Copiar colunas ({n})',
         statsCopyCol: 'Copiar todos os valores desta coluna',
+        statsLineTip: 'Ir para a linha {n}',
         statsTipIdle: 'Cole os dados e marque as colunas a medir',
         statsTipPreview: '{r} linhas × {c} colunas',
         statsTipTruncated: 'Limite excedido — só as primeiras {n} linhas são medidas',
@@ -406,12 +479,19 @@ const STATS_I18N = {
         statsEmptyPickMetrics: 'Escolha pelo menos uma métrica',
         statsColIndex: 'Coluna {n}',
         statsColNamed: 'Coluna {n} ({name})',
-        statsMoreRows: '… {n} linhas no total, primeiras 20 mostradas',
+        statsMoreRows: 'A mostrar {shown} de {n} linhas',
+        statsLoadMore: 'Carregar mais',
+        statsColsAll: 'Todas as colunas',
+        statsColsPicked: 'Colunas {a}/{n}',
+        statsColsTitle: 'Escolha as colunas que a pré-visualização mostra',
+        statsToastLastCol: 'Deixe pelo menos uma coluna',
         statsToastCopied: 'Copiadas {n} linhas desta coluna',
         statsToastResult: 'Resultado copiado ({n} linhas)',
         statsToastCopiedCols: 'Copiadas {c} colunas / {r} linhas',
         statsToastNoData: 'Ainda não há nada para copiar',
         statsToastPickCols: 'Marque primeiro as colunas a copiar',
+        statsToastCell: 'Copiado: {v}',
+        statsToastCellEmpty: 'Esta célula está vazia',
         statsMetricCount: 'Contagem',
         statsMetricSum: 'Soma',
         statsMetricMean: 'Média',
@@ -438,6 +518,7 @@ const STATS_I18N = {
         statsCopyCols: 'Копировать столбцы',
         statsCopyColsN: 'Копировать столбцы ({n})',
         statsCopyCol: 'Скопировать все значения этого столбца',
+        statsLineTip: 'Перейти к строке {n}',
         statsTipIdle: 'Вставьте данные и отметьте столбцы для расчёта',
         statsTipPreview: '{r} строк × {c} столбцов',
         statsTipTruncated: 'Превышен лимит — считаются только первые {n} строк',
@@ -447,12 +528,19 @@ const STATS_I18N = {
         statsEmptyPickMetrics: 'Выберите хотя бы одну метрику',
         statsColIndex: 'Столбец {n}',
         statsColNamed: 'Столбец {n} ({name})',
-        statsMoreRows: '… всего {n} строк, показаны первые 20',
+        statsMoreRows: 'Показано {shown} из {n} строк',
+        statsLoadMore: 'Загрузить ещё',
+        statsColsAll: 'Все столбцы',
+        statsColsPicked: 'Столбцы {a}/{n}',
+        statsColsTitle: 'Выберите столбцы для предпросмотра',
+        statsToastLastCol: 'Оставьте хотя бы один столбец',
         statsToastCopied: 'Скопировано {n} строк этого столбца',
         statsToastResult: 'Результат скопирован ({n} строк)',
         statsToastCopiedCols: 'Скопировано {c} столбцов / {r} строк',
         statsToastNoData: 'Пока нечего копировать',
         statsToastPickCols: 'Сначала отметьте столбцы для копирования',
+        statsToastCell: 'Скопировано: {v}',
+        statsToastCellEmpty: 'Эта ячейка пуста',
         statsMetricCount: 'Кол-во',
         statsMetricSum: 'Сумма',
         statsMetricMean: 'Среднее',
@@ -479,6 +567,7 @@ const STATS_I18N = {
         statsCopyCols: 'คัดลอกคอลัมน์ที่เลือก',
         statsCopyColsN: 'คัดลอกคอลัมน์ที่เลือก ({n})',
         statsCopyCol: 'คัดลอกค่าทั้งหมดของคอลัมน์นี้',
+        statsLineTip: 'ไปที่บรรทัด {n}',
         statsTipIdle: 'วางข้อมูล แล้วติ๊กคอลัมน์ที่ต้องการสถิติ',
         statsTipPreview: '{r} แถว × {c} คอลัมน์',
         statsTipTruncated: 'เกินขีดจำกัด สถิติเฉพาะ {n} แถวแรก',
@@ -488,12 +577,19 @@ const STATS_I18N = {
         statsEmptyPickMetrics: 'เลือกวิธีสถิติอย่างน้อยหนึ่งอย่าง',
         statsColIndex: 'คอลัมน์ {n}',
         statsColNamed: 'คอลัมน์ {n} ({name})',
-        statsMoreRows: '… ทั้งหมด {n} แถว แสดง 20 แถวแรก',
+        statsMoreRows: 'แสดง {shown} จาก {n} แถว',
+        statsLoadMore: 'โหลดเพิ่ม',
+        statsColsAll: 'ทุกคอลัมน์',
+        statsColsPicked: 'คอลัมน์ {a}/{n}',
+        statsColsTitle: 'เลือกคอลัมน์ที่จะแสดงในตัวอย่าง',
+        statsToastLastCol: 'ต้องเหลืออย่างน้อยหนึ่งคอลัมน์',
         statsToastCopied: 'คัดลอก {n} แถวของคอลัมน์นี้แล้ว',
         statsToastResult: 'คัดลอกผลสถิติแล้ว ({n} แถว)',
         statsToastCopiedCols: 'คัดลอก {c} คอลัมน์ / {r} แถวแล้ว',
         statsToastNoData: 'ยังไม่มีข้อมูลให้คัดลอก',
         statsToastPickCols: 'ติ๊กคอลัมน์ที่จะคัดลอกก่อน',
+        statsToastCell: 'คัดลอกแล้ว: {v}',
+        statsToastCellEmpty: 'เซลล์นี้ว่าง',
         statsMetricCount: 'จำนวน',
         statsMetricSum: 'ผลรวม',
         statsMetricMean: 'ค่าเฉลี่ย',
@@ -520,6 +616,7 @@ const STATS_I18N = {
         statsCopyCols: 'Sütunları kopyala',
         statsCopyColsN: 'Sütunları kopyala ({n})',
         statsCopyCol: 'Bu sütunun tüm değerlerini kopyala',
+        statsLineTip: '{n}. satıra git',
         statsTipIdle: 'Veriyi yapıştırın, ölçülecek sütunları işaretleyin',
         statsTipPreview: '{r} satır × {c} sütun',
         statsTipTruncated: 'Sınır aşıldı — yalnızca ilk {n} satır ölçülür',
@@ -529,12 +626,19 @@ const STATS_I18N = {
         statsEmptyPickMetrics: 'En az bir ölçüt seçin',
         statsColIndex: 'Sütun {n}',
         statsColNamed: 'Sütun {n} ({name})',
-        statsMoreRows: '… toplam {n} satır, ilk 20 gösteriliyor',
+        statsMoreRows: '{n} satırın {shown} tanesi gösteriliyor',
+        statsLoadMore: 'Daha fazla',
+        statsColsAll: 'Tüm sütunlar',
+        statsColsPicked: 'Sütun {a}/{n}',
+        statsColsTitle: 'Önizlemede gösterilecek sütunları seçin',
+        statsToastLastCol: 'En az bir sütun bırakın',
         statsToastCopied: 'Bu sütundan {n} satır kopyalandı',
         statsToastResult: 'Sonuç kopyalandı ({n} satır)',
         statsToastCopiedCols: '{c} sütun / {r} satır kopyalandı',
         statsToastNoData: 'Henüz kopyalanacak veri yok',
         statsToastPickCols: 'Önce kopyalanacak sütunları işaretleyin',
+        statsToastCell: 'Kopyalandı: {v}',
+        statsToastCellEmpty: 'Bu hücre boş',
         statsMetricCount: 'Adet',
         statsMetricSum: 'Toplam',
         statsMetricMean: 'Ortalama',
@@ -561,6 +665,7 @@ const STATS_I18N = {
         statsCopyCols: 'Sütunları kopyala',
         statsCopyColsN: 'Sütunları kopyala ({n})',
         statsCopyCol: 'Bu sütunun bütün dəyərlərini kopyala',
+        statsLineTip: '{n}-ci sətrə keç',
         statsTipIdle: 'Məlumatı yapışdırın, ölçüləcək sütunları işarələyin',
         statsTipPreview: '{r} sətir × {c} sütun',
         statsTipTruncated: 'Limit aşıldı — yalnız ilk {n} sətir ölçülür',
@@ -570,12 +675,19 @@ const STATS_I18N = {
         statsEmptyPickMetrics: 'Ən azı bir metrik seçin',
         statsColIndex: 'Sütun {n}',
         statsColNamed: 'Sütun {n} ({name})',
-        statsMoreRows: '… cəmi {n} sətir, ilk 20 göstərilir',
+        statsMoreRows: '{n} sətirdən {shown} göstərilir',
+        statsLoadMore: 'Daha çox yüklə',
+        statsColsAll: 'Bütün sütunlar',
+        statsColsPicked: 'Sütun {a}/{n}',
+        statsColsTitle: 'Önizləmədə göstəriləcək sütunları seçin',
+        statsToastLastCol: 'Ən azı bir sütun saxlayın',
         statsToastCopied: 'Bu sütundan {n} sətir kopyalandı',
         statsToastResult: 'Nəticə kopyalandı ({n} sətir)',
         statsToastCopiedCols: '{c} sütun / {r} sətir kopyalandı',
         statsToastNoData: 'Hələ kopyalanacaq məlumat yoxdur',
         statsToastPickCols: 'Əvvəlcə kopyalanacaq sütunları işarələyin',
+        statsToastCell: 'Kopyalandı: {v}',
+        statsToastCellEmpty: 'Bu hücrə boşdur',
         statsMetricCount: 'Say',
         statsMetricSum: 'Cəm',
         statsMetricMean: 'Orta',
@@ -610,6 +722,10 @@ const statsGroupEl = document.getElementById('statsGroup');
 const statsGroupTrigger = statsGroupEl ? statsGroupEl.querySelector('.custom-select-trigger') : null;
 const statsGroupOptions = statsGroupEl ? statsGroupEl.querySelector('.custom-select-options') : null;
 const statsGroupLabel = statsGroupTrigger ? statsGroupTrigger.querySelector('.label') : null;
+const statsColsEl = document.getElementById('statsCols');
+const statsColsTrigger = statsColsEl ? statsColsEl.querySelector('.custom-select-trigger') : null;
+const statsColsOptionsEl = document.getElementById('statsColsOptions');
+const statsColsLabel = statsColsTrigger ? statsColsTrigger.querySelector('.label') : null;
 const statsMetricsEl = document.getElementById('statsMetrics');
 const statsSamplesEl = document.getElementById('statsSamples');
 const statsTipEl = document.getElementById('statsTip');
@@ -623,10 +739,15 @@ const statsCopyBtn = document.getElementById('statsCopy');
 const statsCopyColsBtn = document.getElementById('statsCopyCols');
 const statsClearBtn = document.getElementById('statsClear');
 
+// 预览表一批画几行：滚到底再追加，几万行也不会一次塞进 DOM
+const STATS_PREVIEW_BATCH = Stats && Stats.LIMITS && Stats.LIMITS.batch ? Stats.LIMITS.batch : 100;
+
 let statsModeActive = false;
 let statsEditor = null;                              // CodeMirror（懒创建，进页时才建）
 let statsParsed = null;
+let statsPreviewLoaded = 0;                          // 预览表已经画了多少行
 let statsSel = [];                                   // 勾选的列下标
+let statsHiddenCols = [];                            // 预览里藏起来的列（不影响统计）
 let statsGroupCol = -1;                              // -1 = 不分组
 let statsDelimiter = 'auto';
 let statsResult = null;
@@ -826,6 +947,88 @@ function statsGroupToggle(open) {
     if (statsGroupTrigger) statsGroupTrigger.classList.toggle('active', next);
 }
 
+/* ------------------------------ 预览显示哪些列 ------------------------------ */
+
+// 藏起来的列只是不画出来：统计与复制仍是整张表（只想统计可见列的话，去表头勾选）
+function statsColVisible(idx) {
+    return statsHiddenCols.indexOf(idx) < 0;
+}
+
+function statsVisibleCols() {
+    const out = [];
+    const cols = statsParsed ? statsParsed.cols : 0;
+    for (let i = 0; i < cols; i++) if (statsColVisible(i)) out.push(i);
+    return out;
+}
+
+// 列名跟着表头变，所以每次重新解析都重建一遍（勾选状态按列下标保留）
+function statsBuildColsOptions() {
+    if (!statsColsOptionsEl) return;
+    const cols = statsParsed ? statsParsed.cols : 0;
+    statsHiddenCols = statsHiddenCols.filter((c) => c < cols);
+    statsColsOptionsEl.innerHTML = '';
+    for (let i = 0; i < cols; i++) {
+        const opt = document.createElement('div');
+        opt.className = 'custom-option stats-col-opt';
+        opt.setAttribute('role', 'option');
+        opt.dataset.value = String(i);
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.checked = statsColVisible(i);
+        box.dataset.col = String(i);
+        box.setAttribute('aria-label', statsColName(i, false));
+        const name = document.createElement('span');
+        name.className = 'stats-col-opt-name';
+        name.textContent = statsColName(i, false);
+        name.title = name.textContent;
+        opt.appendChild(box);
+        opt.appendChild(name);
+        statsColsOptionsEl.appendChild(opt);
+    }
+    statsSyncColsLabel();
+}
+
+function statsSyncColsLabel() {
+    if (!statsColsLabel) return;
+    const cols = statsParsed ? statsParsed.cols : 0;
+    const shown = statsVisibleCols().length;
+    statsColsLabel.textContent = !cols || shown === cols
+        ? statsT('statsColsAll', '全部列')
+        : statsFmt('statsColsPicked', { a: shown, n: cols }, '列 {a}/{n}');
+}
+
+function statsColsToggle(open) {
+    if (!statsColsOptionsEl) return;
+    const next = typeof open === 'boolean' ? open : !statsColsOptionsEl.classList.contains('open');
+    statsColsOptionsEl.classList.toggle('open', next);
+    if (statsColsTrigger) statsColsTrigger.classList.toggle('active', next);
+}
+
+function statsToggleCol(idx) {
+    const on = statsColVisible(idx);
+    const next = on ? statsHiddenCols.concat([idx]) : statsHiddenCols.filter((c) => c !== idx);
+    // 至少留一列：全藏了预览就只剩行号，看着像坏了
+    const rest = [];
+    const cols = statsParsed ? statsParsed.cols : 0;
+    for (let i = 0; i < cols; i++) if (next.indexOf(i) < 0) rest.push(i);
+    if (!rest.length) {
+        // 点在勾选框上时浏览器已经把它取消了，状态却不认——得把它掰回勾上
+        const keep = statsColsOptionsEl
+            ? statsColsOptionsEl.querySelector('input[data-col="' + idx + '"]')
+            : null;
+        if (keep) keep.checked = true;
+        showToast(statsT('statsToastLastCol', '至少要留一列'), 'error');
+        return;
+    }
+    statsHiddenCols = next;
+    const box = statsColsOptionsEl
+        ? statsColsOptionsEl.querySelector('input[data-col="' + idx + '"]')
+        : null;
+    if (box) box.checked = !on;
+    statsSyncColsLabel();
+    statsRenderPreview();
+}
+
 /* ------------------------------ 解析与渲染 ------------------------------ */
 
 // 表头一行：勾选框 + 列名 + 复制这一列。
@@ -894,51 +1097,120 @@ function statsRenderPreview() {
         : '0 × 0';
     if (!hasData) {
         statsPreviewTable.innerHTML = '';
+        statsPreviewLoaded = 0;
         return;
     }
 
     const thead = document.createElement('thead');
     const hrow = document.createElement('tr');
     hrow.appendChild(statsLineHeadCell());
-    for (let i = 0; i < parsed.cols; i++) hrow.appendChild(statsHeaderCell(i));
+    statsVisibleCols().forEach((i) => { hrow.appendChild(statsHeaderCell(i)); });
     thead.appendChild(hrow);
-
-    const tbody = document.createElement('tbody');
-    const limit = Stats ? Stats.LIMITS.preview : 20;
-    const preview = parsed.rows.slice(0, limit);
-    preview.forEach((row, idx) => {
-        const tr = document.createElement('tr');
-        // 行号来自原文（表头 / 开头空行都算进去了），点一下就能跳回编辑器那一行
-        const line = parsed.lines ? parsed.lines[idx] : idx + 1;
-        tr.dataset.line = String(line);
-        tr.addEventListener('click', () => { statsLocateFromRow(tr); });
-        const lineTd = document.createElement('td');
-        lineTd.className = 'stats-line-no';
-        lineTd.textContent = String(line);
-        tr.appendChild(lineTd);
-        row.forEach((value, col) => {
-            const td = document.createElement('td');
-            td.textContent = value;
-            if (value !== '' && Stats && Stats.toNumber(value) !== null) td.classList.add('is-num');
-            tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
-    });
-    if (parsed.rows.length > preview.length) {
-        const tr = document.createElement('tr');
-        tr.className = 'stats-more';
-        const td = document.createElement('td');
-        td.colSpan = parsed.cols + 1;
-        td.textContent = statsFmt('statsMoreRows', { n: parsed.rows.length }, '… 共 {n} 行，只显示前 20 行');
-        tr.appendChild(td);
-        tbody.appendChild(tr);
-    }
 
     statsPreviewTable.innerHTML = '';
     statsPreviewTable.appendChild(thead);
-    statsPreviewTable.appendChild(tbody);
+    statsPreviewTable.appendChild(document.createElement('tbody'));
+    statsPreviewLoaded = 0;
+    // 先画一批（够铺满一屏），剩下的滚到底再追加
+    statsAppendPreviewRows(STATS_PREVIEW_BATCH);
     // 重画会把高亮一起冲掉，按当前光标再点亮一次（编辑后行号会变，必须重算）
     statsSyncLocate();
+}
+
+/* 预览表的懒加载：一批 STATS_PREVIEW_BATCH 行，滚到底再追加下一批。
+   几万行一次塞进 DOM 滚轮会卡成幻灯片；首屏只画一批，往下滚时才补。 */
+
+function statsPreviewTbody() {
+    return statsPreviewTable ? statsPreviewTable.querySelector('tbody') : null;
+}
+
+function statsPreviewRow(parsed, idx) {
+    const row = parsed.rows[idx] || [];
+    const tr = document.createElement('tr');
+    // 行号来自原文（表头 / 开头空行都算进去了），点一下就能跳回编辑器那一行
+    const line = parsed.lines ? parsed.lines[idx] : idx + 1;
+    tr.dataset.line = String(line);
+    const lineTd = document.createElement('td');
+    lineTd.className = 'stats-line-no';
+    lineTd.textContent = String(line);
+    // 数据格里点一下是「复制这一格」，跳编辑器留给行号列——两种手势分开，
+    // 复制完不会顺手把焦点扔进编辑器（不然下一次粘贴就粘到数据里了）
+    lineTd.title = statsFmt('statsLineTip', { n: line }, '跳到第 {n} 行');
+    lineTd.setAttribute('data-keep-title', '');
+    tr.appendChild(lineTd);
+    row.forEach((value, col) => {
+        if (!statsColVisible(col)) return;   // 被藏起来的列不画
+        const td = document.createElement('td');
+        td.textContent = value;
+        if (value !== '' && Stats && Stats.toNumber(value) !== null) td.classList.add('is-num');
+        tr.appendChild(td);
+    });
+    return tr;
+}
+
+// 表尾：还没画完时给「已显示 x / y 行」和一个「加载更多」（滚到底也会自动补）
+function statsUpdatePreviewFooter(parsed) {
+    const tbody = statsPreviewTbody();
+    if (!tbody) return;
+    const total = parsed.rows.length;
+    let tr = tbody.querySelector('tr.stats-more');
+    if (statsPreviewLoaded >= total) {
+        if (tr) tr.remove();
+        return;
+    }
+    if (!tr) {
+        tr = document.createElement('tr');
+        tr.className = 'stats-more';
+        const cell = document.createElement('td');
+        cell.className = 'stats-more-cell';
+        tr.appendChild(cell);
+        tbody.appendChild(tr);
+    }
+    const cell = tr.firstChild;
+    cell.colSpan = statsVisibleCols().length + 1;
+    cell.innerHTML = '';
+    // td 里再包一层：按钮和文字要横排，直接给 td 上 flex 会把表格布局搅乱
+    const inner = document.createElement('div');
+    inner.className = 'stats-more-inner';
+
+    const text = document.createElement('span');
+    text.className = 'stats-more-text';
+    text.textContent = statsFmt('statsMoreRows',
+        { shown: statsPreviewLoaded, n: total }, '已显示 {shown} / {n} 行');
+    inner.appendChild(text);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'stats-more-btn';
+    btn.textContent = statsT('statsLoadMore', '加载更多');
+    btn.setAttribute('data-keep-title', '');
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        statsAppendPreviewRows(STATS_PREVIEW_BATCH);
+    });
+    inner.appendChild(btn);
+    cell.appendChild(inner);
+}
+
+/** 追加一批预览行，返回这次真正画了几行 */
+function statsAppendPreviewRows(count) {
+    const parsed = statsParsed;
+    const tbody = statsPreviewTbody();
+    if (!parsed || !tbody) return 0;
+    const total = parsed.rows.length;
+    const start = statsPreviewLoaded;
+    const end = Math.min(total, start + Math.max(1, count || STATS_PREVIEW_BATCH));
+    if (end <= start) return 0;
+
+    const frag = document.createDocumentFragment();
+    for (let i = start; i < end; i++) frag.appendChild(statsPreviewRow(parsed, i));
+    // 表尾永远留在最后一行
+    const footer = tbody.querySelector('tr.stats-more');
+    if (footer) tbody.insertBefore(frag, footer);
+    else tbody.appendChild(frag);
+    statsPreviewLoaded = end;
+    statsUpdatePreviewFooter(parsed);
+    return end - start;
 }
 
 function statsSyncLocate() {
@@ -988,6 +1260,8 @@ function statsRenderResult() {
         if (result.groupCol >= 0) {
             const td = document.createElement('td');
             td.textContent = row.group === '' ? '—' : row.group;
+            // 复制的是本来的值，不是占位的「—」
+            td.dataset.copy = row.group == null ? '' : String(row.group);
             tr.appendChild(td);
         }
         const tdCol = document.createElement('td');
@@ -1079,11 +1353,55 @@ function statsRefresh() {
     statsSel = kept.length ? kept : statsAutoCols(parsed);
 
     statsBuildGroupOptions();
+    statsBuildColsOptions();
     statsRenderPreview();
     statsRun();
 }
 
 /* ------------------------------ 复制 ------------------------------ */
+
+/* 单元格复制：点一下就把这一格拿走。
+   两张表都是「算一次整表重画」，所以监听挂在 table 上做委托，不逐个 td 绑。
+   dataset.copy 是「要复制的原值」——结果表里空分组画成「—」，复制不能拿那个破折号。 */
+function statsCellValue(td) {
+    if (!td) return '';
+    if (td.dataset && td.dataset.copy != null) return String(td.dataset.copy);
+    return td.textContent == null ? '' : String(td.textContent);
+}
+
+// toast 一行放不下整格：长的收尾打省略号，剪贴板里仍是全值
+function statsClipPreview(text) {
+    const s = String(text == null ? '' : text);
+    return s.length > 36 ? s.slice(0, 36) + '…' : s;
+}
+
+// 复制成功的格子闪一下：一屏几十行，光靠 toast 找不到刚点的是哪一格
+let statsFlashedTd = null;
+function statsFlashCell(td) {
+    if (!td || !td.classList) return;
+    // 只留最新那一格在闪，连点时前一个立刻退掉，屏幕上不会同时亮好几块
+    if (statsFlashedTd && statsFlashedTd !== td) statsFlashedTd.classList.remove('cell-copied');
+    statsFlashedTd = td;
+    td.classList.remove('cell-copied');
+    if (typeof td.offsetWidth === 'number') void td.offsetWidth;   // 连点同一格也能重放
+    td.classList.add('cell-copied');
+    setTimeout(() => td.classList.remove('cell-copied'), 700);
+}
+
+async function statsCopyCell(td) {
+    const value = statsCellValue(td);
+    if (!value) {
+        showToast(statsT('statsToastCellEmpty', '这一格是空的'), 'error');
+        return;
+    }
+    try {
+        await writeClipboardText(value);
+        statsFlashCell(td);
+        showToast(statsFmt('statsToastCell', { v: statsClipPreview(value) }, '已复制：{v}'));
+    } catch (err) {
+        showToast(String((err && err.message) || err), 'error');
+    }
+}
 
 async function statsCopyColumn(idx) {
     const values = Stats ? Stats.columnText(statsParsed, idx) : [];
@@ -1159,6 +1477,7 @@ function enterStatsMode() {
     if (!statsParsed) statsRefresh();
     else {
         statsBuildGroupOptions();
+        statsBuildColsOptions();
         statsRenderPreview();
         statsRun();
     }
@@ -1174,6 +1493,7 @@ function exitStatsMode() {
     statsWorkspaceEl.classList.remove('active');
     navStatsLink.classList.remove('active');
     statsGroupToggle(false);
+    statsColsToggle(false);
     toolbarEl.classList.remove('hidden');
     mainWorkspace.classList.remove('hidden');
 }
@@ -1218,9 +1538,33 @@ if (statsSamplesEl) {
 }
 if (statsCopyBtn) statsCopyBtn.addEventListener('click', statsCopyResult);
 if (statsCopyColsBtn) statsCopyColsBtn.addEventListener('click', statsCopySelectedColumns);
+
+// 预览表：行号列 = 跳编辑器那一行，数据格 = 复制这一格
+if (statsPreviewTable) {
+    statsPreviewTable.addEventListener('click', (e) => {
+        const td = e.target && e.target.closest ? e.target.closest('td') : null;
+        if (!td || !statsPreviewTable.contains(td)) return;
+        const tr = td.parentElement;
+        if (!tr || tr.classList.contains('stats-more')) return;   // 「还有 N 行」那行不是数据
+        if (td.classList.contains('stats-line-no')) {
+            statsLocateFromRow(tr);
+            return;
+        }
+        statsCopyCell(td);
+    });
+}
+// 结果表：每一格（分组 / 统计列 / 每个指标）都能单独复制
+if (statsResultTable) {
+    statsResultTable.addEventListener('click', (e) => {
+        const td = e.target && e.target.closest ? e.target.closest('td') : null;
+        if (!td || !statsResultTable.contains(td)) return;
+        statsCopyCell(td);
+    });
+}
 if (statsClearBtn) {
     statsClearBtn.addEventListener('click', () => {
         statsSel = [];
+        statsHiddenCols = [];
         statsGroupCol = -1;
         statsResult = null;
         statsParsed = null;
@@ -1262,6 +1606,49 @@ if (statsGroupEl) {
     });
 }
 
+// 显示哪些列：触发器开合，勾选走委托（选项随表头重建，逐个绑会全丢）
+if (statsColsEl) {
+    statsColsEl.addEventListener('click', (e) => {
+        const opt = e.target && e.target.closest ? e.target.closest('.custom-option') : null;
+        const onTrigger = !!(e.target && e.target.closest && e.target.closest('.custom-select-trigger'));
+        if (!opt && !onTrigger) return;
+        // 顶栏那套「点页面任何地方就收起」的监听不该在面板里生效
+        e.stopPropagation();
+        if (opt) {
+            statsToggleCol(Number(opt.dataset.value));
+            return;
+        }
+        // 开自己之前先把别的下拉收掉，免得两个面板叠在一起
+        document.querySelectorAll('.custom-select-options').forEach((o) => {
+            if (o !== statsColsOptionsEl) o.classList.remove('open');
+        });
+        document.querySelectorAll('.custom-select-trigger').forEach((t) => {
+            if (t !== statsColsTrigger) t.classList.remove('active');
+        });
+        statsColsToggle();
+    });
+    statsColsEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') statsColsToggle(false);
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            statsColsToggle();
+        }
+    });
+}
+
+// 预览懒加载：滚到离底 120px 就先把下一批画上，滚起来不会「先白一下再冒出来」。
+// 表尾那个「加载更多」是给键盘 / 不想滚到底的人留的
+const statsPreviewWrap = statsPreviewTable && statsPreviewTable.closest
+    ? statsPreviewTable.closest('.sheet-table-wrap')
+    : null;
+if (statsPreviewWrap) {
+    statsPreviewWrap.addEventListener('scroll', () => {
+        if (!statsParsed || statsPreviewLoaded >= statsParsed.rows.length) return;
+        const gap = statsPreviewWrap.scrollHeight - statsPreviewWrap.scrollTop - statsPreviewWrap.clientHeight;
+        if (gap < 120) statsAppendPreviewRows(STATS_PREVIEW_BATCH);
+    });
+}
+
 /* ------------------------------ 切语言 ------------------------------ */
 
 // 文案是拼出来的（列名、徽标、提示、chip），切语言后整体重画一遍
@@ -1269,6 +1656,7 @@ function refreshStatsI18n() {
     if (statsEditor) statsEditor.setOption('placeholder', statsInputEl.placeholder || '');
     statsRenderMetrics();
     statsBuildGroupOptions();
+    statsBuildColsOptions();
     statsRenderPreview();
     statsRun();
 }
@@ -1276,3 +1664,4 @@ function refreshStatsI18n() {
 // 进页之前先把 chip 与分组下拉铺好；applyI18n 之后还会重画一次，代价可以忽略
 statsRenderMetrics();
 statsBuildGroupOptions();
+statsBuildColsOptions();

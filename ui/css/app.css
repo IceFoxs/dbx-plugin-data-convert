@@ -3528,13 +3528,86 @@ body.nv-sorting { user-select: none; -webkit-user-select: none; }
     font-variant-numeric: tabular-nums;
     color: var(--text-main);
 }
-/* 预览最后一行：还有多少行没画出来 */
+/* 预览最后一行：还没画完时给「已显示 x / y 行 + 加载更多」 */
 .stats-more td {
     text-align: center;
     color: var(--text-muted);
     font-family: var(--font-sans, inherit);
 }
+.stats-more-inner {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+}
+.stats-more-btn {
+    padding: 0.02rem 0.5rem;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--primary);
+    background-color: transparent;
+    border: 1px solid var(--border-light);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+.stats-more-btn:hover { background-color: var(--accent-bg); border-color: var(--primary); }
+
+/* 「显示哪些列」的多选面板：选项自带勾选框，左边不再留打勾的位置（.custom-option 默认留了） */
+/* 这一行表头不能裁：「全部列」的面板要压到下面的预览表上，
+   .pane-header 默认 overflow:hidden，会把面板切掉（标题自己的省略号还在 .pane-title 上） */
+#statsWorkspace .pane-header.stats-preview-head { overflow: visible; }
+.stats-cols-pick .custom-select-trigger { min-width: 4.6rem; }
+.stats-cols-pick .custom-select-options {
+    min-width: 10rem;
+    max-height: 15rem;
+    overflow-y: auto;
+}
+.stats-col-opt { padding-left: 0.5rem; gap: 0.45rem; }
+.stats-col-opt input {
+    flex: 0 0 auto;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--primary, #2563eb);
+}
+.stats-col-opt-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 .stats-result-table td.is-num { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-main); }
+
+/* 单元格复制：整格可点（光标就是「复制」手势）。
+   悬停时给这一格描边——行本来就会亮，得让「当前这一格」比「当前这一行」更清楚；
+   复制成功再闪一下，一屏几十行也找得到刚点的是哪格 */
+.stats-preview-table tbody tr[data-line] td,
+.stats-result-table tbody td { cursor: copy; }
+.stats-result-table tbody tr:hover td { background-color: var(--accent-bg); }
+.stats-preview-table tbody tr[data-line] td:hover,
+.stats-result-table tbody td:hover {
+    background-color: var(--accent-bg);
+    box-shadow: inset 0 0 0 1px var(--primary);
+}
+.stats-preview-table tbody td.cell-copied,
+.stats-result-table tbody td.cell-copied {
+    background-color: var(--accent-bg);
+    box-shadow: inset 0 0 0 1px var(--primary);
+    color: var(--text-main);
+}
+/* 行号列干的是另一件事（跳到编辑器那一行），手势要能看出来不一样 */
+.stats-preview-table tbody tr[data-line] td.stats-line-no { cursor: pointer; }
+.stats-preview-table tbody tr[data-line] td.stats-line-no:hover {
+    background-color: transparent;
+    color: var(--primary);
+    text-decoration: underline;
+    box-shadow: none;
+}
+.stats-preview-table tbody tr.stats-more td { cursor: default; }
+.stats-preview-table tbody tr.stats-more td:hover {
+    background-color: transparent;
+    box-shadow: none;
+}
 
 /* 预览行 ↔ 编辑器光标互相定位：行可点，当前行用主题色底 + 左侧竖线标出来
    （底色要压过 .sheet-table 的斑马纹，所以选择器带上 .stats-preview-table） */

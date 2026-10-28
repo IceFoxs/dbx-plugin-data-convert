@@ -1934,14 +1934,37 @@ function check(name, fn) {
         if (!no || no.textContent !== '2') throw new Error('行号列没画出来');
     });
 
-    check('点预览行：光标跳到同一行，且只亮这一行', function () {
+    check('点行号格：光标跳到同一行，且只亮这一行', function () {
         // 第 4 条数据在原文第 5 行（第 1 行是表头）
-        statsPreviewRows()[3].click();
+        statsPreviewRows()[3].querySelector('.stats-line-no').click();
         var cm = statsCM();
         if (cm.getCursor().line + 1 !== 5) throw new Error('光标行 ' + (cm.getCursor().line + 1));
         var lit = statsLocated();
         if (lit.length !== 1) throw new Error('高亮数 ' + lit.length);
         if (lit[0].dataset.line !== '5') throw new Error('高亮行 ' + lit[0].dataset.line);
+    });
+
+    win.__clip.length = 0;
+    var cellAmount = statsPreviewRows()[0].querySelectorAll('td')[4];   // 首条记录的「金额」
+    cellAmount.click();
+    await wait(120);
+
+    check('点预览单元格：剪贴板里只有这一格的值', function () {
+        if (!win.__clip.length) throw new Error('没写剪贴板');
+        if (win.__clip[0] !== '1280.50') throw new Error('复制到 ' + JSON.stringify(win.__clip[0]));
+        if (!cellAmount.classList.contains('cell-copied')) throw new Error('格子没闪');
+        // 复制单元格不该把焦点扔进编辑器（不然下一次粘贴就粘进数据里了）
+        var cm = statsCM();
+        if (cm.getCursor().line + 1 !== 5) throw new Error('光标被带走了：' + (cm.getCursor().line + 1));
+    });
+
+    win.__clip.length = 0;
+    statsPreviewRows()[0].querySelectorAll('td')[1].click();            // 日期格
+    await wait(120);
+
+    check('再点别的格：复制的就是新那一格', function () {
+        if (win.__clip[0] !== '2026-01-05') throw new Error('复制到 ' + JSON.stringify(win.__clip[0]));
+        if (cellAmount.classList.contains('cell-copied')) throw new Error('上一格的闪光没退');
     });
 
     statsCM().setCursor({ line: 6, ch: 0 });
@@ -1976,6 +1999,26 @@ function check(name, fn) {
         if (doc.querySelector('#statsGroup .custom-select-trigger .label').textContent !== '渠道') {
             throw new Error('触发器没显示分组列');
         }
+    });
+
+    win.__clip.length = 0;
+    var resCells = doc.querySelectorAll('#statsResultTable tbody tr')[0].querySelectorAll('td');
+    resCells[resCells.length - 1].click();                              // 最后一格：最后一个指标
+    await wait(120);
+
+    check('点统计结果单元格：复制的就是这一格显示的数', function () {
+        if (!win.__clip.length) throw new Error('没写剪贴板');
+        if (win.__clip[0] !== resCells[resCells.length - 1].textContent) {
+            throw new Error('复制到 ' + JSON.stringify(win.__clip[0]));
+        }
+    });
+
+    win.__clip.length = 0;
+    resCells[0].click();                                                // 分组列的格子
+    await wait(120);
+
+    check('结果表的分组格也能单独复制', function () {
+        if (win.__clip[0] !== '线上') throw new Error('复制到 ' + JSON.stringify(win.__clip[0]));
     });
 
     win.__clip.length = 0;
@@ -2028,6 +2071,71 @@ function check(name, fn) {
         if (doc.getElementById('statsPreviewBadge').textContent !== '0 × 0') throw new Error('徽标没复位');
         if (statsCM().getValue() !== '') throw new Error('编辑器没清');
     });
+
+    // 150 行：首屏只画一批，剩下的靠「加载更多」/ 滚到底补
+    var bigLines = ['名称,金额'];
+    for (var bi = 1; bi <= 150; bi++) bigLines.push('item' + bi + ',' + (bi * 2));
+    statsCM().setValue(bigLines.join(String.fromCharCode(10)));
+    await wait(450);
+
+    check('数据多时预览按批画：先 100 行，表尾写明已显示多少', function () {
+        if (statsPreviewRows().length !== 100) throw new Error('首屏行数 ' + statsPreviewRows().length);
+        var more = doc.querySelector('#statsPreviewTable tr.stats-more');
+        if (!more) throw new Error('没有表尾');
+        var txt = more.textContent;
+        if (txt.indexOf('100') < 0 || txt.indexOf('150') < 0) throw new Error('表尾文案 ' + txt);
+        if (!more.querySelector('.stats-more-btn')) throw new Error('没有加载更多按钮');
+    });
+
+    check('点「加载更多」：补齐剩下的行，表尾消失', function () {
+        doc.querySelector('#statsPreviewTable .stats-more-btn').click();
+        if (statsPreviewRows().length !== 150) throw new Error('行数 ' + statsPreviewRows().length);
+        if (doc.querySelector('#statsPreviewTable tr.stats-more')) throw new Error('表尾还在');
+    });
+
+    check('列选择：默认全部列都在', function () {
+        var label = doc.querySelector('#statsCols .custom-select-trigger .label');
+        if (label.textContent !== '全部列') throw new Error('标签 ' + label.textContent);
+        if (doc.querySelectorAll('#statsColsOptions .custom-option').length !== 2) {
+            throw new Error('选项数 ' + doc.querySelectorAll('#statsColsOptions .custom-option').length);
+        }
+        if (doc.querySelectorAll('#statsPreviewTable thead th').length !== 3) {
+            throw new Error('表头格数 ' + doc.querySelectorAll('#statsPreviewTable thead th').length);
+        }
+    });
+
+    doc.querySelector('#statsCols .custom-select-trigger').click();
+    await wait(120);
+    doc.querySelector('#statsColsOptions .custom-option[data-value="1"]').click();
+    await wait(250);
+
+    check('取消一列：预览里那一列真的消失，标签变成 列 1/2', function () {
+        var head = doc.querySelectorAll('#statsPreviewTable thead th');
+        if (head.length !== 2) throw new Error('表头格数 ' + head.length);        // 行号 + 剩下一列
+        var cells = statsPreviewRows()[0].querySelectorAll('td');
+        if (cells.length !== 2) throw new Error('行内格数 ' + cells.length);
+        if (cells[1].textContent !== 'item1') throw new Error('剩下的是 ' + cells[1].textContent);
+        var label = doc.querySelector('#statsCols .custom-select-trigger .label');
+        if (label.textContent !== '列 1/2') throw new Error('标签 ' + label.textContent);
+        // 藏列只是不画：统计照样按整张表算
+        if (statsResultRows() === 0) throw new Error('藏列把统计也弄没了');
+    });
+
+    check('至少留一列：全关掉会被拦下，勾选框还得勾着', function () {
+        // 真点勾选框本身：浏览器会先把它取消，代码得掰回来
+        var box = doc.querySelector('#statsColsOptions .custom-option[data-value="0"] input');
+        box.click();
+        if (doc.querySelectorAll('#statsPreviewTable thead th').length !== 2) throw new Error('列被藏光了');
+        if (!box.checked) throw new Error('勾选框被取消了，列却还在');
+        if (doc.querySelector('#statsCols .custom-select-trigger .label').textContent !== '列 1/2') {
+            throw new Error('标签 ' + doc.querySelector('#statsCols .custom-select-trigger .label').textContent);
+        }
+    });
+
+    // 还原成全显示，后面的用例按 2 列算
+    doc.querySelector('#statsColsOptions .custom-option[data-value="0"]').click();
+    doc.querySelector('#statsColsOptions .custom-option[data-value="1"]').click();
+    await wait(200);
 
     // ---------------- JSON 转图表 ----------------
     // jsdom 里没有 canvas，echarts 也加载不了：这里只校验「不依赖引擎」的那半边

@@ -14,7 +14,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 | **Compare** | Field-level JSON diff by JSON Pointer, or a line-level text diff for anything else; each side has its own import button |
 | **SQL** | Paste values → `IN` / `NOT IN` / value list / `INSERT`; pasted SQL fragments parse back into clean values |
 | **Sheet to JSON** | `.xlsx` / `.csv` / `.tsv` → JSON array or SQL `INSERT`, parsed entirely in the browser |
-| **Data stats** | Pasted delimited text → count / sum / mean / max / min / distinct / standard deviation, optionally grouped by another column; the table header doubles as the column picker, numeric columns are picked for you, and every preview row carries its source line number with two-way caret syncing |
+| **Data stats** | Pasted delimited text → count / sum / mean / max / min / distinct / standard deviation, optionally grouped by another column; the table header doubles as the column picker, numeric columns are picked for you, every preview row carries its source line number with two-way caret syncing; click a cell to copy it, hide the columns you don't need, and big tables lazy-load in batches |
 | **Image ⇄ Base64** | Image → DataURI / raw Base64 / CSS / HTML / Markdown, and Base64 (prefixed or bare) back into a picture; both sides import files, and exports import back |
 | **Code Gen** | A JSON sample or a `CREATE TABLE` → TypeScript / Go / Java / Python models, nested structures split into their own types |
 | **Query & Validate** | JSONPath / jq expressions over a JSON document, JSON Schema (draft-07) validation with path + reason per error, one-click schema inference from data |
@@ -136,9 +136,11 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 - **Paste a table, get the numbers** — drop delimited text on the left (Tab / pipe / comma / semicolon are sniffed, or pick one yourself) and the right pane shows the parsed preview on top and the statistics underneath, recomputed on every keystroke. A first-row-as-header switch is right there; turn it off and the first line counts as data.
 - **The header is the column picker** — tick the columns you want and only those are measured. With nothing ticked the columns that look numeric are chosen for you, so pasting alone already produces a result. Seven metric chips toggle independently: count, sum, mean, max, min, distinct and standard deviation.
 - **Group by any column** — the group dropdown follows the header; pick a column and each column is measured per group, one row per group and column, with groups in first-seen order rather than alphabetical. With no grouping you get the whole table at once.
-- **Rows can be located** — the input is a line-numbered editor and the leftmost preview column is the **source line number** (the header is line 1, a leading blank line still counts). Click any preview row and the caret jumps to that line; move the caret in the editor and the matching preview row lights up — exactly one row, scrolled back into view when it is off-screen.
+- **Rows can be located** — the input is a line-numbered editor and the leftmost preview column is the **source line number** (the header is line 1, a leading blank line still counts). Click the line-number cell on the left and the caret jumps to that line; move the caret in the editor and the matching preview row lights up — exactly one row, scrolled back into view when it is off-screen.
+- **Click a cell to copy it** — in both the preview and the result table, clicking any cell puts that cell's value on the clipboard: the pointer turns into a copy cursor, the cell flashes and a toast names what was copied. An empty group cell draws as an em dash but copies as an empty string, and a long value is ellipsized in the toast while the clipboard gets all of it. Clicking a data cell no longer drops the caret into the editor either, so the next paste never lands in your data.
 - **Three copy targets** — **Copy columns (N)** copies as a table: a header row plus one record per line, tab separated, which pastes back into a spreadsheet as real columns. The small icon in a header copies every value of that column, one per line. **Copy result** emits the statistics together with the group column as TSV, ready for a report.
-- Capped at 50k rows / 200 columns; beyond that only the first 50k rows are measured and the status line says so. The preview draws at most 20 rows while the statistics always use everything. Cells longer than 200 characters are clipped with an ellipsis in the preview, and the full value is what gets measured. Like every other text page it accepts a drop or the **Import file** button, and never switches page on you.
+- **Show only the columns you care about** — the **All columns** dropdown in the top-right of the preview carries a checkbox per column; untick one and it disappears from the preview while the trigger reads **Columns 4/6**. One column always stays. Hidden is only about drawing: the statistics and the copy actions still use the whole table — to measure fewer columns, tick them in the header instead.
+- Capped at 50k rows / 200 columns; beyond that only the first 50k rows are measured and the status line says so. The preview renders lazily in batches of 100 — one batch first, the next as you scroll near the bottom, with a **Load more** row at the end — while the statistics always use everything. Cells longer than 200 characters are clipped with an ellipsis in the preview, and the full value is what gets measured. Like every other text page it accepts a drop or the **Import file** button, and never switches page on you.
 
 ![Data stats page](docs/screen-stats.png)
 
@@ -214,7 +216,7 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
 npm test                        # pure-function suites, no dependencies (969 cases)
-npm install && npm run test:ui  # jsdom smoke test of the UI wiring (314 checks)
+npm install && npm run test:ui  # jsdom smoke test of the UI wiring (323 checks)
 
 node scripts/shoot-screens.js   # re-shoot the fourteen README screenshots into docs/
 ```

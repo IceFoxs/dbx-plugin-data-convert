@@ -706,12 +706,21 @@
             </div>
 
             <div class="compare-pane stats-pane">
-                <div class="pane-header">
+                <div class="pane-header stats-preview-head">
                     <div class="pane-title">
                         <span data-i18n="statsPreviewTitle">数据预览</span>
                         <span class="pane-badge" id="statsPreviewBadge">0 × 0</span>
                     </div>
                     <div class="pane-actions">
+                        <!-- 预览里显示哪些列：真实表常二十几列，看统计时只想看几列 -->
+                        <div class="custom-select select-compact stats-cols-pick" id="statsCols">
+                            <div class="custom-select-trigger" role="button" tabindex="0" aria-haspopup="listbox"
+                                 data-i18n-title="statsColsTitle" data-keep-title>
+                                <span class="label" data-i18n="statsColsAll">全部列</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            <div class="custom-select-options" role="listbox" id="statsColsOptions"></div>
+                        </div>
                         <button type="button" class="btn btn-ghost stats-copy-cols" id="statsCopyCols"
                                 data-i18n="statsCopyCols" disabled>复制所选列</button>
                     </div>

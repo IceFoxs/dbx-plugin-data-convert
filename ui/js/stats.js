@@ -30,7 +30,7 @@
         rows: 50000,      // 再多就不是「贴一段表」了，解析也会卡住主线程
         cols: 200,
         cell: 200,        // 单元格预览长度；统计用的是完整值（下面 clip 只影响展示）
-        preview: 20       // 预览表最多画几行
+        batch: 100        // 预览表一批画几行：滚到底再追加，几万行也不会一次塞进 DOM
     };
 
     var METRICS = ['count', 'sum', 'mean', 'max', 'min', 'distinct', 'stddev'];
