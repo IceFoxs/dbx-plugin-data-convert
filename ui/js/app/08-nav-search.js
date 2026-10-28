@@ -1,12 +1,21 @@
 /* 08-nav-search.js — 功能搜索：中文 / 英文 / 近义词 / 拼音 / 首字母 */
 // 3.9 功能搜索：中文 / 英文 / 近义词 / 拼音 / 首字母都能命中
 // =========================================
-// 左侧布局时它正好占顶栏中间那块空白；顶部布局没地方放，Ctrl/⌘+K 唤起时浮在顶栏下方。
+// 左侧布局时它常驻顶栏中间那块空白；顶部布局没有空位，点放大镜或按 Ctrl/⌘+K 时
+// 顶栏把导航那一行让出来放它（不再做浮层——浮层会压在工具栏上，挡着「从 / 转为」点不到）。
 // 关键词表按页面写死：中文近义词 + 英文 + 全拼 + 首字母。比引一个拼音库靠谱，
 // 也不会为了搜索再塞几十上百 KB 进来。
 const navSearchWrap = document.getElementById('navSearchWrap');
 const navSearchInput = document.getElementById('navSearchInput');
 const navSearchListEl = document.getElementById('navSearchList');
+const navSearchBtn = document.getElementById('navSearchBtn');
+
+// 快捷键在 Windows / Linux 是 Ctrl+K，macOS 是 ⌘K：提示文案按平台说，
+// 别在 macOS 上写 Ctrl、也别在 Windows 上写 ⌘。
+const NAV_IS_MAC = /mac|iphone|ipad|ipod/i.test(
+    String((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || '')
+);
+const NAV_SEARCH_KEY = NAV_IS_MAC ? '⌘K' : 'Ctrl+K';
 
 const NAV_SEARCH_ALIAS = {
     navCompare: {
@@ -312,7 +321,36 @@ function navSearchClose(keepValue) {
     navSearchInput.setAttribute('aria-expanded', 'false');
     navSearchInput.removeAttribute('aria-activedescendant');
     if (!keepValue) navSearchInput.value = '';
-    if (navSearchWrap) navSearchWrap.classList.remove('is-float');
+    const wasSearching = document.body.classList.contains('nav-searching');
+    document.body.classList.remove('nav-searching');
+    if (navSearchBtn) navSearchBtn.setAttribute('aria-expanded', 'false');
+    // 导航那一行刚回到顶栏，宽度要重新量一遍再决定收哪几项进「更多」
+    if (wasSearching && typeof layoutNav === 'function') layoutNav();
+}
+
+// 打开搜索：顶部布局下顶栏把导航那一行让出来（CSS 里 body.nav-searching 负责），
+// 搜索框始终在顶栏里，不会有任何东西浮到页面或工具栏上面
+function navSearchOpen() {
+    if (!navSearchWrap || !navSearchInput) return;
+    document.body.classList.add('nav-searching');
+    if (navSearchBtn) navSearchBtn.setAttribute('aria-expanded', 'true');
+    navSearchInput.focus();
+    navSearchInput.select();
+    if (navSearchInput.value.trim()) navSearchRender();
+}
+
+// 放大镜按钮的文案：跟着语言走，并把当前平台的快捷键写进去（macOS ⌘K / 其它 Ctrl+K）
+function navSyncSearchLabel() {
+    if (navSearchBtn) {
+        const label = navT('navSearchTitle', '搜索功能') + ' (' + NAV_SEARCH_KEY + ')';
+        navSearchBtn.setAttribute('aria-label', label);
+    }
+    if (navSearchInput) {
+        navSearchInput.setAttribute('aria-keyshortcuts', NAV_IS_MAC ? 'Meta+K' : 'Control+K');
+        // placeholder 尾巴上标一下快捷键，省得用户永远不知道有这条捷径
+        const base = navT('navSearchPlaceholder', '');
+        if (base) navSearchInput.placeholder = base + '  ' + NAV_SEARCH_KEY;
+    }
 }
 
 function navSearchPick(key) {
@@ -321,15 +359,23 @@ function navSearchPick(key) {
     const el = entry ? entry.el : document.getElementById(key);
     navSearchClose();
     if (navSearchInput) navSearchInput.blur();
+    if (!el) return;
     // 格式项：先退出其它页回到格式转换页（下拉在那儿才看得见），再点它自己那个选项，
     // 选中高亮 + change + 重新转换都走 custom-select 原来的链路
     if (entry && entry.kind === 'format') {
         if (typeof exitOtherModes === 'function') exitOtherModes('');
-        if (el) el.click();
+        el.click();
         return;
     }
-    // 点它自己的入口：页面切换、模式退出、格式下拉收起全走原有链路，这里不重复
-    if (el) el.click();
+    // 页面 / 转换方向：直接调导航自己的点击处理，不再依赖「合成 click 冒泡到顶栏那条委托」。
+    // 宿主是 Tauri WebView，合成点击不一定被委托收到，表现就是「回车 / 点一下，搜索框收了但页面没跳」。
+    if (typeof handleNavClick === 'function') {
+        handleNavClick(el);
+        if (typeof closeNavMore === 'function') closeNavMore();
+        if (typeof closeNavConvert === 'function') closeNavConvert();
+        return;
+    }
+    el.click();
 }
 
 function navSearchMark() {
@@ -357,6 +403,9 @@ if (navSearchInput) {
         if (navSearchInput.value.trim()) navSearchRender();
     });
     navSearchInput.addEventListener('keydown', (e) => {
+        // 输入法正在上屏（中文 / 日文）：这一下方向键、回车都是给候选词窗的，
+        // 抢过来就会「按回车想选字，结果整个搜索框没了」。等 compositionend 之后再说。
+        if (e.isComposing || e.keyCode === 229) return;
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             navSearchMove(1);
@@ -369,13 +418,9 @@ if (navSearchInput) {
             e.preventDefault();
             navSearchPick(item.entry.key);
         } else if (e.key === 'Escape') {
-            // 先收列表；列表已经收着就把输入清掉（别让 Esc 冒到「关其它面板」那层）
-            if (!navSearchListEl.hidden) {
-                e.stopPropagation();
-                navSearchClose();
-            } else {
-                navSearchInput.value = '';
-            }
+            // Esc 一律收起（列表一并收，导航回到顶栏），别让它冒到「关其它面板」那层
+            e.stopPropagation();
+            navSearchClose();
         }
     });
 }
@@ -397,22 +442,33 @@ if (navSearchListEl) {
     });
 }
 
-// 点别处收起；浮层模式下连输入一起收（不然会一直挂在页面上）
+// 点顶栏以外的地方收起。顶栏里的按钮（语言、导航设置、布局切换）不算「点别处」——
+// 边搜索边切语言是很正常的事，别把正打的词弄丢。
 document.addEventListener('click', (e) => {
     if (!navSearchWrap || navSearchWrap.contains(e.target)) return;
+    const bar = document.querySelector('.topbar');
+    if (bar && bar.contains(e.target)) return;
     if (navSearchListEl && !navSearchListEl.hidden) navSearchClose();
-    else if (navSearchWrap.classList.contains('is-float')) navSearchClose();
+    else if (document.body.classList.contains('nav-searching')) navSearchClose();
 });
 
-// Ctrl/⌘+K：顶部布局没有搜索框的位置，唤起时把它浮到顶栏下面
+// 入口按钮：已经开着就收起，没开就打开
+if (navSearchBtn) {
+    navSearchBtn.addEventListener('click', (e) => {
+        // 别让 document 上那个「点别处收起」跟着跑一遍，否则点开就立刻被关上
+        e.stopPropagation();
+        const open = document.body.classList.contains('nav-searching');
+        if (open && document.activeElement === navSearchInput) navSearchClose();
+        else navSearchOpen();
+    });
+}
+
+// Ctrl+K（Windows / Linux）/ ⌘K（macOS）：两个修饰键都认，提示文案按平台显示
 document.addEventListener('keydown', (e) => {
     if (!(e.metaKey || e.ctrlKey) || String(e.key).toLowerCase() !== 'k') return;
     if (!navSearchInput || !navSearchWrap) return;
     e.preventDefault();
-    if (!document.body.classList.contains('nav-left')) navSearchWrap.classList.add('is-float');
-    navSearchInput.focus();
-    navSearchInput.select();
-    if (navSearchInput.value.trim()) navSearchRender();
+    navSearchOpen();
 });
 
 // 布局一切换，浮层就没有存在的理由了（左侧布局有自己的位置）
@@ -485,6 +541,10 @@ function applyI18n() {
     if (typeof refreshChartI18n === 'function') refreshChartI18n();
     // 二维码页的卡片序号、解码状态、提示语
     if (typeof refreshQrI18n === 'function') refreshQrI18n();
+    // 搜索按钮的文案与 placeholder 尾巴上的快捷键（要放在 placeholder 那一轮之后）
+    navSyncSearchLabel();
+    // 正在搜的话，结果里的名字是上一门语言，重算一遍；否则会中英混排
+    if (navSearchInput && navSearchInput.value.trim() && navSearchListEl && !navSearchListEl.hidden) navSearchRender();
 }
 
 // 宿主（DBX）会给没写 title 的按钮补一个提示，用的却是宿主自己的词表：

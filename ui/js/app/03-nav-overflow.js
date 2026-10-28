@@ -84,6 +84,10 @@ function closeNavMore() {
 
 // 装得下就全部放回导航条；装不下就把末尾的项依次收进「更多」
 function layoutNav() {
+    // 正在搜索时顶栏把导航那一行让给了搜索框（display: none），
+    // 这时量出来的每一项宽度都是 0，接着算下去会把全部入口搬进「更多」——
+    // 关掉搜索后虽然会重算，但顺序已经被改过一轮，等于白搬。所以直接跳过。
+    if (document.body.classList.contains('nav-searching')) return;
     // 顺序 = 用户排的那一份（置顶项已在最前）；没排过就按 DOM 顺序
     const rank = {};
     const order = navOrder.length ? navOrder : navDefaultOrder();

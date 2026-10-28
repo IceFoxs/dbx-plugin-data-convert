@@ -2785,21 +2785,21 @@ function check(name, fn) {
         if (!empty || empty.textContent.indexOf('没有') === -1) throw new Error('空态没出来');
     });
 
-    check('回车打开第一条（走导航自己的点击链路），打开后收起并清空', function () {
-        // 把目标项的 click 换成桩：只记「点了谁」，不真的切页，免得影响后面的用例
-        var link = doc.getElementById('navQr');
-        var real = link.click;
+    check('回车打开第一条（直接调导航的点击处理），打开后收起并清空', function () {
+        // 桩打在 handleNavClick 上：搜索选中不靠「合成 click 冒泡到顶栏」，
+        // 宿主（Tauri WebView）里那条委托收不到合成点击，就是「回车收起但页面没跳」
+        var realPick = win.handleNavClick;
         var picked = '';
-        link.click = function () { picked = 'navQr'; };
+        win.handleNavClick = function (el) { picked = el && el.id; };
         try {
             typeSearch('ewm');
             searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-            if (picked !== 'navQr') throw new Error('回车没打开第一条');
+            if (picked !== 'navQr') throw new Error('回车没打开第一条: ' + picked);
             if (!searchList.hidden) throw new Error('打开后没收起');
             if (searchInput.value !== '') throw new Error('打开后没清空');
             if (searchInput.getAttribute('aria-expanded') !== 'false') throw new Error('aria-expanded 没复位');
         } finally {
-            link.click = real;
+            win.handleNavClick = realPick;
         }
     });
 
@@ -2821,18 +2821,19 @@ function check(name, fn) {
         if (!searchList.querySelector('[data-nav-search-key] .ns-hit')) throw new Error('转换方向没标「格式转换」');
     });
 
-    check('选一个转换方向：走下拉自己的点击链路，直接切到那一对', function () {
-        var item = doc.querySelector('#navConvertMenu a[data-src="yaml"][data-tgt="json"]');
-        var real = item.click;
+    check('选一个转换方向：直接调导航的点击处理，切到那一对', function () {
+        var realPick = win.handleNavClick;
         var picked = '';
-        item.click = function () { picked = 'yaml>json'; };
+        win.handleNavClick = function (el) {
+            picked = (el.dataset.src || '') + '>' + (el.dataset.tgt || '');
+        };
         try {
             typeSearch('yaml转json');
             searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-            if (picked !== 'yaml>json') throw new Error('没选中转换方向');
+            if (picked !== 'yaml>json') throw new Error('没选中转换方向: ' + picked);
             if (!searchList.hidden) throw new Error('选完没收起');
         } finally {
-            item.click = real;
+            win.handleNavClick = realPick;
         }
     });
 
@@ -2872,7 +2873,7 @@ function check(name, fn) {
         if (label.toLowerCase() !== 'toml') throw new Error('触发器文案 ' + label);
     });
 
-    check('上下键循环选中，Esc 先收列表再清空', function () {
+    check('上下键循环选中，Esc 一下收干净（列表、输入、顶栏都还回去）', function () {
         var rows = typeSearch('t');
         if (rows.length < 2) throw new Error('结果太少，测不出上下键: ' + rows.join(','));
         if (!searchList.querySelector('.is-active')) throw new Error('没有默认高亮');
@@ -2888,9 +2889,80 @@ function check(name, fn) {
         if (back !== 0) throw new Error('上键没回到第一条: ' + back);
         searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         if (!searchList.hidden) throw new Error('Esc 没收列表');
-        if (searchInput.value !== '') throw new Error('Esc 没收列表时不该清输入');
+        if (searchInput.value !== '') throw new Error('Esc 没收输入');
+        if (doc.body.classList.contains('nav-searching')) throw new Error('Esc 后顶栏还没还回来');
+    });
+
+    // ---- 搜索入口：放大镜按钮 / 快捷键，以及「回车真的跳页」----
+    var searchBtn = doc.getElementById('navSearchBtn');
+
+    check('搜索按钮的文案带当前平台的快捷键（⌘K / Ctrl+K）', function () {
+        if (!searchBtn) throw new Error('缺少搜索按钮');
+        var label = searchBtn.getAttribute('aria-label') || '';
+        if (label.indexOf('搜索') === -1) throw new Error('按钮没有说明: ' + label);
+        if (!/⌘K|Ctrl\+K/.test(label)) throw new Error('文案里没有快捷键: ' + label);
+        var keys = searchInput.getAttribute('aria-keyshortcuts') || '';
+        if (keys !== 'Meta+K' && keys !== 'Control+K') throw new Error('aria-keyshortcuts: ' + keys);
+        if (!/⌘K|Ctrl\+K/.test(searchInput.placeholder)) throw new Error('placeholder 没标快捷键: ' + searchInput.placeholder);
+    });
+
+    check('点放大镜打开搜索：顶栏让出导航那一行，再点收起还回来', function () {
+        searchBtn.click();
+        if (!doc.body.classList.contains('nav-searching')) throw new Error('没进搜索态');
+        if (searchBtn.getAttribute('aria-expanded') !== 'true') throw new Error('aria-expanded 没同步');
+        if (doc.activeElement !== searchInput) throw new Error('没自动聚焦输入框');
+        // 顶部布局下导航那一行与「更多」要让出来（靠 CSS 隐藏，jsdom 不做布局，读样式表确认规则在）
+        if (CSS_TEXT.indexOf('body:not(.nav-left).nav-searching .nav-side') === -1) {
+            throw new Error('缺少「搜索时让出导航」的样式规则');
+        }
+        searchBtn.click();
+        if (doc.body.classList.contains('nav-searching')) throw new Error('再点没收起');
+        if (searchBtn.getAttribute('aria-expanded') !== 'false') throw new Error('aria-expanded 没复位');
+        if (inlineNavLinks().length !== 11) throw new Error('收起后导航没回来: ' + inlineNavLinks().length);
+    });
+
+    check('Ctrl+K / ⌘K 也能唤起搜索', function () {
+        doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+        if (!doc.body.classList.contains('nav-searching')) throw new Error('Ctrl+K 没打开');
+        doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }));
+        if (!doc.body.classList.contains('nav-searching')) throw new Error('⌘K 没打开');
+        doc.getElementById('navSearchInput').dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        if (doc.body.classList.contains('nav-searching')) throw new Error('Esc 没收起');
+    });
+
+    check('输入法上屏过程中的回车不抢：列表还在，页面也不动', function () {
+        searchBtn.click();
+        typeSearch('sj');
+        if (searchList.hidden) throw new Error('没出结果');
+        searchInput.dispatchEvent(new win.KeyboardEvent('keydown', {
+            key: 'Enter', keyCode: 229, isComposing: true, bubbles: true
+        }));
+        if (searchList.hidden) throw new Error('上屏时的回车把列表收了');
+        if (searchInput.value !== 'sj') throw new Error('输入被清掉了: ' + searchInput.value);
         searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        if (searchInput.value !== '') throw new Error('再按 Esc 没清空');
+    });
+
+    check('点顶栏里的语言按钮不会把搜索收掉（边搜边切语言是常事）', function () {
+        searchBtn.click();
+        typeSearch('sj');
+        doc.getElementById('langTrigger').click();
+        if (!doc.body.classList.contains('nav-searching')) throw new Error('点语言按钮把搜索关了');
+        if (!doc.getElementById('langMenu').classList.contains('open')) throw new Error('语言菜单没打开');
+        doc.getElementById('langTrigger').click();
+        searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+
+    check('回车真的切到那一页（不靠合成点击冒泡）', function () {
+        doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+        typeSearch('sj');
+        searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        if (!doc.getElementById('timeWorkspace').classList.contains('active')) throw new Error('没切到时间转换页');
+        if (doc.body.classList.contains('nav-searching')) throw new Error('切完还占着顶栏');
+        if (!doc.getElementById('navTime').classList.contains('active')) throw new Error('导航项没高亮');
+        // 回格式转换页，别把后面的用例带跑
+        doc.querySelector('#navConvertMenu a[data-src="yaml"][data-tgt="json"]').click();
+        if (doc.getElementById('timeWorkspace').classList.contains('active')) throw new Error('没回到格式转换页');
     });
 
     doc.getElementById('navToggle').click();

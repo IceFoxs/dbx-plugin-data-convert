@@ -132,8 +132,9 @@
         <svg class="nav-collapse-icon-out" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/><line x1="5" y1="5" x2="5" y2="19"/></svg>
     </button>
 
-    <!-- 功能搜索：左侧布局时正好落在顶栏中间那块空白里。近义词也能命中（关键词表见 3.9）。
-         顶部布局没有空位，按 Ctrl/⌘+K 唤起时它会浮在顶栏下方 -->
+    <!-- 功能搜索：左侧布局时它常驻顶栏中间那块空白（近义词也能命中，关键词表见 3.9）。
+         顶部布局没有空位，点放大镜或按 Ctrl/⌘+K 时顶栏临时把导航那一行让出来放它——
+         以前是浮层，浮在顶栏下面正好压住工具栏的「从 / 转为」，挡着点不着 -->
     <div class="nav-search-wrap" id="navSearchWrap">
         <div class="nav-search">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
@@ -197,6 +198,11 @@
         </button>
         <div class="lang-menu" id="langMenu"></div>
     </div>
+
+    <!-- 功能搜索入口：点它或按 Ctrl/⌘+K，顶栏把导航那一行临时换成搜索框（见 navSearchOpen） -->
+    <button type="button" class="nav-toggle" id="navSearchBtn" data-keep-title data-tip aria-label="搜索功能" aria-expanded="false" aria-controls="navSearchInput">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
+    </button>
 
     <!-- 导航设置：顺序 / 置顶 / 吸顶（列表由 navPanelRender() 生成） -->
     <button type="button" class="nav-toggle" id="navCustomize" data-keep-title data-tip aria-haspopup="dialog" aria-label="自定义导航">

@@ -225,7 +225,7 @@ body {
 body.nav-collapsed .nav-collapse .nav-collapse-icon-in { display: none; }
 body.nav-collapsed .nav-collapse .nav-collapse-icon-out { display: block; }
 
-/* 功能搜索：左侧布局时正好占顶栏中间那块空白 */
+/* 功能搜索：左侧布局时它常驻顶栏中间那块空白 */
 .nav-search-wrap {
     position: relative;
     display: none;
@@ -234,17 +234,27 @@ body.nav-collapsed .nav-collapse .nav-collapse-icon-out { display: block; }
     margin: 0 0.75rem;
 }
 body.nav-left .nav-search-wrap { display: block; }
-/* 顶部布局没有空位：Ctrl/⌘+K 唤起时浮在顶栏下面 */
-.nav-search-wrap.is-float {
+/* 左侧布局下搜索框本来就一直摆在顶栏里，放大镜按钮是多余的 */
+body.nav-left #navSearchBtn { display: none; }
+/* 顶部布局没有空位：搜索时把导航那一行（连「更多」）让出来，搜索框直接落进顶栏里。
+   以前这里是浮层，浮在顶栏正下方，正好压住工具栏的「从 / 转为」，看着像页面坏了、
+   而且挡着点不到 —— 浮层方案已经删掉，不再有任何东西压在内容上。 */
+body.nav-searching .nav-search-wrap {
     display: block;
-    position: fixed;
-    top: 3.75rem;
-    left: 50%;
-    width: min(24rem, 90vw);
-    margin: 0;
-    transform: translateX(-50%);
-    z-index: 60;
+    flex: 1 1 auto;
+    max-width: 34rem;
+    margin: 0 0.75rem;
 }
+body:not(.nav-left).nav-searching .nav-side,
+body:not(.nav-left).nav-searching #navMore {
+    display: none;
+}
+/* 搜索框亮着时，放大镜按钮保持「按下去」的样子 */
+#navSearchBtn[aria-expanded="true"] {
+    color: var(--text-main);
+    border-color: var(--primary);
+}
+#navSearchBtn[aria-expanded="true"] svg { color: var(--primary); }
 .nav-search {
     display: flex;
     align-items: center;

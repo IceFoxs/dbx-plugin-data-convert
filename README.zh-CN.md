@@ -1,6 +1,6 @@
 # 数据转换 (Data Format Converter)
 
-一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties / TOML / INI / `.env` / CSV / TSV / Query / Headers / Cookie / HTML 共 13 种格式互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON、图片 ⇄ Base64、JSON / `CREATE TABLE` 直接生成多语言模型代码，外加 JSONPath / jq 查询、JSON Schema 校验、一组转义工具、字节换算（1000 / 1024 两套进制）、时间戳与日期互转（本地 / UTC / ISO 8601 / 相对时间，批量），以及把 JSON 直接画成 ECharts 图表并导出 PNG / SVG，还有二维码的生成与识别（批量生成，或把图片解回文本）。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
+一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties / TOML / INI / `.env` / CSV / TSV / Query / Headers / Cookie / HTML 共 13 种格式互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON、图片 ⇄ Base64、JSON / `CREATE TABLE` 直接生成多语言模型代码，外加 JSONPath / jq 查询、JSON Schema 校验、一组转义工具、字节换算（1000 / 1024 两套进制）、时间戳与日期互转（本地 / UTC / ISO 8601 / 相对时间，批量），以及把 JSON 直接画成 ECharts 图表并导出 PNG / SVG，还有二维码的生成与识别（批量生成，或把图片解回文本）。十二个页面，一个 `Ctrl/⌘ + K` 搜索框就能按中文、英文、近义词、拼音或首字母找到。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
 
 ![数据转换工作台](docs/screen.png)
 
@@ -171,9 +171,11 @@
 
 - **国际化**——14 种语言：zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。切换器里列出前三种，其余随宿主 locale 自动匹配；十二个页面（格式转换、对比、SQL、表格、图片、代码生成、查询校验、转义工具、字节转换、时间转换、图表、二维码）的文案都已覆盖全部 14 种，连 20 条 Schema 校验错误也有译文，缺一条会退回英文而不是中文。
 - **主题适配**——跟随 DBX 宿主主题与 shadcn/ui 设计令牌，宿主只下发主题信息（不写 `data-dbx-theme`）或自定义调色板同样生效。首屏按宿主主题直接落定、不闪白底，明暗切换有 300 ms 整页过渡，`prefers-reduced-motion` 下自动关掉。唯一的例外是「JSON 转图表」画出来的图：它是产物，固定浅色配色 + 白底，不跟着变暗。
-- **导航布局**——顶栏右上角的按钮让导航在「顶部」和「左侧」之间切换，默认顶部。切到左侧后十一个入口竖排成一列（13rem），内容区自动让出同样的宽度；「格式转换」这一组也排在这个列的最上面，下拉在栏内展开、把下面的入口往下推，不会盖住谁。一列放得下全部入口，所以不会出现「更多」。选择会记住：优先宿主 `dbxPlugin.storage`，没有该能力时退回浏览器 `localStorage`、再退回 `window.name`（`dbx-plugin dev` 的沙箱里只有它管用），重开还是上次的样子。
+- **导航布局**——顶栏右上角的按钮让导航在「顶部」和「左侧」之间切换，默认顶部。切到左侧后十一个入口竖排成一列（13rem），内容区自动让出同样的宽度；「格式转换」这一组也排在这个列的最上面，下拉在栏内展开、把下面的入口往下推，不会盖住谁。一列放得下全部入口，所以不会出现「更多」。标题右边还有一枚收起按钮：点一下整列滑走、内容区补满，再点滑回来；整列只有一个滚动容器（滚动条隐藏），与内容区之间那条分割线从顶到底是一条。选择会记住：优先宿主 `dbxPlugin.storage`，没有该能力时退回浏览器 `localStorage`、再退回 `window.name`（`dbx-plugin dev` 的沙箱里只有它管用），重开还是上次的样子。
+- **功能搜索**——顶栏的放大镜按钮（或快捷键：macOS 是 `⌘K`，Windows / Linux 是 `Ctrl+K`）打开搜索。左侧布局时搜索框常驻顶栏；顶部布局没有空位，搜索时顶栏把导航那一行整个让给它（入口暂时收起，退出搜索立刻回来），所以搜索框永远在顶栏里，**不会浮在页面或工具栏上面**。中文、英文、近义词、全拼、首字母都能命中：`sj` / `shijian` / `unix` / `时间戳` 都指向时间转换，`bt` / `对比` / `diff` 都指向 JSON 对比，`jiami` / `encode` 都指向转义工具。格式也在索引里：`toml`、`从 toml`、`转为 toml` 会把转换方向拆成单项列出来，选中后先回到「格式转换」页再把对应那一侧切过去。结果按「页面 → 转换方向 → 格式」分档排序，搜 `json` 不会一屏全是格式项。↑↓ 移动、Enter 进入（直接调导航自己的点击处理，在宿主 WebView 里也生效）、Esc 收起；中文输入法上屏时的那一下回车不会被抢走。
 - **导航顺序、置顶与吸顶**——顶栏的滑杆按钮打开「导航设置」：拖动行或点箭头给十一个入口排序，常用的点「置顶」（出厂置顶「JSON 对比」「SQL 转换」），顺序与置顶立刻生效，窗口变窄时置顶项最后才被收进「更多」；打开「导航条吸顶」后滚动时导航条固定在窗口顶部，左侧模式下置顶项在列内滚动时也粘在栏顶。这些设置跟布局选择一起跨会话保存（宿主 `dbxPlugin.storage` → `localStorage` → `window.name`），存在独立的 `navCustom` 键里并带格式版本号，旧版本读不懂的字段原样保留——装回旧版再升级回来设置还在。以后新增入口不用迁移：自动接到顺序末尾，在面板里拖到想要的位置即可。
 - **剪贴板**——通过 DBX Host API 一键复制，没有宿主时走浏览器降级方案。
+- **图标按钮有悬浮提示**——搜索、收起、导航设置、布局切换都是纯图标按钮，鼠标停上去（或键盘聚焦）会给一句话，文案直接取按钮的 `aria-label`，切语言自动跟着变。宿主的 WebView 不一定弹原生 `title` 气泡，所以这层提示是页面自己画的。
 - **离线**——无后端、无 CDN、无遥测；CodeMirror、YAML 库与 ECharts（Apache-2.0，`ui/vendor/echarts/` 连同 LICENSE）都打在包里，跑起来一次网络请求都没有。
 
 ## 环境要求
@@ -191,12 +193,14 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## 构建与测试
 
 ```bash
-./scripts/build.sh test         # 全部用例（924 条）
+./scripts/build.sh test         # 全部用例（929 条）
 ./scripts/build.sh              # 先跑用例，再打包 dist/*.dbxp
 ./scripts/run.sh                # 等价于 build.sh dev
 
-npm test                        # 纯函数用例，无第三方依赖（924 条）
-npm install && npm run test:ui  # jsdom 页面接线冒烟（253 项）
+npm test                        # 纯函数用例，无第三方依赖（929 条）
+npm install && npm run test:ui  # jsdom 页面接线冒烟（295 项）
+
+node scripts/shoot-screens.js   # 重拍 README 那十二张截图，直接写进 docs/
 ```
 
 Windows 下使用 `scripts\build.cmd`（需要 Git Bash）。
@@ -204,7 +208,26 @@ Windows 下使用 `scripts\build.cmd`（需要 Git Bash）。
 ### 目录结构
 
 ```
-ui/index.html          UI 外壳：布局、样式、事件装配
+ui/index.html          只有结构：页面、对话框、script 标签（1.5 k 行）
+ui/css/app.css         全部样式：设计令牌、布局、逐页规则
+ui/js/app/00-i18n-dict.js      全部页面的 i18n 字典
+ui/js/app/01-host.js           宿主桥：主题、存储、剪贴板、文件保存
+ui/js/app/02-lang-menu.js      语言切换器
+ui/js/app/03-nav-overflow.js   装不下的导航项收进「更多」
+ui/js/app/04-i18n-apply.js     把译文刷到 DOM 上
+ui/js/app/05-nav-layout.js     顶部 / 左侧布局、收起
+ui/js/app/06-nav-panel.js      导航设置：顺序、置顶、吸顶
+ui/js/app/07-tip.js            纯图标按钮的悬浮提示
+ui/js/app/08-nav-search.js     功能搜索：中文、拼音、首字母、格式
+ui/js/app/09-convert.js        格式转换页
+ui/js/app/10-diff.js           JSON 对比页
+ui/js/app/11-compare.js        文本对比页
+ui/js/app/12-sql.js            SQL 转换页
+ui/js/app/13-sheet.js          表格转 JSON 页
+ui/js/app/14-image.js          图片 ⇄ Base64 页
+ui/js/app/15-codegen.js        代码生成页
+ui/js/app/16-query-escape.js   查询校验 + 转义工具两页
+ui/js/app/17-flow.js           工作流：拖放路由、批量合并、最近使用
 ui/js/converters.js    转换核心 —— 纯函数、无 DOM 依赖、可单测
 ui/js/objdiff.js       结构化差异 —— 按 JSON Pointer 比较对象树
 ui/js/diff.js          逐行差异 —— 带行号的 ops、超限自动降级
@@ -221,9 +244,15 @@ ui/js/bytes.js         字节换算 —— 单位 ⇄ 字节、批量求和、he
 ui/js/chart.js         JSON 转图表 —— 形状判定、数据转 option、尺寸夹取与上限
 ui/js/time.js          时间转换 —— 时间戳 / 日期 / UTC / ISO / 相对时间，批量解析
 ui/js/qr.js            二维码 —— 矩阵生成、SVG / canvas 渲染、拼图、解码辅助
-ui/js/flow.js          工作流 —— 拖放路由、批量合并、最近使用、宿主选区
+ui/js/flow.js          工作流辅助 —— 大小上限、内容嗅探、批量合并、最近使用
+ui/js/nav.js           导航辅助 —— 顺序、置顶、实际生效顺序
 tests/                 回归用例，直接 node 运行
 scripts/build.sh       package | dev | test
+scripts/shoot-screens.js  用无头 Chrome 重拍 docs/ 里的截图
 ```
+
+`ui/js/app/*.js` 是共用同一个顶层作用域的传统脚本（沙箱只放行内联与 `blob:`，用不了 ES module；
+每个文件再套 IIFE 又会变回互相看不见的单体）。因此跨文件没有变量提升：每个文件只做「定义，
+以及在 `DOMContentLoaded` 之后挂事件」，加一页 = 新建一个文件 + `index.html` 里一行 script。
 
 逻辑层与 DOM 解耦，`node tests/*.test.js` 无需浏览器即可覆盖全部转换路径、差异算法、表格解析与 Base64 往返。

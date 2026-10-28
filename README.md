@@ -1,6 +1,6 @@
 # 数据转换 (Data Format Converter)
 
-A [DBX](https://dbxio.com) plugin that moves data between formats without leaving the workbench: JSON / YAML / XML / Properties conversion, a field-level diff, a batch-value SQL builder, Excel / CSV → JSON, Image ⇄ Base64, JSON / `CREATE TABLE` straight into model code, JSONPath / jq queries with JSON Schema validation, an escape toolbox, byte conversion (1000 and 1024 scales), timestamps and dates in every notation (local / UTC / ISO 8601 / relative, batched), JSON straight into an ECharts chart exported as PNG / SVG, and QR codes both ways — batch generation, or decoding pictures back into text. Built from the **frontend-only (universal)** template — one cross-platform `.dbxp`, no native backend, no network calls, works offline.
+A [DBX](https://dbxio.com) plugin that moves data between formats without leaving the workbench: JSON / YAML / XML / Properties conversion, a field-level diff, a batch-value SQL builder, Excel / CSV → JSON, Image ⇄ Base64, JSON / `CREATE TABLE` straight into model code, JSONPath / jq queries with JSON Schema validation, an escape toolbox, byte conversion (1000 and 1024 scales), timestamps and dates in every notation (local / UTC / ISO 8601 / relative, batched), JSON straight into an ECharts chart exported as PNG / SVG, and QR codes both ways — batch generation, or decoding pictures back into text. Twelve pages, one `Ctrl/⌘ + K` search box that finds them by Chinese, English, synonym, pinyin or initials. Built from the **frontend-only (universal)** template — one cross-platform `.dbxp`, no native backend, no network calls, works offline.
 
 ![Data Format Converter workbench](docs/screen.png)
 
@@ -173,9 +173,11 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 - **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az. Every page (convert, compare, SQL, sheet, image, code gen, query, escape, bytes, time, chart, QR code) is translated into all 14, including the 20 schema-validation messages.
 - **Theme adaptability** — follows the DBX host theme and shadcn/ui tokens, including hosts that only send theme metadata (no `data-dbx-theme`) and custom palettes. First paint already matches the host, theme switches cross-fade over 300 ms, and `prefers-reduced-motion` turns the animation off. The one exception is the chart itself on the JSON to Chart page: it is output, not interface, so it stays on the light palette with a white background.
-- **Navigation layout** — the button at the far right of the top bar moves the navigation between top and left, top by default. On the left the eleven entries stack into one 13rem column and the content area shifts over; the conversion picker sits at the top of that column too and expands inside it, pushing the entries down instead of covering them. The column fits every entry, so "More" never appears. The choice is remembered — host `dbxPlugin.storage` first, then browser `localStorage`, then `window.name` (the only channel that works inside the `dbx-plugin dev` sandbox) — so reopening keeps the last layout.
+- **Navigation layout** — the button at the far right of the top bar moves the navigation between top and left, top by default. On the left the eleven entries stack into one 13rem column and the content area shifts over; the conversion picker sits at the top of that column too and expands inside it, pushing the entries down instead of covering them. The column fits every entry, so "More" never appears. A button beside the title folds the column away and brings it back, and the divider between column and content stays a single unbroken line while the column scrolls as one piece. The choice is remembered — host `dbxPlugin.storage` first, then browser `localStorage`, then `window.name` (the only channel that works inside the `dbx-plugin dev` sandbox) — so reopening keeps the last layout.
+- **Search** — the magnifier in the top bar (or `⌘K` on macOS, `Ctrl+K` elsewhere) opens search. In the left layout the field sits in the top bar all the time; in the top layout there is no room, so while you search the bar lends the navigation row to the field (the entries fold away and come back the moment you leave) — the field therefore always lives inside the top bar and **never floats over the page or the format toolbar**. Chinese, English, synonyms, full pinyin and initials all match: `sj` / `shijian` / `unix` / `时间戳` all lead to the Time converter, `bt` / `对比` / `diff` to JSON Compare, `jiami` / `encode` to the Escape toolbox. Formats are in the index too — `toml`, `从 toml`, `转为 toml` list the conversion directions individually and land on the Convert page with the right side already set. Results are ranked pages → directions → formats, so a word like `json` never buries the page under format entries. Arrow keys move, Enter opens (picking calls the navigation handler directly, so it works inside the host webview as well), Esc closes; a keystroke that belongs to a Chinese input method is never stolen.
 - **Order, pins, and a sticky bar** — the sliders button in the top bar opens Navigation settings: drag a row or use the arrows to order the eleven entries, and pin the ones you use most (JSON Compare and SQL Conversion start pinned). Order and pins apply at once, and pinned entries are the last to fall into More when the window narrows; Sticky navigation bar keeps the bar at the top while content scrolls, and in the left column pinned entries stay glued to the top as the column scrolls. These settings travel with the layout choice (host `dbxPlugin.storage` → `localStorage` → `window.name`), live under their own `navCustom` key with a format version, and fields a build does not understand are passed through untouched — so downgrading and upgrading again keeps your setup. New entries need no migration: they are appended to the end of the order and can be dragged where you want them.
 - **Clipboard** — one-click copy through the DBX host API, with a browser fallback.
+- **Icon-only buttons explain themselves** — search, fold the column, navigation settings and the layout switch are icons; hovering (or focusing) any of them shows a one-line tip in the current language. The webview does not reliably draw native `title` bubbles, so the tip is drawn by the page and takes its text from the button's `aria-label`.
 - **Offline** — no backend, no CDN, no telemetry; CodeMirror, the YAML library and ECharts (Apache-2.0, `ui/vendor/echarts/` with its LICENSE) all ship inside the package.
 
 ## Prerequisites
@@ -193,12 +195,14 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## Build & test
 
 ```bash
-./scripts/build.sh test         # all suites (924 cases)
+./scripts/build.sh test         # all suites (929 cases)
 ./scripts/build.sh              # run tests, then package dist/*.dbxp
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
-npm test                        # pure-function suites, no dependencies (924 cases)
-npm install && npm run test:ui  # jsdom smoke test of the UI wiring (253 checks)
+npm test                        # pure-function suites, no dependencies (929 cases)
+npm install && npm run test:ui  # jsdom smoke test of the UI wiring (295 checks)
+
+node scripts/shoot-screens.js   # re-shoot the twelve README screenshots into docs/
 ```
 
 On Windows use `scripts\build.cmd` instead (requires Git Bash).
@@ -206,7 +210,26 @@ On Windows use `scripts\build.cmd` instead (requires Git Bash).
 ### Project layout
 
 ```
-ui/index.html          UI shell: layout, styles, wiring
+ui/index.html          markup only — pages, dialogs, script tags (1.5 k lines)
+ui/css/app.css         all styling — tokens, layout, per-page rules
+ui/js/app/00-i18n-dict.js      i18n dictionary for every page
+ui/js/app/01-host.js           host bridge: theme, storage, clipboard, file save
+ui/js/app/02-lang-menu.js      language switcher
+ui/js/app/03-nav-overflow.js   folding entries into "More"
+ui/js/app/04-i18n-apply.js     applying translations to the DOM
+ui/js/app/05-nav-layout.js     top / left column, collapse
+ui/js/app/06-nav-panel.js      navigation settings: order, pins, sticky
+ui/js/app/07-tip.js            hover tips for icon-only buttons
+ui/js/app/08-nav-search.js     feature search: keys, pinyin, initials, formats
+ui/js/app/09-convert.js        convert page
+ui/js/app/10-diff.js           JSON compare page
+ui/js/app/11-compare.js        text compare page
+ui/js/app/12-sql.js            SQL builder page
+ui/js/app/13-sheet.js          sheet → JSON page
+ui/js/app/14-image.js          image ⇄ Base64 page
+ui/js/app/15-codegen.js        code generation page
+ui/js/app/16-query-escape.js   query & validate + escape toolbox pages
+ui/js/app/17-flow.js           workflow: drop routing, batch merge, recent list
 ui/js/converters.js    conversion core — pure functions, no DOM, unit tested
 ui/js/objdiff.js       structured diff — compares object trees by JSON Pointer
 ui/js/diff.js          line diff — ops carry line numbers, degrades on huge input
@@ -223,10 +246,17 @@ ui/js/bytes.js         byte conversion — units ⇄ bytes, batch totals, hex du
 ui/js/chart.js         JSON to chart — shape detection, data → option, size clamping and limits
 ui/js/time.js          time conversion — timestamps / dates / UTC / ISO / relative, batched
 ui/js/qr.js            QR code — matrix generation, SVG / canvas rendering, tiling, decode helpers
-ui/js/flow.js          workflow — drop routing, batch merge, recent list, host selection
+ui/js/flow.js          workflow — pure helpers: size limits, sniffing, batch merge, recent list
+ui/js/nav.js           navigation — pure helpers: order, pins, effective order
 tests/                 regression suite, run with plain node
 scripts/build.sh       package | dev | test
+scripts/shoot-screens.js  headless-Chrome screenshots for docs/
 ```
+
+`ui/js/app/*.js` are classic scripts sharing one top-level scope (the sandbox only allows inline and
+`blob:` scripts, so ES modules are out; wrapping each file in an IIFE would just recreate the
+monolith). That means no hoisting across files — a file only defines things and wires events after
+`DOMContentLoaded`, so adding a page is one new file plus one `<script>` tag.
 
 The logic layers are deliberately DOM-free, so `node tests/*.test.js` exercises every converter,
 the diff algorithms, sheet parsing and Base64 round-trips without a browser.
