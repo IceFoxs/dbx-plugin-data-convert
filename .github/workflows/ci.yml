@@ -12,23 +12,21 @@ jobs:
   test:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
+          cache: npm
 
+      # 用 npm ci：锁文件和 package.json 对不上就立刻失败，不静默改锁
       - name: Install dev dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
-      - name: Converter regression tests
-        run: node tests/converters.test.js
-
-      - name: Diff algorithm tests
-        run: node tests/diff.test.js
-
-      - name: Structured diff tests
-        run: node tests/objdiff.test.js
+      # 一次跑完 20 个纯函数用例（分隔符解析、时间、二维码、统计、i18n、资源引用……）。
+      # 以前只跑前三个，其余十几个在 CI 里从来没被检查过
+      - name: Pure-function suites
+        run: npm test
 
       - name: UI smoke test
         run: node tests/ui.smoke.js
@@ -46,15 +44,22 @@ jobs:
             console.log('inline scripts ok:', blocks.length);
           "
 
+      # 页面用普通 <script> 加载，任何一个文件混进 ES module 语法都会让整页白屏
       - name: Check UI assets are classic scripts
         run: |
           node -e "
             const fs = require('fs');
-            ['ui/js/converters.js', 'ui/js/diff.js', 'ui/js/objdiff.js'].forEach((f) => {
+            const path = require('path');
+            const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+              const full = path.join(dir, e.name);
+              return e.isDirectory() ? walk(full) : (e.name.endsWith('.js') ? [full] : []);
+            });
+            const files = walk('ui/js');
+            files.forEach((f) => {
               const src = fs.readFileSync(f, 'utf8');
-              if (/^\s*export\s/m.test(src)) {
+              if (/^\s*(export|import)\s/m.test(src)) {
                 throw new Error(f + ' 使用了 ES module 语法，但页面用 <script> 加载');
               }
             });
-            console.log('classic scripts ok');
+            console.log('classic scripts ok:', files.length);
           "
