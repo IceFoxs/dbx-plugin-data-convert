@@ -14,6 +14,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 | **Compare** | Field-level JSON diff by JSON Pointer, or a line-level text diff for anything else; each side has its own import button |
 | **SQL** | Paste values → `IN` / `NOT IN` / value list / `INSERT`; pasted SQL fragments parse back into clean values |
 | **Sheet to JSON** | `.xlsx` / `.csv` / `.tsv` → JSON array or SQL `INSERT`, parsed entirely in the browser |
+| **Data stats** | Pasted delimited text → count / sum / mean / max / min / distinct / standard deviation, optionally grouped by another column; the table header doubles as the column picker, numeric columns are picked for you, and every preview row carries its source line number with two-way caret syncing |
 | **Image ⇄ Base64** | Image → DataURI / raw Base64 / CSS / HTML / Markdown, and Base64 (prefixed or bare) back into a picture; both sides import files, and exports import back |
 | **Code Gen** | A JSON sample or a `CREATE TABLE` → TypeScript / Go / Java / Python models, nested structures split into their own types |
 | **Query & Validate** | JSONPath / jq expressions over a JSON document, JSON Schema (draft-07) validation with path + reason per error, one-click schema inference from data |
@@ -130,6 +131,17 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 ![Time converter page](docs/screen-time.png)
 
+## Data stats
+
+- **Paste a table, get the numbers** — drop delimited text on the left (Tab / pipe / comma / semicolon are sniffed, or pick one yourself) and the right pane shows the parsed preview on top and the statistics underneath, recomputed on every keystroke. A first-row-as-header switch is right there; turn it off and the first line counts as data.
+- **The header is the column picker** — tick the columns you want and only those are measured. With nothing ticked the columns that look numeric are chosen for you, so pasting alone already produces a result. Seven metric chips toggle independently: count, sum, mean, max, min, distinct and standard deviation.
+- **Group by any column** — the group dropdown follows the header; pick a column and each column is measured per group, one row per group and column, with groups in first-seen order rather than alphabetical. With no grouping you get the whole table at once.
+- **Rows can be located** — the input is a line-numbered editor and the leftmost preview column is the **source line number** (the header is line 1, a leading blank line still counts). Click any preview row and the caret jumps to that line; move the caret in the editor and the matching preview row lights up — exactly one row, scrolled back into view when it is off-screen.
+- **Three copy targets** — **Copy columns (N)** copies as a table: a header row plus one record per line, tab separated, which pastes back into a spreadsheet as real columns. The small icon in a header copies every value of that column, one per line. **Copy result** emits the statistics together with the group column as TSV, ready for a report.
+- Capped at 50k rows / 200 columns; beyond that only the first 50k rows are measured and the status line says so. The preview draws at most 20 rows while the statistics always use everything. Cells longer than 200 characters are clipped with an ellipsis in the preview, and the full value is what gets measured. Like every other text page it accepts a drop or the **Import file** button, and never switches page on you.
+
+![Data stats page](docs/screen-stats.png)
+
 ## JSON to Chart
 
 - **Paste an option, get a chart** — drop a full **ECharts option** on the left (`title` / `xAxis` / `yAxis` / `series` / `dataset` all understood) and the right pane renders exactly that configuration: line, bar, pie, scatter, radar, treemap and every other ECharts chart type works. No API to memorise — copy an option from the official examples and look at it immediately.
@@ -163,7 +175,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 ## Workflow
 
-- **Every page can import a file, and the page never moves** — whichever page you are on, the file is handled by that page. The whole window is a drop target (the veil even states the size limit for this page), and the Import file button in the input pane goes through exactly the same channel. On Convert, `.json` / `.yaml` / `.xml` / `.toml` / `.ini` / `.env` / `.log` / `.md` / `.csv` / `.tsv` set the source format and convert straight away, and unknown extensions (`.dat` / `.out` / `.resp` exports) are read and sniffed just the same; the Compare page has its own Import left / Import right buttons, and a dragged file fills whichever side is still empty; SQL, Escape, Bytes, Time, Chart, Codegen and Query each take their own text and run their own rule right after import, and QR code takes text for generation and pictures for decoding. Images and spreadsheets are never read as garbage: dropped on a text page they only tell you to use Image ⇄ Base64 or Sheet → JSON — **the page is never switched for you**.
+- **Every page can import a file, and the page never moves** — whichever page you are on, the file is handled by that page. The whole window is a drop target (the veil even states the size limit for this page), and the Import file button in the input pane goes through exactly the same channel. On Convert, `.json` / `.yaml` / `.xml` / `.toml` / `.ini` / `.env` / `.log` / `.md` / `.csv` / `.tsv` set the source format and convert straight away, and unknown extensions (`.dat` / `.out` / `.resp` exports) are read and sniffed just the same; the Compare page has its own Import left / Import right buttons, and a dragged file fills whichever side is still empty; SQL, Escape, Bytes, Time, Stats, Chart, Codegen and Query each take their own text and run their own rule right after import, and QR code takes text for generation and pictures for decoding. Images and spreadsheets are never read as garbage: dropped on a text page they only tell you to use Image ⇄ Base64 or Sheet → JSON — **the page is never switched for you**.
 - **The limits are stated up front** — 16 MB per text file (10 MB for an image, 20 MB for a sheet). Over the limit is refused at the door with the actual size and the cap, before anything is read into memory; content that turns out to be binary (NUL bytes / a wall of replacement characters) is refused too. After an import the tip line keeps `file name · size`, and text over 2 M characters is loaded but not auto-converted (so a drop can never freeze the host) — press Convert when you are ready.
 - **Drop several sheets at once** — up to 10 files are parsed with the current options and merged into **one JSON object keyed by file name** (`{"a.csv": [...], "b.csv": [...]}`), with duplicate names numbered `a (2).csv`. The preview table shows the first file, and Copy / Export work on the merged result (`batch-2.json`).
 - A page's own drop zone and the window-wide entry share one rule: the Image page's zone catches the image first (page-level handlers run before the global one, which steps aside when the event was already handled), and dropping anywhere else still hands the file to the current page — same outcome either way.
@@ -171,13 +183,13 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 
 ## Everywhere
 
-- **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az. Every page (convert, compare, SQL, sheet, image, code gen, query, escape, bytes, time, chart, QR code) is translated into all 14, including the 20 schema-validation messages.
+- **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az. Every page (convert, compare, SQL, sheet, data stats, image, code gen, query, escape, bytes, time, chart, QR code) is translated into all 14, including the 20 schema-validation messages.
 - **Theme adaptability** — follows the DBX host theme and shadcn/ui tokens, including hosts that only send theme metadata (no `data-dbx-theme`) and custom palettes. First paint already matches the host, theme switches cross-fade over 300 ms, and `prefers-reduced-motion` turns the animation off. The one exception is the chart itself on the JSON to Chart page: it is output, not interface, so it stays on the light palette with a white background.
-- **Navigation layout** — the button at the far right of the top bar moves the navigation between top and left, top by default. On the left the eleven entries stack into one 13rem column and the content area shifts over; the conversion picker sits at the top of that column too and expands inside it, pushing the entries down instead of covering them. The column fits every entry, so "More" never appears. A button beside the title folds the column away and brings it back, and the divider between column and content stays a single unbroken line while the column scrolls as one piece. The choice is remembered — host `dbxPlugin.storage` first, then browser `localStorage`, then `window.name` (the only channel that works inside the `dbx-plugin dev` sandbox) — so reopening keeps the last layout.
+- **Navigation layout** — the button at the far right of the top bar moves the navigation between top and left, top by default. On the left the twelve entries stack into one 13rem column and the content area shifts over; the conversion picker sits at the top of that column too and expands inside it, pushing the entries down instead of covering them. The column fits every entry, so "More" never appears. A button beside the title folds the column away and brings it back, and the divider between column and content stays a single unbroken line while the column scrolls as one piece. The choice is remembered — host `dbxPlugin.storage` first, then browser `localStorage`, then `window.name` (the only channel that works inside the `dbx-plugin dev` sandbox) — so reopening keeps the last layout.
 - **Search** — the magnifier in the top bar (or `⌘K` on macOS, `Ctrl+K` elsewhere) opens search. In the left layout the field sits in the top bar all the time; in the top layout there is no room, so while you search the bar lends the navigation row to the field (the entries fold away and come back the moment you leave) — the field therefore always lives inside the top bar and **never floats over the page or the format toolbar**. Chinese, English, synonyms, full pinyin and initials all match: `sj` / `shijian` / `unix` / `时间戳` all lead to the Time converter, `bt` / `对比` / `diff` to JSON Compare, `jiami` / `encode` to the Escape toolbox. Formats are in the index too — `toml`, `从 toml`, `转为 toml` list the conversion directions individually and land on the Convert page with the right side already set. So are the tabs inside each page: `转图片` lands on the Image page with Base64 → image already selected, `INSERT` / `Schema` / `Go` jump straight to that template, validator or language, and a repeated name like `解码` shows both owners on the right. Results are ranked pages → directions → tabs → formats, so a word like `json` never buries the page under format entries. Arrow keys move, Enter opens (picking calls the navigation handler directly, so it works inside the host webview as well), Esc closes; a keystroke that belongs to a Chinese input method is never stolen — nothing is re-rendered or cleared while a composition is in progress, which is what keeps the candidate window alive in the host's WebKit view.
 ![Search](docs/screen-search.png)
 
-- **Order, pins, and a sticky bar** — the sliders button in the top bar opens Navigation settings: drag a row or use the arrows to order the eleven entries, and pin the ones you use most (JSON Compare and SQL Conversion start pinned). Order and pins apply at once, and pinned entries are the last to fall into More when the window narrows; Sticky navigation bar keeps the bar at the top while content scrolls, and in the left column pinned entries stay glued to the top as the column scrolls. These settings travel with the layout choice (host `dbxPlugin.storage` → `localStorage` → `window.name`), live under their own `navCustom` key with a format version, and fields a build does not understand are passed through untouched — so downgrading and upgrading again keeps your setup. New entries need no migration: they are appended to the end of the order and can be dragged where you want them.
+- **Order, pins, and a sticky bar** — the sliders button in the top bar opens Navigation settings: drag a row or use the arrows to order the twelve entries, and pin the ones you use most (JSON Compare and SQL Conversion start pinned). Order and pins apply at once, and pinned entries are the last to fall into More when the window narrows; Sticky navigation bar keeps the bar at the top while content scrolls, and in the left column pinned entries stay glued to the top as the column scrolls. These settings travel with the layout choice (host `dbxPlugin.storage` → `localStorage` → `window.name`), live under their own `navCustom` key with a format version, and fields a build does not understand are passed through untouched — so downgrading and upgrading again keeps your setup. New entries need no migration: they are appended to the end of the order and can be dragged where you want them.
 - **Clipboard** — one-click copy through the DBX host API, with a browser fallback.
 - **Icon-only buttons explain themselves** — search, fold the column, navigation settings and the layout switch are icons; hovering (or focusing) any of them shows a one-line tip in the current language. The webview does not reliably draw native `title` bubbles, so the tip is drawn by the page and takes its text from the button's `aria-label`.
 - **Offline** — no backend, no CDN, no telemetry; CodeMirror, the YAML library and ECharts (Apache-2.0, `ui/vendor/echarts/` with its LICENSE) all ship inside the package.
@@ -197,14 +209,14 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## Build & test
 
 ```bash
-./scripts/build.sh test         # all suites (929 cases)
+./scripts/build.sh test         # all suites (969 cases)
 ./scripts/build.sh              # run tests, then package dist/*.dbxp
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
-npm test                        # pure-function suites, no dependencies (929 cases)
-npm install && npm run test:ui  # jsdom smoke test of the UI wiring (300 checks)
+npm test                        # pure-function suites, no dependencies (969 cases)
+npm install && npm run test:ui  # jsdom smoke test of the UI wiring (314 checks)
 
-node scripts/shoot-screens.js   # re-shoot the thirteen README screenshots into docs/
+node scripts/shoot-screens.js   # re-shoot the fourteen README screenshots into docs/
 ```
 
 On Windows use `scripts\build.cmd` instead (requires Git Bash).
@@ -231,7 +243,8 @@ ui/js/app/13-sheet.js          sheet → JSON page
 ui/js/app/14-image.js          image ⇄ Base64 page
 ui/js/app/15-codegen.js        code generation page
 ui/js/app/16-query-escape.js   query & validate + escape toolbox pages
-ui/js/app/17-flow.js           workflow: drop routing, batch merge, recent list
+ui/js/app/17-stats.js          data stats page
+ui/js/app/18-flow.js           workflow: drop routing, batch merge, recent list
 ui/js/converters.js    conversion core — pure functions, no DOM, unit tested
 ui/js/objdiff.js       structured diff — compares object trees by JSON Pointer
 ui/js/diff.js          line diff — ops carry line numbers, degrades on huge input

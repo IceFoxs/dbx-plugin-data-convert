@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // README 截图：1440×900、1x、亮色，逐页装好内容再抓，拍完直接写进 docs/。
 //
-//   node scripts/shoot-screens.js            全部 12 张
+//   node scripts/shoot-screens.js            全部 14 张
 //   node scripts/shoot-screens.js screen-qr  只拍一张（名字见下面 SHOTS）
 //
 // 装内容一律走页面自己的入口（loadTextIntoConvert / putTextIntoPage /
@@ -216,6 +216,17 @@ const SHOTS = [
             await sleep(300);
             await ev(`__put('navTime', ${JSON.stringify(TIME_LINES)})`);
             await sleep(900);
+        }
+    },
+    {
+        name: 'screen-stats',
+        label: '数据统计',
+        async run(ev) {
+            await ev(`handleNavClick(document.getElementById('navStats'))`);
+            await sleep(500);
+            // 示例就是「贴一段表」的典型用法：8 行订单流水，自动勾上金额 / 数量两列
+            await ev(`document.querySelector('#statsSamples .sample-chip[data-sample="orders"]').click()`);
+            await sleep(700);
         }
     },
     {

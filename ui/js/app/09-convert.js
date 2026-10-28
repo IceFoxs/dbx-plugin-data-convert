@@ -417,6 +417,11 @@ function handleNavClick(link) {
         enterQrMode();
         return;
     }
+    // 「数据统计」是贴表格 -> 计数 / 求和 / 分组聚合的独立页
+    if (link.id === 'navStats') {
+        enterStatsMode();
+        return;
+    }
     if (compareMode) exitCompareMode();
     if (sqlModeActive) exitSqlMode();
     if (sheetModeActive) exitSheetMode();
@@ -428,6 +433,7 @@ function handleNavClick(link) {
     if (escModeActive) exitEscMode();
     if (timeModeActive) exitTimeMode();
     if (qrModeActive) exitQrMode();
+    if (statsModeActive) exitStatsMode();
     markConvertActive(link);
     clearTimeout(autoTimer);
     suppressAutoConvert = true;

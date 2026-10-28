@@ -1796,13 +1796,15 @@ body:not(.nav-left).nav-searching #navMore {
 [data-dbx-theme="dark"] .time-quick-btn[data-quick="week"] { --quick: #fbbf24; }
 [data-dbx-theme="dark"] .time-quick-btn[data-quick="month"] { --quick: #a1a1aa; }
 .time-options { align-items: center; }
-.time-rules {
+.time-rules,
+.stats-rules {
     display: flex;
     align-items: center;
     gap: 0.35rem;
     flex-wrap: wrap;
 }
-.time-rule {
+.time-rule,
+.stats-rule {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
@@ -1817,17 +1819,22 @@ body:not(.nav-left).nav-searching #navMore {
     user-select: none;
     transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
-.time-rule:hover { border-color: var(--primary); }
+.time-rule:hover,
+.stats-rule:hover { border-color: var(--primary); }
 /* 选中态：主题色实底 + 白字 + 前置对勾，和未选中的灰底拉开差距 */
-.time-rule[aria-checked="true"] {
+.time-rule[aria-checked="true"],
+.stats-rule[aria-checked="true"] {
     background-color: var(--primary, #2563eb);
     border-color: var(--primary, #2563eb);
     color: #ffffff;
     font-weight: 600;
 }
-.time-rule[aria-checked="false"] { opacity: 0.55; }
-.time-rule[aria-checked="false"]:hover { opacity: 0.85; }
-.time-rule::before {
+.time-rule[aria-checked="false"],
+.stats-rule[aria-checked="false"] { opacity: 0.55; }
+.time-rule[aria-checked="false"]:hover,
+.stats-rule[aria-checked="false"]:hover { opacity: 0.85; }
+.time-rule::before,
+.stats-rule::before {
     content: '';
     flex-shrink: 0;
     width: 8px;
@@ -1837,7 +1844,8 @@ body:not(.nav-left).nav-searching #navMore {
     transform: rotate(-45deg) translateY(-1px);
     transition: border-color 0.12s ease;
 }
-.time-rule[aria-checked="true"]::before {
+.time-rule[aria-checked="true"]::before,
+.stats-rule[aria-checked="true"]::before {
     border-left-color: #ffffff;
     border-bottom-color: #ffffff;
 }
@@ -3427,3 +3435,112 @@ body.nv-sorting { user-select: none; -webkit-user-select: none; }
 .nv-foot { display: flex; justify-content: space-between; gap: 0.5rem; margin-top: 0.1rem; }
 /* .btn-primary 全局带 flex:1，面板里只想按内容宽 */
 .nv-foot .btn { flex: 0 0 auto; }
+
+/* ================= 数据统计页 =================
+   左边贴数据、右边上面是预览表（勾列）、下面是统计结果。
+   表格直接复用 .sheet-table / .sheet-table-wrap，勾选 chip 复用 .stats-rule（与时间页同源）。 */
+.stats-workspace {
+    display: none;
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 0;
+}
+.stats-workspace.active { display: flex; }
+.stats-options { align-items: center; gap: 0.5rem; }
+.stats-pane { gap: 0.5rem; }
+/* 预览表按内容高、最多占六成：行少时结果表紧贴着它，不会隔着一大片空白；
+   行多时自己在卡片里滚 */
+.stats-preview-wrap { flex: 0 1 auto; max-height: 60%; min-height: 8rem; }
+.stats-result-head { padding: 0.1rem 0 0; }
+.stats-result-wrap { flex: 0 1 auto; max-height: 34%; min-height: 6rem; }
+.stats-copy-cols { font-size: 0.72rem; }
+.stats-copy-cols:disabled { opacity: 0.45; cursor: not-allowed; }
+/* 表头里的「勾选框 + 列名」整块可点，列名超长用省略号收尾，
+   复制按钮固定在最右、不跟着文字挤——真实表头常常一长串编号，挤一起就糊成一团 */
+.stats-preview-table th { padding: 0; }
+.stats-th {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
+    padding: 0.28rem 0.45rem 0.28rem 0.55rem;
+}
+.stats-col-head {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    cursor: pointer;
+    user-select: none;
+}
+.stats-col-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.stats-col-head input {
+    flex: 0 0 auto;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--primary, #2563eb);
+}
+.stats-col-copy {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm, 0.25rem);
+    background-color: transparent;
+    color: var(--text-muted);
+    opacity: 0.45;
+    cursor: pointer;
+    transition: opacity 0.12s ease, background-color 0.12s ease, color 0.12s ease;
+}
+.stats-preview-table th:hover .stats-col-copy,
+.stats-col-copy:focus-visible { opacity: 1; }
+.stats-col-copy:hover { background-color: var(--accent-bg); color: var(--primary); }
+
+/* 行号列：窄、灰、不换行，跟编辑器左侧的行号对得上 */
+.stats-preview-table .stats-line-col,
+.stats-preview-table .stats-line-no {
+    width: 2.6rem;
+    min-width: 2.6rem;
+    text-align: right;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    user-select: none;
+}
+.stats-preview-table .stats-line-col { font-weight: 600; }
+
+/* 数字列：右对齐 + 等宽数字，位数才对得整齐（这里是数据表，不是正文）。
+   配色跟正文一致：整列都是数字时，一片蓝色反而像报错 */
+.stats-preview-table td.is-num {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-main);
+}
+/* 预览最后一行：还有多少行没画出来 */
+.stats-more td {
+    text-align: center;
+    color: var(--text-muted);
+    font-family: var(--font-sans, inherit);
+}
+.stats-result-table td.is-num { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-main); }
+
+/* 预览行 ↔ 编辑器光标互相定位：行可点，当前行用主题色底 + 左侧竖线标出来
+   （底色要压过 .sheet-table 的斑马纹，所以选择器带上 .stats-preview-table） */
+.stats-preview-table tbody tr[data-line] { cursor: pointer; }
+.stats-preview-table tbody tr[data-line]:hover td { background-color: var(--accent-bg); }
+.stats-preview-table tbody tr.locate td {
+    background-color: var(--accent-bg);
+    box-shadow: inset 0 0 0 1px var(--primary);
+}

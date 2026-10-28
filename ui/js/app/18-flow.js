@@ -1,4 +1,4 @@
-/* 17-flow.js — 拖放导入、批量合并与页面导入入口 */
+/* 18-flow.js — 拖放导入、批量合并与页面导入入口 */
 // 13. 工作流：全局拖放 + 批量
 // =========================================
 // 拖进来的文件只交给「当前这一页」消化，不按扩展名换页：判断规则都在 flow.js 里
@@ -1437,6 +1437,8 @@ function pageImportTargets(page, side) {
     // 二维码页只有「生成」吃文本；「解码」吃图片，走 qrScanFiles（见 importKindForPage）
     if (page === 'navQr') return qrMode === 'encode' ? { editor: qrEditor, el: qrInput, tipId: 'qrTip' } : null;
     if (page === 'navChart') return { editor: chartEditor, el: chartInput, tipId: 'chartTip' };
+    // 统计页的编辑器是懒创建的，没进过这页时 editor 还是 null，此时退回 textarea
+    if (page === 'navStats') return { editor: statsEditor, el: statsInputEl, tipId: 'statsTip' };
     if (page === 'navCodegen') return { editor: codeInputEditor, el: codeInput, tipId: 'codeTip' };
     if (page === 'navQuery') {
         const schemaPane = byId('querySchemaPane');

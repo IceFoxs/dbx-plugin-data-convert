@@ -47,6 +47,7 @@
     <script src="js/bytes.js"></script>
     <script src="js/chart.js"></script>
     <script src="js/time.js"></script>
+    <script src="js/stats.js"></script>
     <script src="js/qr.js"></script>
     <script src="js/flow.js"></script>
     <script src="js/nav.js"></script>
@@ -177,6 +178,7 @@
         <a id="navQr" class="nav-qr" data-i18n="navQr">二维码</a>
         <a id="navCodegen" class="nav-code" data-i18n="navCodegen">代码生成</a>
         <a id="navSheet" class="nav-sheet" data-i18n="navSheet">表格转 JSON</a>
+        <a id="navStats" class="nav-stats" data-i18n="navStats">数据统计</a>
         <a id="navQuery" class="nav-query" data-i18n="navQuery">查询校验</a>
     </nav>
     </div>
@@ -638,6 +640,95 @@
                 <div class="sheet-cell-pop-foot">
                     <span class="sheet-cell-pop-hint" data-i18n="sheetCellHint">双击其他单元格可继续查看</span>
                     <button type="button" class="btn btn-outline" id="sheetCellPopCopy" data-i18n="sheetCellCopy">复制</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= 数据统计 =================
+         贴一段分隔符表格 → 勾列 → 计数 / 求和 / 均值 / 最值 / 去重 / 标准差，可按某列分组。
+         纯逻辑在 js/stats.js（window.DBXStats），这里只负责把它铺到界面上。 -->
+    <section class="stats-workspace" id="statsWorkspace">
+        <div class="compare-bar">
+            <div class="compare-tabs sql-seg" id="statsDelim">
+                <button type="button" class="compare-tab active" data-delim="auto" data-i18n="sheetDelimAuto">自动</button>
+                <button type="button" class="compare-tab" data-delim="|">|</button>
+                <button type="button" class="compare-tab" data-delim=",">,</button>
+                <button type="button" class="compare-tab" data-delim="&#9;">Tab</button>
+                <button type="button" class="compare-tab" data-delim=";">;</button>
+            </div>
+            <label class="sql-check"><input type="checkbox" id="statsHeader" checked><span data-i18n="sheetHeader">首行为表头</span></label>
+
+            <span class="compare-samples-label" data-i18n="statsSamples">示例</span>
+            <div class="compare-samples" id="statsSamples">
+                <span class="sample-chip" data-sample="orders" data-i18n="statsSampleOrders">订单流水</span>
+                <span class="sample-chip" data-sample="scores" data-i18n="statsSampleScores">成绩单</span>
+            </div>
+
+            <div class="compare-actions">
+                <!-- 工具栏在这页是隐藏的，导入要自带入口；拖进来同样能收（同一套通道） -->
+                <button type="button" class="btn btn-outline" id="statsImport"
+                        data-import-page="navStats" data-i18n="flowImport">导入文件</button>
+                <button type="button" class="btn btn-outline" id="statsCopy" data-i18n="statsCopyResult">复制结果</button>
+                <button type="button" class="btn btn-outline" id="statsClear" data-i18n="clearBtn">清空</button>
+            </div>
+
+            <div class="compare-tip" id="statsTip"></div>
+        </div>
+
+        <div class="sql-options stats-options">
+            <span class="compare-samples-label" data-i18n="statsGroupLabel">分组列</span>
+            <div class="custom-select select-compact" id="statsGroup">
+                <div class="custom-select-trigger" role="button" tabindex="0" aria-haspopup="listbox">
+                    <span class="label">不分组</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="custom-select-options" role="listbox">
+                    <div class="custom-option selected" data-value="-1" data-i18n="statsGroupNone">不分组</div>
+                </div>
+            </div>
+            <span class="compare-samples-label" data-i18n="statsMetricsLabel">统计方式</span>
+            <div class="stats-rules" id="statsMetrics"></div>
+        </div>
+
+        <div class="compare-grid">
+            <div class="compare-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="statsInputTitle">数据</span>
+                    </div>
+                </div>
+                <div class="editor-container">
+                    <!-- CodeMirror 从这上面接管；textarea.textarea 会被样式隐藏掉，这是预期的 -->
+                    <textarea id="statsInput" class="textarea" spellcheck="false"
+                              data-i18n-placeholder="statsPlaceholder"></textarea>
+                </div>
+            </div>
+
+            <div class="compare-pane stats-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="statsPreviewTitle">数据预览</span>
+                        <span class="pane-badge" id="statsPreviewBadge">0 × 0</span>
+                    </div>
+                    <div class="pane-actions">
+                        <button type="button" class="btn btn-ghost stats-copy-cols" id="statsCopyCols"
+                                data-i18n="statsCopyCols" disabled>复制所选列</button>
+                    </div>
+                </div>
+                <div class="sheet-table-wrap stats-preview-wrap">
+                    <div class="sheet-empty" id="statsPreviewEmpty" data-i18n="statsEmptyNoData">贴一段表格数据，这里实时解析</div>
+                    <table class="sheet-table stats-preview-table" id="statsPreviewTable" hidden></table>
+                </div>
+                <div class="pane-header stats-result-head">
+                    <div class="pane-title">
+                        <span data-i18n="statsResultTitle">统计结果</span>
+                        <span class="pane-badge" id="statsResultBadge"></span>
+                    </div>
+                </div>
+                <div class="sheet-table-wrap stats-result-wrap">
+                    <div class="sheet-empty" id="statsResultEmpty" data-i18n="statsEmptyPickCols">勾选要统计的列</div>
+                    <table class="sheet-table stats-result-table" id="statsResultTable" hidden></table>
                 </div>
             </div>
         </div>
@@ -1484,7 +1575,8 @@
 <script src="js/app/14-image.js"></script>
 <script src="js/app/15-codegen.js"></script>
 <script src="js/app/16-query-escape.js"></script>
-<script src="js/app/17-flow.js"></script>
+<script src="js/app/17-stats.js"></script>
+<script src="js/app/18-flow.js"></script>
 
 </body>
 </html>

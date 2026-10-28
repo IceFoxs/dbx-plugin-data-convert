@@ -61,6 +61,13 @@ const NAV_SEARCH_ALIAS = {
     navQuery: {
         keys: ['查询', '校验', '过滤', '筛选', '断言', 'jsonpath', 'jq', 'schema'],
         py: 'chaxun cx jiaoyan jy guolv gl shaixuan sx duanyan dy'
+    },
+    navStats: {
+        keys: ['统计', '数据统计', '聚合', '分组', '求和', '均值', '平均值', '计数',
+            '去重', '标准差', '数据', 'stats', 'statistic', 'statistics', 'data stats',
+            'aggregate', 'group by', 'sum', 'mean', 'average', 'count', 'distinct', 'stddev'],
+        py: 'tongji tj shujutongji sjtj juhe jh fenzu fz qiuhe qh junzhi jz pingjunzhi pjz'
+            + ' jishu js quchong qc biaozhuncha bzc shuju sj'
     }
 };
 
@@ -83,7 +90,7 @@ const HANZI_SOUND = {
     '代': ['d', 'dai'], '生': ['s', 'sheng'], '成': ['c', 'cheng'], '表': ['b', 'biao'],
     '格': ['g', 'ge'], '查': ['c', 'cha'], '询': ['x', 'xun'], '校': ['x', 'xiao'],
     '验': ['y', 'yan'], '文': ['w', 'wen'], '本': ['b', 'ben'], '数': ['s', 'shu'],
-    '据': ['j', 'ju'], '编': ['b', 'bian'], '解': ['j', 'jie'], '合': ['h', 'he'],
+    '据': ['j', 'ju'], '统': ['t', 'tong'], '计': ['j', 'ji'], '编': ['b', 'bian'], '解': ['j', 'jie'], '合': ['h', 'he'],
     '并': ['b', 'bing'], '排': ['p', 'pai'], '序': ['x', 'xu'], '搜': ['s', 'sou'],
     '索': ['s', 'suo'], '压': ['y', 'ya'], '缩': ['s', 'suo'], '加': ['j', 'jia'],
     '密': ['m', 'mi'], '哈': ['h', 'ha'], '希': ['x', 'xi'], '签': ['q', 'qian'],
@@ -614,7 +621,8 @@ function applyI18n() {
         TIME_I18N[currentLang] || TIME_I18N.en || {},
         CHART_I18N[currentLang] || CHART_I18N.en || {},
         QR_I18N[currentLang] || QR_I18N.en || {},
-        FLOW_I18N[currentLang] || FLOW_I18N.en || {}
+        FLOW_I18N[currentLang] || FLOW_I18N.en || {},
+        STATS_I18N[currentLang] || STATS_I18N.en || {}
     );
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
@@ -664,6 +672,8 @@ function applyI18n() {
     if (typeof refreshChartI18n === 'function') refreshChartI18n();
     // 二维码页的卡片序号、解码状态、提示语
     if (typeof refreshQrI18n === 'function') refreshQrI18n();
+    // 统计页的列名、徽标、提示、统计方式 chip 都是拼出来的
+    if (typeof refreshStatsI18n === 'function') refreshStatsI18n();
     // 搜索按钮的文案与 placeholder 尾巴上的快捷键（要放在 placeholder 那一轮之后）
     navSyncSearchLabel();
     // 正在搜的话，结果里的名字是上一门语言，重算一遍；否则会中英混排

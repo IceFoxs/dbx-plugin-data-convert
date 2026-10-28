@@ -461,6 +461,7 @@ function exitOtherModes(keep) {
     if (keep !== 'esc' && escModeActive) exitEscMode();
     if (keep !== 'time' && timeModeActive) exitTimeMode();
     if (keep !== 'qr' && qrModeActive) exitQrMode();
+    if (keep !== 'stats' && statsModeActive) exitStatsMode();
 }
 
 // 当前停在哪一页（关掉快捷页时用来回原处），'' 表示格式转换页
@@ -475,6 +476,7 @@ function currentPageId() {
     if (chartModeActive) return 'navChart';
     if (timeModeActive) return 'navTime';
     if (qrModeActive) return 'navQr';
+    if (statsModeActive) return 'navStats';
     return '';
 }
 

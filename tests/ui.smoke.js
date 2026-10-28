@@ -1882,6 +1882,153 @@ function check(name, fn) {
         if (!timeWs.classList.contains('active')) throw new Error('没回到时间页');
     });
 
+    // ---------------- 数据统计 ----------------
+    var statsWs = doc.getElementById('statsWorkspace');
+
+    function statsCM() {
+        var wrap = doc.getElementById('statsInput').nextElementSibling;
+        return wrap && wrap.CodeMirror;
+    }
+    function statsPreviewRows() {
+        return [].slice.call(doc.querySelectorAll('#statsPreviewTable tbody tr[data-line]'));
+    }
+    function statsResultRows() {
+        return doc.querySelectorAll('#statsResultTable tbody tr').length;
+    }
+    function statsLocated() {
+        return [].slice.call(doc.querySelectorAll('#statsPreviewTable tbody tr.locate'));
+    }
+
+    doc.getElementById('navStats').click();
+    await wait(400);
+
+    check('点导航进数据统计页：只在页里，输入框交给编辑器', function () {
+        if (!statsWs.classList.contains('active')) throw new Error('没进统计页');
+        if (doc.getElementById('timeWorkspace').classList.contains('active')) throw new Error('时间页还开着');
+        if (doc.querySelectorAll('#statsWorkspace .CodeMirror').length !== 1) {
+            throw new Error('编辑器数量 ' + doc.querySelectorAll('#statsWorkspace .CodeMirror').length);
+        }
+        if (!statsCM()) throw new Error('拿不到 CodeMirror 实例');
+    });
+
+    check('统计页自带「导入文件」入口，指向本页', function () {
+        var btn = doc.getElementById('statsImport');
+        if (!btn) throw new Error('缺少导入入口');
+        if (btn.dataset.importPage !== 'navStats') throw new Error('入口指向 ' + btn.dataset.importPage);
+    });
+
+    doc.querySelector('#statsSamples .sample-chip[data-sample="orders"]').click();
+    await wait(350);
+
+    check('贴示例：解析出 8 行 × 6 列，自动勾上两列数字', function () {
+        if (statsPreviewRows().length !== 8) throw new Error('预览行数 ' + statsPreviewRows().length);
+        var checked = doc.querySelectorAll('#statsPreviewTable thead input[type="checkbox"]:checked').length;
+        if (checked !== 2) throw new Error('自动勾选列数 ' + checked);
+        if (statsResultRows() !== 2) throw new Error('结果行数 ' + statsResultRows());
+    });
+
+    check('预览表带原文行号：表头占第 1 行，数据从第 2 行起', function () {
+        var rows = statsPreviewRows();
+        if (rows[0].dataset.line !== '2') throw new Error('首行行号 ' + rows[0].dataset.line);
+        var no = rows[0].querySelector('.stats-line-no');
+        if (!no || no.textContent !== '2') throw new Error('行号列没画出来');
+    });
+
+    check('点预览行：光标跳到同一行，且只亮这一行', function () {
+        // 第 4 条数据在原文第 5 行（第 1 行是表头）
+        statsPreviewRows()[3].click();
+        var cm = statsCM();
+        if (cm.getCursor().line + 1 !== 5) throw new Error('光标行 ' + (cm.getCursor().line + 1));
+        var lit = statsLocated();
+        if (lit.length !== 1) throw new Error('高亮数 ' + lit.length);
+        if (lit[0].dataset.line !== '5') throw new Error('高亮行 ' + lit[0].dataset.line);
+    });
+
+    statsCM().setCursor({ line: 6, ch: 0 });
+    await wait(150);
+
+    check('编辑器里移动光标：预览表跟着亮对应行', function () {
+        var lit = statsLocated();
+        if (lit.length !== 1) throw new Error('高亮数 ' + lit.length);
+        if (lit[0].dataset.line !== '7') throw new Error('高亮行 ' + lit[0].dataset.line);
+    });
+
+    check('编辑器里改内容：预览表当场重算', function () {
+        var cm = statsCM();
+        cm.setValue(cm.getValue() + String.fromCharCode(10) + '2026-02-02|线上|华东|100|1|已付');
+        if (statsPreviewRows().length !== 9) throw new Error('预览行数 ' + statsPreviewRows().length);
+        if (doc.getElementById('statsPreviewBadge').textContent !== '9 行 × 6 列') {
+            throw new Error('徽标 ' + doc.getElementById('statsPreviewBadge').textContent);
+        }
+    });
+
+    doc.querySelector('#statsGroup .custom-select-trigger').click();
+    await wait(120);
+    check('分组下拉里列出每一列', function () {
+        var opts = doc.querySelectorAll('#statsGroup .custom-option');
+        if (opts.length !== 7) throw new Error('选项数 ' + opts.length);   // 不分组 + 6 列
+    });
+    doc.querySelector('#statsGroup .custom-option[data-value="1"]').click();
+    await wait(300);
+
+    check('按渠道分组：两列 × 两组 = 四行结果', function () {
+        if (statsResultRows() !== 4) throw new Error('结果行数 ' + statsResultRows());
+        if (doc.querySelector('#statsGroup .custom-select-trigger .label').textContent !== '渠道') {
+            throw new Error('触发器没显示分组列');
+        }
+    });
+
+    win.__clip.length = 0;
+    doc.getElementById('statsCopyCols').click();
+    await wait(250);
+
+    check('复制所选列：带表头、一行一条记录（不是摊成一列）', function () {
+        if (!win.__clip.length) throw new Error('没写剪贴板');
+        var lines = win.__clip[0].split('\n');
+        if (lines[0] !== '金额\t数量') throw new Error('表头 ' + lines[0]);
+        if (lines.length !== 10) throw new Error('行数 ' + lines.length);   // 表头 + 9 条数据
+        var cols = lines[1].split('\t').length;
+        if (cols !== 2) throw new Error('第一行有 ' + cols + ' 列');
+    });
+
+    win.__clip.length = 0;
+    doc.getElementById('statsCopy').click();
+    await wait(250);
+
+    check('复制结果：制表符分隔，首行是表头', function () {
+        if (!win.__clip.length) throw new Error('没写剪贴板');
+        var head = win.__clip[0].split('\n')[0];
+        if (head.indexOf('\t') < 0) throw new Error('不是 TSV: ' + head);
+        if (head.indexOf('分组') < 0 || head.indexOf('统计列') < 0) throw new Error('表头缺列名: ' + head);
+    });
+
+    doc.getElementById('statsImport').click();
+    await wait(60);
+    Object.defineProperty(doc.getElementById('pageImportInput'), 'files', {
+        configurable: true,
+        value: [new win.File(['id|name|qty\n1|Ada|3\n2|Bob|5'], 'items.txt', { type: 'text/plain' })]
+    });
+    doc.getElementById('pageImportInput').dispatchEvent(new win.Event('change', { bubbles: true }));
+    await wait(500);
+
+    check('按钮导入：内容进编辑器，按新表重算', function () {
+        if (statsCM().getValue().indexOf('Ada') < 0) throw new Error('没载入');
+        if (statsPreviewRows().length !== 2) throw new Error('预览行数 ' + statsPreviewRows().length);
+        if (doc.getElementById('statsTip').textContent.indexOf('items.txt') < 0) {
+            throw new Error('提示里没有文件名: ' + doc.getElementById('statsTip').textContent);
+        }
+    });
+
+    doc.getElementById('statsClear').click();
+    await wait(200);
+
+    check('清空：预览、结果、徽标一起回到空态', function () {
+        if (statsPreviewRows().length !== 0) throw new Error('预览没清');
+        if (statsResultRows() !== 0) throw new Error('结果没清');
+        if (doc.getElementById('statsPreviewBadge').textContent !== '0 × 0') throw new Error('徽标没复位');
+        if (statsCM().getValue() !== '') throw new Error('编辑器没清');
+    });
+
     // ---------------- JSON 转图表 ----------------
     // jsdom 里没有 canvas，echarts 也加载不了：这里只校验「不依赖引擎」的那半边
     // —— 形状判定、报错文案、尺寸夹取、导出前的空态。真渲染由 CDP 截图脚本验收。
@@ -2290,7 +2437,7 @@ function check(name, fn) {
     // ---------------- 「导入文件」按钮：所有文本页共用一条通道 ----------------
     check('各个文本页都有「导入文件」入口', function () {
         ['convertImport', 'cmpImportLeft', 'cmpImportRight', 'sqlImport', 'escImport', 'bytesImport',
-            'chartImport', 'codeImport', 'queryImport'].forEach(function (id) {
+            'chartImport', 'codeImport', 'queryImport', 'statsImport'].forEach(function (id) {
             if (!doc.getElementById(id)) throw new Error('缺少入口: ' + id);
         });
     });
@@ -2591,8 +2738,8 @@ function check(name, fn) {
         if (convertMenu.querySelectorAll('a').length !== 7) {
             throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
         }
-        // 直属项（从左到右）：JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / 字节转换 / JSON 转图表 / 时间转换 / 二维码转换 / 代码生成 / 表格转 JSON / 查询校验
-        if (inlineNavLinks().length !== 11) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
+        // 直属项（从左到右）：JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / 字节转换 / JSON 转图表 / 时间转换 / 二维码转换 / 代码生成 / 表格转 JSON / 数据统计 / 查询校验
+        if (inlineNavLinks().length !== 12) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
         if (!doc.getElementById('navConvertTrigger')) throw new Error('缺少「格式转换」触发器');
         // 触发器直接显示当前这一对格式，而不是固定的「格式转换」
         var label = doc.getElementById('navConvertLabel').textContent.trim();
@@ -2609,7 +2756,7 @@ function check(name, fn) {
     check('默认是顶部导航，切换按钮在', function () {
         if (!doc.getElementById('navToggle')) throw new Error('缺少切换按钮');
         if (doc.body.classList.contains('nav-left')) throw new Error('默认不该是左侧');
-        if (inlineNavLinks().length !== 11) throw new Error('顶部直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 12) throw new Error('顶部直属项 ' + inlineNavLinks().length);
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('左侧') === -1) throw new Error('提示文案: ' + label);
     });
@@ -2618,7 +2765,7 @@ function check(name, fn) {
     check('点切换后导航变左侧', function () {
         if (!doc.body.classList.contains('nav-left')) throw new Error('没切到左侧');
         // 竖排能放下全部项，不该再收进「更多」
-        if (inlineNavLinks().length !== 11) throw new Error('左侧直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 12) throw new Error('左侧直属项 ' + inlineNavLinks().length);
         if (moreEl.classList.contains('show')) throw new Error('左侧模式不该出现「更多」');
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('顶部') === -1) throw new Error('提示没切成「顶部」: ' + label);
@@ -2684,7 +2831,7 @@ function check(name, fn) {
         // 顶部布局下收起不成立：类要摘掉，否则顶部导航整条都点不到
         if (doc.body.classList.contains('nav-collapsed')) throw new Error('顶部布局还带着收起类');
         if (navSide.hasAttribute('inert')) throw new Error('顶部布局的导航被设成 inert');
-        if (inlineNavLinks().length !== 11) throw new Error('顶部直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 12) throw new Error('顶部直属项 ' + inlineNavLinks().length);
         doc.getElementById('navToggle').click();      // 切回左侧
         if (!doc.body.classList.contains('nav-collapsed')) throw new Error('切回左侧没恢复收起状态');
         if (!navSide.hasAttribute('inert')) throw new Error('恢复收起后没设 inert');
@@ -2772,6 +2919,14 @@ function check(name, fn) {
         if (diff[0] !== 'navCompare') throw new Error('差异 -> ' + diff.join(','));
         var excel = typeSearch('excel');
         if (excel[0] !== 'navSheet') throw new Error('excel -> ' + excel.join(','));
+    });
+
+    check('数据统计能搜到：sjtj / tongji / 求和 / stats / sum', function () {
+        ['sjtj', 'tongji', 'tj', '统计', '求和', '分组', 'stats', 'statistics', 'sum', 'mean', 'group by']
+            .forEach(function (q) {
+                var keys = typeSearch(q);
+                if (keys.indexOf('navStats') < 0) throw new Error(q + ' -> ' + keys.join(','));
+            });
     });
 
     check('命中近义词时右侧标出命中的词，找不到就给空态文案', function () {
@@ -2920,7 +3075,7 @@ function check(name, fn) {
         searchBtn.click();
         if (doc.body.classList.contains('nav-searching')) throw new Error('再点没收起');
         if (searchBtn.getAttribute('aria-expanded') !== 'false') throw new Error('aria-expanded 没复位');
-        if (inlineNavLinks().length !== 11) throw new Error('收起后导航没回来: ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 12) throw new Error('收起后导航没回来: ' + inlineNavLinks().length);
     });
 
     check('Ctrl+K / ⌘K 也能唤起搜索', function () {
@@ -3064,7 +3219,7 @@ function check(name, fn) {
     doc.getElementById('navToggle').click();
     check('再点一次回到顶部导航', function () {
         if (doc.body.classList.contains('nav-left')) throw new Error('没切回顶部');
-        if (inlineNavLinks().length !== 11) throw new Error('回顶部后直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 12) throw new Error('回顶部后直属项 ' + inlineNavLinks().length);
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('左侧') === -1) throw new Error('提示没切成「左侧」: ' + label);
         if (String(win.name || '').indexOf('dbx-nav:top') === -1) throw new Error('window.name 没跟着回到 top: ' + win.name);
@@ -3108,7 +3263,7 @@ function check(name, fn) {
         // 120px 只塞得下一项：先是非置顶的搬走，还不够才动置顶项，塞得下就停；
         // 菜单顺序必须接着导航条往下排（置顶项在最前）
         var expect = ['SQL 转换', '图片 Base64', '转义工具', '字节转换', 'JSON 转图表',
-            '时间转换', '二维码转换', '代码生成', '表格转 JSON', '查询校验'];
+            '时间转换', '二维码转换', '代码生成', '表格转 JSON', '数据统计', '查询校验'];
         if (names.join('|') !== expect.join('|')) {
             throw new Error('菜单项: ' + names.join(','));
         }
@@ -3147,7 +3302,8 @@ function check(name, fn) {
             navBytes: 'bytesWorkspace',
             navChart: 'chartWorkspace',
             navTime: 'timeWorkspace',
-            navQr: 'qrWorkspace'
+            navQr: 'qrWorkspace',
+            navStats: 'statsWorkspace'
         };
         if (!pageOf[id]) throw new Error('菜单项不是页面入口: ' + item.textContent.trim());
         if (!doc.getElementById(pageOf[id]).classList.contains('active')) {
@@ -3166,7 +3322,7 @@ function check(name, fn) {
     check('宽度恢复后导航项全部回到导航条', function () {
         if (moreEl.classList.contains('show')) throw new Error('「更多」仍显示');
         if (moreMenu.querySelectorAll('a').length !== 0) throw new Error('菜单仍有残留');
-        if (inlineNavLinks().length !== 11) throw new Error('导航项数 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 12) throw new Error('导航项数 ' + inlineNavLinks().length);
         if (convertMenu.querySelectorAll('a').length !== 7) throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
     });
 
@@ -3198,10 +3354,10 @@ function check(name, fn) {
     });
 
     navCustomizeBtn.click();
-    check('面板列出全部 11 项，顺序跟导航条一致', function () {
+    check('面板列出全部 12 项，顺序跟导航条一致', function () {
         if (navPanelMask.hidden) throw new Error('面板没打开');
         var rows = panelRows();
-        if (rows.length !== 11) throw new Error('行数 ' + rows.length);
+        if (rows.length !== 12) throw new Error('行数 ' + rows.length);
         if (rows.join(',') !== navIds().join(',')) {
             throw new Error('面板 ' + rows.join(',') + ' / 导航 ' + navIds().join(','));
         }
@@ -3393,8 +3549,8 @@ function check(name, fn) {
         if (navIds()[2] !== 'navFuture') throw new Error('置顶后顺序: ' + navIds().join(','));
         var name = String(win.name || '');
         if (name.indexOf('navFuture') === -1) throw new Error('没写进窗口记忆: ' + name);
-        // 面板行数跟着长到 12
-        if (panelRows().length !== 12) throw new Error('行数 ' + panelRows().length);
+        // 面板行数跟着长到 13
+        if (panelRows().length !== 13) throw new Error('行数 ' + panelRows().length);
     });
 
     check('偏好存在独立 key/token 里，旧版本那套读写不会碰它', function () {
@@ -3434,8 +3590,8 @@ function check(name, fn) {
     dom.window.dispatchEvent(new dom.window.Event('resize'));
     await wait(250);
 
-    check('摘掉临时项后回到 11 项、出厂顺序', function () {
-        if (inlineNavLinks().length !== 11) throw new Error('项数 ' + inlineNavLinks().length);
+    check('摘掉临时项后回到 12 项、出厂顺序', function () {
+        if (inlineNavLinks().length !== 12) throw new Error('项数 ' + inlineNavLinks().length);
         if (navIds().slice(0, 2).join(',') !== 'navCompare,navSql') throw new Error('顺序: ' + navIds().join(','));
     });
 
