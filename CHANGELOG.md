@@ -27,7 +27,9 @@
 *   **`ui/index.html` 从 20,344 行降到 1,479 行，只剩结构**：样式整块搬到 `ui/css/app.css`（约 3,400 行），脚本按功能切成 `ui/js/app/00-i18n-dict.js` … `17-flow.js` 共 18 个文件——i18n 字典 / 宿主桥 / 语言菜单 / 导航溢出 / 文案应用 / 导航布局 / 导航面板 / 悬浮提示 / 功能搜索 / 格式转换 / 差异 / 对比 / SQL / 表格 / 图片 / 代码生成 / 查询校验 / 流程，每个文件开头写清「这一段负责什么、动它要注意什么」。
 *   **不引模块系统，共用同一个顶层作用域**：沙箱只放行内联脚本与 `blob:`，ES module 用不了；也不套 IIFE，否则拆完又是十几个「彼此看不见」的单体，等于白拆。代价是文件之间没有变量提升——某个文件顶层直接调后面文件才定义的函数会 ReferenceError，所以每个文件只做「定义 + 在 `DOMContentLoaded` 之后挂事件」。唯一一处顶层 `await`（`await window.dbxPlugin.ready`）包成 `void (async () => {…})()`，顺手把宿主主题的上色提到 `await` 之前，首屏不会再用默认配色闪一帧。
 *   **加功能的成本降到一个文件加一行**：新页面 = 新建 `ui/js/app/18-xxx.js` + `index.html` 里一行 `script` + 一个 `<section>`，不用再在两万行里找位置。
-*   **测试跟着搬家**：`tests/i18n.test.js` 的源码扫描改成「`index.html` + 全部 `ui/js/app/*.js`」，14 语的键集合、占位符、空值校验跟拆分前一致（56 条）；`tests/assets.test.js` 改成直接读 `ui/css/*.css` 做样式断言，并新增「被内联的脚本 / 样式里没有会被二次解析的标签」，6 → 9 条；冒烟里 3 条样式断言、6 处 `inert` / `aria-hidden` 断言（改指 `#navSide`）一起跟着改，另补 6 条搜录用例（按钮 / 快捷键唤起、回车真跳页、输入法上屏的回车不抢、点语言按钮不清搜索、Esc 一下收干净）。单测合计 929 条、冒烟 295 条全绿。
+*   **测试跟着搬家**：`tests/i18n.test.js` 的源码扫描改成「`index.html` + 全部 `ui/js/app/*.js`」，14 语的键集合、占位符、空值校验跟拆分前一致（56 条）；`tests/assets.test.js` 改成直接读 `ui/css/*.css` 做样式断言，并新增「被内联的脚本 / 样式里没有会被二次解析的标签」，6 → 9 条；冒烟里 3 条样式断言、6 处 `inert` / `aria-hidden` 断言（改指 `#navSide`）一起跟着改，另补 6 条搜录用例（按钮 / 快捷键唤起、回车真跳页、输入法上屏的回车不抢、点语言按钮不清搜索、Esc 一下收干净）与 5 条页内 tab / 组词用例。单测合计 929 条、冒烟 300 条全绿。
+*   **截图有了脚本，不再是手点**：新增 `scripts/shoot-screens.js`（零依赖，只用 Node 内置 + 本机 Chrome），一次启动、逐页装好样本内容再按 1440×900 / 1x / 亮色抓图，拍前清 toast。内容注入走页面自己的入口（`loadTextIntoConvert()` / `putTextIntoPage()` / `pageImportTargets()`），不直接摸 CodeMirror 实例。`node scripts/shoot-screens.js` 重拍全部，`node scripts/shoot-screens.js screen-qr` 只拍一张。
+*   **截图整套重拍，并新增一张搜索图**：顶栏多了放大镜、左列结构与分割线都变了，旧的十二张全部作废。重拍后 1440×900 / 1x，时间转换页多勾了 Unix 与 UTC 两列（原来只有本地时间，看不出多格式并排），另加 `docs/screen-search.png`——搜 `json` 时页面排在前面、格式项在后面并标着方向。
 *   逐文件过了一遍语法（`node --check` + `vm.Script`），确认没有跨文件的声明冲突；真实 Chrome 里加载一遍，控制台无报错。
 
 ## [0.1.8]

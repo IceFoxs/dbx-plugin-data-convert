@@ -68,8 +68,7 @@ const TIME_LINES = JOIN([
     '1709251200',
     '2024-03-01 08:30:00',
     '2024-03-01T09:15:00+08:00',
-    '1709294400000',
-    '2024-03-01T02:40:00Z'
+    '1709294400000'
 ]);
 
 const QR_LINES = JOIN([
@@ -205,8 +204,18 @@ const SHOTS = [
         async run(ev) {
             await ev(`handleNavClick(document.getElementById('navTime'))`);
             await sleep(400);
+            // 默认只勾「本地时间」两列，截图里把 UTC / ISO 也打开，一眼能看出多格式并列
+            await ev(`(() => {
+                const want = ['unixSec', 'utc'];
+                want.forEach((f) => {
+                    const chip = document.querySelector('#timeRules .time-rule[data-field="' + f + '"]');
+                    if (chip && chip.getAttribute('aria-checked') !== 'true') chip.click();
+                });
+                return 'rules';
+            })()`);
+            await sleep(300);
             await ev(`__put('navTime', ${JSON.stringify(TIME_LINES)})`);
-            await sleep(800);
+            await sleep(900);
         }
     },
     {
@@ -239,6 +248,28 @@ const SHOTS = [
             await sleep(400);
             await ev(`openSheetSample('users')`);
             await sleep(1000);
+        }
+    },
+    {
+        name: 'screen-search',
+        label: '功能搜索',
+        async run(ev) {
+            await ev(`exitOtherModes('')`);
+            // 背景留点东西，否则搜索框下面是一片空白
+            await ev(`__put('convert', ${JSON.stringify(CONVERT_JSON)})`);
+            await sleep(500);
+            // 走放大镜按钮进搜索态，再用原生 setter 灌值 + input 事件（等于用户敲字），
+            // 不经过输入法组词那条路，拍到的就是上屏后的结果
+            await ev(`(() => {
+                const btn = document.getElementById('navSearchBtn');
+                if (btn) btn.click();
+                const input = document.getElementById('navSearchInput');
+                const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                setter.call(input, 'json');
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                return 'typed';
+            })()`);
+            await sleep(700);
         }
     }
 ];
@@ -328,6 +359,12 @@ function shutdown(code) {
     await sleep(2600);
 
     await ev(HELPERS);
+    // profile 会记住上次的布局选择：整套图统一用顶部布局，免得顶栏对不齐
+    await ev(`(() => {
+        if (document.body.classList.contains('nav-left')) document.getElementById('navToggle').click();
+        return document.body.className;
+    })()`);
+    await sleep(400);
     const pageCount = await ev(`document.querySelectorAll('#navLinks a').length`);
     console.log(`页面就绪：导航 ${pageCount} 项，输出到 docs/`);
 
