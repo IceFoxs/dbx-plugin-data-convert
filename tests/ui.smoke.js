@@ -2810,7 +2810,9 @@ function check(name, fn) {
         if (convertRows.length > 3) throw new Error('转换方向太多了: ' + convertRows.length);
         var json = typeSearch('json');
         // 页面（JSON 对比 / JSON 转图表 / 表格转 JSON）必须排在二级入口前面
-        var isSecondary = function (k) { return k.indexOf('convert:') === 0 || k.indexOf('format:') === 0; };
+        var isSecondary = function (k) {
+            return k.indexOf('convert:') === 0 || k.indexOf('format:') === 0 || k.indexOf('tab:') === 0;
+        };
         var firstSecondary = -1;
         for (var i = 0; i < json.length; i++) {
             if (isSecondary(json[i])) { firstSecondary = i; break; }
@@ -2950,6 +2952,100 @@ function check(name, fn) {
         if (!doc.body.classList.contains('nav-searching')) throw new Error('点语言按钮把搜索关了');
         if (!doc.getElementById('langMenu').classList.contains('open')) throw new Error('语言菜单没打开');
         doc.getElementById('langTrigger').click();
+        searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+
+    check('组词期间不重排：搜索框和列表都不动，等上屏再搜', function () {
+        if (!doc.body.classList.contains('nav-searching')) searchBtn.click();
+        typeSearch('sj');
+        if (searchList.hidden) throw new Error('前置：没出结果');
+        var before = searchList.children.length;
+        searchInput.dispatchEvent(new win.Event('compositionstart'));
+        // 组词中很多宿主给的 value 还是空的——以前这一下会走 navSearchClose()，
+        // 把输入框 display:none 掉并清空 value，候选窗当场就没了
+        searchInput.value = '';
+        searchInput.dispatchEvent(new win.Event('input', { bubbles: true }));
+        if (!doc.body.classList.contains('nav-searching')) throw new Error('组词把搜索框收了');
+        if (searchList.hidden) throw new Error('组词时列表被收了');
+        if (searchList.children.length !== before) throw new Error('组词时重排了列表');
+        // 上屏：这时 value 里才是真正的汉字
+        searchInput.value = '时间';
+        searchInput.dispatchEvent(new win.Event('compositionend'));
+        if (searchList.hidden) throw new Error('上屏后没出结果');
+        var top = searchList.querySelector('.nav-search-item');
+        if (!top || top.dataset.navSearchKey !== 'navTime') {
+            throw new Error('上屏后没命中时间转换: ' + (top && top.dataset.navSearchKey));
+        }
+        searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+
+    check('输入清空时只收下拉、不收搜索框（清掉重打不会把框弄没）', function () {
+        if (!doc.body.classList.contains('nav-searching')) searchBtn.click();
+        typeSearch('sj');
+        searchInput.value = '';
+        searchInput.dispatchEvent(new win.Event('input', { bubbles: true }));
+        if (!searchList.hidden) throw new Error('空值没收起下拉');
+        if (!doc.body.classList.contains('nav-searching')) throw new Error('空值把搜索框也收了');
+        if (searchInput.getAttribute('aria-expanded') !== 'false') throw new Error('aria-expanded 没复位');
+        // 还能接着打
+        var rows = typeSearch('ewm');
+        if (rows[0] !== 'navQr') throw new Error('清空后不能接着搜: ' + rows.join(','));
+        searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+
+    check('组词中按数字键选词不被打断（keydown 一律放过）', function () {
+        if (!doc.body.classList.contains('nav-searching')) searchBtn.click();
+        typeSearch('sj');
+        searchInput.dispatchEvent(new win.Event('compositionstart'));
+        var pick = '';
+        var realPick = win.handleNavClick;
+        win.handleNavClick = function () { pick = 'picked'; };
+        try {
+            ['1', '2', '3'].forEach(function (k) {
+                var evt = new win.KeyboardEvent('keydown', { key: k, keyCode: 229, bubbles: true });
+                searchInput.dispatchEvent(evt);
+            });
+            if (pick) throw new Error('组词中按数字键被当成选结果');
+            if (!doc.body.classList.contains('nav-searching')) throw new Error('组词中数字键把搜索收了');
+            if (searchInput.value !== 'sj') throw new Error('组词中数字键把输入清了: ' + searchInput.value);
+        } finally {
+            win.handleNavClick = realPick;
+            searchInput.dispatchEvent(new win.Event('compositionend'));
+            searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        }
+    });
+
+    check('页内二级功能也能搜到：搜「转图片」先切页、再按下那个 tab', function () {
+        if (!doc.body.classList.contains('nav-searching')) searchBtn.click();
+        var rows = typeSearch('转图片');
+        if (rows.indexOf('tab:imgModeTabs:decode') < 0) {
+            throw new Error('没索引到「Base64 转图片」: ' + rows.join(','));
+        }
+        searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        if (!doc.getElementById('imageWorkspace').classList.contains('active')) throw new Error('没切到图片页');
+        var decodeTab = doc.querySelector('#imgModeTabs [data-mode="decode"]');
+        if (!decodeTab.classList.contains('active')) throw new Error('「Base64 转图片」没按下去');
+        // 回格式转换页，别把后面的用例带跑
+        doc.querySelector('#navConvertMenu a[data-src="yaml"][data-tgt="json"]').click();
+        if (doc.getElementById('imageWorkspace').classList.contains('active')) throw new Error('没回到格式转换页');
+    });
+
+    check('tab 名字分得清：INSERT / Schema 各自命中，右侧标着所属页面', function () {
+        if (!doc.body.classList.contains('nav-searching')) searchBtn.click();
+        var sql = typeSearch('insert');
+        if (sql.indexOf('tab:sqlTemplates:insert') < 0) throw new Error('没命中 SQL 模板 INSERT: ' + sql.join(','));
+        var schema = typeSearch('schema');
+        if (schema.indexOf('tab:queryTabs:schema') < 0) throw new Error('没命中 Schema 校验: ' + schema.join(','));
+        // hint 里带页面名，两个「解码」才分得清
+        var esc = typeSearch('解码');
+        if (esc.indexOf('tab:escDirTabs:decode') < 0) throw new Error('没命中转义解码: ' + esc.join(','));
+        var qr = typeSearch('二维码');
+        if (qr.indexOf('tab:qrModeTabs:decode') < 0) throw new Error('没命中二维码解码: ' + qr.join(','));
+        // 转义的种类 chip 是脚本渲染的：第一次建索引时得先催出来
+        var b64 = typeSearch('base64');
+        if (b64.indexOf('tab:escKinds:base64') < 0) throw new Error('没命中转义 Base64: ' + b64.join(','));
+        var hint = searchList.querySelector('.ns-hit');
+        if (!hint || !hint.textContent.trim()) throw new Error('tab 结果右侧没有所属页面');
         searchInput.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
 

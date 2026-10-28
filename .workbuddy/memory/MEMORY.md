@@ -6,6 +6,7 @@
 - **不用用户的真实数据**（接口、截图、表名字段），一律自造样本。
 - 组件统一 shadcn，原生 `<select>` 换自绘 `.custom-select`（`.disabled` 空转，断言用 `hasAttribute`）；CSS 变量带 fallback。
 - 编辑器默认 CodeMirror 5，唯一例外是图片 Base64 页（判据：会不会吞 MB 级字符串）。
+- **新增功能必须能搜到**（用户 2026-10-28「之后新加功能也要这么做，作为长期记忆」）：新页面进 `NAV_SEARCH_ALIAS`，页内 tab / 方向切换进 `NAV_SUB_TABS`，新汉字进 `HANZI_SOUND`；做完顺手在冒烟里加一条「搜得到 + 选中后落在正确的页与 tab」。细则见「页级坑 → 新增功能必须进搜索」。
 
 ## 国际化
 - 新文案 14 语齐全；新页面开独立小表（`QR_I18N` …），别撑大字典。回退「当前语言 → en → 主字典 → zh-CN」；占位符 `{n}` 可调序不可丢；语言头正则兼容无引号键。改完跑 `node tests/i18n.test.js`。
@@ -24,7 +25,9 @@
 - 读编辑器用 `el.CodeMirror.getValue()`（`textarea.value` 是空）；换算出的数值不带千分位。
 
 ## 页级坑
-- **功能搜索**（`08-nav-search.js`）：**绝不做浮层**——顶部布局下用 `body.nav-searching` 把导航那一行（`.nav-side` + `#navMore`）让给搜索框，浮层会压住工具栏的「从 / 转为」。选中走 `handleNavClick(el)` 而不是 `el.click()`（宿主 WebView 收不到合成点击的委托，表现是「收起但没跳页」）；`isComposing` / `keyCode 229` 的键一律放过（输入法上屏的回车）；点顶栏里的按钮不算 outside-click（边搜边切语言不丢输入）；`layoutNav()` 遇 `nav-searching` 直接 return（导航被隐藏时宽度全是 0，会把 11 项全搬进「更多」）；快捷键文案 mac `⌘K` / 其它 `Ctrl+K`，在 `navSyncSearchLabel()` 里、`applyI18n()` 末尾调用。
+- **功能搜索**（`08-nav-search.js`）：**绝不做浮层**——顶部布局下用 `body.nav-searching` 把导航那一行（`.nav-side` + `#navMore`）让给搜索框，浮层会压住工具栏的「从 / 转为」。选中走 `handleNavClick(el)` 而不是 `el.click()`（宿主 WebView 收不到合成点击的委托，表现是「收起但没跳页」）；点顶栏里的按钮不算 outside-click（边搜边切语言不丢输入）；`layoutNav()` 遇 `nav-searching` 直接 return（导航被隐藏时宽度全是 0，会把 11 项全搬进「更多」）；快捷键文案 mac `⌘K` / 其它 `Ctrl+K`，在 `navSyncSearchLabel()` 里、`applyI18n()` 末尾调用。
+- **组合输入**：宿主是 WebKit（DBX 的 WebView），组词期间写 `input.value` 或把输入框 `display:none` 会**当场撤掉候选窗**（Blink 容忍，所以「web 正常、宿主不行」几乎都出在这类写法上）。搜索框现在 `compositionstart → compositionend` 之间什么都不做，上屏后才搜；空值只 `navSearchHideList()`（收下拉），不退出搜索态、不清值。别再往这类输入框上挂「每次 input 都重排」。
+- **新增功能必须进搜索（长期约定）**：每个功能页 / 页内二级切换都要能被搜到。页面：`NAV_SEARCH_ALIAS` 补近义词 + 拼音；页内 tab：`NAV_SUB_TABS` 加一行 `{page, box, keys}`（名字读按钮文案，脚本渲染的容器给 `fill`）；新汉字补 `HANZI_SOUND`；选中走 `kind:'tab'` 分支（先 `handleNavClick` 切页，再按 key 重新取元素去点，转义的 chip 每次进页会重建）。分档 `NAV_KIND_RANK`：page 0 → convert 1 → tab 2 → format 3。
 - **导航**：`#navToggle` 加 `body.nav-left`；「格式转换」也进左列，菜单 `position: static`；`syncNavLeftStack()` 按 `navConvert.bottom` 定 `#navLinks.top` + `ResizeObserver`；左侧 >768px 时 `layoutNav()` 短路。**加导航项会挤掉项**：11 项要 `padding: .4rem .45rem` + `gap: .25rem` + `font-size: .8125rem`（1440 余 71px；`0.65rem` 只够 10 项）。**顺序 / 置顶 / 吸顶**：纯函数在 `ui/js/nav.js`，偏好存独立 key `navCustom`（`{v:1,order,pins,sticky}`，读不懂的字段原样透传；旧的 `navLayout` / `dbx-nav:` 一字未改，所以能安全回退）。`layoutNav()` 按 rank 排；**搬进「更多」后必须按 rank 重排**（先 insertBefore 再 appendChild 会让置顶项夹在中间——用户报的乱序）；`navCommit()` 要过一遍 `effectiveOrder()`，否则新置顶的留在原位。左侧粘顶靠逐行累加的 `top`，且左列**顶部内边距必须换成 `margin`**，否则滚动时内容从缝里透出来。**拖拽排序不能用 HTML5 拖放**：宿主（Tauri 的 WebView）把原生拖放接管了，`dragstart` / `dragover` / `drop` 在 DBX 里一个都不触发（浏览器里好好的），必须自己跟 `pointerdown/move/up`，监听挂 `document` + 捕获阶段（滑出面板也能收到 `up`）。冒烟导航断言（直属项数 / 「更多」集合 / `pageOf`）三处同步。
 - **二维码**：qrcode-generator 默认按 latin-1 取字节（中文必乱码），`matrixOf()` 切 `stringToBytesFuncs['UTF-8']`；jsQR 251 KB 只在切「解码」时懒载，串行泵 + 长边压 1600 + 解完释放位图。**中心图标必须把纠错顶到 H**（L / M / Q 解不回，测试钉着）；图标先缩到长边 256 的 PNG，否则每张卡片都嵌一份原图。
 - **单张导出面板**：卡片「导出」开模态（`#qrExportMask`），格式 / 尺寸 / 文件名当场定，落盘只走 `qrExportOne()` 一个口子；名字净化在 `QR.fileNameFor()`（纯函数，单测钉着）。`qrRenderGrid()` 与 `exitQrMode()` 都先关面板（重绘后序号会指错张）；改格式 / 尺寸即写 `qrExportPref`（只在确认时记会漏掉取消场景）。`.btn-primary` 全局 `flex:1`，面板里要 `flex:0 0 auto`。

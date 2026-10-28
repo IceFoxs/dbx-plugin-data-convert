@@ -66,6 +66,10 @@ const NAV_SEARCH_ALIAS = {
 
 let navSearchResults = [];
 let navSearchActive = 0;
+// 输入法组词中（拼音还没上屏）。宿主是 Tauri 的 WebView，WebKit 对组合输入比 Chrome 严格：
+// 组词期间只要写一次 input.value、或者把输入框 display:none 掉，候选窗就断，
+// 表现是「按数字键选词没反应」。所以组词期间一律不重建、不收框、不清值。
+let navComposing = false;
 
 // 页面名里出现过的汉字 -> [首字母, 全拼]。只收这十几个字就够：
 // 名字里的汉字有限，手写一份比塞一整套拼音表（含多音字）划算得多。
@@ -82,7 +86,10 @@ const HANZI_SOUND = {
     '据': ['j', 'ju'], '编': ['b', 'bian'], '解': ['j', 'jie'], '合': ['h', 'he'],
     '并': ['b', 'bing'], '排': ['p', 'pai'], '序': ['x', 'xu'], '搜': ['s', 'sou'],
     '索': ['s', 'suo'], '压': ['y', 'ya'], '缩': ['s', 'suo'], '加': ['j', 'jia'],
-    '密': ['m', 'mi'], '哈': ['h', 'ha'], '希': ['x', 'xi'], '签': ['q', 'qian']
+    '密': ['m', 'mi'], '哈': ['h', 'ha'], '希': ['x', 'xi'], '签': ['q', 'qian'],
+    '任': ['r', 'ren'], '意': ['y', 'yi'], '值': ['z', 'zhi'], '列': ['l', 'lie'],
+    '模': ['m', 'mo'], '型': ['x', 'xing'], '化': ['h', 'hua'], '紧': ['j', 'jin'],
+    '凑': ['c', 'cou'], '则': ['z', 'ze']
 };
 
 /**
@@ -125,9 +132,68 @@ function navNameVariants(name) {
 }
 
 /**
- * 索引三类东西：
+ * 页内的二级功能（tab / 方向切换）也要能搜到：搜「转图片」「解码」「INSERT」「Schema」
+ * 直接落到那一页并把对应 tab 按下去，不用先找页面再找按钮。
+ *
+ * 加新页面 / 新 tab 时只在这里补一行：page = 导航项 id，box = tab 容器 id。
+ * 名字读容器里按钮自己的文案（本来就走了 i18n），所以切语言不用维护第二份；
+ * 拼音 / 首字母由名字现算，中文新词记得往 HANZI_SOUND 里补字。
+ * 容器若是脚本渲染出来的（escKinds），给 fill 一个全局函数名，建索引时先催一次。
+ */
+const NAV_SUB_TABS = [
+    { page: 'navImage', box: 'imgModeTabs', keys: ['图片', 'base64', '转图片', 'image', 'img'] },
+    { page: 'navImage', box: 'imgFormat', keys: ['图片', 'base64', '输出格式', 'css', 'html'] },
+    { page: 'navCompare', box: 'compareTabs', keys: ['对比', '文本', 'diff', 'compare'] },
+    { page: 'navSql', box: 'sqlTemplates', keys: ['sql', '模板', '生成', 'in', 'insert'] },
+    { page: 'navCodegen', box: 'codeSourceTabs', keys: ['代码', '模型', 'json', 'ddl', '建表'] },
+    { page: 'navCodegen', box: 'codeLangTabs', keys: ['代码', '语言', 'language'] },
+    { page: 'navQuery', box: 'queryTabs', keys: ['查询', '校验', 'schema', 'jsonpath', 'jq'] },
+    { page: 'navEscape', box: 'escDirTabs', keys: ['转义', '编码', '解码', 'escape', 'encode', 'decode'] },
+    { page: 'navEscape', box: 'escKinds', keys: ['转义', '编码', '解码', 'escape'], fill: 'escRenderKinds' },
+    { page: 'navQr', box: 'qrModeTabs', keys: ['二维码', '生成', '解码', '识别', 'qr'] },
+    { page: 'navSheet', box: 'sheetOutputMode', keys: ['表格', '输出', 'json', 'sql'] }
+];
+
+function navSubTabEntries() {
+    const out = [];
+    NAV_SUB_TABS.forEach((cfg) => {
+        const box = document.getElementById(cfg.box);
+        if (!box) return;
+        // 脚本渲染的容器（escKinds）第一次搜时还是空的，先催一次
+        if (!box.children.length && cfg.fill && typeof window[cfg.fill] === 'function') {
+            window[cfg.fill]();
+        }
+        const pageLink = document.getElementById(cfg.page);
+        const pageName = pageLink ? (pageLink.textContent || '').trim() : '';
+        Array.prototype.forEach.call(box.querySelectorAll('button'), (btn) => {
+            const name = (btn.textContent || '').trim();
+            if (!name) return;
+            const auto = navNameVariants(name);
+            const data = btn.dataset || {};
+            const id = data.kind || data.mode || data.template || data.tab || data.source ||
+                data.lang || data.dir || data.format || data.qrMode || name;
+            out.push({
+                key: 'tab:' + cfg.box + ':' + id,
+                name: name,
+                keys: (cfg.keys || []).concat([name]),
+                py: auto.py,
+                ini: auto.ini.filter((s, i, arr) => arr.indexOf(s) === i),
+                kind: 'tab',
+                el: btn,
+                page: cfg.page,
+                tag: pageName
+            });
+        });
+    });
+    return out;
+}
+
+/**
+ * 索引四类东西：
  *   page     导航里的 11 个页面
  *   convert  「格式转换」下拉里的 7 个方向（json转yaml 之类），选了就直接切到那一对
+ *   tab      页内的二级功能（图片转 Base64 / Base64 转图片、IN / INSERT、Schema 校验、
+ *            编码 / 解码、Go / Java …），选了先切页再把那个 tab 按下去
  *   format   工具栏「从 / 转为」两个下拉里的 13 种格式（TOML / CSV / Cookie …），
  *            搜 toml 也能直接选上，不用先切到格式转换页再翻下拉
  * 名字取当前语言的显示文本，拼音 / 首字母由名字现算，所以切语言后不用重新维护。
@@ -197,6 +263,8 @@ function navSearchEntries() {
             });
         });
     });
+    // 页内二级功能：插入顺序无所谓，排序看 NAV_KIND_RANK 的分档
+    navSubTabEntries().forEach((item) => out.push(item));
     return out;
 }
 
@@ -234,16 +302,19 @@ function navSearchScore(entry, q, flat) {
 
 // 排序先分档再比分：11 个页面永远在前，其次是「格式转换」的方向，最后是下拉里的格式。
 // 只靠扣分不行——输 json 时二级入口的「完全命中」会把页面挤到后面（用户报的乱序）
-const NAV_KIND_RANK = { page: 0, convert: 1, format: 2 };
+const NAV_KIND_RANK = { page: 0, convert: 1, tab: 2, format: 3 };
 
 function navSearchRender() {
     if (!navSearchInput || !navSearchListEl) return;
+    // 组词中不重排：拼音还没上屏时重建列表 / 改 aria 都可能把候选窗顶掉
+    if (navComposing) return;
     const q = navSearchInput.value.trim().toLowerCase();
     navSearchListEl.textContent = '';
     navSearchResults = [];
     navSearchActive = 0;
     if (!q) {
-        navSearchClose();
+        // 只收下拉，不退出搜索态：输入框还是顶栏的一部分，藏掉它等于把输入法断了
+        navSearchHideList();
         return;
     }
     const flat = q.replace(/\s+/g, '');
@@ -258,13 +329,19 @@ function navSearchRender() {
         const rb = NAV_KIND_RANK[b.entry.kind] || 0;
         return ra === rb ? b.score - a.score : ra - rb;
     });
-    // 二级入口限量：11 个页面才是主要结果，方向最多 3 条、格式最多 4 条
+    // 二级入口限量：11 个页面才是主要结果，页内 tab 最多 4 条、方向 3 条、格式 4 条
     let convertUsed = 0;
+    let tabUsed = 0;
     let formatUsed = 0;
     navSearchResults = scored.filter((item) => {
         if (item.entry.kind === 'convert') {
             if (convertUsed >= 3) return false;
             convertUsed += 1;
+            return true;
+        }
+        if (item.entry.kind === 'tab') {
+            if (tabUsed >= 4) return false;
+            tabUsed += 1;
             return true;
         }
         if (item.entry.kind === 'format') {
@@ -297,6 +374,8 @@ function navSearchRender() {
             const hit = String(item.hit || '');
             let hintText = '';
             if (item.entry.kind === 'convert') hintText = item.entry.tag || '';
+            // 页内 tab：右侧标一下它属于哪一页，免得「解码」这类名字分不清是二维码还是转义
+            else if (item.entry.kind === 'tab') hintText = item.entry.tag || '';
             else if (item.entry.kind === 'page' && hit && hit.toLowerCase() !== item.entry.name.toLowerCase()) hintText = hit;
             if (hintText) {
                 const hint = document.createElement('span');
@@ -312,15 +391,24 @@ function navSearchRender() {
     navSearchInput.setAttribute('aria-expanded', 'true');
 }
 
-function navSearchClose(keepValue) {
-    if (!navSearchListEl || !navSearchInput) return;
+// 只收下拉：清结果、复位 aria，但输入框、输入内容、搜索态一个都不碰
+function navSearchHideList() {
+    if (!navSearchListEl) return;
     navSearchListEl.hidden = true;
     navSearchListEl.textContent = '';
     navSearchResults = [];
     navSearchActive = 0;
-    navSearchInput.setAttribute('aria-expanded', 'false');
-    navSearchInput.removeAttribute('aria-activedescendant');
-    if (!keepValue) navSearchInput.value = '';
+    if (navSearchInput) {
+        navSearchInput.setAttribute('aria-expanded', 'false');
+        navSearchInput.removeAttribute('aria-activedescendant');
+    }
+}
+
+function navSearchClose(keepValue) {
+    if (!navSearchListEl || !navSearchInput) return;
+    navSearchHideList();
+    // 组词中不清空：写 value 会把输入法正在拼的那串字抹掉（宿主 WebView 里就是「候选窗直接没了」）
+    if (!keepValue && !navComposing) navSearchInput.value = '';
     const wasSearching = document.body.classList.contains('nav-searching');
     document.body.classList.remove('nav-searching');
     if (navSearchBtn) navSearchBtn.setAttribute('aria-expanded', 'false');
@@ -332,6 +420,7 @@ function navSearchClose(keepValue) {
 // 搜索框始终在顶栏里，不会有任何东西浮到页面或工具栏上面
 function navSearchOpen() {
     if (!navSearchWrap || !navSearchInput) return;
+    navComposing = false;
     document.body.classList.add('nav-searching');
     if (navSearchBtn) navSearchBtn.setAttribute('aria-expanded', 'true');
     navSearchInput.focus();
@@ -367,6 +456,21 @@ function navSearchPick(key) {
         el.click();
         return;
     }
+    // 页内 tab：先切到它所在的那一页，再点 tab 自己（高亮、重算都走 tab 原有的监听）
+    if (entry && entry.kind === 'tab') {
+        const pageEl = document.getElementById(entry.page);
+        if (pageEl) {
+            if (typeof handleNavClick === 'function') handleNavClick(pageEl);
+            else pageEl.click();
+            if (typeof closeNavMore === 'function') closeNavMore();
+            if (typeof closeNavConvert === 'function') closeNavConvert();
+        }
+        // 进页可能把 tab 重渲染（转义的种类 chip 每次进页都重建），按 key 重新找一遍，
+        // 别去点已经脱离文档的那个
+        const fresh = navSubTabEntries().filter((it) => it.key === entry.key)[0];
+        (fresh ? fresh.el : el).click();
+        return;
+    }
     // 页面 / 转换方向：直接调导航自己的点击处理，不再依赖「合成 click 冒泡到顶栏那条委托」。
     // 宿主是 Tauri WebView，合成点击不一定被委托收到，表现就是「回车 / 点一下，搜索框收了但页面没跳」。
     if (typeof handleNavClick === 'function') {
@@ -398,14 +502,33 @@ function navSearchMove(delta) {
 }
 
 if (navSearchInput) {
-    navSearchInput.addEventListener('input', navSearchRender);
+    // 组合输入（中文 / 日文）期间页面什么都不做，等 compositionend 一次算清。
+    // 宿主是 Tauri 的 WebView：WebKit 在组词中被打断就不给候选窗了，
+    // 用户看到的就是「拼音打出来了，按数字键却选不上」。
+    navSearchInput.addEventListener('compositionstart', () => {
+        navComposing = true;
+    });
+    navSearchInput.addEventListener('compositionend', () => {
+        navComposing = false;
+        // 上屏之后 value 里才真正有那几个汉字，这时候再搜
+        navSearchRender();
+    });
+    navSearchInput.addEventListener('input', (e) => {
+        if (navComposing || e.isComposing) return;
+        navSearchRender();
+    });
     navSearchInput.addEventListener('focus', () => {
         if (navSearchInput.value.trim()) navSearchRender();
     });
+    // 组词还没结束就失焦（点别处、切布局）：别把标记留着，否则下次打开搜索会一直「不动」
+    navSearchInput.addEventListener('blur', () => {
+        navComposing = false;
+    });
     navSearchInput.addEventListener('keydown', (e) => {
-        // 输入法正在上屏（中文 / 日文）：这一下方向键、回车都是给候选词窗的，
-        // 抢过来就会「按回车想选字，结果整个搜索框没了」。等 compositionend 之后再说。
-        if (e.isComposing || e.keyCode === 229) return;
+        // 输入法正在上屏：这一下方向键、回车、数字键都是给候选词窗的，
+        // 抢过来就会「按回车想选字，结果整个搜索框没了」。
+        // isComposing / keyCode 229 有的宿主不给，所以自己还留着一个 composition 标记。
+        if (navComposing || e.isComposing || e.keyCode === 229) return;
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             navSearchMove(1);
