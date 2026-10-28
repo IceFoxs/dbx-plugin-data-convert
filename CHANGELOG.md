@@ -1,4 +1,15 @@
 # Changelog
+## [0.2.0]
+
+给 CI 和打包链路做的补丁：面向用户的功能与 0.1.9 完全一致（0.1.9 已经带了「数据统计」页）。
+
+### 🛠 工程化 (Internal)
+
+*   **CI 从第一步就挂，后面的测试一个都没跑过**：`package-lock.json` 里 36 个 tarball 地址写的是国内镜像（`mirrors.cloud.tencent.com`）——本机的 npm 把这个源记进了锁文件，GitHub 的 runner 连不上，`npm install` 跑一分半后以 112 / 152 退出，流水线在「装依赖」那步就红了（看板只报 1 error，特别像测试挂了）。现在锁文件回到 `registry.npmjs.org`；另加 `.npmrc` 的 `replace-registry-host=always`，安装时按当前 registry 换 host——本机走镜像、CI 走公共源，谁再执行 `npm install` 都不会把对方的地址写坏。
+*   **CI 现在按 `package.json` 的契约跑**：`npm ci`（锁文件与依赖对不上就当场失败，不静默改写锁）→ `npm test`——20 个纯函数套件一次跑完（原来只跑前 3 个，时间转换 / 数据统计 / i18n / 资源引用这些从来没在 CI 里被检查过）→ 页面冒烟 → 清单、内联脚本、classic script 检查；`setup-node` 带 npm 缓存，`actions/checkout` / `setup-node` 升到 v5（v4 跑在 Node 20 上，每次都会挂一条 deprecation 警告）。
+*   **内联脚本语法检查误报**：那条检查拿 `/<script>([\s\S]*?)<\/script>/` 直接扫 `index.html`，而注释里写着一句 `<script>`（纯文字），于是把注释尾巴当成一段内联脚本去解析，报 `Invalid or unexpected token`。现在先摘 HTML 注释再取块，出错时点名是第几段；同一条断言也搬进了 `tests/assets.test.js`——内联脚本语法错是整页白屏，本地 `npm test` 就该拦住，不该等 CI。
+*   **测试补一条、条数更新**：`tests/assets.test.js` 新增「内联脚本都能通过语法解析」——页面里那段内联脚本一旦语法错误就是整页白屏，该在本地 `npm test` 就拦住；assets 9 → 10，纯函数单测 969 → 970（冒烟 323 不变）。
+
 ## [0.1.9]
 
 ### ✨ 新增 (Features)

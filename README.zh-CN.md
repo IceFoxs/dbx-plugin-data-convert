@@ -209,15 +209,17 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## 构建与测试
 
 ```bash
-./scripts/build.sh test         # 全部用例（969 条）
+./scripts/build.sh test         # 全部用例（970 条）
 ./scripts/build.sh              # 先跑用例，再打包 dist/*.dbxp
 ./scripts/run.sh                # 等价于 build.sh dev
 
-npm test                        # 纯函数用例，无第三方依赖（969 条）
+npm test                        # 纯函数用例，无第三方依赖（970 条）
 npm install && npm run test:ui  # jsdom 页面接线冒烟（323 项）
 
 node scripts/shoot-screens.js   # 重拍 README 那十四张截图，直接写进 docs/
 ```
+
+推送和 PR 由 GitHub Actions 跑同一套：`npm ci` → `npm test`（20 个纯函数套件）→ 页面冒烟 → 清单与内联脚本检查。
 
 Windows 下使用 `scripts\build.cmd`（需要 Git Bash）。
 

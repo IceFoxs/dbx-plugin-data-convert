@@ -211,15 +211,17 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## Build & test
 
 ```bash
-./scripts/build.sh test         # all suites (969 cases)
+./scripts/build.sh test         # all suites (970 cases)
 ./scripts/build.sh              # run tests, then package dist/*.dbxp
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
-npm test                        # pure-function suites, no dependencies (969 cases)
+npm test                        # pure-function suites, no dependencies (970 cases)
 npm install && npm run test:ui  # jsdom smoke test of the UI wiring (323 checks)
 
 node scripts/shoot-screens.js   # re-shoot the fourteen README screenshots into docs/
 ```
+
+Every push and pull request runs the same set on GitHub Actions: `npm ci` → `npm test` (all 20 pure-function suites) → UI smoke → manifest and inline-script checks.
 
 On Windows use `scripts\build.cmd` instead (requires Git Bash).
 

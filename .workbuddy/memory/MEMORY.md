@@ -42,6 +42,11 @@
 - **动公共区域（导航）＝全部截图过时**，整套重拍并逐张确认（1440×900、1x、亮色、清 `.toast`）。脚本 `/tmp/imgh/shoot-all.js` 一次 12 张（带名字只拍一张），格式转换 / 对比 / SQL / 时间 / 二维码要手工装内容。两个坑：**灌 CodeMirror 别只写 `textarea.value`**（SQL 页没桥接，用 `el.nextElementSibling.CodeMirror`）；**脚本拼多行用 `String.fromCharCode(10)`**，`'\n'` 会成字面量。按文字找按钮加 `offsetParent !== null`。
 - 只留 README 引用的截图，改完双向校验；README = 简介 + 主图 → 一览表 → 按页分节 → 通用能力，中英一一对应。
 
+## CI（GitHub Actions）
+- **锁文件里不许留本机镜像地址**：本机 npm 配的是 `mirrors.cloud.tencent.com`，一执行 `npm install` 就把 `package-lock.json` 的 `resolved` 全写成镜像；GitHub runner 连不上，装依赖 1.5 分钟后以 **112 / 152** 退出（不是 1，看板只报 1 error，很像测试挂）。现在锁文件是 `registry.npmjs.org`（integrity 已核对，两边同一份 tarball），并用 `.npmrc` 的 `replace-registry-host=always` 兜底：安装时按当前 registry 换 host，本机走镜像、CI 走公共源，互不影响（npm 默认 `npmjs` 只替换 npmjs 那个 host，救不了反方向）。CI 用 `npm ci`（锁与依赖对不上就当场失败）。
+- **CI 里的脚本静态检查要先摘 HTML 注释**：`/<script>([\s\S]*?)<\/script>/` 会被注释里那句纯文字 `<script>` 骗到，把注释尾巴当代码解析，报 `Invalid or unexpected token`（真踩过）。`tests/assets.test.js` 也有一条同样的断言守着内联脚本，注释里别写裸 `<script>`。
+- CI 跑的是 `npm ci` → `npm test`（20 个套件）→ 冒烟 → 清单 / 内联脚本 / classic script 检查；`actions/*` 用 v5（v4 跑在 Node 20 上会挂 deprecation 警告）。
+
 ## 工具坑
 - macOS BSD grep 不支持 `\s` / `\|`：用 `grep -E` 或 Grep 工具；`index.html` 用 `sed -n` 取段。
 - 批量插 i18n 用 node 脚本按锚点插入，插完必跑 i18n 测试。
