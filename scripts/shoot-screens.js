@@ -230,6 +230,18 @@ const SHOTS = [
         }
     },
     {
+        name: 'screen-datasql',
+        label: 'SQL 分析',
+        async run(ev) {
+            await ev(`handleNavClick(document.getElementById('navDataSql'))`);
+            await sleep(500);
+            // 示例自带一句 SQL：左边表格、右边分组结果，一次就摆好
+            await ev(`document.querySelector('#dataSqlSamples .sample-chip[data-sample="orders"]').click()`);
+            // 改数据是防抖 220 ms + 异步执行，等它跑完再拍
+            await sleep(1100);
+        }
+    },
+    {
         name: 'screen-chart',
         label: 'JSON 转图表',
         async run(ev) {

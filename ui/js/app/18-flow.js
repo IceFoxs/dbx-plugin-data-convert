@@ -1439,6 +1439,14 @@ function pageImportTargets(page, side) {
     if (page === 'navChart') return { editor: chartEditor, el: chartInput, tipId: 'chartTip' };
     // 统计页的编辑器是懒创建的，没进过这页时 editor 还是 null，此时退回 textarea
     if (page === 'navStats') return { editor: statsEditor, el: statsInputEl, tipId: 'statsTip' };
+    // SQL 分析页：数据进左边的编辑器（编辑器也是懒创建的，没进过这页时退回 textarea）
+    if (page === 'navDataSql') {
+        return {
+            editor: typeof dataSqlDataEditor !== 'undefined' ? dataSqlDataEditor : null,
+            el: document.getElementById('dataSqlInput'),
+            tipId: 'dataSqlTip'
+        };
+    }
     if (page === 'navCodegen') return { editor: codeInputEditor, el: codeInput, tipId: 'codeTip' };
     if (page === 'navQuery') {
         const schemaPane = byId('querySchemaPane');
@@ -1530,6 +1538,11 @@ function loadTextIntoConvert(text, name, heavy, forceSrc) {
 async function importTextIntoPage(page, file, side) {
     const t = pageImportTargets(page, side);
     if (!t || !file) return;
+    // SQL 分析页自己接（xlsx 要先解压读表，csv / txt 走文本，最后都变成同一份分隔符文本）
+    if (page === 'navDataSql' && typeof dataSqlImportFile === 'function') {
+        await dataSqlImportFile(file);
+        return;
+    }
     const size = Number(file.size || 0);
     if (size > TEXT_IMPORT_MAX) {
         showToast(dropTooBig(file.name, size, TEXT_IMPORT_MAX), 'error');
@@ -1581,6 +1594,8 @@ function checkDropRoute(names) {
                     : fT('flowDropNotSheet', '这一页只收表格文件（xlsx / xlsm / csv / tsv / txt）')
             };
         }
+        // SQL 分析页两种都吃：文本按分隔符解析，xlsx 读成 TSV 再走同一条路
+        if (page === 'navDataSql' && routed.kind === 'sheet') continue;
         // 文本页：图片与二进制表格之外，扩展名不认识也照收
         if (!flow || flow.textImportable(name)) continue;
         return {
@@ -1601,6 +1616,8 @@ function dropLimitFor(page) {
         return page === 'navQr' ? QR_LIMITS.decodeBytes : DBXImg.LIMITS.maxImageBytes;
     }
     if (kind === 'sheet') return SHEET_LIMITS.maxFileBytes;
+    // SQL 分析页能吃 xlsx，上限按表格文件走（文本那一路自己还有 16 MB 的闸）
+    if (page === 'navDataSql') return Math.max(TEXT_IMPORT_MAX, SHEET_LIMITS.maxFileBytes);
     return TEXT_IMPORT_MAX;
 }
 

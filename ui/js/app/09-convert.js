@@ -362,6 +362,12 @@ async function writeClipboardText(text) {
 
 // 导航项会被「更多」下拉搬来搬去，所以用事件委托而不是逐个绑定
 function handleNavClick(link) {
+    navGoto(link);
+    // 宿主的页签名跟着当前功能走（setTitle / document.title），切页后同步一次
+    if (typeof syncDocTitle === 'function') syncDocTitle();
+}
+
+function navGoto(link) {
     // 导航里的「SQL 转换」进入批量文本生成 SQL 的独立页
     if (link.id === 'navSql') {
         enterSqlMode();
@@ -420,6 +426,11 @@ function handleNavClick(link) {
     // 「数据统计」是贴表格 -> 计数 / 求和 / 分组聚合的独立页
     if (link.id === 'navStats') {
         enterStatsMode();
+        return;
+    }
+    // 「SQL 分析」是贴表格 -> 写 SELECT 查询的独立页
+    if (link.id === 'navDataSql') {
+        if (typeof enterDataSqlMode === 'function') enterDataSqlMode();
         return;
     }
     if (compareMode) exitCompareMode();

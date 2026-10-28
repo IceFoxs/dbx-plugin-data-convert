@@ -10,6 +10,8 @@
 
 ## 国际化
 - 新文案 14 语齐全；新页面开独立小表（`QR_I18N` …），别撑大字典。回退「当前语言 → en → 主字典 → zh-CN」；占位符 `{n}` 可调序不可丢；语言头正则兼容无引号键。改完跑 `node tests/i18n.test.js`。
+- **表定义在 `18-flow.js` 之后的脚本里（如 `19-datasql.js`）时，文件末尾必须再调一次 `applyI18n()`**：18 末尾那次是首屏唯一一遍扫描，那时 `typeof X_I18N === 'undefined'` 被守卫跳过，本页的 `data-i18n` / placeholder / title 首屏全是空的，切一次语言才齐。
+- CodeMirror 的 `placeholder` 只在建编辑器那一刻取一次：切语言后要手动 `cm.setOption('placeholder', textarea.placeholder)`。
 
 ## 宿主 / 沙箱
 - **没有本地存储**：opaque origin 下 `localStorage` / `cookie` 抛 SecurityError。用 `dbxPlugin.storage`（manifest `host.storage` + `capabilities.storage`）→ `localStorage` → `window.name`（srcdoc 重载保留，新建 iframe 丢）→ 内存。
@@ -49,9 +51,16 @@
 
 ## 工具坑
 - macOS BSD grep 不支持 `\s` / `\|`：用 `grep -E` 或 Grep 工具；`index.html` 用 `sed -n` 取段。
-- 批量插 i18n 用 node 脚本按锚点插入，插完必跑 i18n 测试。
+- 批量插 i18n 用 node 脚本按锚点插入，插完必跑 i18n 测试。**插在一段最后一项后面要自己补逗号**（项本身常常没逗号），漏了就 `SyntaxError: Unexpected identifier`。
 - 真 Chrome 验沙箱用 flatten 会话（`Target.setAutoAttach({flatten:true})` + `sessionId`）。
-- jsdom 外部脚本时机不稳：`window.DBXxx` 取不到就 `|| null` + 常量兜底，测例用 `beforeParse` 注入。
+- jsdom 外部脚本时机不稳：`window.DBXxx` 取不到就 `|| null` + 常量兜底，测例用 `beforeParse` 注入。**整页 jsdom 在本机会被系统杀掉（exit 137）**，全流程只能上真 Chrome。
+- **headless Chrome 必须加 `--no-sandbox --in-process-gpu`**，否则 `sandbox initialization failed` → `GPU process isn't usable` → exit 133 什么都不输出。
+- **截图别反复 `--screenshot`**（每张都要重启一次 Chrome，还会反复触发「Chrome 清理自签副本」的权限确认）：写一个 CDP 脚本（node 22 自带 `WebSocket`，不用 puppeteer）一次启动跑完步骤表，`Page.captureScreenshot` 逐张落盘。
+- 判元素可见**别用 `offsetParent !== null`**：`position: fixed` 的浮层 offsetParent 恒为 null，会被误判成隐藏。用 `hidden` + `getBoundingClientRect()` 的宽高。
+
+## 主题变量
+- **只写 `var(--x, #fff)` 而不定义 `--x`，等于暗色主题永远取白**：`--surface` / `--surface-muted` 就这么把 SQL 编辑区变成暗色里的一块白板。新增变量一律在 `:root` 与 `[data-dbx-theme="dark"]` 两处都定义（优先跟随宿主 `--color-*`）。
+- 空徽标 / 空胶囊一律 `:empty { display: none }`，别让占位元素冒充内容。
 
 ## 待办
 - 接宿主选中内容（`dbxPlugin.context` + `onContext()`）；最近使用缺持久化与面板（`flow.recentPush()` 已就绪）。

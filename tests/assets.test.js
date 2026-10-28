@@ -168,6 +168,52 @@ check('网格卡片截断时带省略号，别装成内容就这么多', () => {
     if (/(^|[;{\s])max-height\s*:/.test(rule)) throw new Error('又用 max-height 硬裁了，截断处不会出现省略号');
 });
 
+/* ---- 引擎的全局名不许撞车 ----
+ * 踩过的坑：新写的 SQL 引擎把自己挂在 window.DBXSql 上，正好盖掉 sqlgen.js 的同名导出，
+ * 表现是「SQL 转换」页一点运行就报 DBXSql.analyze is not a function——
+ * 两个文件都「加载成功」，控制台只有点击时才炸。这里静态扫一遍，同名直接失败。 */
+check('纯函数库的全局名不重复', () => {
+    const libDir = path.join(ROOT, 'ui/js');
+    const files = fs.readdirSync(libDir).filter((f) => f.endsWith('.js'));
+    const owner = new Map();
+    files.forEach((f) => {
+        const src = fs.readFileSync(path.join(libDir, f), 'utf8');
+        const re = /root\.(DBX[A-Za-z0-9_]+)\s*=/g;
+        let m;
+        while ((m = re.exec(src))) {
+            const name = m[1];
+            if (owner.has(name)) {
+                throw new Error('window.' + name + ' 同时被 ' + owner.get(name) + ' 和 ' + f + ' 定义');
+            }
+            owner.set(name, f);
+        }
+    });
+    if (!owner.size) throw new Error('一个 DBX* 全局都没扫到，正则是不是失效了');
+});
+
+/* ---- 共用作用域里不许重名 ----
+ * ui/js/app/*.js 是经典脚本，共用同一个全局词法作用域：两个文件都写 `const Stats = ...`，
+ * 后加载的那个整份脚本**不会执行**（SyntaxError: Identifier 'Stats' has already been declared），
+ * 表现是「页面长得出来，但点导航没反应、按钮的函数不存在」——真踩过。
+ * 只扫顶格声明（这套代码的顶层声明都在第 0 列），嵌套里的同名不算。 */
+check('页面脚本的顶层声明不重名', () => {
+    const dir = path.join(ROOT, 'ui/js/app');
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.js')).sort();
+    const owner = new Map();
+    const dups = [];
+    files.forEach((f) => {
+        fs.readFileSync(path.join(dir, f), 'utf8').split('\n').forEach((line, i) => {
+            const m = /^(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/.exec(line);
+            if (!m) return;
+            const at = owner.get(m[1]);
+            if (at) dups.push(m[1] + '：' + at + ' 与 ' + f + ':' + (i + 1));
+            else owner.set(m[1], f);
+        });
+    });
+    if (dups.length) throw new Error(dups.join('；'));
+    if (owner.size < 500) throw new Error('只扫到 ' + owner.size + ' 个顶层声明，正则是不是失效了');
+});
+
 console.log('');
 console.log('--- assets: ' + pass + '/' + (pass + fail) + ' passed ---');
 if (fail) process.exit(1);

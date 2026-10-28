@@ -62,6 +62,12 @@ const NAV_SEARCH_ALIAS = {
         keys: ['查询', '校验', '过滤', '筛选', '断言', 'jsonpath', 'jq', 'schema'],
         py: 'chaxun cx jiaoyan jy guolv gl shaixuan sx duanyan dy'
     },
+    navDataSql: {
+        keys: ['sql', 'sql 分析', '查询', '分析', '数据库', 'select', 'where', 'group by',
+            'order by', 'join', '聚合', '分组', '类型', 'mysql', 'ddl', 'duckdb', 'sqlite',
+            'query', 'analyze', 'analytics'],
+        py: 'sql fenxi fx chaxun cx shujufenxi sjfx juhe jh fenzu fz leixing lx shujuku sjk'
+    },
     navStats: {
         keys: ['统计', '数据统计', '聚合', '分组', '求和', '均值', '平均值', '计数',
             '去重', '标准差', '数据', 'stats', 'statistic', 'statistics', 'data stats',
@@ -96,7 +102,9 @@ const HANZI_SOUND = {
     '密': ['m', 'mi'], '哈': ['h', 'ha'], '希': ['x', 'xi'], '签': ['q', 'qian'],
     '任': ['r', 'ren'], '意': ['y', 'yi'], '值': ['z', 'zhi'], '列': ['l', 'lie'],
     '模': ['m', 'mo'], '型': ['x', 'xing'], '化': ['h', 'hua'], '紧': ['j', 'jin'],
-    '凑': ['c', 'cou'], '则': ['z', 'ze']
+    '凑': ['c', 'cou'], '则': ['z', 'ze'],
+    // 「SQL 分析」页：分 / 析 / 类 是这页新增的汉字，型 上面已有
+    '分': ['f', 'fen'], '析': ['x', 'xi'], '类': ['l', 'lei']
 };
 
 /**
@@ -148,6 +156,7 @@ function navNameVariants(name) {
  * 容器若是脚本渲染出来的（escKinds），给 fill 一个全局函数名，建索引时先催一次。
  */
 const NAV_SUB_TABS = [
+    { page: 'navDataSql', box: 'dataSqlSamples', keys: ['示例', '样例', '订单', '日志', '管道', '无表头', 'sample', 'header'] },
     { page: 'navImage', box: 'imgModeTabs', keys: ['图片', 'base64', '转图片', 'image', 'img'] },
     { page: 'navImage', box: 'imgFormat', keys: ['图片', 'base64', '输出格式', 'css', 'html'] },
     { page: 'navCompare', box: 'compareTabs', keys: ['对比', '文本', 'diff', 'compare'] },
@@ -622,7 +631,9 @@ function applyI18n() {
         CHART_I18N[currentLang] || CHART_I18N.en || {},
         QR_I18N[currentLang] || QR_I18N.en || {},
         FLOW_I18N[currentLang] || FLOW_I18N.en || {},
-        STATS_I18N[currentLang] || STATS_I18N.en || {}
+        STATS_I18N[currentLang] || STATS_I18N.en || {},
+        // 19-datasql.js 在 08 之后加载：切语言发生在用户操作时，那时它已经在了
+        (typeof DATASQL_I18N !== 'undefined' ? (DATASQL_I18N[currentLang] || DATASQL_I18N.en || {}) : {})
     );
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
@@ -674,11 +685,64 @@ function applyI18n() {
     if (typeof refreshQrI18n === 'function') refreshQrI18n();
     // 统计页的列名、徽标、提示、统计方式 chip 都是拼出来的
     if (typeof refreshStatsI18n === 'function') refreshStatsI18n();
+    // SQL 分析页的行数 / 耗时 / 加载更多 / 列类型候选
+    if (typeof dataSqlOnLangChange === 'function') dataSqlOnLangChange();
     // 搜索按钮的文案与 placeholder 尾巴上的快捷键（要放在 placeholder 那一轮之后）
     navSyncSearchLabel();
     // 正在搜的话，结果里的名字是上一门语言，重算一遍；否则会中英混排
     if (navSearchInput && navSearchInput.value.trim() && navSearchListEl && !navSearchListEl.hidden) navSearchRender();
+    // 标签页名跟着导航文案走（切语言后要重算）
+    syncDocTitle();
 }
+
+/* ------------------------------ 标签页名 ------------------------------ */
+
+// DBX 的标签页名默认是 manifest 里 contribution 的 label（「数据转换」），
+// 开着好几个标签时分不出哪个是「SQL 分析」哪个是「二维码」。
+// 停在哪一页就把页名写进去：功能页 -> 「SQL 分析」，格式转换页 -> 传 null 恢复默认。
+//
+// 走宿主 API window.dbxPlugin.setTitle()（需要 host.workbench，manifest 里已声明）：
+// 插件 UI 跑在沙箱 iframe 里，改 document.title 传不到宿主的页签上——
+// 浏览器里（dev / 直接打开 index.html）没有这个 API，就退回改 document.title。
+//
+// 页名直接读导航项当前显示的文字（applyI18n 刚铺完），天然跟着语言走，
+// 不用再给 14 套字典各添一条标题。
+const DOC_TITLE_FALLBACK = typeof document !== 'undefined' ? document.title : '';
+let docTitlePage = null;    // 上一次同步到的页 id（''=格式转换页），避免重复调宿主
+
+function syncDocTitle() {
+    if (typeof document === 'undefined') return;
+    // currentPageId 在 11-compare.js 里（本文件先加载）：运行时才有，取不到就当格式转换页
+    const pageId = typeof currentPageId === 'function' ? currentPageId() : '';
+    let label = '';
+    if (pageId) {
+        const el = document.getElementById(pageId);
+        // 导航项可能被「更多」下拉搬走，但只要有 id，textContent 就是当前语言的名字
+        label = el ? String(el.textContent || '').replace(/\s+/g, ' ').trim() : '';
+    }
+
+    const key = label || '';
+    if (key === docTitlePage) return;
+    docTitlePage = key;
+
+    const host = window.dbxPlugin;
+    if (host && typeof host.setTitle === 'function') {
+        try {
+            // null = 恢复默认 label；宿主回错误不影响插件干活，吞掉
+            const pending = host.setTitle(key || null);
+            if (pending && typeof pending.catch === 'function') pending.catch(() => {});
+        } catch (err) {
+            // 老版本宿主没有这个方法 / 没授权：下面那行 document.title 兜住
+        }
+    }
+    document.title = key || DOC_TITLE_FALLBACK;
+}
+
+// 宿主的 ready 是异步的：首屏那次 setTitle 可能还没就绪，init 到了再同步一遍
+window.addEventListener('dbx-plugin-init', () => {
+    docTitlePage = null;
+    syncDocTitle();
+});
 
 // 宿主（DBX）会给没写 title 的按钮补一个提示，用的却是宿主自己的词表：
 // 界面明明是中文，鼠标停在「粘贴」上却弹出英文 "Paste"，还正好挡住旁边的「选择图片」。

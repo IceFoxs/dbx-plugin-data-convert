@@ -77,8 +77,9 @@
 
     /**
      * @param {string} text
-     * @param {{delimiter?: string, hasHeader?: boolean}} options
-     *        delimiter 传 'auto' 或不传就自己嗅；hasHeader 默认 true
+     * @param {{delimiter?: string, hasHeader?: boolean, raw?: boolean}} options
+     *        delimiter 传 'auto' 或不传就自己嗅；hasHeader 默认 true；
+     *        raw = true 时不做单元格截断（SQL 分析要拿完整值算，预览才需要 clip）
      * @returns {{delimiter: string, header: string[]|null, rows: string[][],
      *            cols: number, totalRows: number, truncated: boolean,
      *            lines: number[]}}
@@ -113,7 +114,10 @@
         }
 
         var cells = lines.map(function (line) {
-            return line.split(delimiter).map(clip);
+            var parts = line.split(delimiter);
+            // raw：不裁单元格。SQL 里对整列求和 / 分组，值被裁到 200 字就会算错
+            if (opts.raw) return parts;
+            return parts.map(clip);
         });
 
         var header = null;
