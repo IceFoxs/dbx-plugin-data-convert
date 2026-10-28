@@ -53,7 +53,7 @@
     <script src="js/nav.js"></script>
 
     <!-- ECharts 引擎的惰性副本。宿主把插件页关进沙箱，CSP 只放行 inline / blob: 脚本，
-         外链脚本一律被拦；而带 src 的 <script> 会被宿主内联成文本，所以引擎在这里当「文本」存着，
+         外链脚本一律被拦；而带 src 的 script 标签会被宿主内联成文本，所以引擎在这里当「文本」存着，
          进页时再包成 blob: 执行（type 不是 js，浏览器不会提前执行；普通浏览器里它是空标签）。 -->
     <script type="text/plain" id="chartEngineSrc" src="vendor/echarts/echarts.min.js"></script>
     <!-- 二维码的两个库同样是「文本副本」：生成 56 KB、解码 251 KB，都只在进二维码页时

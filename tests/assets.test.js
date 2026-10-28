@@ -121,6 +121,23 @@ check('被内联的脚本 / 样式里没有会被二次解析的标签', () => {
     eq(problems, [], '会被宿主 / 浏览器二次解析的写法');
 });
 
+/* 页尾那段内联脚本一旦语法错误就是整页白屏，比资源 404 更隐蔽
+ * （jsdom 冒烟只会在解析页面时抛一堆看不懂的错）。
+ * 取块之前先摘 HTML 注释：注释里出现的 <script> 只是文字，不是代码——
+ * CI 上真踩过，把注释尾巴当成内联脚本解析，报 Invalid or unexpected token。 */
+check('内联脚本都能通过语法解析', () => {
+    const bare = html.replace(/<!--[\s\S]*?-->/g, '');
+    const blocks = [...bare.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    if (!blocks.length) throw new Error('找不到内联脚本');
+    blocks.forEach((code, i) => {
+        try {
+            new Function(code);
+        } catch (err) {
+            throw new Error('第 ' + (i + 1) + ' 段内联脚本：' + err.message);
+        }
+    });
+});
+
 /* ---- 结果卡的内容截断：这条只能对样式做静态断言，jsdom 不做布局 ----
  * 踩过的坑：`max-height + overflow: hidden` 硬裁，第 4 行往后凭空消失，
  * 既没有省略号也不会滚，看上去就像「只生成了三行」。 */

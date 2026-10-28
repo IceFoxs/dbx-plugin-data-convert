@@ -38,9 +38,17 @@ jobs:
         run: |
           node -e "
             const fs = require('fs');
-            const html = fs.readFileSync('ui/index.html', 'utf8');
+            // 先摘掉 HTML 注释：注释里出现的 <script> 只是文字，不是要执行的代码，
+            // 之前这里没摘，把注释尾巴当内联脚本解析，报了 Invalid or unexpected token
+            const html = fs.readFileSync('ui/index.html', 'utf8').replace(/<!--[\s\S]*?-->/g, '');
             const blocks = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
-            blocks.forEach((code) => new Function(code));
+            blocks.forEach((code, i) => {
+              try {
+                new Function(code);
+              } catch (err) {
+                throw new Error('第 ' + (i + 1) + ' 段内联脚本语法错误：' + err.message);
+              }
+            });
             console.log('inline scripts ok:', blocks.length);
           "
 
