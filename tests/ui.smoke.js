@@ -1570,7 +1570,8 @@ function check(name, fn) {
             ['navQuery', 'queryWorkspace'],
             ['navEscape', 'escWorkspace'],
             ['navBytes', 'bytesWorkspace'],
-            ['navChart', 'chartWorkspace']
+            ['navChart', 'chartWorkspace'],
+            ['navDataSql', 'dataSqlWorkspace']
         ];
         pages.forEach(function (pair) {
             doc.getElementById(pair[0]).click();
@@ -2847,7 +2848,7 @@ function check(name, fn) {
             throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
         }
         // 直属项（从左到右）：JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / 字节转换 / JSON 转图表 / 时间转换 / 二维码转换 / 代码生成 / 表格转 JSON / 数据统计 / 查询校验
-        if (inlineNavLinks().length !== 12) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 13) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
         if (!doc.getElementById('navConvertTrigger')) throw new Error('缺少「格式转换」触发器');
         // 触发器直接显示当前这一对格式，而不是固定的「格式转换」
         var label = doc.getElementById('navConvertLabel').textContent.trim();
@@ -2864,7 +2865,7 @@ function check(name, fn) {
     check('默认是顶部导航，切换按钮在', function () {
         if (!doc.getElementById('navToggle')) throw new Error('缺少切换按钮');
         if (doc.body.classList.contains('nav-left')) throw new Error('默认不该是左侧');
-        if (inlineNavLinks().length !== 12) throw new Error('顶部直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 13) throw new Error('顶部直属项 ' + inlineNavLinks().length);
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('左侧') === -1) throw new Error('提示文案: ' + label);
     });
@@ -2873,7 +2874,7 @@ function check(name, fn) {
     check('点切换后导航变左侧', function () {
         if (!doc.body.classList.contains('nav-left')) throw new Error('没切到左侧');
         // 竖排能放下全部项，不该再收进「更多」
-        if (inlineNavLinks().length !== 12) throw new Error('左侧直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 13) throw new Error('左侧直属项 ' + inlineNavLinks().length);
         if (moreEl.classList.contains('show')) throw new Error('左侧模式不该出现「更多」');
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('顶部') === -1) throw new Error('提示没切成「顶部」: ' + label);
@@ -2939,7 +2940,7 @@ function check(name, fn) {
         // 顶部布局下收起不成立：类要摘掉，否则顶部导航整条都点不到
         if (doc.body.classList.contains('nav-collapsed')) throw new Error('顶部布局还带着收起类');
         if (navSide.hasAttribute('inert')) throw new Error('顶部布局的导航被设成 inert');
-        if (inlineNavLinks().length !== 12) throw new Error('顶部直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 13) throw new Error('顶部直属项 ' + inlineNavLinks().length);
         doc.getElementById('navToggle').click();      // 切回左侧
         if (!doc.body.classList.contains('nav-collapsed')) throw new Error('切回左侧没恢复收起状态');
         if (!navSide.hasAttribute('inert')) throw new Error('恢复收起后没设 inert');
@@ -3183,7 +3184,7 @@ function check(name, fn) {
         searchBtn.click();
         if (doc.body.classList.contains('nav-searching')) throw new Error('再点没收起');
         if (searchBtn.getAttribute('aria-expanded') !== 'false') throw new Error('aria-expanded 没复位');
-        if (inlineNavLinks().length !== 12) throw new Error('收起后导航没回来: ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 13) throw new Error('收起后导航没回来: ' + inlineNavLinks().length);
     });
 
     check('Ctrl+K / ⌘K 也能唤起搜索', function () {
@@ -3327,7 +3328,7 @@ function check(name, fn) {
     doc.getElementById('navToggle').click();
     check('再点一次回到顶部导航', function () {
         if (doc.body.classList.contains('nav-left')) throw new Error('没切回顶部');
-        if (inlineNavLinks().length !== 12) throw new Error('回顶部后直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 13) throw new Error('回顶部后直属项 ' + inlineNavLinks().length);
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('左侧') === -1) throw new Error('提示没切成「左侧」: ' + label);
         if (String(win.name || '').indexOf('dbx-nav:top') === -1) throw new Error('window.name 没跟着回到 top: ' + win.name);
@@ -3371,7 +3372,7 @@ function check(name, fn) {
         // 120px 只塞得下一项：先是非置顶的搬走，还不够才动置顶项，塞得下就停；
         // 菜单顺序必须接着导航条往下排（置顶项在最前）
         var expect = ['SQL 转换', '图片 Base64', '转义工具', '字节转换', 'JSON 转图表',
-            '时间转换', '二维码转换', '代码生成', '表格转 JSON', '数据统计', '查询校验'];
+            '时间转换', '二维码转换', '代码生成', '表格转 JSON', '数据统计', 'SQL 分析', '查询校验'];
         if (names.join('|') !== expect.join('|')) {
             throw new Error('菜单项: ' + names.join(','));
         }
@@ -3411,7 +3412,8 @@ function check(name, fn) {
             navChart: 'chartWorkspace',
             navTime: 'timeWorkspace',
             navQr: 'qrWorkspace',
-            navStats: 'statsWorkspace'
+            navStats: 'statsWorkspace',
+            navDataSql: 'dataSqlWorkspace'
         };
         if (!pageOf[id]) throw new Error('菜单项不是页面入口: ' + item.textContent.trim());
         if (!doc.getElementById(pageOf[id]).classList.contains('active')) {
@@ -3430,7 +3432,7 @@ function check(name, fn) {
     check('宽度恢复后导航项全部回到导航条', function () {
         if (moreEl.classList.contains('show')) throw new Error('「更多」仍显示');
         if (moreMenu.querySelectorAll('a').length !== 0) throw new Error('菜单仍有残留');
-        if (inlineNavLinks().length !== 12) throw new Error('导航项数 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 13) throw new Error('导航项数 ' + inlineNavLinks().length);
         if (convertMenu.querySelectorAll('a').length !== 7) throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
     });
 
@@ -3462,10 +3464,10 @@ function check(name, fn) {
     });
 
     navCustomizeBtn.click();
-    check('面板列出全部 12 项，顺序跟导航条一致', function () {
+    check('面板列出全部 13 项，顺序跟导航条一致', function () {
         if (navPanelMask.hidden) throw new Error('面板没打开');
         var rows = panelRows();
-        if (rows.length !== 12) throw new Error('行数 ' + rows.length);
+        if (rows.length !== 13) throw new Error('行数 ' + rows.length);
         if (rows.join(',') !== navIds().join(',')) {
             throw new Error('面板 ' + rows.join(',') + ' / 导航 ' + navIds().join(','));
         }
@@ -3658,7 +3660,7 @@ function check(name, fn) {
         var name = String(win.name || '');
         if (name.indexOf('navFuture') === -1) throw new Error('没写进窗口记忆: ' + name);
         // 面板行数跟着长到 13
-        if (panelRows().length !== 13) throw new Error('行数 ' + panelRows().length);
+        if (panelRows().length !== 14) throw new Error('行数 ' + panelRows().length);
     });
 
     check('偏好存在独立 key/token 里，旧版本那套读写不会碰它', function () {
@@ -3698,8 +3700,8 @@ function check(name, fn) {
     dom.window.dispatchEvent(new dom.window.Event('resize'));
     await wait(250);
 
-    check('摘掉临时项后回到 12 项、出厂顺序', function () {
-        if (inlineNavLinks().length !== 12) throw new Error('项数 ' + inlineNavLinks().length);
+    check('摘掉临时项后回到 13 项、出厂顺序', function () {
+        if (inlineNavLinks().length !== 13) throw new Error('项数 ' + inlineNavLinks().length);
         if (navIds().slice(0, 2).join(',') !== 'navCompare,navSql') throw new Error('顺序: ' + navIds().join(','));
     });
 
