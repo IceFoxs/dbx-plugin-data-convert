@@ -8,7 +8,7 @@
 *   **关掉再打开，回到上次用的那个功能**：导航点哪一项、或者在「从 / 转为」里配了哪一对格式，都记下来——独立页记入口 id（`navQr`），格式转换记这一对格式（`json` → `yaml`）。下次打开直接落回那里，不用每次先回到格式转换页再点一遍；四路存储（宿主 `dbxPlugin.storage` → `localStorage` → `window.name` → 本会话）跟导航布局共用同一套，先按同步来源恢复以免闪一下默认页，宿主那份到手后再覆盖一次（与已恢复的一样就不再进页——进页有副作用：建编辑器、清输入）。
     这块特意按「版本回退 / 功能升级都不出错」写：存档只有一个 `v` 加零星几个字段，**形状不认识、字段缺失、JSON 坏了都当没存过**，绝不跳去一个不存在的入口；导航项改名或被删掉时对着 DOM 查，查不到就安静留在默认页；格式名以页面上真实的选项为准，两个方向都认得才切（组合格式不在导航菜单里也能恢复）；未来版本塞进来的字段收进 `extra` 原样写回去，老版本不会把新版本存的东西抹掉。纯逻辑在 `ui/js/nav.js` 的 `parseLastFeature` / `serializeLastFeature`，6 条用例逐条钉着。
 *   **SQL 分析页（贴一张表，直接用 SQL 查它）**：导航新增独立页。左边贴分隔符文本（Tab / 竖线 / 逗号 / 分号自动嗅探，也能手动指定），首行是不是表头可以开关；关掉就一律是 `c1..cN` 这样的列名，不再按内容猜 `day` / `amount` 那种名字——猜出来的名字没规律，写 SQL 时还得多记一套。数据只解析一次，改 SQL 不重新切分；5 万行实测分组聚合 13 ms、全表排序 25 ms、全表扫一遍 6 ms。
-*   **自带的纯 JS SQL 引擎**：`SELECT`（表达式、`DISTINCT`、`AS`）、`WHERE`（`AND` / `OR` / `NOT` / `IN` / `LIKE` / `BETWEEN` / `IS NULL`）、`GROUP BY` + `HAVING`、`ORDER BY`（多列、`ASC` / `DESC`）、`LIMIT` / `OFFSET`，函数 `COUNT` / `SUM` / `AVG` / `MIN` / `MAX` / `GROUP_CONCAT` / `ROUND` / `ABS` / `UPPER` / `LOWER` / `LENGTH` / `TRIM` / `SUBSTR` / `COALESCE` / `IFNULL`。没用 duckdb-wasm 不是省事：宿主沙箱的 CSP 里没有 `'wasm-unsafe-eval'`（Chromium 编译 wasm 直接 CompileError），`connect-src` 又是 `none`（连 `fetch(blob:)` 都拒），而它的 wasm 一个就 35~41 MB。纯 JS 的解释器零依赖、离线、包体零增长。
+*   **自带的纯 JS SQL 引擎**：`SELECT`（表达式、`DISTINCT`、`AS`、`CASE WHEN`）、`WHERE`（`AND` / `OR` / `NOT` / `IN` / `LIKE` / `BETWEEN` / `IS NULL`）、`GROUP BY` + `HAVING`、`ORDER BY`（多列、`ASC` / `DESC`）、`LIMIT` / `OFFSET`，函数 `COUNT` / `SUM` / `AVG` / `MIN` / `MAX` / `GROUP_CONCAT` / `ROUND` / `ABS` / `UPPER` / `LOWER` / `LENGTH` / `TRIM` / `SUBSTR` / `COALESCE` / `IFNULL`。没用 duckdb-wasm 不是省事：宿主沙箱的 CSP 里没有 `'wasm-unsafe-eval'`（Chromium 编译 wasm 直接 CompileError），`connect-src` 又是 `none`（连 `fetch(blob:)` 都拒），而它的 wasm 一个就 35~41 MB。纯 JS 的解释器零依赖、离线、包体零增长。
 *   **任何情况下都不自动执行，也不替你写 SQL**：改数据、换分隔符、点示例、导入数据文件、导入 `.sql`——全都只把东西摆到位。点「运行」时框里是空的，也只是提示「写一句 SQL，或用上面的快捷语句」，不会再按列名顺手生成一句——那句话看着像用户的语句，谁写了什么、跑过什么都分不清了。跑不跑由人点「运行」、`Ctrl / ⌘ + Enter`，或者右键菜单；停手 220 ms 只刷新列名、列类型和预览，**不再往状态栏喊「改过了，点运行」**（结果面板顶上那行「已执行 …」本来就写着这张结果对应哪一句）。旧结果会一并收掉——列都换了还挂着上一张表，比空白更容易误读。
 *   **写 SQL 不费手**：CodeMirror 补全（show-hint）只补这一页真能跑的东西——列名 / 表名 `t` / 函数 / 关键字，`FROM` 后面只给表名，`SELECT` 与逗号后面直接把列名摆出来。中文列名打一个字就弹、打中间一段也命中（`指标` → `考核指标`），`Ctrl / ⌘ + Space` 手动叫；中文输入法组词期间一律不弹（宿主是 WebKit，弹框会把候选窗顶掉），上屏后才弹。**数据预览的表头点一下就插列**：插到光标处，前面紧接着标识符时自动补 `, `。
 *   **右键直接跑**：选中一段 SQL 右键 →「执行所选」；没选中就是「执行当前语句」——一个框里写了多条时只跑光标所在那条，不用先手动选中。菜单里还有「清空 SQL」。菜单挂 `body` 下、fixed 定位（pane 有 `overflow`，挂里面会被裁），打开那一刻就把选区存下来，点菜单项时选区已经没了也不会误跑整段。
@@ -26,6 +26,7 @@
 *   **点「运行」永远是「把我写的都跑一遍」**：光标停在第二条中间时，早先会只跑光标那条——用户按批量写的语句被悄悄跳过了。现在「整段」是默认，想只跑一条就用右键「执行当前语句」（或选中后「执行所选」）。有选区时仍然只跑选中，按钮提示也跟着改成「执行所选」。
 *   **`SELECT DISTINCT` 与 `HAVING` 的常见写法**：`DISTINCT` 是整行去重（`null` / `''` / `0` / `false` 不会被并成一行），并且先于 `LIMIT` 去重——先切前 N 行再去重会少给结果；`HAVING` 里能直接写 `SELECT` 的别名（`HAVING n > 1`），也能直接写聚合（`HAVING SUM(x) > 4`），两者混用、再连 `AND` 与真列一起判都行。
 *   **27 个关键字 + 18 个函数，条条钉进回归测试**：`WHERE` / `GROUP BY` / `HAVING` / `ORDER BY` / `LIMIT … OFFSET` / `DISTINCT` / `IN` / `LIKE` / `BETWEEN` / `IS [NOT] NULL` / `AND OR NOT` / 四则与 `||`，聚合 6 个（含 `COUNT(DISTINCT x)`）、标量 12 个。这份清单不是文档里说说：`tests/sqlrun.test.js` 逐条跑，加关键字时往表里加一行就自动覆盖。
+*   **`CASE WHEN` 表达式**：搜索式 `CASE WHEN cond THEN v [WHEN …] [ELSE v] END` 与简单式 `CASE expr WHEN v THEN … [ELSE …] END` 两种语法都支持，能在 `SELECT`、`WHERE`、`GROUP BY`、`ORDER BY`、`HAVING` 里用——分组时常拿它做分档（`CASE WHEN amount > 100 THEN 'high' ELSE 'low' END` 再 `GROUP BY`）。`rowExpr` / `groupExpr` / `containsAgg` / `hasColRef` / `collectAgg` / `substituteAliases` / `exprLabel` 全链路认这个节点，聚合与标量上下文都走得通。
 *   **能搜到**：`sqlfx` / `数据分析` / `查询` 等近义词与拼音都指向这一页，示例 chips 也在页内 tab 索引里。
 
 ### 🐞 修复 (Fixes)
@@ -47,13 +48,26 @@
 *   **空的徽标画成一颗灰胶囊**：没跑过时「查询结果」旁边那颗空 `pane-badge` 看着像「—」，其实什么都不代表。`pane-badge:empty` 直接不显示。
 *   **右键菜单比正文小一圈**：字号 0.78rem、行距偏挤，菜单看着像系统级小弹出。字号提到 0.8125rem、宽度 11.5rem、内边距放宽，跟页面其它文字对齐。
 
+#### SQL 引擎（`ui/js/sqlrun.js`）
+
+逐行审过 2151 行引擎 + 跑 20 余条边界用例后，钉出 4 个会算错结果的 Bug、4 个写法对却报错或不生效的缺陷：
+
+*   **`MIN` / `MAX` 对文本列返回 null**：累加器只走 `toNum()`，文本值被当成非数字跳过，`SELECT MIN(name)` 给出空。改成先试数值比较、回退 `String` 比较；数值列仍返回数字，文本列返回原文。
+*   **`NULL = NULL` 被判成 true**：`compareValues(null, null)` 返回 0，破坏 SQL 三值逻辑——`WHERE null = null` 把整张表都捞进来。比较运算两侧含 null / 空串时返回 null（falsy），`IN` / `NOT IN` 同步修正（`NOT IN` 搭配 null 元素时也是 null）。
+*   **比较运算返回 JS boolean**：`SELECT 1 = 1` 出来的是 `true` 不是 `1`，`formatValue` 也没认 boolean，结果表里印着 "true"。所有比较 / 逻辑 / `IN` / `LIKE` / `BETWEEN` 运算统一返回 `1` / `0`，`formatValue` 增加 boolean 分支。
+*   **`LIMIT` 表达式静默失效**：`LIMIT 1+1` 不报错，但 `evalBound` 遇 `bin` 节点返回 null，等于没限制——整张表都吐出来。改成支持 `+` / `-` / `*` / `/` 简单算术求值，`OFFSET` 同理。
+*   **`GROUP BY` 不认 `SELECT` 别名**：`HAVING` 已支持别名，`GROUP BY` 却只认真列，`SELECT region AS r … GROUP BY r` 报错。编译前先经 `substituteAliases` 把别名换回原始表达式，真列同名时真列优先。
+*   **`ORDER BY` 表达式里不能用别名**：`ORDER BY n` 行，`ORDER BY n + 1` 报错——别名替换只覆盖了列引用分支，没覆盖表达式分支。补上表达式分支的替换。
+*   **`GROUP_CONCAT` 丢分隔符**：第二个参数被 `buildAggPlan` 忽略，`GROUP_CONCAT(region, ';')` 仍按逗号拼。提取 `sep` 存进 plan，`finalize` 用 `plan.sep` join。
+*   **未知函数静默返回 null**：`SELECT NONEXISTENT(a)` 不报错、出 null，拼写错误（`SUMM`）查不出来。`scalarCall` 末尾抛 `SqlError`，编译期捕获给提示。
+
 ### 🛠 工程化 (Internal)
 
 *   **CI 从第一步就挂，后面的测试一个都没跑过**：`package-lock.json` 里 36 个 tarball 地址写的是国内镜像（`mirrors.cloud.tencent.com`）——本机的 npm 把这个源记进了锁文件，GitHub 的 runner 连不上，`npm install` 跑一分半后以 112 / 152 退出，流水线在「装依赖」那步就红了（看板只报 1 error，特别像测试挂了）。现在锁文件回到 `registry.npmjs.org`；另加 `.npmrc` 的 `replace-registry-host=always`，安装时按当前 registry 换 host——本机走镜像、CI 走公共源，谁再执行 `npm install` 都不会把对方的地址写坏。
 *   **CI 现在按 `package.json` 的契约跑**：`npm ci`（锁文件与依赖对不上就当场失败，不静默改写锁）→ `npm test`——20 个纯函数套件一次跑完（原来只跑前 3 个，时间转换 / 数据统计 / i18n / 资源引用这些从来没在 CI 里被检查过）→ 页面冒烟 → 清单、内联脚本、classic script 检查；`setup-node` 带 npm 缓存，`actions/checkout` / `setup-node` 升到 v5（v4 跑在 Node 20 上，每次都会挂一条 deprecation 警告）。
 *   **内联脚本语法检查误报**：那条检查拿 `/<script>([\s\S]*?)<\/script>/` 直接扫 `index.html`，而注释里写着一句 `<script>`（纯文字），于是把注释尾巴当成一段内联脚本去解析，报 `Invalid or unexpected token`。现在先摘 HTML 注释再取块，出错时点名是第几段；同一条断言也搬进了 `tests/assets.test.js`——内联脚本语法错是整页白屏，本地 `npm test` 就该拦住，不该等 CI。
 *   **界面文案全量过了一遍**：英文模式下逐页（13 个页面）扫描可见文本，残留中文 0 处——语言菜单里「简体中文 / 繁體中文」那两个语言名按设计保留原文。另把「直接写进界面」的中文字面量（`textContent` / `innerHTML` / `title` / `placeholder` / `showToast` 这几类）逐行筛过，35 处全是 `currentDict.x || '中文'` 形式的兜底，没有绕开字典的硬编码。
-*   **测试补一条、条数更新**：`tests/assets.test.js` 新增「内联脚本都能通过语法解析」——页面里那段内联脚本一旦语法错误就是整页白屏，该在本地 `npm test` 就拦住；assets 9 → 10，本轮再加「语言状态只经 `setLanguage` 修改」一条，12 → 13。`tests/nav.test.js` 从 32 条涨到 38 条：`parseLastFeature` / `serializeLastFeature` 的一进一出、坏数据不抛、形状不对不写、版本回退保 extra、功能升级认老数据、超长字段当没有。`tests/stats.test.js` 从 33 条涨到 48 条，新增 JSON 数组转表格：键的并集与缺键补空、只取一级（嵌套值整体成串）、`null` / 布尔 / 小数 / 科学计数 / `Infinity` 的取值、二维数组首行全字符串当表头（不是就没有表头、数据比表头宽补 `c1`/`c2`）、标量数组单列、顶层是对象 / 坏 JSON / 空数组 / NDJSON 一律回绝、BOM 与前后空白、超上限截断但 `count` 仍是原始条数。SQL 引擎的用例从 151 条涨到 206 条：`DISTINCT` 整行去重 / 先去重后 `LIMIT` / 不把 `null` 与 `0` 并成一行，`HAVING` 的别名、聚合、混用三种写法，`//` 行注释（整行说明、注释里的分号、引号里的 `//` 是数据），外加 27 个关键字与 18 个函数的覆盖表。冒烟里加了两条：「草稿分档」（小语句原样存、大语句压缩、压完仍超标就不存）与「JSON 数组摊成表」（键做列名、嵌套只取一级、包一层的对象 / 坏 JSON / 分隔符文本都回绝）。**全量 22 个套件 1248 条。**
+*   **测试补一条、条数更新**：`tests/assets.test.js` 新增「内联脚本都能通过语法解析」——页面里那段内联脚本一旦语法错误就是整页白屏，该在本地 `npm test` 就拦住；assets 9 → 10，本轮再加「语言状态只经 `setLanguage` 修改」一条，12 → 13。`tests/nav.test.js` 从 32 条涨到 38 条：`parseLastFeature` / `serializeLastFeature` 的一进一出、坏数据不抛、形状不对不写、版本回退保 extra、功能升级认老数据、超长字段当没有。`tests/stats.test.js` 从 33 条涨到 48 条，新增 JSON 数组转表格：键的并集与缺键补空、只取一级（嵌套值整体成串）、`null` / 布尔 / 小数 / 科学计数 / `Infinity` 的取值、二维数组首行全字符串当表头（不是就没有表头、数据比表头宽补 `c1`/`c2`）、标量数组单列、顶层是对象 / 坏 JSON / 空数组 / NDJSON 一律回绝、BOM 与前后空白、超上限截断但 `count` 仍是原始条数。SQL 引擎的用例从 151 条涨到 228 条（本轮再加 22 条钉住 8 项修复与 `CASE WHEN`）：`DISTINCT` 整行去重 / 先去重后 `LIMIT` / 不把 `null` 与 `0` 并成一行，`HAVING` 的别名、聚合、混用三种写法，`//` 行注释（整行说明、注释里的分号、引号里的 `//` 是数据），外加 27 个关键字与 18 个函数的覆盖表。冒烟里加了两条：「草稿分档」（小语句原样存、大语句压缩、压完仍超标就不存）与「JSON 数组摊成表」（键做列名、嵌套只取一级、包一层的对象 / 坏 JSON / 分隔符文本都回绝）。**全量 22 个套件 1270 条。**
 
 ## [0.1.9]
 

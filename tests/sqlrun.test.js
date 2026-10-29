@@ -695,6 +695,60 @@ function run(sql, table, opts) {
     });
     ok('HAVING 里别名与真列同名时真列优先', !h7.error, h7.error || JSON.stringify(h7.rows));
 
+    /* ------------------------------ 修复验证 ------------------------------ */
+
+    // Bug #1: MIN/MAX 对文本列返回 null（曾经只走 toNum，文本被跳过）
+    var strCol = makeTable(['name'], [['b'], ['a'], ['c']]);
+    eq('MIN 文本列', Sql.query('SELECT MIN(name) AS m FROM t', strCol).rows, [['a']]);
+    eq('MAX 文本列', Sql.query('SELECT MAX(name) AS m FROM t', strCol).rows, [['c']]);
+    // 数字列仍然返回数字（不能因为改了文本就把数字也变字符串）
+    eq('MIN 数字列', Sql.query('SELECT MIN(amount) AS m FROM t', TABLE).rows, [[40]]);
+    eq('MAX 数字列', Sql.query('SELECT MAX(amount) AS m FROM t', TABLE).rows, [[310]]);
+
+    // Bug #2: NULL = NULL 应该是 falsy（SQL 三值逻辑）
+    var nullCol = makeTable(['a'], [['1'], [null], ['2']]);
+    eq('NULL = NULL 不匹配', Sql.query('SELECT a FROM t WHERE null = null', nullCol).rowCount, 0);
+    eq('NULL != NULL 不匹配', Sql.query('SELECT a FROM t WHERE null != null', nullCol).rowCount, 0);
+    // IS NULL 不受影响
+    eq('IS NULL 仍有效', Sql.query('SELECT a FROM t WHERE a IS NULL', nullCol).rowCount, 1);
+    eq('IS NOT NULL 仍有效', Sql.query('SELECT a FROM t WHERE a IS NOT NULL', nullCol).rowCount, 2);
+
+    // Bug #3: 比较运算返回 1/0 而非 true/false
+    eq('1 = 1 返回 1', Sql.query('SELECT 1 = 1 AS v', TABLE).rows, [[1]]);
+    eq('1 > 2 返回 0', Sql.query('SELECT 1 > 2 AS v', TABLE).rows, [[0]]);
+    eq('NOT 1 返回 0', Sql.query('SELECT NOT 1 AS v', TABLE).rows, [[0]]);
+
+    // Bug #4: LIMIT 表达式要实际求值
+    eq('LIMIT 1+1', Sql.query('SELECT region FROM t LIMIT 1+1', TABLE).rowCount, 2);
+    eq('LIMIT 2*2', Sql.query('SELECT region FROM t LIMIT 2*2', TABLE).rowCount, 4);
+
+    // 缺陷 #5: GROUP BY 支持 SELECT 别名
+    eq('GROUP BY 别名', Sql.query('SELECT region AS r, COUNT(*) AS n FROM t GROUP BY r ORDER BY r', TABLE).rows,
+        [['华东', 3], ['华北', 3], ['华南', 2]]);
+
+    // 缺陷 #6: ORDER BY 表达式支持别名
+    eq('ORDER BY 别名表达式',
+        Sql.query('SELECT region, COUNT(*) AS n FROM t GROUP BY region ORDER BY n + 1 DESC', TABLE).rows,
+        [['华东', 3], ['华北', 3], ['华南', 2]]);
+
+    // 缺陷 #7: GROUP_CONCAT 自定义分隔符
+    eq('GROUP_CONCAT 分隔符', Sql.query("SELECT group_concat(region, ';') AS g FROM t WHERE amount > 300", TABLE).rows,
+        [['华北']]);
+
+    // 缺陷 #8: 未知函数应报错
+    ok('未知函数报错', !!Sql.query('SELECT NONEXISTENT(a) AS v FROM t', TABLE).error);
+    ok('拼错 SUMM 报错', !!Sql.query('SELECT SUMM(a) AS v FROM t', TABLE).error);
+
+    // 新增功能: CASE WHEN
+    eq('搜索 CASE', Sql.query('SELECT region, CASE WHEN amount > 100 THEN amount ELSE 0 END AS v FROM t WHERE amount > 100 ORDER BY v DESC', TABLE).rows,
+        [['华北', '310'], ['华东', '200'], ['华北', '150'], ['华东', '120']]);
+    eq('简单 CASE', Sql.query("SELECT CASE region WHEN '华东' THEN 'E' ELSE 'O' END AS d FROM t LIMIT 2", TABLE).rows,
+        [['E'], ['E']]);
+    eq('CASE + GROUP BY', Sql.query("SELECT CASE WHEN amount > 100 THEN 'high' ELSE 'low' END AS level, COUNT(*) AS n FROM t GROUP BY level ORDER BY level", TABLE).rows,
+        [['high', 4], ['low', 4]]);
+    eq('CASE 无 ELSE', Sql.query('SELECT CASE WHEN amount > 100 THEN 1 END AS v FROM t LIMIT 2', TABLE).rows,
+        [[1], [null]]);
+
     finish();
 })();
 

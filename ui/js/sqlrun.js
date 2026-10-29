@@ -62,7 +62,8 @@
     var RESERVED = {
         select: 1, from: 1, where: 1, group: 1, by: 1, having: 1, order: 1,
         limit: 1, offset: 1, as: 1, and: 1, or: 1, not: 1, in: 1, is: 1,
-        null: 1, like: 1, between: 1, asc: 1, desc: 1, distinct: 1, true: 1, false: 1
+        null: 1, like: 1, between: 1, asc: 1, desc: 1, distinct: 1, true: 1, false: 1,
+        case: 1, when: 1, then: 1, else: 1, end: 1
     };
 
     /* ------------------------------ 词法 ------------------------------ */
@@ -409,6 +410,34 @@
 
             if (tok.t === 'ident') {
                 var name = tok.v;
+                // CASE WHEN ... THEN ... [ELSE ...] END
+                if (name.toUpperCase() === 'CASE') {
+                    var caseAt = next().start;   // 吃掉 CASE
+                    enter();
+                    var whens = [];
+                    // 简单 CASE：CASE expr WHEN val THEN result ...
+                    var caseExpr = null;
+                    if (!isKw(peek(), 'WHEN')) {
+                        caseExpr = parseOr();
+                    }
+                    while (isKw(peek(), 'WHEN')) {
+                        next();
+                        var whenCond = parseOr();
+                        expectKw('THEN');
+                        var thenVal = parseOr();
+                        whens.push({ when: whenCond, then: thenVal });
+                    }
+                    if (!whens.length) {
+                        throw SqlError('CASE 后面至少要有一个 WHEN', peek().start);
+                    }
+                    var elseVal = null;
+                    if (eatKw('ELSE')) {
+                        elseVal = parseOr();
+                    }
+                    expectKw('END');
+                    leave();
+                    return { k: 'case', caseExpr: caseExpr, whens: whens, else: elseVal, at: caseAt };
+                }
                 next();
                 // 函数调用：看完下一个 token 才知道（刚才这里看的是 name 那枚，导致 SUM(b) 里的括号被当成多余的）
                 var after = peek();
@@ -655,6 +684,11 @@
             }
             if (node.k === 'isnull') { collectAgg(node.x); return; }
             if (node.k === 'call') (node.args || []).forEach(collectAgg);
+            if (node.k === 'case') {
+                if (node.caseExpr) collectAgg(node.caseExpr);
+                node.whens.forEach(function (w) { collectAgg(w.when); collectAgg(w.then); });
+                if (node.else) collectAgg(node.else);
+            }
         }
 
         // 行上下文：列引用直接读 row[idx]
@@ -681,7 +715,7 @@
                 case 'un': {
                     if (node.op === 'not') {
                         var xi = rowExpr(node.x);
-                        return function (row) { return !truthy(xi(row)); };
+                        return function (row) { return truthy(xi(row)) ? 0 : 1; };
                     }
                     var xn = rowExpr(node.x);
                     return function (row) {
@@ -702,15 +736,16 @@
                     if (re) {
                         return function (row) {
                             var v = xl(row);
-                            var hit = v != null && re.test(String(v));
-                            return negL ? !hit : hit;
+                            if (v == null || v === '') return 0;
+                            var hit = re.test(String(v));
+                            return negL ? (hit ? 0 : 1) : (hit ? 1 : 0);
                         };
                     }
                     return function (row) {   // 模式是列，只能逐行构造
                         var v = xl(row);
-                        if (v == null) return false;
+                        if (v == null || v === '') return 0;
                         var hit = likeTest(String(v), String(pl(row) == null ? '' : pl(row)));
-                        return negL ? !hit : hit;
+                        return negL ? (hit ? 0 : 1) : (hit ? 1 : 0);
                     };
                 }
                 case 'between': {
@@ -720,8 +755,9 @@
                     var negB = !!node.not;
                     return function (row) {
                         var v = xb(row);
+                        if (v == null || v === '') return 0;
                         var hit = compareValues(v, lo(row)) >= 0 && compareValues(v, hi(row)) <= 0;
-                        return negB ? !hit : hit;
+                        return negB ? (hit ? 0 : 1) : (hit ? 1 : 0);
                     };
                 }
                 case 'in': {
@@ -730,11 +766,18 @@
                     var negI = !!node.not;
                     return function (row) {
                         var v = xi2(row);
+                        // NULL NOT IN (...) 在 SQL 里是 NULL（falsy），NULL IN (...) 也一样
+                        if (v == null || v === '') return negI ? null : 0;
+                        var hasNull = false;
                         var hit = false;
                         for (var i = 0; i < fns.length; i++) {
-                            if (compareValues(v, fns[i](row)) === 0) { hit = true; break; }
+                            var fv = fns[i](row);
+                            if (fv == null || fv === '') { hasNull = true; continue; }
+                            if (compareValues(v, fv) === 0) { hit = true; break; }
                         }
-                        return negI ? !hit : hit;
+                        if (hit) return negI ? 0 : 1;
+                        if (hasNull) return null;   // NOT IN 搭配 NULL 元素 → NULL
+                        return negI ? 1 : 0;
                     };
                 }
                 case 'isnull': {
@@ -748,6 +791,35 @@
                 }
                 case 'call':
                     return scalarCall(node, rowExpr);
+                case 'case': {
+                    // 简单 CASE：CASE expr WHEN val THEN result
+                    // 搜索 CASE：CASE WHEN cond THEN result
+                    var caseExprFn = node.caseExpr ? rowExpr(node.caseExpr) : null;
+                    var whenFns = node.whens.map(function (w) {
+                        return { when: rowExpr(w.when), then: rowExpr(w.then) };
+                    });
+                    var elseFn = node.else ? rowExpr(node.else) : null;
+                    return function (row) {
+                        var caseVal = caseExprFn ? caseExprFn(row) : null;
+                        for (var i = 0; i < whenFns.length; i++) {
+                            if (caseExprFn) {
+                                // 简单 CASE：拿 caseVal 跟 WHEN 值比
+                                var wv = whenFns[i].when(row);
+                                if (caseVal != null && caseVal !== '' &&
+                                    wv != null && wv !== '' &&
+                                    compareValues(caseVal, wv) === 0) {
+                                    return whenFns[i].then(row);
+                                }
+                            } else {
+                                // 搜索 CASE：WHEN 条件为真
+                                if (truthy(whenFns[i].when(row))) {
+                                    return whenFns[i].then(row);
+                                }
+                            }
+                        }
+                        return elseFn ? elseFn(row) : null;
+                    };
+                }
                 default:
                     return function () { return null; };
             }
@@ -780,7 +852,7 @@
                 case 'un': {
                     if (node.op === 'not') {
                         var xi = groupExpr(node.x);
-                        return function (g) { return !truthy(xi(g)); };
+                        return function (g) { return truthy(xi(g)) ? 0 : 1; };
                     }
                     var xn = groupExpr(node.x);
                     return function (g) {
@@ -799,6 +871,31 @@
                 }
                 case 'call':
                     return scalarCall(node, groupExpr);
+                case 'case': {
+                    var caseExprFnG = node.caseExpr ? groupExpr(node.caseExpr) : null;
+                    var whenFnsG = node.whens.map(function (w) {
+                        return { when: groupExpr(w.when), then: groupExpr(w.then) };
+                    });
+                    var elseFnG = node.else ? groupExpr(node.else) : null;
+                    return function (g) {
+                        var caseVal = caseExprFnG ? caseExprFnG(g) : null;
+                        for (var i = 0; i < whenFnsG.length; i++) {
+                            if (caseExprFnG) {
+                                var wv = whenFnsG[i].when(g);
+                                if (caseVal != null && caseVal !== '' &&
+                                    wv != null && wv !== '' &&
+                                    compareValues(caseVal, wv) === 0) {
+                                    return whenFnsG[i].then(g);
+                                }
+                            } else {
+                                if (truthy(whenFnsG[i].when(g))) {
+                                    return whenFnsG[i].then(g);
+                                }
+                            }
+                        }
+                        return elseFnG ? elseFnG(g) : null;
+                    };
+                }
                 default:
                     return rowExpr(node) ? wrapRowAsGroup(rowExpr(node)) : function () { return null; };
             }
@@ -818,6 +915,11 @@
             if (node.k === 'between') return containsAgg(node.x) || containsAgg(node.lo) || containsAgg(node.hi);
             if (node.k === 'like') return containsAgg(node.x) || containsAgg(node.pat);
             if (node.k === 'isnull') return containsAgg(node.x);
+            if (node.k === 'case') {
+                if (node.caseExpr && containsAgg(node.caseExpr)) return true;
+                return node.whens.some(function (w) { return containsAgg(w.when) || containsAgg(w.then); })
+                    || (node.else && containsAgg(node.else));
+            }
             return false;
         }
 
@@ -832,6 +934,11 @@
             if (node.k === 'between') return hasColRef(node.x) || hasColRef(node.lo) || hasColRef(node.hi);
             if (node.k === 'like') return hasColRef(node.x) || hasColRef(node.pat);
             if (node.k === 'isnull') return hasColRef(node.x);
+            if (node.k === 'case') {
+                if (node.caseExpr && hasColRef(node.caseExpr)) return true;
+                return node.whens.some(function (w) { return hasColRef(w.when) || hasColRef(w.then); })
+                    || (node.else && hasColRef(node.else));
+            }
             return false;
         }
 
@@ -859,12 +966,19 @@
                 var argNode = node.args && node.args.length ? node.args[0] : null;
                 var star = !argNode || argNode.k === 'star';
                 var argFn = star ? null : rowExpr(argNode);
+                // group_concat 的第二个参数是分隔符（字符串字面量）
+                var sep = ',';
+                if (name === 'group_concat' && node.args && node.args.length >= 2) {
+                    var sepNode = node.args[1];
+                    if (sepNode && sepNode.k === 'str') sep = sepNode.v;
+                }
                 return {
                     name: name,
                     argFn: argFn,
                     star: star,
                     distinct: !!node.distinct,
-                    many: name === 'group_concat'
+                    many: name === 'group_concat',
+                    sep: sep
                 };
             });
         }
@@ -921,16 +1035,27 @@
             }
             if (plan.name === 'min') {
                 return function (st, row) {
-                    var n = toNum(fn(row));
-                    if (n === null) return;
-                    if (!st.has || n < st.v) { st.has = true; st.v = n; }
+                    var v = fn(row);
+                    if (v == null || v === '') return;
+                    // 数值列存数字（toNum），文本列存原值
+                    var n = toNum(v);
+                    var cv = n !== null ? n : v;
+                    if (!st.has) { st.has = true; st.v = cv; return; }
+                    var na = toNum(st.v), nb = toNum(v);
+                    if (na !== null && nb !== null) { if (nb < na) st.v = nb; }
+                    else if (String(v) < String(st.v)) st.v = v;
                 };
             }
             if (plan.name === 'max') {
                 return function (st, row) {
-                    var n = toNum(fn(row));
-                    if (n === null) return;
-                    if (!st.has || n > st.v) { st.has = true; st.v = n; }
+                    var v = fn(row);
+                    if (v == null || v === '') return;
+                    var n = toNum(v);
+                    var cv = n !== null ? n : v;
+                    if (!st.has) { st.has = true; st.v = cv; return; }
+                    var na = toNum(st.v), nb = toNum(v);
+                    if (na !== null && nb !== null) { if (nb > na) st.v = nb; }
+                    else if (String(v) > String(st.v)) st.v = v;
                 };
             }
             return function (st, row) {
@@ -950,7 +1075,7 @@
             if (plan.name === 'sum') return st.n ? st.sum : null;
             if (plan.name === 'avg') return st.n ? st.sum / st.n : null;
             if (plan.name === 'min' || plan.name === 'max') return st.has ? st.v : null;
-            if (plan.name === 'group_concat') return st.parts.length ? st.parts.join(',') : null;
+            if (plan.name === 'group_concat') return st.parts.length ? st.parts.join(plan.sep || ',') : null;
             return null;
         }
 
@@ -999,10 +1124,29 @@
 
         var updaters = aggPlan.map(updater);
 
-        // 没 GROUP BY 但有聚合：也要走聚合路径
         var groupFns = null;
         if (ast.groupBy && ast.groupBy.length) {
-            groupFns = ast.groupBy.map(rowExpr);
+            /*
+             * GROUP BY 支持 SELECT 别名：SELECT region AS r ... GROUP BY r
+             * 别名不是表里的列，所以先看 SELECT 输出列里有没有同名别名，
+             * 有就把别名对应的原始表达式拿过来编译（不是替换成 groupExpr 闭包——
+             * GROUP BY 要按行求值，不是按组）。
+             * 与真列同名时以真列优先。
+             */
+            groupFns = ast.groupBy.map(function (e) {
+                if (e.k === 'col') {
+                    var key = String(e.name == null ? '' : e.name).trim().toLowerCase();
+                    if (info.index[key] == null) {
+                        // 不是表里的真列 → 在 SELECT 别名里找
+                        for (var i = 0; i < outCols.length; i++) {
+                            if (String(outCols[i].name || '').toLowerCase() === key && outCols[i].node) {
+                                return rowExpr(outCols[i].node);
+                            }
+                        }
+                    }
+                }
+                return rowExpr(e);
+            });
         }
 
         var whereFn = ast.where ? rowExpr(ast.where) : null;
@@ -1042,6 +1186,27 @@
              * 聚合的参数只可能是表里真有的列，本来也不需要换别名。
              */
             if (node.k === 'call' && AGG[node.name]) return node;
+            // CASE 节点：递归处理 caseExpr / whens / else
+            if (node.k === 'case') {
+                var cloned2 = null;
+                if (node.caseExpr) {
+                    var ce = substituteAliases(node.caseExpr);
+                    if (ce !== node.caseExpr) { cloned2 = cloned2 || shallowCopy(node); cloned2.caseExpr = ce; }
+                }
+                var newWhens = node.whens.map(function (w) {
+                    var nw = substituteAliases(w.when);
+                    var nt = substituteAliases(w.then);
+                    if (nw === w.when && nt === w.then) return w;
+                    cloned2 = cloned2 || shallowCopy(node);
+                    return { when: nw, then: nt };
+                });
+                if (newWhens !== node.whens) { cloned2 = cloned2 || shallowCopy(node); cloned2.whens = newWhens; }
+                if (node.else) {
+                    var ne = substituteAliases(node.else);
+                    if (ne !== node.else) { cloned2 = cloned2 || shallowCopy(node); cloned2.else = ne; }
+                }
+                return cloned2 || node;
+            }
             var cloned = null;
             var kids = ['l', 'r', 'x', 'lo', 'hi', 'pat'];
             for (var k = 0; k < kids.length; k++) {
@@ -1110,7 +1275,9 @@
                         }
                     }
                 }
-                orderFns.push(isAggQuery ? groupExpr(e) : rowExpr(e));
+                // ORDER BY 表达式里可能含 SELECT 别名（ORDER BY n + 1）：
+                // 先替换别名再编译
+                orderFns.push(isAggQuery ? groupExpr(substituteAliases(e)) : rowExpr(substituteAliases(e)));
             });
         }
 
@@ -1182,10 +1349,10 @@
     // 二元运算的四种形态：比较 / 算术 / 逻辑 / 拼接
     function binary(op, l, r) {
         if (op === 'and') {
-            return function (x) { return truthy(l(x)) && truthy(r(x)); };
+            return function (x) { return (truthy(l(x)) && truthy(r(x))) ? 1 : 0; };
         }
         if (op === 'or') {
-            return function (x) { return truthy(l(x)) || truthy(r(x)); };
+            return function (x) { return (truthy(l(x)) || truthy(r(x))) ? 1 : 0; };
         }
         if (op === '||') {
             return function (x) {
@@ -1199,17 +1366,22 @@
             return function (x) {
                 var a = l(x);
                 var b = r(x);
+                // SQL 三值逻辑：任一侧为 NULL（空串按 null 处理）时，比较结果为 NULL（falsy）
+                if (a == null || a === '' || b == null || b === '') return null;
                 var eq = compareValues(a, b) === 0;
-                return neg ? !eq : eq;
+                return neg ? (eq ? 0 : 1) : (eq ? 1 : 0);
             };
         }
         if (op === '>' || op === '>=' || op === '<' || op === '<=') {
             return function (x) {
-                var c = compareValues(l(x), r(x));
-                if (op === '>') return c > 0;
-                if (op === '>=') return c >= 0;
-                if (op === '<') return c < 0;
-                return c <= 0;
+                var a = l(x);
+                var b = r(x);
+                if (a == null || a === '' || b == null || b === '') return null;
+                var c = compareValues(a, b);
+                if (op === '>') return c > 0 ? 1 : 0;
+                if (op === '>=') return c >= 0 ? 1 : 0;
+                if (op === '<') return c < 0 ? 1 : 0;
+                return c <= 0 ? 1 : 0;
             };
         }
         return function (x) {
@@ -1296,8 +1468,8 @@
                 return s.slice(start, start + (len === null ? 0 : Math.max(0, Math.floor(len))));
             };
         }
-        // 认不出的函数：当一个恒为 null 的空操作，交给上层提示
-        return function () { return null; };
+        // 认不出的函数：报错，别静默返回 null（用户拼错 SUMM 以为结果是对的）
+        throw SqlError('认不出的函数「' + name + '」', node.at || -1);
     }
 
     function exprLabel(node, names) {
@@ -1315,6 +1487,16 @@
         if (node.k === 'bin') return exprLabel(node.l, names) + ' ' + node.op + ' ' + exprLabel(node.r, names);
         if (node.k === 'un') return node.op + ' ' + exprLabel(node.x, names);
         if (node.k === 'star') return '*';
+        if (node.k === 'case') {
+            var parts = ['CASE'];
+            if (node.caseExpr) parts.push(exprLabel(node.caseExpr, names));
+            node.whens.forEach(function (w) {
+                parts.push('WHEN', exprLabel(w.when, names), 'THEN', exprLabel(w.then, names));
+            });
+            if (node.else) parts.push('ELSE', exprLabel(node.else, names));
+            parts.push('END');
+            return parts.join(' ');
+        }
         return '表达式';
     }
 
@@ -1618,11 +1800,24 @@
         return entries;
     }
 
-    // LIMIT / OFFSET 只接受常量（列引用在这里没有意义）
+    // LIMIT / OFFSET 只接受可求值为常量的表达式（数字、负号、简单算术）
     function evalBound(node) {
         if (!node) return null;
         if (node.k === 'num') return Math.max(0, Math.floor(node.v));
-        if (node.k === 'un' && node.op === 'neg' && node.x && node.x.k === 'num') return 0;
+        if (node.k === 'un' && node.op === 'neg' && node.x) {
+            var v = evalBound(node.x);
+            return v === null ? null : 0;   // LIMIT -x → 0
+        }
+        if (node.k === 'bin') {
+            var a = evalBound(node.l);
+            var b = evalBound(node.r);
+            if (a === null || b === null) return null;
+            if (node.op === '+') return Math.max(0, Math.floor(a + b));
+            if (node.op === '-') return Math.max(0, Math.floor(a - b));
+            if (node.op === '*') return Math.max(0, Math.floor(a * b));
+            if (node.op === '/') return b === 0 ? null : Math.max(0, Math.floor(a / b));
+            return null;
+        }
         return null;
     }
 
@@ -2057,6 +2252,7 @@
 
     function formatValue(v) {
         if (v == null) return '';
+        if (typeof v === 'boolean') return v ? '1' : '0';
         if (typeof v === 'number') {
             if (!isFinite(v)) return '';
             if (Number.isInteger(v) && Math.abs(v) < 1e21) return String(v);
