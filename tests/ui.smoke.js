@@ -4037,6 +4037,25 @@ function check(name, fn) {
         if (plan(400 * 1024, 0) !== 'skip') throw new Error('压不了又塞不下应放弃');
     });
 
+    /* ---------------- SQL 页吃 JSON 数组 ---------------- */
+
+    check('SQL 页：JSON 数组摊成表，不是数组的一律回绝', function () {
+        var toRows = win.DBXStats && win.DBXStats.jsonToRows;
+        if (typeof toRows !== 'function') throw new Error('DBXStats.jsonToRows 没挂出来');
+        var r = toRows('[{"region":"华东","orders":12},{"region":"华南","orders":7}]');
+        if (!r.ok) throw new Error('对象数组应能摊成表');
+        if (r.header.join(',') !== 'region,orders') throw new Error('列名应是键：' + r.header);
+        if (r.rows.length !== 2 || r.rows[0][1] !== '12') throw new Error('数据行不对');
+        // 只取一级：嵌套值整体当一个单元格，不摊成 user.name
+        var nested = toRows('[{"id":1,"user":{"name":"A"}}]');
+        if (nested.header.join(',') !== 'id,user') throw new Error('嵌套不该摊平');
+        if (nested.rows[0][1] !== '{"name":"A"}') throw new Error('嵌套值应成 JSON 串');
+        // 顶层是对象 / 坏 JSON 都要回绝（页面据此报「数据格式有误」）
+        if (toRows('{"data":[{"a":1}]}').ok) throw new Error('包一层的对象该回绝');
+        if (toRows('[{"a":1}').ok) throw new Error('坏 JSON 该回绝');
+        if (toRows('a\tb\n1\t2').ok) throw new Error('分隔符文本不该被当 JSON');
+    });
+
     results.forEach(function (r) {
         console.log('  ' + r[0] + ' ' + r[1]);
     });
