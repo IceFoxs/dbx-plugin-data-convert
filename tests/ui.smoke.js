@@ -4024,6 +4024,19 @@ function check(name, fn) {
         dom2.window.close();
     })();
 
+    /* ---------------- SQL 草稿：存 / 压 / 不存的分档 ---------------- */
+
+    check('SQL 草稿：小语句原样存、大语句压缩、压完超标就不存', function () {
+        var plan = win.dataSqlDraftPlan;
+        if (typeof plan !== 'function') throw new Error('dataSqlDraftPlan 没挂出来');
+        if (plan(1024, 300) !== 'plain') throw new Error('小语句应原样存');
+        if (plan(24 * 1024, 0) !== 'plain') throw new Error('24 KB 边界应原样存');
+        if (plan(80 * 1024, 20 * 1024) !== 'gzip') throw new Error('大语句应压缩');
+        if (plan(60 * 1024, 0) !== 'plain') throw new Error('压不了但整段还塞得下，应原样存');
+        if (plan(400 * 1024, 200 * 1024) !== 'skip') throw new Error('压完仍超标应放弃');
+        if (plan(400 * 1024, 0) !== 'skip') throw new Error('压不了又塞不下应放弃');
+    });
+
     results.forEach(function (r) {
         console.log('  ' + r[0] + ' ' + r[1]);
     });

@@ -4,7 +4,7 @@
 - 不打 tag、不建分支，提交由用户确认。**版本号以 `manifest.json` 为准**，`package.json` / CHANGELOG 顶段 / `.dbx-store.json` 对齐它；升不升版本由用户说。
 - **每次改功能都要同步发布物料**（用户 2026-10-26「每次记得更新」）：CHANGELOG 当前段 → `manifest.json` 描述 → `.dbx-store.json` 的 description（含各语言）/ releaseNotes / tags → README 中英 → 截图；条数用实测值。
 - **不用用户的真实数据**（接口、截图、表名字段），一律自造样本。
-- 组件统一 shadcn，原生 `<select>` 换自绘 `.custom-select`（`.disabled` 空转，断言用 `hasAttribute`）；CSS 变量带 fallback。
+- 组件统一 shadcn，原生 `<select>` 换自绘 `.custom-select`（`.disabled` 空转，断言用 `hasAttribute`）；CSS 变量带 fallback。**下拉开合的状态类位置是固定的**：`open` 加在 `.custom-select-options` 上、`active` 加在 `.custom-select-trigger` 上（CSS 就写的 `.custom-select-options.open`），加到外层 `.custom-select` 上是「只有箭头翻过去、选项一个都不出来」，症状很像「点了没反应」。另有两条必踩：祖先 `overflow-y: auto` 会把绝对定位的浮层裁光（面板内下拉改 `position: fixed` 按触发器算位置，下方放不开翻上面）；`.pane-header` 之类默认 `overflow: hidden` 的容器里放浮层要单页放开。
 - 编辑器默认 CodeMirror 5，唯一例外是图片 Base64 页（判据：会不会吞 MB 级字符串）。
 - **新增功能必须能搜到**（用户 2026-10-28「之后新加功能也要这么做，作为长期记忆」）：新页面进 `NAV_SEARCH_ALIAS`，页内 tab / 方向切换进 `NAV_SUB_TABS`，新汉字进 `HANZI_SOUND`；做完顺手在冒烟里加一条「搜得到 + 选中后落在正确的页与 tab」。细则见「页级坑 → 新增功能必须进搜索」。
 
@@ -37,6 +37,10 @@
 - **卡片内容预览不许 `max-height` 硬裁**：单张（`is-single`）要完整摊开、超高才滚（20rem）；网格用 `-webkit-line-clamp: 2` 收尾带省略号。硬裁看起来就像「只生成了三行」（用户报「内容不完整」）。jsdom 不做布局，靠 `tests/assets.test.js` 静态校验样式表钉着。
 - **双击放大**：码面 `dblclick` → 复用图片页灯箱 `lbOpen(src, label, opener)`（滚轮 / 双击 1:1 / Esc 全都有）。大图必须 `svgMarkup(…, size: 1024)` **重新矢量画**，别拿卡片那张 256 的位图拉伸；交给 `<img>` 用 `data:image/svg+xml;charset=utf-8,` + `encodeURIComponent`。标题 `lbLabel(QR.shortLabel(text, 32), 1024, 1024)`。**换页时 `exitQrMode()` 要 `lbClose()`**，否则灯箱跟着盖到别的页上。
 - **时间**：结果卡 `flex-shrink: 0`；相对时间不进批量复制；`scrollIntoView` 前判 `typeof === 'function'`（jsdom 没实现）。
+- **SQL 分析页的「编辑器周边」**（`19-datasql.js`）：
+  - **行注释两处都要认**：编辑器侧（去注释 / ▶ 定位 / 切语句 / 空语句 / 已执行显示）与引擎侧（`sqlrun.js` 词法）各有一份判断，只改一边就是「▶ 认得、一执行报错」。`--` 与 `//` 认，`#` 不认（SQL Server 的 `#临时表` 会被吃成半句）。CodeMirror 自带 sql 模式只认 `--`，`//` 要自己 `markText(..., {className:'cm-comment'})`，并在刷 ▶ 的函数里一起重算。
+  - **草稿记忆分档存**：≤24 KB 原样；更大先 `CompressionStream` gzip 再 base64，压完 ≤128 KB 才存；压不了又超过 128 KB 就**放弃**（别拿几百 KB 的语句去挤布局 / 主题那些真要记住的配置）。base64 按 `0x8000` 分块转，`String.fromCharCode.apply` 对 MB 级必爆栈。**异步压缩必须带序号**（`dataSqlDraftSeq`，落盘前比对），否则慢压完的旧结果会盖掉新草稿。
+  - 存盘时机：800 ms 防抖 + `visibilitychange`→hidden / `exitXxxMode()` / 点运行前强制 flush；恢复只在框里为空时做，光标落到末尾。
 - **图表**：出图不跟主题；预览 1:1 靠 `flex-start` + `margin:auto`；导出 PNG 显式传 `pixelRatio`；测试 stub 掉 echarts。
 - **表格 / 拖放**：`textLooksBinary()` 拦二进制；批量表格走 `mergeFiles()`。
 

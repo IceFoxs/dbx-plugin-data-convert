@@ -77,6 +77,16 @@ function run(sql, table, opts) {
 
     r = run('-- 注释\nSELECT region /* 块注释 */ FROM t LIMIT 1');
     eq('行 / 块注释', r.rows[0], ['华东']);
+
+    // // 也是行注释（从 JS / C 过来的人顺手就打这个），整行说明不该把语句顶掉
+    r = run('// 先看一眼华东\nSELECT region FROM t LIMIT 1');
+    eq('// 行注释', r.rows[0], ['华东']);
+    // 注释里的分号不该被当成语句分隔：切语句那层也靠同一套判定
+    r = run('// 这句里有个分号; 也不算\nSELECT region FROM t LIMIT 1');
+    eq('// 注释里的分号', r.rows[0], ['华东']);
+    // 引号里的 // 是数据，不是注释
+    r = run("SELECT region FROM t WHERE channel = '//'");
+    eq('字符串里的 //', r.rowCount, 0);
 })();
 
 /* ------------------------------ 过滤 ------------------------------ */

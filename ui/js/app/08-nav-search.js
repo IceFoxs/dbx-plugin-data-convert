@@ -181,13 +181,14 @@ function navSubTabEntries() {
         }
         const pageLink = document.getElementById(cfg.page);
         const pageName = pageLink ? (pageLink.textContent || '').trim() : '';
-        Array.prototype.forEach.call(box.querySelectorAll('button'), (btn) => {
+        // 除了按钮，自绘下拉里的 .custom-option 也算页内二级项（示例数据就是下拉里的四项）
+        Array.prototype.forEach.call(box.querySelectorAll('button, .custom-option'), (btn) => {
             const name = (btn.textContent || '').trim();
             if (!name) return;
             const auto = navNameVariants(name);
             const data = btn.dataset || {};
             const id = data.kind || data.mode || data.template || data.tab || data.source ||
-                data.lang || data.dir || data.format || data.qrMode || name;
+                data.lang || data.dir || data.format || data.qrMode || data.sample || name;
             out.push({
                 key: 'tab:' + cfg.box + ':' + id,
                 name: name,

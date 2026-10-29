@@ -754,62 +754,52 @@
          宿主沙箱的 CSP 既不放行 wasm 编译（没有 'wasm-unsafe-eval'），也不放行 fetch
          （connect-src 'none'），duckdb-wasm 那条路进不来——详见 README 的「SQL 分析」一节。 -->
     <section class="datasql-workspace" id="dataSqlWorkspace">
-        <div class="compare-bar">
-            <div class="compare-tabs sql-seg" id="dataSqlDelim">
-                <button type="button" class="compare-tab active" data-delim="auto" data-i18n="sheetDelimAuto">自动</button>
-                <button type="button" class="compare-tab" data-delim="|">|</button>
-                <button type="button" class="compare-tab" data-delim=",">,</button>
-                <button type="button" class="compare-tab" data-delim="&#9;">Tab</button>
-                <button type="button" class="compare-tab" data-delim=";">;</button>
+        <!-- 一条工具栏装三件事，中间用竖线隔开：
+             ① 怎么读数据（分隔符 / 首行为表头）② 写 SQL 用的快捷语句 ③ 执行动作。
+             原先分两行，加上编辑器一共三层，写语句时眼睛要上下跳 -->
+        <div class="compare-bar datasql-toolbar">
+            <div class="datasql-tool-group">
+                <div class="compare-tabs sql-seg" id="dataSqlDelim">
+                    <button type="button" class="compare-tab active" data-delim="auto" data-i18n="sheetDelimAuto">自动</button>
+                    <button type="button" class="compare-tab" data-delim="|">|</button>
+                    <button type="button" class="compare-tab" data-delim=",">,</button>
+                    <button type="button" class="compare-tab" data-delim="&#9;">Tab</button>
+                    <button type="button" class="compare-tab" data-delim=";">;</button>
+                </div>
+                <label class="sql-check"><input type="checkbox" id="dataSqlHeader" checked><span data-i18n="sheetHeader">首行为表头</span></label>
+                <!-- 没有表头时这里列出「猜出来的列名」，一眼知道 SQL 里该写什么 -->
+                <span class="datasql-names" id="dataSqlNamesHint" hidden></span>
             </div>
-            <label class="sql-check"><input type="checkbox" id="dataSqlHeader" checked><span data-i18n="sheetHeader">首行为表头</span></label>
-            <!-- 没有表头时这里列出「猜出来的列名」，一眼知道 SQL 里该写什么 -->
-            <span class="datasql-names" id="dataSqlNamesHint" hidden></span>
-
-            <span class="compare-samples-label" data-i18n="statsSamples">示例</span>
-            <div class="compare-samples" id="dataSqlSamples">
-                <span class="sample-chip" data-sample="orders" data-i18n="dataSqlSampleOrders">订单明细</span>
-                <span class="sample-chip" data-sample="logs" data-i18n="dataSqlSampleLogs">访问日志</span>
-                <span class="sample-chip" data-sample="pipe" data-i18n="dataSqlSamplePipe">管道分隔</span>
-                <span class="sample-chip" data-sample="nohead" data-i18n="dataSqlSampleNoHead">无表头</span>
-            </div>
-
-            <div class="compare-actions">
-                <!-- 工具栏在这页是隐藏的，导入得自带入口；拖进来走同一套通道。
-                     按钮名说清「导入数据」：这页同时能读 .sql，含糊的「导入文件」会让人以为只吃表格 -->
-                <button type="button" class="btn btn-outline" id="dataSqlImport"
-                        data-import-page="navDataSql" data-keep-title
-                        data-i18n-title="dataSqlImportDataTip" data-i18n="dataSqlImportData">导入数据</button>
-                <button type="button" class="btn btn-outline" id="dataSqlCopy" data-i18n="dataSqlCopyTsv">复制结果</button>
-                <button type="button" class="btn btn-outline" id="dataSqlClear"
-                        data-keep-title data-i18n-title="dataSqlClearDataTip"
-                        data-i18n="dataSqlClearData">清空数据</button>
-            </div>
-
-            <div class="compare-tip" id="dataSqlTip"></div>
-        </div>
-
-        <!-- 查询条：上面写 SQL，下面一行是状态（行数 / 耗时）和「运行」 -->
-        <div class="datasql-query">
-            <div class="editor-container datasql-sql-editor">
-                <textarea id="dataSqlQuery" class="textarea" spellcheck="false"
-                          data-i18n-placeholder="dataSqlQueryPlaceholder"></textarea>
-            </div>
-            <!-- 快捷语句：按当前列名拼好一句完整的，点一下追加到末尾。
-                 右侧两个是 SQL 输入区自己的操作（读 .sql / 清空），不跟左边的数据操作混在一起 -->
+            <span class="datasql-tool-sep" aria-hidden="true"></span>
             <div class="datasql-snippets" id="dataSqlSnippets">
                 <span class="sample-chip" data-snippet="all" data-i18n="dataSqlSnipAll">全表</span>
                 <span class="sample-chip" data-snippet="group" data-i18n="dataSqlSnipGroup">分组汇总</span>
                 <span class="sample-chip" data-snippet="distinct" data-i18n="dataSqlSnipDistinct">去重</span>
                 <span class="sample-chip" data-snippet="top" data-i18n="dataSqlSnipTop">前 10 行</span>
+            </div>
+            <!-- 「N × M」贴在右边动作组前面，扫一眼就知道这份数据多大 -->
+            <div class="compare-tip" id="dataSqlTip"></div>
+            <span class="datasql-tool-sep" aria-hidden="true"></span>
+            <div class="datasql-tool-group datasql-tool-end">
                 <button type="button" class="btn btn-ghost datasql-snip-btn" id="dataSqlLoadSql"
                         data-keep-title data-i18n-title="dataSqlLoadSqlTip"
                         data-i18n="dataSqlLoadSql">导入 SQL</button>
                 <button type="button" class="btn btn-ghost datasql-snip-btn" id="dataSqlClearSql"
                         data-keep-title data-i18n-title="dataSqlClearSqlTip"
                         data-i18n="dataSqlClearSql">清空 SQL</button>
+                <button type="button" class="btn btn-primary datasql-run datasql-run-inline" id="dataSqlRun"
+                        data-keep-title data-i18n-title="dataSqlRunTip" data-i18n="dataSqlRun">运行</button>
+            </div>
+        </div>
+
+        <!-- 查询条：编辑器 + 一行状态（行数 / 耗时 / 取消） -->
+        <div class="datasql-query">
+            <div class="editor-container datasql-sql-editor">
+                <textarea id="dataSqlQuery" class="textarea" spellcheck="false"
+                          data-i18n-placeholder="dataSqlQueryHint"></textarea>
             </div>
             <input type="file" id="dataSqlLoadInput" accept=".sql,.txt,text/plain" hidden>
+            <!-- 状态行：跑完写「N 行 · ms」，跑起来放进度条和「取消」 -->
             <div class="datasql-query-bar">
                 <span class="datasql-status" id="dataSqlStatus"></span>
                 <!-- 进度条：跑起来才出现（长查询一眼能看到在动，不至于以为卡死） -->
@@ -821,8 +811,6 @@
                 </div>
                 <button type="button" class="btn btn-outline datasql-cancel" id="dataSqlCancel" hidden
                         data-i18n="dataSqlCancel">取消</button>
-                <button type="button" class="btn btn-primary datasql-run" id="dataSqlRun"
-                        data-keep-title data-i18n-title="dataSqlRunTip" data-i18n="dataSqlRun">运行</button>
             </div>
             <div class="datasql-error" id="dataSqlError" hidden></div>
         </div>
@@ -839,6 +827,35 @@
                         <span class="pane-badge" id="dataSqlSourceBadge">0 × 0</span>
                     </div>
                     <div class="pane-actions">
+                        <!-- 示例：原来是一排 chip 飘在顶部那条解析栏里，跟「数据」隔着一整条编辑器，
+                             找起来像另一件事。收成一个选择框，放在数据自己的标题行上 -->
+                        <div class="custom-select select-compact datasql-sample-pick" id="dataSqlSamples">
+                            <div class="custom-select-trigger" role="button" tabindex="0"
+                                 aria-haspopup="listbox" aria-expanded="false">
+                                <span class="label" data-i18n="dataSqlSamples">示例</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                     stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                     stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            <div class="custom-select-options" role="listbox">
+                                <div class="custom-option" role="option" tabindex="-1"
+                                     data-sample="orders" data-i18n="dataSqlSampleOrders">订单明细</div>
+                                <div class="custom-option" role="option" tabindex="-1"
+                                     data-sample="logs" data-i18n="dataSqlSampleLogs">访问日志</div>
+                                <div class="custom-option" role="option" tabindex="-1"
+                                     data-sample="pipe" data-i18n="dataSqlSamplePipe">管道分隔</div>
+                                <div class="custom-option" role="option" tabindex="-1"
+                                     data-sample="nohead" data-i18n="dataSqlSampleNoHead">无表头</div>
+                            </div>
+                        </div>
+                        <!-- 导入 / 清空都作用在左边这块数据上，就跟在它的标题行里，
+                             不再飘在顶部那条解析设置行的末尾 -->
+                        <button type="button" class="btn btn-outline datasql-data-btn" id="dataSqlImport"
+                                data-import-page="navDataSql" data-keep-title
+                                data-i18n-title="dataSqlImportDataTip" data-i18n="dataSqlImportData">导入数据</button>
+                        <button type="button" class="btn btn-outline datasql-data-btn" id="dataSqlClear"
+                                data-keep-title data-i18n-title="dataSqlClearDataTip"
+                                data-i18n="dataSqlClearData">清空数据</button>
                         <!-- 源码 / 表格预览：粘贴、导入、改分隔符后一眼看清解析成什么样 -->
                         <div class="compare-tabs datasql-view-tabs" id="dataSqlView">
                             <button type="button" class="compare-tab active" data-view="text"
@@ -873,8 +890,19 @@
                         <span data-i18n="dataSqlResult">查询结果</span>
                         <span class="pane-badge" id="dataSqlRowBadge"></span>
                     </div>
-                    <!-- 一个框里写好几句时每条一个页签：点一下看那条的结果（只有一条时不显示） -->
-                    <div class="datasql-batch" id="dataSqlBatch" hidden></div>
+                    <!-- 一个框里写好几句时每条一个页签：点一下看那条的结果（只有一条时不显示）。
+                         「复制结果」也挪到这一行——复制的是这张表，就该跟它待在一起 -->
+                    <div class="pane-actions">
+                        <div class="datasql-batch" id="dataSqlBatch" hidden></div>
+                        <button type="button" class="btn btn-outline datasql-data-btn" id="dataSqlCopy"
+                                data-keep-title data-i18n-title="dataSqlCopyTsvTip"
+                                data-i18n="dataSqlCopyTsv">复制结果</button>
+                    </div>
+                </div>
+                <!-- 结果对应的是哪一句：长语句一行省略，指上去看全文 -->
+                <div class="datasql-executed" id="dataSqlExecuted" hidden>
+                    <span class="datasql-executed-label" data-i18n="dataSqlExecutedLabel">已执行</span>
+                    <span class="datasql-executed-sql" id="dataSqlExecutedSql"></span>
                 </div>
                 <div class="sheet-table-wrap datasql-result-wrap">
                     <div class="sheet-empty" id="dataSqlEmpty" data-i18n="dataSqlEmpty">贴一段表格数据，写一句 SQL</div>
@@ -1718,6 +1746,9 @@
     <button type="button" class="datasql-ctx-item" data-ctx="clear" role="menuitem"
             data-i18n="dataSqlClearSql">清空 SQL</button>
 </div>
+
+<!-- 悬停时展开完整 SQL：挂 body 下用 fixed 定位，免得被面板的 overflow 裁掉 -->
+<div class="datasql-executed-tip" id="dataSqlExecutedTip" hidden></div>
 
 <!-- 列类型面板：挂 body 下、用 fixed 定位，避免被 pane 的 overflow 裁掉
      （统计页的下拉就吃过一次 `.pane-header{overflow:hidden}` 的亏） -->

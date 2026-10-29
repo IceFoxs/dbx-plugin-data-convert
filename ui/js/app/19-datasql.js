@@ -36,15 +36,17 @@ const DATASQL_I18N = {
         dataSqlSnipGroup: '分组汇总',
         dataSqlSnipDistinct: '去重',
         dataSqlSnipTop: '前 10 行',
-        dataSqlNeedRun: 'SQL 或数据改过了，点「运行」更新结果',
         dataSqlSource: '数据',
         dataSqlResult: '查询结果',
         dataSqlDataPlaceholder: '粘贴表格数据，一行一条记录；分隔符自动识别',
-        dataSqlQueryPlaceholder: 'SELECT region, SUM(amount) AS total FROM t GROUP BY region ORDER BY total DESC',
+        dataSqlQueryHint: '写一句 SQL，或用下面的快捷语句',
         dataSqlEmpty: '贴一段表格数据，上面写一句 SQL',
         dataSqlRun: '运行',
         dataSqlRunTip: '运行（Ctrl / ⌘ + Enter）',
         dataSqlCopyTsv: '复制结果',
+        dataSqlCopyTsvTip: '复制整张结果（TSV，可直接贴回表格）',
+        dataSqlGutterRun: '运行这一条',
+        dataSqlExecutedLabel: '已执行',
         dataSqlStatus: '{n} 行 · {ms} ms',
         dataSqlErrAt: '第 {line} 行第 {col} 列：{msg}',
         dataSqlNoData: '还没有数据，先贴一段表格',
@@ -115,15 +117,17 @@ const DATASQL_I18N = {
         dataSqlSnipGroup: '分組彙總',
         dataSqlSnipDistinct: '去重',
         dataSqlSnipTop: '前 10 列',
-        dataSqlNeedRun: 'SQL 或資料改過了，點「執行」更新結果',
         dataSqlSource: '資料',
         dataSqlResult: '查詢結果',
         dataSqlDataPlaceholder: '貼上表格資料，一列一筆；分隔符自動辨識',
-        dataSqlQueryPlaceholder: 'SELECT region, SUM(amount) AS total FROM t GROUP BY region ORDER BY total DESC',
+        dataSqlQueryHint: '寫一句 SQL，或用下面的快捷語句',
         dataSqlEmpty: '貼上一段表格資料，上面寫一句 SQL',
         dataSqlRun: '執行',
         dataSqlRunTip: '執行（Ctrl / ⌘ + Enter）',
         dataSqlCopyTsv: '複製結果',
+        dataSqlCopyTsvTip: '複製整張結果（TSV，可直接貼回表格）',
+        dataSqlGutterRun: '執行這一條',
+        dataSqlExecutedLabel: '已執行',
         dataSqlStatus: '{n} 列 · {ms} ms',
         dataSqlErrAt: '第 {line} 列第 {col} 欄：{msg}',
         dataSqlNoData: '還沒有資料，先貼一段表格',
@@ -194,15 +198,17 @@ const DATASQL_I18N = {
         dataSqlSnipGroup: 'Group & sum',
         dataSqlSnipDistinct: 'Distinct',
         dataSqlSnipTop: 'Top 10',
-        dataSqlNeedRun: 'Changed — press Run to refresh the result',
         dataSqlSource: 'Data',
         dataSqlResult: 'Result',
         dataSqlDataPlaceholder: 'Paste a table, one record per line; the delimiter is detected',
-        dataSqlQueryPlaceholder: 'SELECT region, SUM(amount) AS total FROM t GROUP BY region ORDER BY total DESC',
+        dataSqlQueryHint: 'Write a SQL statement, or use a shortcut below',
         dataSqlEmpty: 'Paste some data, then write a query above',
         dataSqlRun: 'Run',
         dataSqlRunTip: 'Run (Ctrl / ⌘ + Enter)',
         dataSqlCopyTsv: 'Copy result',
+        dataSqlCopyTsvTip: 'Copy the whole result as TSV',
+        dataSqlGutterRun: 'Run this statement',
+        dataSqlExecutedLabel: 'Executed',
         dataSqlStatus: '{n} rows · {ms} ms',
         dataSqlErrAt: 'Line {line}, column {col}: {msg}',
         dataSqlNoData: 'No data yet — paste a table first',
@@ -273,15 +279,17 @@ const DATASQL_I18N = {
         dataSqlSnipGroup: 'Qruplaşdır',
         dataSqlSnipDistinct: 'Təkrarsız',
         dataSqlSnipTop: 'İlk 10',
-        dataSqlNeedRun: 'Dəyişdi — nəticəni yeniləmək üçün «İşə sal»',
         dataSqlSource: 'Məlumat',
         dataSqlResult: 'Nəticə',
         dataSqlDataPlaceholder: 'Cədvəli yapışdırın, hər sətir bir qeyd; ayırıcı avtomatik tapılır',
-        dataSqlQueryPlaceholder: 'SELECT region, SUM(amount) AS total FROM t GROUP BY region ORDER BY total DESC',
+        dataSqlQueryHint: 'SQL yazın və ya aşağıdakı qısayollardan istifadə edin',
         dataSqlEmpty: 'Məlumat yapışdırın, yuxarıda sorğu yazın',
         dataSqlRun: 'İşə sal',
         dataSqlRunTip: 'İşə sal (Ctrl / ⌘ + Enter)',
         dataSqlCopyTsv: 'Nəticəni kopyala',
+        dataSqlCopyTsvTip: 'Nəticəni TSV kimi kopyala',
+        dataSqlGutterRun: 'Bu ifadəni işə sal',
+        dataSqlExecutedLabel: 'İcra edildi',
         dataSqlStatus: '{n} sətir · {ms} ms',
         dataSqlErrAt: '{line} sətir, {col} sütun: {msg}',
         dataSqlNoData: 'Hələ məlumat yoxdur',
@@ -352,15 +360,17 @@ const DATASQL_I18N = {
         dataSqlSnipGroup: 'Agrupar',
         dataSqlSnipDistinct: 'Únicos',
         dataSqlSnipTop: 'Top 10',
-        dataSqlNeedRun: 'Cambió: pulsa Ejecutar para actualizar el resultado',
         dataSqlSource: 'Datos',
         dataSqlResult: 'Resultado',
         dataSqlDataPlaceholder: 'Pega una tabla, un registro por línea; el separador se detecta',
-        dataSqlQueryPlaceholder: 'SELECT region, SUM(amount) AS total FROM t GROUP BY region ORDER BY total DESC',
+        dataSqlQueryHint: 'Escribe una consulta SQL o usa un atajo de abajo',
         dataSqlEmpty: 'Pega datos y escribe una consulta arriba',
         dataSqlRun: 'Ejecutar',
         dataSqlRunTip: 'Ejecutar (Ctrl / ⌘ + Enter)',
         dataSqlCopyTsv: 'Copiar resultado',
+        dataSqlCopyTsvTip: 'Copia todo el resultado como TSV',
+        dataSqlGutterRun: 'Ejecutar esta sentencia',
+        dataSqlExecutedLabel: 'Ejecutado',
         dataSqlStatus: '{n} filas · {ms} ms',
         dataSqlErrAt: 'Línea {line}, columna {col}: {msg}',
         dataSqlNoData: 'Aún no hay datos',
@@ -431,15 +441,17 @@ const DATASQL_I18N = {
         dataSqlSnipGroup: 'Agregat grup',
         dataSqlSnipDistinct: 'Unik',
         dataSqlSnipTop: '10 teratas',
-        dataSqlNeedRun: 'Berubah — tekan Jalankan untuk memperbarui hasil',
         dataSqlSource: 'Data',
         dataSqlResult: 'Hasil',
         dataSqlDataPlaceholder: 'Tempel tabel, satu baris satu data; pemisah dideteksi otomatis',
-        dataSqlQueryPlaceholder: 'SELECT region, SUM(amount) AS total FROM t GROUP BY region ORDER BY total DESC',
+        dataSqlQueryHint: 'Tulis pernyataan SQL, atau pakai pintasan di bawah',
         dataSqlEmpty: 'Tempel data, lalu tulis kueri di atas',
         dataSqlRun: 'Jalankan',
         dataSqlRunTip: 'Jalankan (Ctrl / ⌘ + Enter)',
         dataSqlCopyTsv: 'Salin hasil',
+        dataSqlCopyTsvTip: 'Salin seluruh hasil sebagai TSV',
+        dataSqlGutterRun: 'Jalankan pernyataan ini',
+        dataSqlExecutedLabel: 'Dijalankan',
         dataSqlStatus: '{n} baris · {ms} ms',
         dataSqlErrAt: 'Baris {line}, kolom {col}: {msg}',
         dataSqlNoData: 'Belum ada data',
@@ -510,15 +522,17 @@ const DATASQL_I18N = {
         dataSqlSnipGroup: 'Raggruppa',
         dataSqlSnipDistinct: 'Unici',
         dataSqlSnipTop: 'Primi 10',
-        dataSqlNeedRun: 'Modificato: premi Esegui per aggiornare il risultato',
         dataSqlSource: 'Dati',
         dataSqlResult: 'Risultato',
         dataSqlDataPlaceholder: 'Incolla una tabella, un record per riga; il separatore viene rilevato',
-        dataSqlQueryPlaceholder: 'SELECT region, SUM(amount) AS total FROM t GROUP BY region ORDER BY total DESC',
+        dataSqlQueryHint: 'Scrivi un\'istruzione SQL o usa una scorciatoia qui sotto',
         dataSqlEmpty: 'Incolla i dati e scrivi una query sopra',
         dataSqlRun: 'Esegui',
         dataSqlRunTip: 'Esegui (Ctrl / ⌘ + Enter)',
         dataSqlCopyTsv: 'Copia risultato',
+        dataSqlCopyTsvTip: 'Copia tutto il risultato come TSV',
+        dataSqlGutterRun: 'Esegui questa istruzione',
+        dataSqlExecutedLabel: 'Eseguito',
         dataSqlStatus: '{n} righe · {ms} ms',
         dataSqlErrAt: 'Riga {line}, colonna {col}: {msg}',
         dataSqlNoData: 'Nessun dato per ora',
@@ -589,15 +603,17 @@ const DATASQL_I18N = {
         dataSqlSnipGroup: 'グループ集計',
         dataSqlSnipDistinct: '重複排除',
         dataSqlSnipTop: '先頭 10 行',
-        dataSqlNeedRun: '変更あり — 「実行」で結果を更新します',
         dataSqlSource: 'データ',
         dataSqlResult: 'クエリ結果',
         dataSqlDataPlaceholder: '表データを貼り付け（1 行 1 レコード、区切り文字は自動判定）',
-        dataSqlQueryPlaceholder: 'SELECT region, SUM(amount) AS total FROM t GROUP BY region ORDER BY total DESC',
+        dataSqlQueryHint: 'SQL を書くか、下のショートカットを使ってください',
         dataSqlEmpty: 'データを貼り付け、上に SQL を書いてください',
         dataSqlRun: '実行',
         dataSqlRunTip: '実行（Ctrl / ⌘ + Enter）',
         dataSqlCopyTsv: '結果をコピー',
+        dataSqlCopyTsvTip: '結果全体を TSV でコピー',
+        dataSqlGutterRun: 'このステートメントを実行',
+        dataSqlExecutedLabel: '実行済み',
         dataSqlStatus: '{n} 行 · {ms} ms',
         dataSqlErrAt: '{line} 行 {col} 列：{msg}',
         dataSqlNoData: 'データがありません',
@@ -668,15 +684,17 @@ const DATASQL_I18N = {
         dataSqlSnipGroup: '그룹 집계',
         dataSqlSnipDistinct: '중복 제거',
         dataSqlSnipTop: '상위 10행',
-        dataSqlNeedRun: '변경됨 — "실행"을 누르면 결과가 갱신됩니다',
         dataSqlSource: '데이터',
         dataSqlResult: '쿼리 결과',
         dataSqlDataPlaceholder: '표 데이터를 붙여넣으세요. 한 줄에 한 건, 구분자는 자동 인식',
-        dataSqlQueryPlaceholder: 'SELECT region, SUM(amount) AS total FROM t GROUP BY region ORDER BY total DESC',
+        dataSqlQueryHint: 'SQL을 작성하거나 아래 단축 문구를 사용하세요',
         dataSqlEmpty: '데이터를 붙여넣고 위에 SQL을 작성하세요',
         dataSqlRun: '실행',
         dataSqlRunTip: '실행 (Ctrl / ⌘ + Enter)',
         dataSqlCopyTsv: '결과 복사',
+        dataSqlCopyTsvTip: '결과 전체를 TSV로 복사',
+        dataSqlGutterRun: '이 구문 실행',
+        dataSqlExecutedLabel: '실행됨',
         dataSqlStatus: '{n}행 · {ms} ms',
         dataSqlErrAt: '{line}행 {col}열: {msg}',
         dataSqlNoData: '데이터가 없습니다',
@@ -747,15 +765,17 @@ const DATASQL_I18N = {
         dataSqlSnipGroup: 'Agrupar',
         dataSqlSnipDistinct: 'Únicos',
         dataSqlSnipTop: 'Top 10',
-        dataSqlNeedRun: 'Alterado — clique em Executar para atualizar o resultado',
         dataSqlSource: 'Dados',
         dataSqlResult: 'Resultado',
         dataSqlDataPlaceholder: 'Cole uma tabela, um registro por linha; o separador é detectado',
-        dataSqlQueryPlaceholder: 'SELECT region, SUM(amount) AS total FROM t GROUP BY region ORDER BY total DESC',
+        dataSqlQueryHint: 'Escreva uma instrução SQL ou use um atalho abaixo',
         dataSqlEmpty: 'Cole os dados e escreva uma consulta acima',
         dataSqlRun: 'Executar',
         dataSqlRunTip: 'Executar (Ctrl / ⌘ + Enter)',
         dataSqlCopyTsv: 'Copiar resultado',
+        dataSqlCopyTsvTip: 'Copie o resultado inteiro como TSV',
+        dataSqlGutterRun: 'Executar esta instrução',
+        dataSqlExecutedLabel: 'Executado',
         dataSqlStatus: '{n} linhas · {ms} ms',
         dataSqlErrAt: 'Linha {line}, coluna {col}: {msg}',
         dataSqlNoData: 'Ainda não há dados',
@@ -826,15 +846,17 @@ const DATASQL_I18N = {
         dataSqlSnipGroup: 'Grupuj',
         dataSqlSnipDistinct: 'Unikalne',
         dataSqlSnipTop: 'Pierwsze 10',
-        dataSqlNeedRun: 'Zmieniono — kliknij Uruchom, aby odświeżyć wynik',
         dataSqlSource: 'Dane',
         dataSqlResult: 'Wynik',
         dataSqlDataPlaceholder: 'Wklej tabelę, jeden rekord w wierszu; separator zostanie wykryty',
-        dataSqlQueryPlaceholder: 'SELECT region, SUM(amount) AS total FROM t GROUP BY region ORDER BY total DESC',
+        dataSqlQueryHint: 'Napisz zapytanie SQL lub użyj skrótu poniżej',
         dataSqlEmpty: 'Wklej dane i wpisz zapytanie powyżej',
         dataSqlRun: 'Uruchom',
         dataSqlRunTip: 'Uruchom (Ctrl / ⌘ + Enter)',
         dataSqlCopyTsv: 'Kopiuj wynik',
+        dataSqlCopyTsvTip: 'Skopiuj cały wynik jako TSV',
+        dataSqlGutterRun: 'Uruchom to zapytanie',
+        dataSqlExecutedLabel: 'Wykonano',
         dataSqlStatus: '{n} wierszy · {ms} ms',
         dataSqlErrAt: 'Wiersz {line}, kolumna {col}: {msg}',
         dataSqlNoData: 'Brak danych',
@@ -905,15 +927,17 @@ const DATASQL_I18N = {
         dataSqlSnipGroup: 'Группировка',
         dataSqlSnipDistinct: 'Уникальные',
         dataSqlSnipTop: 'Первые 10',
-        dataSqlNeedRun: 'Изменено — нажмите «Выполнить», чтобы обновить результат',
         dataSqlSource: 'Данные',
         dataSqlResult: 'Результат',
         dataSqlDataPlaceholder: 'Вставьте таблицу, одна запись в строке; разделитель определится сам',
-        dataSqlQueryPlaceholder: 'SELECT region, SUM(amount) AS total FROM t GROUP BY region ORDER BY total DESC',
+        dataSqlQueryHint: 'Напишите запрос SQL или используйте подсказку ниже',
         dataSqlEmpty: 'Вставьте данные и напишите запрос выше',
         dataSqlRun: 'Выполнить',
         dataSqlRunTip: 'Выполнить (Ctrl / ⌘ + Enter)',
         dataSqlCopyTsv: 'Копировать результат',
+        dataSqlCopyTsvTip: 'Скопировать весь результат как TSV',
+        dataSqlGutterRun: 'Выполнить этот запрос',
+        dataSqlExecutedLabel: 'Выполнено',
         dataSqlStatus: '{n} строк · {ms} мс',
         dataSqlErrAt: 'Строка {line}, столбец {col}: {msg}',
         dataSqlNoData: 'Данных пока нет',
@@ -984,15 +1008,17 @@ const DATASQL_I18N = {
         dataSqlSnipGroup: 'สรุปตามกลุ่ม',
         dataSqlSnipDistinct: 'ไม่ซ้ำ',
         dataSqlSnipTop: '10 แถวแรก',
-        dataSqlNeedRun: 'มีการแก้ไข — กด "เรียกใช้" เพื่ออัปเดตผลลัพธ์',
         dataSqlSource: 'ข้อมูล',
         dataSqlResult: 'ผลลัพธ์',
         dataSqlDataPlaceholder: 'วางตาราง หนึ่งบรรทัดต่อหนึ่งรายการ ระบบตรวจจับตัวคั่นเอง',
-        dataSqlQueryPlaceholder: 'SELECT region, SUM(amount) AS total FROM t GROUP BY region ORDER BY total DESC',
+        dataSqlQueryHint: 'เขียนคำสั่ง SQL หรือใช้ทางลัดด้านล่าง',
         dataSqlEmpty: 'วางข้อมูล แล้วเขียนคำสั่ง SQL ด้านบน',
         dataSqlRun: 'รัน',
         dataSqlRunTip: 'รัน (Ctrl / ⌘ + Enter)',
         dataSqlCopyTsv: 'คัดลอกผลลัพธ์',
+        dataSqlCopyTsvTip: 'คัดลอกผลลัพธ์ทั้งหมดเป็น TSV',
+        dataSqlGutterRun: 'รันคำสั่งนี้',
+        dataSqlExecutedLabel: 'รันแล้ว',
         dataSqlStatus: '{n} แถว · {ms} ms',
         dataSqlErrAt: 'บรรทัด {line} คอลัมน์ {col}: {msg}',
         dataSqlNoData: 'ยังไม่มีข้อมูล',
@@ -1063,15 +1089,17 @@ const DATASQL_I18N = {
         dataSqlSnipGroup: 'Grupla',
         dataSqlSnipDistinct: 'Tekil',
         dataSqlSnipTop: 'İlk 10',
-        dataSqlNeedRun: 'Değişti — sonucu güncellemek için Çalıştır',
         dataSqlSource: 'Veri',
         dataSqlResult: 'Sonuç',
         dataSqlDataPlaceholder: 'Tabloyu yapıştırın, her satır bir kayıt; ayırıcı otomatik bulunur',
-        dataSqlQueryPlaceholder: 'SELECT region, SUM(amount) AS total FROM t GROUP BY region ORDER BY total DESC',
+        dataSqlQueryHint: 'Bir SQL ifadesi yazın veya aşağıdaki kısayolu kullanın',
         dataSqlEmpty: 'Veriyi yapıştırın, yukarıya sorgu yazın',
         dataSqlRun: 'Çalıştır',
         dataSqlRunTip: 'Çalıştır (Ctrl / ⌘ + Enter)',
         dataSqlCopyTsv: 'Sonucu kopyala',
+        dataSqlCopyTsvTip: 'Tüm sonucu TSV olarak kopyala',
+        dataSqlGutterRun: 'Bu ifadeyi çalıştır',
+        dataSqlExecutedLabel: 'Çalıştırıldı',
         dataSqlStatus: '{n} satır · {ms} ms',
         dataSqlErrAt: 'Satır {line}, sütun {col}: {msg}',
         dataSqlNoData: 'Henüz veri yok',
@@ -1156,7 +1184,6 @@ const DATASQL_SAMPLES = {
             '华南\t门店\t2600\t9\t2026-10-22',
             '西南\t线上\t5100\t18\t2026-10-23'
         ].join('\n'),
-        sql: 'SELECT region, SUM(orders) AS orders, SUM(amount) AS amount\nFROM t\nGROUP BY region\nORDER BY amount DESC;'
     },
     logs: {
         text: [
@@ -1170,7 +1197,6 @@ const DATASQL_SAMPLES = {
             '2026-10-22\t/api/list\t304\t17',
             '2026-10-22\t/api/detail\t200\t88'
         ].join('\n'),
-        sql: 'SELECT status, COUNT(*) AS n, AVG(ms) AS avg_ms, MAX(ms) AS max_ms\nFROM t\nGROUP BY status\nORDER BY n DESC;'
     },
     pipe: {
         text: [
@@ -1184,7 +1210,6 @@ const DATASQL_SAMPLES = {
             '20261022|A-1001|20|23|2|305|2|1'
         ].join('\n'),
         // 没有表头：列名就是 c1..cN
-        sql: 'SELECT c2, SUM(c6) AS total, COUNT(*) AS n\nFROM t\nGROUP BY c2\nORDER BY total DESC;'
     },
     // 没表头的普通表格：列名自动是 c1..cN，SQL 里就写 c3 / c5
     nohead: {
@@ -1196,7 +1221,6 @@ const DATASQL_SAMPLES = {
             '20261022\tA-1002\t华北\t18\t210',
             '20261022\tA-1003\t华南\t9\t58'
         ].join('\n'),
-        sql: 'SELECT c3, COUNT(*) AS n, SUM(c5) AS total\nFROM t\nGROUP BY c3\nORDER BY total DESC;'
     }
 };
 
@@ -1230,6 +1254,10 @@ const dataSqlLoadInput = document.getElementById('dataSqlLoadInput');
 const dataSqlCtxEl = document.getElementById('dataSqlCtx');
 const dataSqlCtxHead = document.getElementById('dataSqlCtxHead');
 const dataSqlBatchEl = document.getElementById('dataSqlBatch');
+// 「结果对应哪一句 SQL」那一行 + 悬停展开的全文浮层
+const dataSqlExecutedEl = document.getElementById('dataSqlExecuted');
+const dataSqlExecutedSqlEl = document.getElementById('dataSqlExecutedSql');
+const dataSqlExecutedTipEl = document.getElementById('dataSqlExecutedTip');
 const dataSqlResizer = document.getElementById('dataSqlResizer');
 const dataSqlViewEl = document.getElementById('dataSqlView');
 const dataSqlTextWrap = document.getElementById('dataSqlTextWrap');
@@ -1252,8 +1280,38 @@ const DATASQL_CHUNK = 8000;
 const DATASQL_PREVIEW_BATCH = 50;
 const DATASQL_PREVIEW_MAX = 2000;
 // SQL 区高度（rem）：默认值 + 上下限 + 偏好 key。拖分隔条改，双击回默认
-const DATASQL_SQL_H = { def: 9.5, min: 3.5, max: 26 };
+// 默认 13rem 能摊开一条十来行的语句（9.5rem 只够四五行，看中长语句就得先拖一下）
+const DATASQL_SQL_H = { def: 13, prevDef: 9.5, min: 3.5, max: 26 };
 const DATASQL_SQL_H_KEY = 'datasqlSqlHeight';
+
+/*
+ * SQL 草稿：关掉工作台再回来，刚敲的那几句还得在。
+ * 这一页的语句多半是「随手写两句看看」，一关就没只能重打，很烦。
+ *
+ * 空间怎么算：宿主 storage 单值 256 KiB、总量 1 MiB，而 SQL 里中文不少，
+ * 一段 100 KB 的中文语句存进 JSON 之后按 UTF-8 就要 300 KB 上下，直接塞会爆。
+ * 所以分三档：
+ *   · ≤ 24 KB              原样存（这点体量写一次没感觉）
+ *   · 更大                 先 gzip 再 base64（浏览器原生 CompressionStream；
+ *                          SQL 重复度高，关键字 / 缩进 / 列名一大堆，实测压到 1/3~1/5）
+ *   · 压完仍 > 128 KB       不存，改存一个空壳——一条几百 KB 的语句不该把配额吃光，
+ *                          挤掉的是布局 / 主题这些真正要一直记住的配置
+ * 性能：打字时不写，停手 800 ms 写一次；压缩只在这一刻做，而且先比长度再压，
+ * 小语句永远走不到 gzip 那条路。
+ */
+const DATASQL_DRAFT_KEY = 'datasqlDraft';
+const DATASQL_DRAFT = {
+    plainMax: 24 * 1024,    // 这个长度以内原样存
+    storeMax: 128 * 1024,   // 落盘字符串（base64 之后）的上限
+    delay: 800,
+    zipMax: 1024 * 1024     // 超过这个长度就不压了：压它比不存更费
+};
+let dataSqlDraftTimer = 0;
+let dataSqlDraftPending = null;    // 等着落盘的文本
+let dataSqlDraftLast = null;       // 上次落盘的文本：一样就不重复压 / 重复写
+let dataSqlDraftRestored = false;  // 只在第一次进页时恢复
+let dataSqlDraftSeq = 0;           // 落盘序号：慢的那次别把新草稿盖回去
+let dataSqlDraftUnsupported = null; // CompressionStream 用不了？记一次就不再试
 
 let dataSqlModeActive = false;
 let dataSqlQueryEditor = null;     // CodeMirror（懒创建）
@@ -1264,13 +1322,11 @@ let dataSqlParsedKey = '';
 let dataSqlResult = null;
 let dataSqlRendered = 0;           // 结果表已经画了多少行
 let dataSqlTimer = 0;
-let dataSqlAutoText = '';           // 上次程序化写进编辑器的 SQL：!= 这句就说明用户改了
 let dataSqlHeaderAuto = true;       // 「首行为表头」还没被用户手动点过，就先自己判断
 let dataSqlRunSeq = 0;             // 每次运行 +1：旧的一次看到序号变了就自己作废
 let dataSqlRunning = false;
 let dataSqlCancelFlag = false;     // 「取消」按钮按下的标记，执行器每片问一次
 let dataSqlLastProgress = null;    // 切语言时按它重画进度文字
-let dataSqlAutoWriting = false;    // 正在程序化写 SQL（不算用户改过）
 let dataSqlViewMode = 'text';      // text = 源码，grid = 表格预览
 let dataSqlHeightRestored = false; // SQL 区高度只在第一次进页时从偏好里读一次
 let dataSqlErrorOffset = 0;        // 只跑其中一条语句时，错误位置要加回在主文本里的偏移
@@ -1517,52 +1573,232 @@ function dataSqlAppendPreview(batch) {
     }
 }
 
-// 粘贴 / 改数据 / 导入之后，SQL 还是「没动过」的状态就顺手生成一句能跑的
-function dataSqlApplyAutoQuery(parsed) {
-    if (!Sql || typeof Sql.suggestQuery !== 'function') return;
-    const names = dataSqlColumnNames(parsed);
-    // 数据正好是内置示例：用它自带的推荐语句（比按列类型猜的那句更贴题）。
-    // 点示例时并不写进去，只有用户自己按「运行」且框里是空的，才在这里生成
-    let query = '';
-    const dataText = dataSqlDataText();
-    Object.keys(DATASQL_SAMPLES).forEach((k) => {
-        const sample = DATASQL_SAMPLES[k];
-        if (!query && sample.sql && sample.text === dataText) query = sample.sql;
+/*
+ * 每条语句起始行左边那枚「▶」：点它就只跑这一条。
+ * 跟右键「执行当前语句」等价，但不用先把光标挪进去——长脚本里挑一条重跑，
+ * 鼠标比键盘顺手。只在语句起始行画，注释行 / 空行不画。
+ */
+/*
+ * 行注释的开头有哪几种写法：`--` 与 `//`。
+ * 只认 `--` 的话，从 JS / C 那边过来的人顺手打一行 `//` 说明，这行就会被当成
+ * 一条「语句」：▶ 落在注释行上、按运行把 `//` 发给引擎报语法错。
+ * `#` 故意不认：MySQL 拿它当注释，可 SQL Server 的 #临时表 也是它，
+ * `SELECT * FROM #tmp` 会被吃成半句。
+ */
+function dataSqlIsLineCommentStart(src, i) {
+    const ch = src[i];
+    if (ch === '-' && src[i + 1] === '-') return true;
+    if (ch === '/' && src[i + 1] === '/') return true;
+    return false;
+}
+
+/*
+ * 去掉 -- / // 行注释与 /* *\/ 块注释（写在字符串里的不算）：
+ *   · 判断「这一段到底有没有语句」——只有注释的段落不给 ▶、不算一条待跑的语句
+ *   · 「已执行」那一行显示干净一点的语句
+ * 注意：执行时仍然发原文（注释由引擎自己跳过），这样报错位置才和编辑器对得上。
+ */
+function dataSqlStripComments(text) {
+    const src = String(text == null ? '' : text);
+    let out = '';
+    let quote = '';
+    for (let i = 0; i < src.length; i++) {
+        const ch = src[i];
+        if (quote) {
+            out += ch;
+            if (ch === quote) {
+                if (src[i + 1] === quote) { out += src[i + 1]; i++; continue; }   // '' 转义
+                quote = '';
+            }
+            continue;
+        }
+        if (ch === "'" || ch === '"' || ch === '`') { quote = ch; out += ch; continue; }
+        if (ch === '/' && src[i + 1] === '*') {
+            const close = src.indexOf('*/', i + 2);
+            const body = close < 0 ? '' : src.slice(i + 2, close);
+            // 换行留着：不然前后两半句会被粘成一行
+            out += body.indexOf('\n') >= 0 ? '\n' : ' ';
+            i = close < 0 ? src.length : close + 1;
+            continue;
+        }
+        if (dataSqlIsLineCommentStart(src, i)) {
+            const nl = src.indexOf('\n', i);
+            if (nl < 0) break;
+            out += '\n';
+            i = nl;
+            continue;
+        }
+        out += ch;
+    }
+    return out;
+}
+
+/*
+ * 第一条真语句的起始下标：跳过前后空白、行注释、块注释。
+ * 行号边那枚 ▶ 要落在「SELECT」那一行上——落在上面的说明注释行上，
+ * 看着就像注释本身是一条可执行的语句。
+ */
+function dataSqlContentStartOffset(text) {
+    const src = String(text == null ? '' : text);
+    let i = 0;
+    while (i < src.length) {
+        const ch = src[i];
+        if (/\s/.test(ch)) { i++; continue; }
+        if (ch === '/' && src[i + 1] === '*') {
+            const close = src.indexOf('*/', i + 2);
+            i = close < 0 ? src.length : close + 2;
+            continue;
+        }
+        if (dataSqlIsLineCommentStart(src, i)) {
+            const nl = src.indexOf('\n', i);
+            i = nl < 0 ? src.length : nl + 1;
+            continue;
+        }
+        break;
+    }
+    return i;
+}
+
+// 这段里有没有真语句（全是注释 / 空白 = 没有）
+function dataSqlHasStatement(text) {
+    return dataSqlStripComments(text).trim() !== '';
+}
+
+/*
+ * 给 `//` 行注释染色。
+ * CodeMirror 自带的 sql 模式只把 `--` 和 /* *\/ 认成注释，`//` 那行会跟普通语句
+ * 一个颜色，看着不像注释（用户就是照这个来报的）。这里补一层 markText，
+ * 用的是 CodeMirror 自己的 `cm-comment`——亮色 / 暗色两套主题的注释色都跟着走。
+ * 只是观感：装饰不插字符，撤销 / 搜索 / 光标全不受影响。
+ */
+let dataSqlCommentMarks = [];
+
+function dataSqlMarkLineComments(cm) {
+    if (!cm || typeof cm.markText !== 'function') return;
+    dataSqlCommentMarks.forEach((m) => {
+        try { m.clear(); } catch (e) { /* 那一行已经被删掉了 */ }
     });
-    if (!query) {
-        query = String(Sql.suggestQuery(
-            { header: names, rows: parsed.rows, cols: parsed.cols },
-            { headerless: !(parsed.header && parsed.header.length) }
-        ) || '').trim();
+    dataSqlCommentMarks = [];
+    const text = cm.getValue();
+    if (text.indexOf('//') < 0) return;
+    let quote = '';
+    let i = 0;
+    while (i < text.length) {
+        const ch = text[i];
+        if (quote) {
+            if (ch === quote) {
+                if (text[i + 1] === quote) { i += 2; continue; }   // '' 转义
+                quote = '';
+            }
+            i++;
+            continue;
+        }
+        if (ch === "'" || ch === '"' || ch === '`') { quote = ch; i++; continue; }
+        // 块注释 / `--` 注释由模式自己染色，跳过它们免得重复处理
+        if (ch === '/' && text[i + 1] === '*') {
+            const close = text.indexOf('*/', i + 2);
+            i = close < 0 ? text.length : close + 2;
+            continue;
+        }
+        if (ch === '-' && text[i + 1] === '-') {
+            const nl = text.indexOf('\n', i);
+            i = nl < 0 ? text.length : nl + 1;
+            continue;
+        }
+        if (ch === '/' && text[i + 1] === '/') {
+            let nl = text.indexOf('\n', i);
+            if (nl < 0) nl = text.length;
+            dataSqlCommentMarks.push(cm.markText(
+                cm.posFromIndex(i), cm.posFromIndex(nl), { className: 'cm-comment' }));
+            i = nl + 1;
+            continue;
+        }
+        i++;
     }
-    query = String(query || '').trim();
-    // 末尾补分号：和快捷语句一致，多条语句拼在一起时也有明确边界
-    if (query && query.slice(-1) !== ';') query += ';';
-    if (!query || query === dataSqlQueryText().trim()) return;
-    dataSqlAutoWriting = true;
-    try {
-        dataSqlSetQuery(query);
-    } finally {
-        dataSqlAutoWriting = false;
+}
+
+function dataSqlStatementAtLine(line) {
+    const cm = dataSqlQueryEditor;
+    if (!cm) return null;
+    const idx = cm.indexFromPos({ line: line, ch: 0 });
+    const parts = dataSqlSplitStatements(cm.getValue());
+    let hit = null;
+    for (let i = 0; i < parts.length; i++) {
+        if (!dataSqlHasStatement(parts[i].text)) continue;
+        if (idx >= parts[i].start && idx <= parts[i].end) { hit = parts[i]; break; }
     }
-    dataSqlAutoText = query.trim();
+    /*
+     * 光标 / 选区落在一段「只有注释」的地方（末尾的说明、两条语句之间的分隔注释）：
+     * 顺着往后找第一段有语句的，找不到就取最后一段。
+     * 选中注释按「运行」也有反应，不用先精确框住语句本身。
+     */
+    if (!hit) {
+        for (let i = 0; i < parts.length; i++) {
+            if (!dataSqlHasStatement(parts[i].text)) continue;
+            if (parts[i].start >= idx) { hit = parts[i]; break; }
+        }
+        if (!hit) {
+            for (let i = parts.length - 1; i >= 0; i--) {
+                if (dataSqlHasStatement(parts[i].text)) { hit = parts[i]; break; }
+            }
+        }
+    }
+    if (!hit) return null;
+    const sql = String(hit.text || '').trim();
+    if (!dataSqlHasStatement(sql)) return null;
+    return { sql: sql, at: hit.start || 0 };
+}
+
+function dataSqlSyncRunGutter() {
+    const cm = dataSqlQueryEditor;
+    if (!cm || typeof cm.clearGutter !== 'function') return;
+    cm.clearGutter('dataSqlRunGutter');
+    // 注释染色跟 ▶ 一起刷：文本一改两边都得重算，清空时也要一起收
+    dataSqlMarkLineComments(cm);
+    const text = cm.getValue();
+    if (!text.trim()) return;
+    const seen = Object.create(null);
+    dataSqlSplitStatements(text).forEach((part) => {
+        const raw = String(part.text || '');
+        // 只有注释的段落不给按钮：点了也跑不出东西（引擎会报「这里应该是 SELECT」）
+        if (!dataSqlHasStatement(raw)) return;
+        /*
+         * 定位到语句第一个真字符，而不是分号后面那个位置：
+         * `start` 指在上一条的 `;` 之后，紧跟着的往往是换行甚至空行，
+         * 直接 posFromIndex 会把标记画到上一条的最后一行上——点了跑的是上一条。
+         * 前面若贴着说明注释，也要跳过：▶ 落在 SELECT 那一行才算「这条语句」。
+         */
+        const line = cm.posFromIndex((part.start || 0) + dataSqlContentStartOffset(raw)).line;
+        if (seen[line]) return;
+        seen[line] = 1;
+        const btn = document.createElement('div');
+        btn.className = 'datasql-gutter-run';
+        btn.setAttribute('role', 'button');
+        btn.setAttribute('data-keep-title', '');
+        btn.title = dataSqlT('dataSqlGutterRun', 'Run this statement');
+        btn.textContent = '\u25b6';
+        // gutter 上的 mousedown 会把光标挪过去、还可能抢焦点，先把这两件按住
+        btn.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const stmt = dataSqlStatementAtLine(line);
+            if (stmt) dataSqlRun({ sql: stmt.sql, at: stmt.at });
+        });
+        cm.setGutterMarker(line, 'dataSqlRunGutter', btn);
+    });
 }
 
 function dataSqlSchedule() {
     clearTimeout(dataSqlTimer);
-    // 不自动执行：停手 220 ms 后只把列名 / 类型 / 预览刷一遍，
-    // 状态栏提一句「点运行」。跑不跑由人决定，别一边打字一边把结果抽走
+    // 不自动执行：停手 220 ms 后只把列名 / 类型 / 预览刷一遍。
+    // 跑不跑由人决定，别一边打字一边把结果抽走；状态栏也不喊「改过了，点运行」——
+    // 结果面板顶上那行「已执行 …」本来就写着这张结果是哪一句跑出来的，够了。
     dataSqlTimer = setTimeout(() => {
-        const parsed = dataSqlRefresh();
-        if (!parsed || !parsed.parsed || !parsed.parsed.rows.length) return;
-        const text = dataSqlQueryText().trim();
-        // 清空 SQL 之后框里是空的，别再提「改过了，点运行」——没语句可跑
-        if (!text) return;
-        // 刚跑过、SQL 一个字没动：状态栏留着「4 行 · 16 ms」，别改成「改过了」
-        if (text === dataSqlLastRunText) return;
-        if (dataSqlStatusEl && !dataSqlRunning) {
-            dataSqlStatusEl.textContent = dataSqlT('dataSqlNeedRun', '');
-        }
+        // 行号左边那排「跑这一条」跟着语句走：删了分号、拆了语句都得重画，
+        // 放在最前面——下面几个 return 是「数据空 / 语句空」的早退，那两种情况同样要清标记
+        dataSqlSyncRunGutter();
+        dataSqlRefresh();
     }, 220);
 }
 
@@ -1599,14 +1835,15 @@ function dataSqlSplitStatements(text) {
             continue;
         }
         if (ch === "'" || ch === '"' || ch === '`') { quote = ch; continue; }
-        if (ch === '-' && text[i + 1] === '-') {
-            const nl = text.indexOf('\n', i);
-            i = nl < 0 ? text.length : nl;
-            continue;
-        }
         if (ch === '/' && text[i + 1] === '*') {
             const close = text.indexOf('*/', i + 2);
             i = close < 0 ? text.length : close + 1;
+            continue;
+        }
+        // 行注释里的分号不算语句分隔（`// 先跑这条; 再说` 不该被切成两条）
+        if (dataSqlIsLineCommentStart(text, i)) {
+            const nl = text.indexOf('\n', i);
+            i = nl < 0 ? text.length : nl;
             continue;
         }
         if (ch === ';' || ch === '\uFF1B') {
@@ -1723,6 +1960,7 @@ function dataSqlInvalidateResult() {
     }
     dataSqlRenderEmpty();
     dataSqlEmptyHint('');
+    dataSqlShowExecuted('');
     if (dataSqlRowBadge) dataSqlRowBadge.textContent = '';
 }
 
@@ -1734,10 +1972,8 @@ function dataSqlInvalidateResult() {
 function dataSqlDataChanged() {
     const refreshed = dataSqlRefresh();
     dataSqlInvalidateResult();
-    const hasRows = !!(refreshed && refreshed.parsed && refreshed.parsed.rows.length);
-    if (dataSqlStatusEl) {
-        dataSqlStatusEl.textContent = hasRows ? dataSqlT('dataSqlNeedRun', '') : '';
-    }
+    // 结果已经收掉了，状态栏再留着上一次的「4 行 · 16 ms」就成了假话，直接清空
+    if (dataSqlStatusEl) dataSqlStatusEl.textContent = '';
     return refreshed;
 }
 
@@ -1752,6 +1988,8 @@ function dataSqlDataChanged() {
 async function dataSqlRun(options) {
     const opts = options || {};
     clearTimeout(dataSqlTimer);
+    // 按「运行」往往就在打完最后一个字的下一秒：把草稿的防抖提前结掉
+    dataSqlFlushDraft();
     // 一进来就领号：之前还在跑的那次随即作废，免得旧结果盖到新输入上。
     // 早退的几条路径都在 await 之前，号还没被别人接走，顺手把「运行中」收掉
     const seq = ++dataSqlRunSeq;
@@ -1769,13 +2007,11 @@ async function dataSqlRun(options) {
         return;
     }
 
-    // 数据刚粘贴 / 改过 / 导入过，而 SQL 还是自动生成的那一版（或压根是空的）：重新生成一句。
-    // 判断依据是文本本身——用户动手改过一个字就不再覆盖
-    const currentSql = dataSqlQueryText().trim();
-    if (!currentSql || currentSql === dataSqlAutoText.trim()) {
-        dataSqlApplyAutoQuery(parsed);
-    }
-
+    /*
+     * 框里是空的就什么都不跑，也不替你「猜一句」写进去：
+     * 自动生成的那句看着像用户的语句，谁写了什么、跑过什么就分不清了。
+     * 想省事有点击即插的快捷语句（全表 / 分组汇总 / 去重 / 前 10 行）。
+     */
     /*
      * 跑哪一段，按这个优先级：
      *   1. 右键菜单直接指定的那段（dataSqlRun 的入参）
@@ -1801,14 +2037,29 @@ async function dataSqlRun(options) {
         }
     }
     if (!sql) sql = dataSqlQueryText();
+    /*
+     * 选中的只有注释（很多人习惯连上面那行说明一起选）：
+     * 别直接判「没写 SQL」，顺着选区起点找它对应的那条语句来跑。
+     */
+    if (sql && !dataSqlHasStatement(sql) && dataSqlQueryEditor) {
+        const pos = typeof dataSqlQueryEditor.posFromIndex === 'function'
+            ? dataSqlQueryEditor.posFromIndex(Math.max(0, baseOffset || 0)) : null;
+        const stmt = pos ? dataSqlStatementAtLine(pos.line) : null;
+        if (stmt) {
+            sql = stmt.sql;
+            baseOffset = stmt.at;
+        }
+    }
     const lead = sql.length - sql.trimStart().length;
     dataSqlErrorOffset = baseOffset + lead;
     sql = sql.trim();
-    if (!sql) {
+    // 只有注释也不算写了语句：让引擎去报「这里应该是 SELECT」只会更费解
+    if (!sql || !dataSqlHasStatement(sql)) {
         dataSqlSetRunning(false);
         dataSqlResult = null;
         dataSqlRenderEmpty();
-        dataSqlShowError(dataSqlT('dataSqlEmpty', '写一句 SQL'), -1);
+        dataSqlShowExecuted('');
+        dataSqlShowError(dataSqlT('dataSqlQueryHint', 'Write a SQL statement'), -1);
         return;
     }
 
@@ -1822,8 +2073,8 @@ async function dataSqlRun(options) {
 
     // 一个框里写好几句（用 ; 隔开）：逐条跑，结果各留一份，用页签分开看
     const stmts = dataSqlSplitStatements(sql)
-        .map((s) => ({ text: String(s.text || '').trim(), offset: s.offset || 0 }))
-        .filter((s) => s.text);
+        .map((s) => ({ text: String(s.text || '').trim(), offset: s.start || 0 }))
+        .filter((s) => dataSqlHasStatement(s.text));
     if (stmts.length > 1) {
         await dataSqlRunBatch(stmts, seq, table);
         return;
@@ -1857,6 +2108,7 @@ async function dataSqlRun(options) {
         dataSqlResult = null;
         dataSqlRendered = 0;
         dataSqlRenderEmpty();
+        dataSqlShowExecuted(sql);   // 失败也标出来：知道是哪一句出的错
         dataSqlShowError(result ? result.error : '执行失败', result && result.errorAt != null ? result.errorAt : -1);
         if (dataSqlStatusEl) dataSqlStatusEl.textContent = '';
         if (dataSqlRowBadge) dataSqlRowBadge.textContent = '';
@@ -1874,6 +2126,7 @@ async function dataSqlRun(options) {
         dataSqlBatchEl.innerHTML = '';
     }
     dataSqlRenderResult();
+    dataSqlShowExecuted(sql);
     dataSqlUpdateStatus(result);
     // 跑完了也把过程留着：进度条停在 100%，旁边写着扫了多少行
     dataSqlFinishProgress();
@@ -1934,8 +2187,9 @@ async function dataSqlRunBatch(stmts, seq, table) {
     const bad = items.filter((it) => it.error);
 
     dataSqlBatch = items;
-    // 默认停在最后一条成功的（脚本通常最后那句才是想看的结果）
-    dataSqlBatchIndex = okIdx.length ? okIdx[okIdx.length - 1] : 0;
+    // 默认停在第一条：读数向来是从上往下看，跑完直接跳到末尾会让人以为
+    // 前面那几条被吞了。后面的点页签即可，位置也始终可预期。
+    dataSqlBatchIndex = 0;
     dataSqlRenderBatchTabs();
     dataSqlSelectBatch(dataSqlBatchIndex, true);
     if (okIdx.length) dataSqlFinishProgress();
@@ -2041,6 +2295,9 @@ function dataSqlSelectBatch(index, quiet) {
         dataSqlEmptyHint('');
         dataSqlUpdateBadge(item.result);
     }
+
+    // 页签切到哪条，上面那行就写哪条——失败的那条也照写，好对上错误
+    dataSqlShowExecuted(item.sql);
 
     const info = dataSqlBatchErrorInfo();
     if (info) dataSqlShowError(info.text, info.at);
@@ -2171,6 +2428,64 @@ function dataSqlRenderEmpty() {
     if (dataSqlEmptyEl) dataSqlEmptyEl.hidden = false;
 }
 
+/* ------------------------ 这张结果对应哪一句 SQL ------------------------ */
+/*
+ * 一个框里好几条语句时，「这条结果到底是哪句跑出来的」很容易对不上——
+ * 尤其是点行号边那枚 ▶、或者带选区跑过之后。结果上面就挂一行：
+ * 一行显示（换行压成空格），放不下就省略号，鼠标放上去弹完整语句。
+ */
+let dataSqlExecutedFull = '';
+
+function dataSqlExecutedTipHide() {
+    if (dataSqlExecutedTipEl) dataSqlExecutedTipEl.hidden = true;
+}
+
+function dataSqlExecutedTipShow() {
+    if (!dataSqlExecutedTipEl || !dataSqlExecutedEl || !dataSqlExecutedFull) return;
+    if (dataSqlExecutedEl.hidden) return;
+    const el = dataSqlExecutedTipEl;
+    el.textContent = dataSqlExecutedFull;
+    el.style.left = '8px';
+    el.style.top = '8px';
+    el.hidden = false;
+    // 贴在那一行下面；下方放不开就翻到上面，左右按视口收
+    const r = dataSqlExecutedEl.getBoundingClientRect();
+    const vw = window.innerWidth || 0;
+    const vh = window.innerHeight || 0;
+    const w = el.offsetWidth || 0;
+    const h = el.offsetHeight || 0;
+    let left = r.left;
+    if (vw) left = Math.max(8, Math.min(left, vw - w - 8));
+    let top = r.bottom + 6;
+    if (vh && top + h > vh - 8) {
+        const above = r.top - h - 6;
+        top = above >= 8 ? above : Math.max(8, Math.min(top, vh - h - 8));
+    }
+    el.style.left = Math.round(left) + 'px';
+    el.style.top = Math.round(top) + 'px';
+}
+
+// 传空 / 不传 = 收起这一行（没结果、清空数据、重新切页时都要收）
+function dataSqlShowExecuted(sql) {
+    // 注释对结果没有影响，标题里就不带着跑了——一行里本来就放不下；
+    // 末尾的分号也去掉：同一条语句，一处带一处不带看着像两条
+    const raw = dataSqlStripComments(sql).replace(/[;\uFF1B]\s*$/, '').trim();
+    dataSqlExecutedFull = raw;
+    dataSqlExecutedTipHide();
+    if (!dataSqlExecutedEl) return;
+    if (!raw) {
+        dataSqlExecutedEl.hidden = true;
+        if (dataSqlExecutedSqlEl) dataSqlExecutedSqlEl.textContent = '';
+        return;
+    }
+    if (dataSqlExecutedSqlEl) {
+        // 显示用的一行；原文（含换行）留给浮层与原生 title
+        dataSqlExecutedSqlEl.textContent = raw.replace(/\s+/g, ' ');
+        dataSqlExecutedSqlEl.title = raw;
+    }
+    dataSqlExecutedEl.hidden = false;
+}
+
 function dataSqlRenderResult() {
     if (!dataSqlTableEl || !dataSqlResult) return;
     const cols = dataSqlResult.columns;
@@ -2275,9 +2590,16 @@ function dataSqlEnsureEditors() {
             const next = dataSqlQueryEditor.getValue();
             if (dataSqlQueryEl.value !== next) dataSqlQueryEl.value = next;
             dataSqlSchedule();
+            // 顺带记一份草稿：关掉工作台再回来还能接着改
+            dataSqlScheduleDraft(next);
         });
         // 选中 / 取消选中都换一次按钮提示（有选区就只跑那一段）
         dataSqlQueryEditor.on('cursorActivity', () => dataSqlSyncRunLabel());
+        // 行号最左边多一列「跑这一条」。自定义 gutter 得先注册进 gutters 列表，
+        // 否则 setGutterMarker 画了也没地方显示
+        dataSqlQueryEditor.setOption('gutters',
+            ['dataSqlRunGutter', 'CodeMirror-foldgutter', 'CodeMirror-linenumbers']);
+        dataSqlSyncRunGutter();
 
         // ---- 补全：打完字自动弹，Ctrl / ⌘ + Space 手动叫 ----
         // 组词期间（中文输入法）绝不能弹：宿主是 WebKit，弹框会把候选窗顶掉
@@ -2372,6 +2694,8 @@ function enterDataSqlMode() {
     // 编辑器在隐藏容器里建出来会量到 0 宽，等上屏那一帧再 refresh
     dataSqlEnsureEditors();
     dataSqlSyncRunLabel();
+    // 上次写的那几句还在就填回来（异步读偏好，读回来时框里已经有人写东西了就不动）
+    if (!dataSqlDraftRestored) dataSqlRestoreDraft().catch(() => { /* 读不出来就当没有 */ });
     if (!dataSqlHeightRestored) {
         dataSqlHeightRestored = true;
         dataSqlRestoreHeight();
@@ -2388,6 +2712,8 @@ function enterDataSqlMode() {
 function exitDataSqlMode() {
     if (!dataSqlModeActive) return;
     dataSqlModeActive = false;
+    // 切走前把草稿落盘：800 ms 的防抖窗口里可能还有最后几个字没写
+    dataSqlFlushDraft();
     // 还在跑就把号一变，执行器下一片自己收摊（切走了没必要把 CPU 继续烧完）
     if (dataSqlRunning) {
         dataSqlRunSeq++;
@@ -2427,6 +2753,8 @@ function dataSqlOnLangChange() {
     }
     // 预览顶部那行「前 100 / 1,234 行」也是拼出来的
     dataSqlRenderPreview(dataSqlParsed, dataSqlColumnNames(dataSqlParsed));
+    // 行号边那枚 ▶ 的提示翻译过，切语言重画一遍
+    dataSqlSyncRunGutter();
     // 进度文字是拼出来的（「运行中 12,000 / 50,000」），切语言时按最后一次进度重画
     if (dataSqlRunning && dataSqlLastProgress) dataSqlShowProgress(dataSqlLastProgress);
     // CodeMirror 的 placeholder 是建编辑器那一刻取的，切语言后得手动同步过去，
@@ -2587,7 +2915,6 @@ async function dataSqlLoadSqlFile(file) {
     if (text.length > DATASQL_MAX_CHARS) text = text.slice(0, DATASQL_MAX_CHARS);
 
     dataSqlSetQuery(text);
-    dataSqlAutoText = '';        // 文件里的是「用户的 SQL」，别被自动生成的那句盖掉
     dataSqlHideError();
     if (dataSqlQueryEditor) {
         dataSqlQueryEditor.setCursor({ line: 0, ch: 0 });
@@ -2599,7 +2926,7 @@ async function dataSqlLoadSqlFile(file) {
     // 光标在开头 → 只有一条就整条跑，好几条就先跑第一条（其余留着，按需改光标位置）。
     // 注意别自动执行：填进来只是「把语句放到手边」，跑不跑由人决定
     dataSqlInvalidateResult();
-    if (dataSqlStatusEl) dataSqlStatusEl.textContent = dataSqlT('dataSqlNeedRun', '');
+    if (dataSqlStatusEl) dataSqlStatusEl.textContent = '';
     dataSqlImportNote(name, file.size);
 }
 
@@ -2720,10 +3047,8 @@ function dataSqlInsertSnippet(kind) {
         const text = dataSqlQueryEl.value;
         dataSqlQueryEl.value = (text.trim() ? text.replace(/\s+$/, '') + '\n\n' : '') + sql + ';';
     }
-    // 插进去的算用户写的：后续不要被「自动生成」冲掉。
-    // 只插入、不执行——跑不跑由人点「运行」（或 Ctrl / ⌘ + Enter）
-    dataSqlAutoText = '';
-    if (dataSqlStatusEl) dataSqlStatusEl.textContent = dataSqlT('dataSqlNeedRun', '');
+    // 只插入、不执行——跑不跑由人点「运行」（或 Ctrl / ⌘ + Enter）。
+    // 状态栏不去喊「改过了」：结果面板顶上那行「已执行 …」已经写明结果对应哪一句
 }
 
 /* ------------------------------ SQL 补全 ------------------------------ */
@@ -2887,8 +3212,153 @@ async function dataSqlRestoreHeight() {
     let raw = prefReadLocal(DATASQL_SQL_H_KEY) || prefNameGet('dbx-dsql:');
     if (!raw) raw = await prefHostGet(DATASQL_SQL_H_KEY);
     const v = parseFloat(raw);
-    if (Number.isFinite(v)) dataSqlApplyHeight(v);
+    // 存着的正好是旧默认值：说明用户从没拖过，只是被旧版存了一份——按新默认来，
+    // 不然改了默认值对他们一点用没有（自己拖过的数字原样尊重）
+    if (Number.isFinite(v) && v !== DATASQL_SQL_H.prevDef) dataSqlApplyHeight(v);
 }
+
+/* ------------------------------ SQL 草稿（跨会话记忆） ------------------------------ */
+
+/*
+ * 存 / 不存 / 压不压，只看两个长度，跟内容无关——单拎出来是为了能用测试钉住。
+ *   plain：原样存   gzip：压完再存   skip：不存（写空壳，顺手清掉旧的大草稿）
+ */
+function dataSqlDraftPlan(rawLen, gzipLen) {
+    const cfg = DATASQL_DRAFT;
+    if (rawLen <= cfg.plainMax) return 'plain';
+    if (gzipLen > 0 && gzipLen <= cfg.storeMax) return 'gzip';
+    // 压不动（或者宿主没有 CompressionStream）：整段还塞得进去就原样存
+    if (rawLen <= cfg.storeMax) return 'plain';
+    return 'skip';
+}
+
+function dataSqlB64FromBytes(bytes) {
+    // 分块转：一次 apply 十几万个参数会爆栈
+    const chunk = 0x8000;
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += chunk) {
+        bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(bin);
+}
+
+function dataSqlBytesFromB64(b64) {
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+}
+
+// 压成 base64（存 JSON 里安全）；宿主 WebView 没有 CompressionStream 就返回空串
+async function dataSqlGzipB64(text) {
+    if (dataSqlDraftUnsupported) return '';
+    if (typeof CompressionStream !== 'function' || typeof Blob !== 'function'
+        || typeof Response !== 'function') {
+        dataSqlDraftUnsupported = true;
+        return '';
+    }
+    try {
+        const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'));
+        const buf = await new Response(stream).arrayBuffer();
+        return dataSqlB64FromBytes(new Uint8Array(buf));
+    } catch (e) {
+        dataSqlDraftUnsupported = true;
+        return '';
+    }
+}
+
+async function dataSqlGunzipB64(b64) {
+    if (typeof DecompressionStream !== 'function' || typeof Blob !== 'function'
+        || typeof Response !== 'function') return '';
+    try {
+        const stream = new Blob([dataSqlBytesFromB64(b64)]).stream()
+            .pipeThrough(new DecompressionStream('gzip'));
+        return await new Response(stream).text();
+    } catch (e) {
+        return '';
+    }
+}
+
+// 空壳：清空后照样写一份合法的空草稿，不去依赖 store 收不收空字符串
+function dataSqlDraftEmpty() {
+    return JSON.stringify({ v: 1, z: 0, t: '' });
+}
+
+async function dataSqlDraftWrite(text) {
+    // 压缩是异步的：压到一半用户又敲了几个字，这次的结果就旧了——按号丢弃，
+    // 否则慢的那次可能后落盘，把新草稿盖回旧的
+    const seq = ++dataSqlDraftSeq;
+    const src = String(text == null ? '' : text);
+    let payload = dataSqlDraftEmpty();
+    if (src) {
+        const b64 = src.length > DATASQL_DRAFT.zipMax ? '' : await dataSqlGzipB64(src);
+        const plan = dataSqlDraftPlan(src.length, b64 ? b64.length : 0);
+        if (plan === 'plain') payload = JSON.stringify({ v: 1, z: 0, t: src });
+        else if (plan === 'gzip') payload = JSON.stringify({ v: 1, z: 1, t: b64 });
+        // skip：payload 留在空壳上，旧的超长草稿一并清掉
+    }
+    if (seq !== dataSqlDraftSeq) return;
+    // 先写本地（同步、立刻生效），再写宿主（真正跨会话的那一路）
+    prefWriteLocal(DATASQL_DRAFT_KEY, payload);
+    prefHostSet(DATASQL_DRAFT_KEY, payload);
+    dataSqlDraftLast = src;
+}
+
+/*
+ * 打字时只记「待写」和重设定时器：800 ms 内没有新输入才真的落盘。
+ * 这一段是同步的，别在这里压缩——按一次键压一次，几百 KB 的语句会明显掉帧。
+ */
+function dataSqlScheduleDraft(text) {
+    dataSqlDraftPending = String(text == null ? '' : text);
+    clearTimeout(dataSqlDraftTimer);
+    dataSqlDraftTimer = setTimeout(() => {
+        const next = dataSqlDraftPending;
+        dataSqlDraftPending = null;
+        if (next == null || next === dataSqlDraftLast) return;
+        dataSqlDraftWrite(next).catch(() => { /* 存不下就算了，别弹错误 */ });
+    }, DATASQL_DRAFT.delay);
+}
+
+// 切页 / 隐藏 / 执行前立刻落盘：800 ms 的窗口别把最后几个字丢掉
+function dataSqlFlushDraft() {
+    clearTimeout(dataSqlDraftTimer);
+    const next = dataSqlDraftPending != null ? dataSqlDraftPending : dataSqlQueryText();
+    dataSqlDraftPending = null;
+    if (next === dataSqlDraftLast) return;
+    dataSqlDraftWrite(next).catch(() => { /* noop */ });
+}
+
+async function dataSqlRestoreDraft() {
+    if (dataSqlDraftRestored) return;
+    dataSqlDraftRestored = true;
+    // 已经有内容（导入过 / 这一页还没退出过）：用户手上的为准，别覆盖
+    if (dataSqlQueryText().trim()) return;
+    // 宿主的才是跨会话那一份；宿主没有存储能力（浏览器预览 / dev 宿主）再看本地
+    const store = typeof navHostStore === 'function' ? navHostStore() : null;
+    let raw = store ? await prefHostGet(DATASQL_DRAFT_KEY) : null;
+    if (!raw) raw = prefReadLocal(DATASQL_DRAFT_KEY);
+    if (!raw) return;
+    let obj = null;
+    try { obj = JSON.parse(raw); } catch (e) { obj = null; }
+    const packed = obj && typeof obj === 'object' ? String(obj.t == null ? '' : obj.t) : '';
+    let text = packed;
+    if (obj && obj.z) text = packed ? await dataSqlGunzipB64(packed) : '';
+    if (!text || !text.trim()) return;
+    // await 期间用户可能已经开始写了（进页到读盘之间有个往返）：再确认一次
+    if (dataSqlQueryText().trim()) return;
+    dataSqlSetQuery(text);
+    dataSqlDraftLast = text;
+    if (dataSqlQueryEditor) {
+        // 光标放末尾：恢复出来的语句通常是接着改的，不在开头
+        const last = dataSqlQueryEditor.lastLine();
+        dataSqlQueryEditor.setCursor({ line: last, ch: (dataSqlQueryEditor.getLine(last) || '').length });
+    }
+}
+
+// 页签被藏起来 / 被关掉：把还没到点的那一次补上，别把最后几个字丢了
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && dataSqlModeActive) dataSqlFlushDraft();
+});
 
 if (dataSqlResizer) {
     let drag = null;
@@ -2962,26 +3432,68 @@ if (dataSqlHeaderEl) {
     });
 }
 
+/*
+ * 示例原来是顶部解析栏里的一排 chip，现在收成数据标题行上的一个下拉：
+ * 点触发器开合，点某个选项就把那份样例填进数据框。
+ * 开合用全局那套约定（`open` 加在 .custom-select-options、`active` 加在触发器上），
+ * 别自己另发明一套——09-convert.js 的「点别处收下拉」认的就是这两个类。
+ */
+function dataSqlFillSample(name) {
+    const sample = DATASQL_SAMPLES[name];
+    if (!sample) return;
+    dataSqlDelimiter = 'auto';
+    if (dataSqlDelimEl) {
+        dataSqlDelimEl.querySelectorAll('.compare-tab').forEach((t) => {
+            t.classList.toggle('active', t.dataset.delim === 'auto');
+        });
+    }
+    // 「管道分隔」「无表头」这两个示例本来就没有表头，勾选框跟着关掉
+    if (dataSqlHeaderEl) {
+        dataSqlHeaderEl.checked = name !== 'pipe' && name !== 'nohead';
+    }
+    // 只装数据，不碰 SQL 框：示例是用来试数据的，不该把人家正在写的语句换掉，
+    // 也不自动执行
+    dataSqlSetData(sample.text);
+    dataSqlDataChanged();
+}
+
 if (dataSqlSamplesEl) {
+    const dataSqlSampleSet = (open) => {
+        const opts = dataSqlSamplesEl.querySelector('.custom-select-options');
+        const trig = dataSqlSamplesEl.querySelector('.custom-select-trigger');
+        if (opts) opts.classList.toggle('open', !!open);
+        if (trig) {
+            trig.classList.toggle('active', !!open);
+            trig.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+    };
     dataSqlSamplesEl.addEventListener('click', (e) => {
-        const chip = e.target.closest('.sample-chip');
-        if (!chip) return;
-        const sample = DATASQL_SAMPLES[chip.dataset.sample];
-        if (!sample) return;
-        dataSqlDelimiter = 'auto';
-        if (dataSqlDelimEl) {
-            dataSqlDelimEl.querySelectorAll('.compare-tab').forEach((t) => {
-                t.classList.toggle('active', t.dataset.delim === 'auto');
-            });
+        const pick = e.target.closest ? e.target.closest('.custom-option') : null;
+        if (pick) {
+            // 点完就收：留着菜单挡数据
+            e.stopPropagation();
+            dataSqlSampleSet(false);
+            dataSqlFillSample(pick.dataset.sample);
+            return;
         }
-        // 「管道分隔」「无表头」这两个示例本来就没有表头，勾选框跟着关掉
-        if (dataSqlHeaderEl) {
-            dataSqlHeaderEl.checked = chip.dataset.sample !== 'pipe' && chip.dataset.sample !== 'nohead';
-        }
-        // 只装数据，不碰 SQL 框：示例是用来试数据的，不该把人家正在写的语句换掉，
-        // 也不自动执行（点「运行」时若框里还是空的，才会按当前数据生成一句）
-        dataSqlSetData(sample.text);
-        dataSqlDataChanged();
+        if (!e.target.closest || !e.target.closest('.custom-select-trigger')) return;
+        // 别让 09-convert.js 那条「点页面任意处置收全部下拉」当场把它收掉
+        e.stopPropagation();
+        const opts = dataSqlSamplesEl.querySelector('.custom-select-options');
+        const willOpen = !(opts && opts.classList.contains('open'));
+        // 一次只开一个
+        document.querySelectorAll('.custom-select-options').forEach((el) => {
+            if (el !== opts) el.classList.remove('open');
+        });
+        document.querySelectorAll('.custom-select-trigger').forEach((el) => {
+            if (!dataSqlSamplesEl.contains(el)) el.classList.remove('active');
+        });
+        dataSqlSampleSet(willOpen);
+    });
+    dataSqlSamplesEl.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        dataSqlSampleSet(false);
+        e.stopPropagation();
     });
 }
 
@@ -3020,7 +3532,6 @@ if (dataSqlClearBtn) {
 // （写新语句时通常还要对着旧结果看，一起清掉反而碍事）
 function dataSqlClearSql() {
     dataSqlSetQuery('');
-    dataSqlAutoText = '';
     dataSqlHideError();
     dataSqlCtxHide();
     if (dataSqlStatusEl) dataSqlStatusEl.textContent = '';
@@ -3145,11 +3656,27 @@ const dataSqlResultWrap = dataSqlTableEl && dataSqlTableEl.closest
     ? dataSqlTableEl.closest('.sheet-table-wrap') : null;
 if (dataSqlResultWrap) {
     dataSqlResultWrap.addEventListener('scroll', () => {
+        // 一滚就把完整 SQL 的浮层收掉：它是 fixed 的，不跟着走，留在原地会挡住别处
+        dataSqlExecutedTipHide();
         if (!dataSqlResult || dataSqlRendered >= dataSqlResult.rowCount) return;
         const gap = dataSqlResultWrap.scrollHeight - dataSqlResultWrap.scrollTop - dataSqlResultWrap.clientHeight;
         if (gap < 120) dataSqlAppendRows(DATASQL_BATCH);
     }, { passive: true });
 }
+
+// 「已执行」那行：鼠标放上去弹完整语句（触屏 / 手滑也能点一下开合）
+if (dataSqlExecutedEl) {
+    dataSqlExecutedEl.addEventListener('mouseenter', dataSqlExecutedTipShow);
+    dataSqlExecutedEl.addEventListener('mouseleave', dataSqlExecutedTipHide);
+    dataSqlExecutedEl.addEventListener('click', () => {
+        if (dataSqlExecutedTipEl && !dataSqlExecutedTipEl.hidden) dataSqlExecutedTipHide();
+        else dataSqlExecutedTipShow();
+    });
+}
+window.addEventListener('resize', dataSqlExecutedTipHide);
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') dataSqlExecutedTipHide();
+}, true);
 
 // 数据预览同理：滚到底继续画下一批，点「加载更多」也行
 const dataSqlPreviewScroll = dataSqlPreviewTable && dataSqlPreviewTable.closest
@@ -3289,14 +3816,47 @@ function dataSqlOpenTypes() {
     dataSqlPositionTypes();
 }
 
+/*
+ * 每列那个类型下拉的浮层。
+ * 两个坑都在这儿：
+ *   1. 「展开」这个状态全项目是加在 `.custom-select-options` 上的（CSS 里就写的是
+ *      `.custom-select-options.open`）。加在 `.custom-select` 容器上没有样式认它，
+ *      表现就是点一下只有箭头翻过去、选项一个都不出来 —— 看着像「改不了类型」。
+ *   2. 面板内的列清单是 `overflow-y: auto` 的滚动区，绝对定位的下拉会被它裁光。
+ *      所以下拉改成 fixed（跟着触发器算位置），跟「列类型」面板自己一个路子。
+ */
+function dataSqlCloseTypeOptions() {
+    if (!dataSqlTypesList) return;
+    dataSqlTypesList.querySelectorAll('.custom-select-options.open')
+        .forEach((el) => el.classList.remove('open'));
+    dataSqlTypesList.querySelectorAll('.custom-select-trigger.active')
+        .forEach((el) => el.classList.remove('active'));
+}
+
+function dataSqlOpenTypeOptions(pick) {
+    const opts = pick.querySelector('.custom-select-options');
+    const trigger = pick.querySelector('.custom-select-trigger');
+    if (!opts || !trigger) return;
+    opts.classList.add('open');
+    trigger.classList.add('active');
+    // 先显示再量：宽度是 max-content，不进布局就量不出真实值
+    const box = trigger.getBoundingClientRect();
+    const w = opts.offsetWidth || box.width || 120;
+    const h = opts.offsetHeight || 160;
+    let left = box.left;
+    if (left + w > window.innerWidth - 8) left = Math.max(8, window.innerWidth - 8 - w);
+    let top = box.bottom + 4;
+    // 最后几列的下拉往下放不开，翻到触发器上面去
+    if (top + h > window.innerHeight - 8) top = Math.max(8, box.top - h - 4);
+    opts.style.left = left + 'px';
+    opts.style.top = top + 'px';
+}
+
 function dataSqlCloseTypes() {
     if (!dataSqlTypesPop) return;
     dataSqlTypesPop.hidden = true;
     if (dataSqlTypesBtn) dataSqlTypesBtn.classList.remove('active');
-    if (dataSqlTypesList) {
-        dataSqlTypesList.querySelectorAll('.custom-select.open').forEach((el) => el.classList.remove('open'));
-        dataSqlTypesList.querySelectorAll('.custom-select-trigger.active').forEach((el) => el.classList.remove('active'));
-    }
+    dataSqlCloseTypeOptions();
 }
 
 function dataSqlSetColumnType(index, type) {
@@ -3355,31 +3915,29 @@ if (dataSqlTypesList) {
         e.stopPropagation();
         const pick = e.target.closest ? e.target.closest('.datasql-type-pick') : null;
         if (!pick) return;
-        const option = e.target.closest('.custom-option');
-        const onTrigger = !!(e.target.closest && e.target.closest('.custom-select-trigger'));
-        if (!option && !onTrigger) return;
+        // 点选项：改类型，浮层收起（列表会重绘，焦点不用还回去）
+        const option = e.target.closest ? e.target.closest('.custom-option') : null;
         if (option) {
+            dataSqlCloseTypeOptions();
             dataSqlSetColumnType(Number(pick.dataset.col), option.dataset.value);
-            pick.classList.remove('open');
-            const trig = pick.querySelector('.custom-select-trigger');
-            if (trig) trig.classList.remove('active');
             return;
         }
+        if (!e.target.closest || !e.target.closest('.custom-select-trigger')) return;
         // 一次只开一个：面板里十来列，同时摊开就看不见了
-        dataSqlTypesList.querySelectorAll('.custom-select').forEach((el) => {
-            if (el !== pick) el.classList.remove('open');
-        });
-        dataSqlTypesList.querySelectorAll('.custom-select-trigger').forEach((el) => {
-            if (el.parentElement !== pick) el.classList.remove('active');
-        });
-        pick.classList.toggle('open');
-        const trigger = pick.querySelector('.custom-select-trigger');
-        if (trigger) trigger.classList.toggle('active');
-        dataSqlPositionTypes();
+        const opts = pick.querySelector('.custom-select-options');
+        const willOpen = !(opts && opts.classList.contains('open'));
+        dataSqlCloseTypeOptions();
+        if (willOpen) dataSqlOpenTypeOptions(pick);
     });
     dataSqlTypesList.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') dataSqlCloseTypes();
+        if (e.key !== 'Escape') return;
+        // 先收浮层，再按一次才收整个面板
+        const open = dataSqlTypesList.querySelector('.custom-select-options.open');
+        if (open) dataSqlCloseTypeOptions();
+        else dataSqlCloseTypes();
     });
+    // 列表一滚，fixed 的浮层就跟触发器错位了，直接收起来更干净
+    dataSqlTypesList.addEventListener('scroll', dataSqlCloseTypeOptions);
 }
 
 // 点面板外面 / 按 Esc 都收起来
@@ -3392,7 +3950,18 @@ document.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && dataSqlTypesPop && !dataSqlTypesPop.hidden) dataSqlCloseTypes();
 });
-window.addEventListener('resize', dataSqlPositionTypes);
+window.addEventListener('resize', () => {
+    // 浮层是 fixed 加的，位置算过一次就固定了；窗口尺寸变了先收掉
+    dataSqlCloseTypeOptions();
+    dataSqlPositionTypes();
+});
+// 页面滚动同样会让 fixed 浮层脱开触发器（滚动事件不冒泡，得从捕获阶段收）
+window.addEventListener('scroll', (e) => {
+    const t = e.target;
+    // 浮层自己内部滚动（选项多的时候）不算，否则滚不动
+    if (t && t.closest && t.closest('.custom-select-options')) return;
+    dataSqlCloseTypeOptions();
+}, true);
 
 /*
  * 这一页的文案表（DATASQL_I18N）在 18-flow.js 末尾那次 applyI18n() 之后才定义，
