@@ -39,7 +39,7 @@ const DATASQL_I18N = {
         dataSqlSource: '数据',
         dataSqlResult: '查询结果',
         dataSqlDataPlaceholder: '粘贴表格数据，一行一条记录；分隔符自动识别',
-        dataSqlQueryHint: '写一句 SQL，或用下面的快捷语句',
+        dataSqlQueryHint: '写一句 SQL，或用上面的快捷语句',
         dataSqlEmpty: '贴一段表格数据，上面写一句 SQL',
         dataSqlRun: '运行',
         dataSqlRunTip: '运行（Ctrl / ⌘ + Enter）',
@@ -120,7 +120,7 @@ const DATASQL_I18N = {
         dataSqlSource: '資料',
         dataSqlResult: '查詢結果',
         dataSqlDataPlaceholder: '貼上表格資料，一列一筆；分隔符自動辨識',
-        dataSqlQueryHint: '寫一句 SQL，或用下面的快捷語句',
+        dataSqlQueryHint: '寫一句 SQL，或用上面的快捷語句',
         dataSqlEmpty: '貼上一段表格資料，上面寫一句 SQL',
         dataSqlRun: '執行',
         dataSqlRunTip: '執行（Ctrl / ⌘ + Enter）',
@@ -201,7 +201,7 @@ const DATASQL_I18N = {
         dataSqlSource: 'Data',
         dataSqlResult: 'Result',
         dataSqlDataPlaceholder: 'Paste a table, one record per line; the delimiter is detected',
-        dataSqlQueryHint: 'Write a SQL statement, or use a shortcut below',
+        dataSqlQueryHint: 'Write a SQL statement, or use a shortcut above',
         dataSqlEmpty: 'Paste some data, then write a query above',
         dataSqlRun: 'Run',
         dataSqlRunTip: 'Run (Ctrl / ⌘ + Enter)',
@@ -282,7 +282,7 @@ const DATASQL_I18N = {
         dataSqlSource: 'Məlumat',
         dataSqlResult: 'Nəticə',
         dataSqlDataPlaceholder: 'Cədvəli yapışdırın, hər sətir bir qeyd; ayırıcı avtomatik tapılır',
-        dataSqlQueryHint: 'SQL yazın və ya aşağıdakı qısayollardan istifadə edin',
+        dataSqlQueryHint: 'SQL yazın və ya yuxarıdakı qısayollardan istifadə edin',
         dataSqlEmpty: 'Məlumat yapışdırın, yuxarıda sorğu yazın',
         dataSqlRun: 'İşə sal',
         dataSqlRunTip: 'İşə sal (Ctrl / ⌘ + Enter)',
@@ -363,7 +363,7 @@ const DATASQL_I18N = {
         dataSqlSource: 'Datos',
         dataSqlResult: 'Resultado',
         dataSqlDataPlaceholder: 'Pega una tabla, un registro por línea; el separador se detecta',
-        dataSqlQueryHint: 'Escribe una consulta SQL o usa un atajo de abajo',
+        dataSqlQueryHint: 'Escribe una consulta SQL o usa un atajo de arriba',
         dataSqlEmpty: 'Pega datos y escribe una consulta arriba',
         dataSqlRun: 'Ejecutar',
         dataSqlRunTip: 'Ejecutar (Ctrl / ⌘ + Enter)',
@@ -444,7 +444,7 @@ const DATASQL_I18N = {
         dataSqlSource: 'Data',
         dataSqlResult: 'Hasil',
         dataSqlDataPlaceholder: 'Tempel tabel, satu baris satu data; pemisah dideteksi otomatis',
-        dataSqlQueryHint: 'Tulis pernyataan SQL, atau pakai pintasan di bawah',
+        dataSqlQueryHint: 'Tulis pernyataan SQL, atau pakai pintasan di atas',
         dataSqlEmpty: 'Tempel data, lalu tulis kueri di atas',
         dataSqlRun: 'Jalankan',
         dataSqlRunTip: 'Jalankan (Ctrl / ⌘ + Enter)',
@@ -525,7 +525,7 @@ const DATASQL_I18N = {
         dataSqlSource: 'Dati',
         dataSqlResult: 'Risultato',
         dataSqlDataPlaceholder: 'Incolla una tabella, un record per riga; il separatore viene rilevato',
-        dataSqlQueryHint: 'Scrivi un\'istruzione SQL o usa una scorciatoia qui sotto',
+        dataSqlQueryHint: 'Scrivi un\'istruzione SQL o usa una scorciatoia qui sopra',
         dataSqlEmpty: 'Incolla i dati e scrivi una query sopra',
         dataSqlRun: 'Esegui',
         dataSqlRunTip: 'Esegui (Ctrl / ⌘ + Enter)',
@@ -606,7 +606,7 @@ const DATASQL_I18N = {
         dataSqlSource: 'データ',
         dataSqlResult: 'クエリ結果',
         dataSqlDataPlaceholder: '表データを貼り付け（1 行 1 レコード、区切り文字は自動判定）',
-        dataSqlQueryHint: 'SQL を書くか、下のショートカットを使ってください',
+        dataSqlQueryHint: 'SQL を書くか、上のショートカットを使ってください',
         dataSqlEmpty: 'データを貼り付け、上に SQL を書いてください',
         dataSqlRun: '実行',
         dataSqlRunTip: '実行（Ctrl / ⌘ + Enter）',
@@ -687,7 +687,7 @@ const DATASQL_I18N = {
         dataSqlSource: '데이터',
         dataSqlResult: '쿼리 결과',
         dataSqlDataPlaceholder: '표 데이터를 붙여넣으세요. 한 줄에 한 건, 구분자는 자동 인식',
-        dataSqlQueryHint: 'SQL을 작성하거나 아래 단축 문구를 사용하세요',
+        dataSqlQueryHint: 'SQL을 작성하거나 위 단축 문구를 사용하세요',
         dataSqlEmpty: '데이터를 붙여넣고 위에 SQL을 작성하세요',
         dataSqlRun: '실행',
         dataSqlRunTip: '실행 (Ctrl / ⌘ + Enter)',
@@ -768,7 +768,7 @@ const DATASQL_I18N = {
         dataSqlSource: 'Dados',
         dataSqlResult: 'Resultado',
         dataSqlDataPlaceholder: 'Cole uma tabela, um registro por linha; o separador é detectado',
-        dataSqlQueryHint: 'Escreva uma instrução SQL ou use um atalho abaixo',
+        dataSqlQueryHint: 'Escreva uma instrução SQL ou use um atalho acima',
         dataSqlEmpty: 'Cole os dados e escreva uma consulta acima',
         dataSqlRun: 'Executar',
         dataSqlRunTip: 'Executar (Ctrl / ⌘ + Enter)',
@@ -849,7 +849,7 @@ const DATASQL_I18N = {
         dataSqlSource: 'Dane',
         dataSqlResult: 'Wynik',
         dataSqlDataPlaceholder: 'Wklej tabelę, jeden rekord w wierszu; separator zostanie wykryty',
-        dataSqlQueryHint: 'Napisz zapytanie SQL lub użyj skrótu poniżej',
+        dataSqlQueryHint: 'Napisz zapytanie SQL lub użyj skrótu powyżej',
         dataSqlEmpty: 'Wklej dane i wpisz zapytanie powyżej',
         dataSqlRun: 'Uruchom',
         dataSqlRunTip: 'Uruchom (Ctrl / ⌘ + Enter)',
@@ -930,7 +930,7 @@ const DATASQL_I18N = {
         dataSqlSource: 'Данные',
         dataSqlResult: 'Результат',
         dataSqlDataPlaceholder: 'Вставьте таблицу, одна запись в строке; разделитель определится сам',
-        dataSqlQueryHint: 'Напишите запрос SQL или используйте подсказку ниже',
+        dataSqlQueryHint: 'Напишите запрос SQL или используйте подсказку выше',
         dataSqlEmpty: 'Вставьте данные и напишите запрос выше',
         dataSqlRun: 'Выполнить',
         dataSqlRunTip: 'Выполнить (Ctrl / ⌘ + Enter)',
@@ -1011,7 +1011,7 @@ const DATASQL_I18N = {
         dataSqlSource: 'ข้อมูล',
         dataSqlResult: 'ผลลัพธ์',
         dataSqlDataPlaceholder: 'วางตาราง หนึ่งบรรทัดต่อหนึ่งรายการ ระบบตรวจจับตัวคั่นเอง',
-        dataSqlQueryHint: 'เขียนคำสั่ง SQL หรือใช้ทางลัดด้านล่าง',
+        dataSqlQueryHint: 'เขียนคำสั่ง SQL หรือใช้ทางลัดด้านบน',
         dataSqlEmpty: 'วางข้อมูล แล้วเขียนคำสั่ง SQL ด้านบน',
         dataSqlRun: 'รัน',
         dataSqlRunTip: 'รัน (Ctrl / ⌘ + Enter)',
@@ -1092,7 +1092,7 @@ const DATASQL_I18N = {
         dataSqlSource: 'Veri',
         dataSqlResult: 'Sonuç',
         dataSqlDataPlaceholder: 'Tabloyu yapıştırın, her satır bir kayıt; ayırıcı otomatik bulunur',
-        dataSqlQueryHint: 'Bir SQL ifadesi yazın veya aşağıdaki kısayolu kullanın',
+        dataSqlQueryHint: 'Bir SQL ifadesi yazın veya yukarıdaki kısayolu kullanın',
         dataSqlEmpty: 'Veriyi yapıştırın, yukarıya sorgu yazın',
         dataSqlRun: 'Çalıştır',
         dataSqlRunTip: 'Çalıştır (Ctrl / ⌘ + Enter)',
@@ -2328,23 +2328,24 @@ function dataSqlFinishProgress() {
     }, 900);
 }
 
-// 右上角那行小字：正常是「行 × 列」，被截断时说清是被哪道上限拦的
+/*
+ * 工具栏右侧那行小字：只说徽标装不下的信息——数据被哪道上限截断了。
+ * 「行 × 列」不再写在这里：数据标题行的徽标一直在显示它，两个地方各写一遍
+ * 就是同一个数字重复出现（用户截图里指着的「显示重了」）。
+ */
 function dataSqlRenderTip(parsed) {
     if (!dataSqlTipEl) return;
-    // 刚弹过「已导入 xxx」这类消息：别立刻被「3 × 3」这种摘要盖掉，
-    // 那条消息说完就没了，摘要右上角的数据徽标里一直都有
+    // 刚弹过「已导入 xxx」这类消息：别立刻被摘要盖掉，那条消息说完就没了
     if (typeof dataSqlTipLockUntil === 'number' && Date.now() < dataSqlTipLockUntil) return;
-    if (!parsed) {
+    if (!parsed || (!parsed.cutChars && !parsed.truncated)) {
         dataSqlTipEl.textContent = '';
         return;
     }
     if (parsed.cutChars) {
         dataSqlTipEl.textContent = dataSqlFmt('dataSqlCutChars',
             { n: Math.round(DATASQL_MAX_CHARS / 1024 / 1024) + ' M' }, '');
-    } else if (parsed.truncated) {
-        dataSqlTipEl.textContent = dataSqlFmt('dataSqlCutRows', { n: parsed.totalRows }, '');
     } else {
-        dataSqlTipEl.textContent = parsed.totalRows + ' × ' + parsed.cols;
+        dataSqlTipEl.textContent = dataSqlFmt('dataSqlCutRows', { n: parsed.totalRows }, '');
     }
 }
 

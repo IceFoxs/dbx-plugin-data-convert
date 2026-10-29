@@ -368,6 +368,8 @@ function handleNavClick(link) {
 }
 
 function navGoto(link) {
+    // 记下这一次用的是哪一项，下次打开直接回到这里（20-last-feature.js 里读）
+    if (typeof lastFeatureRemember === 'function') lastFeatureRemember(link);
     // 导航里的「SQL 转换」进入批量文本生成 SQL 的独立页
     if (link.id === 'navSql') {
         enterSqlMode();
@@ -433,6 +435,16 @@ function navGoto(link) {
         if (typeof enterDataSqlMode === 'function') enterDataSqlMode();
         return;
     }
+    // 剩下的是「格式转换」的十几对格式之一
+    enterConvertPair(link, link.dataset.src, link.dataset.tgt);
+}
+
+/**
+ * 回到格式转换页，并把「从 / 转为」设成这一对。
+ * 从导航菜单点进来（link 有值，菜单里那一项要高亮）和从「上次用的功能」恢复
+ * （link 为 null，这一对可能压根不在菜单里）都走这里，免得清场逻辑写两遍、写歪一处。
+ */
+function enterConvertPair(link, src, tgt) {
     if (compareMode) exitCompareMode();
     if (sqlModeActive) exitSqlMode();
     if (sheetModeActive) exitSheetMode();
@@ -445,7 +457,7 @@ function navGoto(link) {
     if (timeModeActive) exitTimeMode();
     if (qrModeActive) exitQrMode();
     if (statsModeActive) exitStatsMode();
-    markConvertActive(link);
+    markConvertActive(link || null);
     clearTimeout(autoTimer);
     suppressAutoConvert = true;
     inputText.value = '';
@@ -453,7 +465,7 @@ function navGoto(link) {
     suppressAutoConvert = false;
     currentDataObj = null;
     clearError();
-    handleFormatChange(link.dataset.src, link.dataset.tgt);
+    handleFormatChange(src, tgt);
 }
 
 document.querySelector('.topbar').addEventListener('click', (e) => {
@@ -578,6 +590,8 @@ function showParseError(err, text) {
 }
 
 function handleFormatChange(newSrc, newTgt) {
+    // 直接动「从 / 转为」下拉（不是点导航项）也算换了功能，同样记下来
+    if (typeof lastFeatureRememberConvert === 'function') lastFeatureRememberConvert(newSrc, newTgt);
     sourceFormat.value = newSrc;
     targetFormat.value = newTgt;
     sourceSelect.setValue(newSrc);

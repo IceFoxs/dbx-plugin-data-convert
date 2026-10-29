@@ -824,8 +824,19 @@
                 <div class="pane-header">
                     <div class="pane-title">
                         <span data-i18n="dataSqlSource">数据</span>
-                        <span class="pane-badge" id="dataSqlSourceBadge">0 × 0</span>
                     </div>
+                    <!-- 源码 / 表格预览：粘贴、导入、改分隔符后一眼看清解析成什么样。
+                         跟着「数据」标题站在最左边——它是这块面板的「看哪一面」，
+                         跟右端那排动作（示例 / 导入 / 清空 / 列类型）不是一类东西，
+                         挤在按钮堆里既分不清归属，也把动作区顶得太满 -->
+                    <div class="compare-tabs datasql-view-tabs" id="dataSqlView">
+                        <button type="button" class="compare-tab active" data-view="text"
+                                data-i18n-title="dataSqlViewTextTip" data-i18n="dataSqlViewText">源码</button>
+                        <button type="button" class="compare-tab" data-view="grid"
+                                data-i18n-title="dataSqlViewGridTip" data-i18n="dataSqlViewGrid">表格</button>
+                    </div>
+                    <!-- 行 × 列：摆在视图切换右边，读起来是「数据 › 看哪一面 › 几个行列」 -->
+                    <span class="pane-badge" id="dataSqlSourceBadge">0 × 0</span>
                     <div class="pane-actions">
                         <!-- 示例：原来是一排 chip 飘在顶部那条解析栏里，跟「数据」隔着一整条编辑器，
                              找起来像另一件事。收成一个选择框，放在数据自己的标题行上 -->
@@ -856,15 +867,10 @@
                         <button type="button" class="btn btn-outline datasql-data-btn" id="dataSqlClear"
                                 data-keep-title data-i18n-title="dataSqlClearDataTip"
                                 data-i18n="dataSqlClearData">清空数据</button>
-                        <!-- 源码 / 表格预览：粘贴、导入、改分隔符后一眼看清解析成什么样 -->
-                        <div class="compare-tabs datasql-view-tabs" id="dataSqlView">
-                            <button type="button" class="compare-tab active" data-view="text"
-                                    data-i18n-title="dataSqlViewTextTip" data-i18n="dataSqlViewText">源码</button>
-                            <button type="button" class="compare-tab" data-view="grid"
-                                    data-i18n-title="dataSqlViewGridTip" data-i18n="dataSqlViewGrid">表格</button>
-                        </div>
-                        <!-- 每列推断出的 MySQL 类型；点开可以逐个改（推断只是初稿） -->
-                        <button type="button" class="btn btn-ghost datasql-types-btn" id="dataSqlTypesBtn"
+                        <!-- 每列推断出的 MySQL 类型；点开可以逐个改（推断只是初稿）。
+                             用 outline 跟「导入数据 / 清空数据」同一档，别用 btn-ghost——
+                             浏览器会给 <button> 兜一块系统灰底，看着像「按下没弹起」的方块 -->
+                        <button type="button" class="btn btn-outline datasql-types-btn" id="dataSqlTypesBtn"
                                 data-keep-title data-i18n-title="dataSqlTypesTip">
                             <span data-i18n="dataSqlTypes">列类型</span>
                             <span class="datasql-types-count" id="dataSqlTypesCount"></span>
@@ -1786,6 +1792,7 @@
 <script src="js/app/17-stats.js"></script>
 <script src="js/app/18-flow.js"></script>
 <script src="js/app/19-datasql.js"></script>
+<script src="js/app/20-last-feature.js"></script>
 
 </body>
 </html>

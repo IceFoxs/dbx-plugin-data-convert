@@ -233,5 +233,60 @@ check('collapsed 算这一版认识的字段，不会被当扩展字段重复写
     eq(Object.keys(obj).filter((k) => k === 'collapsed').length, 1);
 });
 
+console.log('\n最后使用的功能');
+
+check('一进一出：页 / 一对格式都能存回来', () => {
+    const a = N.serializeLastFeature({ kind: 'page', id: 'navQr' });
+    eq(N.parseLastFeature(a), { kind: 'page', id: 'navQr', src: '', tgt: '', found: true, extra: {} });
+    const b = N.serializeLastFeature({ kind: 'convert', src: 'json', tgt: 'yaml' });
+    eq(N.parseLastFeature(b), { kind: 'convert', id: '', src: 'json', tgt: 'yaml', found: true, extra: {} });
+});
+
+check('坏数据一律当没存过，且不抛', () => {
+    [null, '', '  ', 'not json', '[]', '"x"', 'null', '{}',
+        JSON.stringify({ kind: 'page' }),                 // 缺 id
+        JSON.stringify({ kind: 'convert', src: 'json' }), // 缺 tgt
+        JSON.stringify({ kind: 'page', id: '   ' }),
+        JSON.stringify({ kind: 'folder', id: 'navQr' })   // 不认识的 kind
+    ].forEach((raw) => {
+        eq(N.parseLastFeature(raw).found, false, '输入 ' + JSON.stringify(raw));
+    });
+});
+
+check('形状不对就不写（空串）', () => {
+    eq(N.serializeLastFeature({}), '');
+    eq(N.serializeLastFeature({ kind: 'folder', id: 'x' }), '');
+    eq(N.serializeLastFeature({ kind: 'page', id: '' }), '');
+    eq(N.serializeLastFeature({ kind: 'convert', src: 'json' }), '');
+});
+
+check('版本回退：新版本写的字段老版本读不懂也留着，写回时不丢', () => {
+    // 将来某一版可能加 sub（页内 tab）、group（分组）之类
+    const future = JSON.stringify({ v: 2, kind: 'page', id: 'navQr', sub: 'decode', group: 'tools' });
+    const p = N.parseLastFeature(future);
+    eq(p.found, true);
+    eq(p.id, 'navQr');
+    eq(p.extra, { sub: 'decode', group: 'tools' });
+    const back = JSON.parse(N.serializeLastFeature(p));
+    eq(back.sub, 'decode');
+    eq(back.group, 'tools');
+    eq(back.kind, 'page');
+    eq(back.id, 'navQr');
+});
+
+check('功能升级：老数据缺字段也能读，认不出的 kind 不会误跳', () => {
+    // 老版本只存了 kind + id，没有 v
+    const old = N.parseLastFeature(JSON.stringify({ kind: 'page', id: 'navStats' }));
+    eq(old.found, true);
+    eq(old.id, 'navStats');
+    eq(old.extra, {});
+});
+
+check('超长 / 非字符串的字段当没有，不让坏数据撑爆存档', () => {
+    eq(N.parseLastFeature(JSON.stringify({ kind: 'page', id: 'x'.repeat(200) })).found, false);
+    eq(N.parseLastFeature(JSON.stringify({ kind: 'convert', src: {}, tgt: 'yaml' })).found, false);
+    eq(N.serializeLastFeature({ kind: 'convert', src: 'x'.repeat(200), tgt: 'yaml' }), '');
+});
+
 console.log('\n--- nav: ' + passed + '/' + (passed + failed) + ' passed ---\n');
 if (failed) process.exit(1);

@@ -213,6 +213,7 @@
 ![功能搜索](docs/screen-search.png)
 
 - **导航顺序、置顶与吸顶**——顶栏的滑杆按钮打开「导航设置」：拖动行或点箭头给十三个入口排序，常用的点「置顶」（出厂置顶「JSON 对比」「SQL 转换」），顺序与置顶立刻生效，窗口变窄时置顶项最后才被收进「更多」；打开「导航条吸顶」后滚动时导航条固定在窗口顶部，左侧模式下置顶项在列内滚动时也粘在栏顶。这些设置跟布局选择一起跨会话保存（宿主 `dbxPlugin.storage` → `localStorage` → `window.name`），存在独立的 `navCustom` 键里并带格式版本号，旧版本读不懂的字段原样保留——装回旧版再升级回来设置还在。以后新增入口不用迁移：自动接到顺序末尾，在面板里拖到想要的位置即可。
+- **回到上次用的功能**——导航点哪一项、或者在「从 / 转为」里配了哪一对格式，都记下来（独立页记入口 id，格式转换记这一对，例如 `csv` → `json`）；下次打开直接落回那里，不用每次先回到格式转换页再点一遍。存在独立的 `lastFeature` 键里，与布局、导航顺序共用同一套四级存储。存档只有一个 `v` 加零星几个字段，**版本回退与功能升级都不影响**：形状不认识 / 字段缺失 / JSON 坏了都当没存过，绝不跳去一个不存在的入口；导航项改名或删掉时对着页面查，查不到就安静留在默认页；未来版本加的字段原样写回，装回旧版再升回来设置还在。
 - **剪贴板**——通过 DBX Host API 一键复制，没有宿主时走浏览器降级方案。
 - **图标按钮有悬浮提示**——搜索、收起、导航设置、布局切换都是纯图标按钮，鼠标停上去（或键盘聚焦）会给一句话，文案直接取按钮的 `aria-label`，切语言自动跟着变。宿主的 WebView 不一定弹原生 `title` 气泡，所以这层提示是页面自己画的。
 - **离线**——无后端、无 CDN、无遥测；CodeMirror、YAML 库与 ECharts（Apache-2.0，`ui/vendor/echarts/` 连同 LICENSE）都打在包里，跑起来一次网络请求都没有。
@@ -270,6 +271,8 @@ ui/js/app/15-codegen.js        代码生成页
 ui/js/app/16-query-escape.js   查询校验 + 转义工具两页
 ui/js/app/17-stats.js          数据统计页
 ui/js/app/18-flow.js           工作流：拖放路由、批量合并、最近使用
+ui/js/app/19-datasql.js        SQL 分析页（编辑器、自研引擎接线、草稿记忆）
+ui/js/app/20-last-feature.js   记住上次用的功能，下次打开恢复
 ui/js/converters.js    转换核心 —— 纯函数、无 DOM 依赖、可单测
 ui/js/objdiff.js       结构化差异 —— 按 JSON Pointer 比较对象树
 ui/js/diff.js          逐行差异 —— 带行号的 ops、超限自动降级
@@ -288,7 +291,7 @@ ui/js/time.js          时间转换 —— 时间戳 / 日期 / UTC / ISO / 相�
 ui/js/stats.js         数据统计 —— 分隔符嗅探、列统计、分组聚合、TSV 输出
 ui/js/qr.js            二维码 —— 矩阵生成、SVG / canvas 渲染、拼图、解码辅助
 ui/js/flow.js          工作流辅助 —— 大小上限、内容嗅探、批量合并、最近使用
-ui/js/nav.js           导航辅助 —— 顺序、置顶、实际生效顺序
+ui/js/nav.js           导航辅助 —— 顺序、置顶、实际生效顺序、上次用的功能存档
 tests/                 回归用例，直接 node 运行
 scripts/build.sh       package | dev | test
 scripts/shoot-screens.js  用无头 Chrome 重拍 docs/ 里的截图

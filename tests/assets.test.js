@@ -214,6 +214,25 @@ check('页面脚本的顶层声明不重名', () => {
     if (owner.size < 500) throw new Error('只扫到 ' + owner.size + ' 个顶层声明，正则是不是失效了');
 });
 
+/* ---- 语言状态只经 setLanguage 改 ----
+ * currentLang（语言码）与 currentDict（主字典）被分开赋值过一次：宿主启动时那句
+ * locale 判定只写了前者，于是导航读语言码出了英文、品牌与按钮读字典还是中文，
+ * 界面半中半英，用户报「宿主切换失败」。现在两个变量只允许在 00-i18n-dict.js
+ * 的 setLanguage / syncLanguageDict 里动，其它文件一律走函数。 */
+check('语言状态只经 setLanguage / syncLanguageDict 修改', () => {
+    const dir = path.join(UI, 'js/app');
+    const bad = [];
+    fs.readdirSync(dir).filter((f) => f.endsWith('.js')).forEach((f) => {
+        fs.readFileSync(path.join(dir, f), 'utf8').split('\n').forEach((line, i) => {
+            const code = line.replace(/\/\/.*$/, '');
+            if (!/\bcurrent(Lang|Dict)\s*=[^=]/.test(code)) return;
+            if (f === '00-i18n-dict.js') return;      // 声明本体与那两个 setter
+            bad.push(f + ':' + (i + 1) + '  ' + code.trim());
+        });
+    });
+    if (bad.length) throw new Error('别直接赋值，走 setLanguage()：' + bad.join('；'));
+});
+
 console.log('');
 console.log('--- assets: ' + pass + '/' + (pass + fail) + ' passed ---');
 if (fail) process.exit(1);

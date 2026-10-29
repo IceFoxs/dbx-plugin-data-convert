@@ -134,6 +134,17 @@ function applyHostTheme(theme) {
     return appearance;
 }
 
+/*
+ * 把「当前语言」重新落到界面上：语言菜单 + 全量文案。
+ * 宿主启动、宿主推 locale 变更、用户点菜单，三处都走这一遍。
+ * 用 typeof 守卫：01 在 02 / 08 / 18 之前执行，`await ready` 若立刻兑现，
+ * 这里可能比 applyI18n 的定义还早一步——那也没关系，18-flow.js 末尾还会全量刷一次。
+ */
+function reapplyLangUI() {
+    if (typeof renderLangMenu === 'function') renderLangMenu();
+    if (typeof applyI18n === 'function') applyI18n();
+}
+
 if (window.dbxPlugin) {
     // 以前整份脚本包在一个 async 回调里，`await ready` 会挡住后面所有初始化，
     // 所以首屏一定等到宿主回话才上色。现在拆成多个文件，后面的文件不等这一次 await，
@@ -143,19 +154,23 @@ if (window.dbxPlugin) {
         try {
             await window.dbxPlugin.ready;
             if (window.dbxPlugin.locale && languageConfigs.find(c => c.code === window.dbxPlugin.locale)) {
-                currentLang = window.dbxPlugin.locale;
+                // 跟着宿主的语言走（这里是「码 + 字典」一起设，见 setLanguage）。
+                // 之前只改 currentLang：导航变英文、主界面还是中文，
+                // 而且这里改完没人重刷一次界面，得等用户手动切语言才对齐。
+                setLanguage(window.dbxPlugin.locale);
+                reapplyLangUI();
             }
             applyHostTheme(window.dbxPlugin.theme);
             window.addEventListener('dbx-plugin-init', (event) => {
-                applyHostTheme(event.detail && event.detail.theme);
+                const info = event.detail || {};
+                // 有的宿主把 locale 放在 init 里一起下发，认一下（没有就跳过）
+                if (info.locale && info.locale !== currentLang && setLanguage(info.locale)) reapplyLangUI();
+                applyHostTheme(info.theme);
             });
             window.addEventListener('dbx-plugin-env', (event) => {
                 const env = event.detail || {};
-                if (env.locale && languageConfigs.find(c => c.code === env.locale)) {
-                    currentLang = env.locale;
-                    currentDict = languageConfigs.find(c => c.code === currentLang).dict;
-                    renderLangMenu();
-                    applyI18n();
+                if (env.locale && setLanguage(env.locale)) {
+                    reapplyLangUI();
                 }
                 if (env.theme) applyHostTheme(env.theme);
             });
@@ -166,9 +181,10 @@ if (window.dbxPlugin) {
     })();
 } else {
     const userLang = navigator.language || 'zh-CN';
-    if (languageConfigs.find(c => c.code === userLang)) currentLang = userLang;
-    else if (userLang.startsWith('zh')) currentLang = userLang === 'zh-TW' ? 'zh-TW' : 'zh-CN';
-    currentDict = languageConfigs.find(c => c.code === currentLang).dict;
+    // 浏览器 / dev 预览：按系统语言挑最接近的一份词典，认不出就留在中文
+    if (!setLanguage(userLang) && userLang.indexOf('zh') === 0) {
+        setLanguage(userLang === 'zh-TW' ? 'zh-TW' : 'zh-CN');
+    }
     applyHostTheme(null);
     const darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
     if (darkQuery && darkQuery.addEventListener) {
@@ -178,6 +194,7 @@ if (window.dbxPlugin) {
     }
 }
 
-currentDict = languageConfigs.find(c => c.code === currentLang).dict;
+// 语言码可能在上面被改过（宿主 locale 的 await 还没回来时这里先兜一次）
+syncLanguageDict();
 
 // =========================================

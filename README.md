@@ -215,6 +215,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 ![Search](docs/screen-search.png)
 
 - **Order, pins, and a sticky bar** — the sliders button in the top bar opens Navigation settings: drag a row or use the arrows to order the thirteen entries, and pin the ones you use most (JSON Compare and SQL Conversion start pinned). Order and pins apply at once, and pinned entries are the last to fall into More when the window narrows; Sticky navigation bar keeps the bar at the top while content scrolls, and in the left column pinned entries stay glued to the top as the column scrolls. These settings travel with the layout choice (host `dbxPlugin.storage` → `localStorage` → `window.name`), live under their own `navCustom` key with a format version, and fields a build does not understand are passed through untouched — so downgrading and upgrading again keeps your setup. New entries need no migration: they are appended to the end of the order and can be dragged where you want them.
+- **Picks up where you left off** — whichever entry you opened last (a page, or a pair of formats such as `csv` → `json`) is remembered, and the next launch lands right there instead of starting over on the convert page. Stored under its own `lastFeature` key through the same four-level storage as the layout and nav order. The record is just a `v` plus a couple of fields, so **downgrading or upgrading is safe**: unknown shape, missing fields or broken JSON all count as "never saved" and never jump to an entry that no longer exists; ids are checked against the live page, so a renamed or removed entry quietly leaves you on the default page; fields written by a newer version are passed through untouched, so an older build never wipes them.
 - **Clipboard** — one-click copy through the DBX host API, with a browser fallback.
 - **Icon-only buttons explain themselves** — search, fold the column, navigation settings and the layout switch are icons; hovering (or focusing) any of them shows a one-line tip in the current language. The webview does not reliably draw native `title` bubbles, so the tip is drawn by the page and takes its text from the button's `aria-label`.
 - **Offline** — no backend, no CDN, no telemetry; CodeMirror, the YAML library and ECharts (Apache-2.0, `ui/vendor/echarts/` with its LICENSE) all ship inside the package.
@@ -272,6 +273,8 @@ ui/js/app/15-codegen.js        code generation page
 ui/js/app/16-query-escape.js   query & validate + escape toolbox pages
 ui/js/app/17-stats.js          data stats page
 ui/js/app/18-flow.js           workflow: drop routing, batch merge, recent list
+ui/js/app/19-datasql.js        SQL analysis page (editor, engine wiring, draft memory)
+ui/js/app/20-last-feature.js   remembers the last feature and restores it on launch
 ui/js/converters.js    conversion core — pure functions, no DOM, unit tested
 ui/js/objdiff.js       structured diff — compares object trees by JSON Pointer
 ui/js/diff.js          line diff — ops carry line numbers, degrades on huge input
@@ -289,7 +292,7 @@ ui/js/chart.js         JSON to chart — shape detection, data → option, size 
 ui/js/time.js          time conversion — timestamps / dates / UTC / ISO / relative, batched
 ui/js/qr.js            QR code — matrix generation, SVG / canvas rendering, tiling, decode helpers
 ui/js/flow.js          workflow — pure helpers: size limits, sniffing, batch merge, recent list
-ui/js/nav.js           navigation — pure helpers: order, pins, effective order
+ui/js/nav.js           navigation — pure helpers: order, pins, effective order, last-feature archive
 tests/                 regression suite, run with plain node
 scripts/build.sh       package | dev | test
 scripts/shoot-screens.js  headless-Chrome screenshots for docs/

@@ -41,3 +41,30 @@ const displayLangCodes = ['zh-CN', 'zh-TW', 'en'];
 
 let currentLang = 'zh-CN';
 let currentDict = languageConfigs.find(c => c.code === 'zh-CN').dict;
+
+/*
+ * 语言是「码」和「字典」两个变量，必须一起动。
+ * 宿主启动时曾经只写了 currentLang（01-host.js 里那句 locale 判定），
+ * 于是导航读 currentLang 出了英文、主界面读 currentDict 还是中文，
+ * 界面就半中半英——用户看到的就是「切了语言没生效」。
+ * 所有改语言的地方都走这里，别再分开赋值。
+ */
+function setLanguage(code) {
+    const cfg = languageConfigs.find(c => c.code === code);
+    if (!cfg) return false;
+    currentLang = cfg.code;
+    currentDict = cfg.dict;
+    return true;
+}
+
+/*
+ * 兜底：按 currentLang 把字典对齐一次。
+ * 语言码和字典原本被分开赋值过一次（宿主启动那句 locale 判定只写了前者），
+ * 结果导航读 currentLang 出了英文、品牌与按钮读 currentDict 还是中文。
+ * 现在真正的写入只有 setLanguage 一处，这里再兜一次，防止以后又分叉。
+ */
+function syncLanguageDict() {
+    const cfg = languageConfigs.find(c => c.code === currentLang);
+    if (cfg && currentDict !== cfg.dict) currentDict = cfg.dict;
+    return cfg || null;
+}

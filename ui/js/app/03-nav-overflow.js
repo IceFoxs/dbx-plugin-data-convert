@@ -207,6 +207,8 @@ function updateConvertLabel() {
     label.textContent = text;
     if (short) short.textContent = shortText;
     navConvertTrigger.title = text;
+    // 页签名用的就是这行文字：换了一对格式，宿主标签页的名字也得跟着换
+    if (typeof syncDocTitle === 'function') syncDocTitle();
     if (!changed) return;
     // 文字长短换了，导航条能塞下的项数也跟着变
     clearTimeout(navLabelTimer);

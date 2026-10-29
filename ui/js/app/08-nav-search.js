@@ -615,6 +615,15 @@ document.addEventListener('keydown', (e) => {
 if (navToggleBtn) navToggleBtn.addEventListener('click', () => navSearchClose());
 
 function applyI18n() {
+    // 兜底：万一有哪条路径只改了 currentLang（宿主启动时曾经就是这样），
+    // 主字典会原地不动——导航是英文、品牌与按钮还是中文，看起来像「只切了一半」。
+    // 这里按 currentLang 对齐一次，代价只是一次数组查找。
+    // 兜底：万一有哪条路径只改了 currentLang（宿主启动时曾经就是这样），
+    // 主字典会原地不动——导航是英文、品牌与按钮还是中文，看起来像「只切了一半」。
+    // 这里按 currentLang 对齐一次，代价只是一次数组查找。
+    syncLanguageDict();
+    // <html lang> 是给读屏和输入法看的，切了语言要跟着改，别一直挂着 zh-CN
+    document.documentElement.lang = currentLang;
     // SQL 页与导航下拉的文案各放一张小表（见第 8 节 / 上面），这里合并进来查，
     // 免得把 14 套大字典再撑一圈
     const dict = Object.assign(
@@ -720,6 +729,12 @@ function syncDocTitle() {
         const el = document.getElementById(pageId);
         // 导航项可能被「更多」下拉搬走，但只要有 id，textContent 就是当前语言的名字
         label = el ? String(el.textContent || '').replace(/\s+/g, ' ').trim() : '';
+    } else {
+        // 格式转换页不是「一个功能」，而是十几对格式：页签名跟着当前那一对走
+        // （「yaml转json」）。以前这里传 null 恢复默认，宿主的页签就永远停在
+        // 「数据转换」，换一对格式还是那个名字，开着几个标签时分不清谁是谁。
+        const convertLabel = document.getElementById('navConvertLabel');
+        label = convertLabel ? String(convertLabel.textContent || '').replace(/\s+/g, ' ').trim() : '';
     }
 
     const key = label || '';

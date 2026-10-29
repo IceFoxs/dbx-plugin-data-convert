@@ -20,6 +20,8 @@
  *   isPinned(pins, id)           membership test
  *   parsePrefs(raw)              stored JSON -> { order, pins, sticky, collapsed, found }
  *   serializePrefs(prefs)        { order, pins, sticky, collapsed } -> JSON
+ *   parseLastFeature(raw)        stored JSON -> { kind, id / src+tgt, found }
+ *   serializeLastFeature(rec)    { kind, id / src+tgt } -> JSON（'' 表示不写）
  */
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
@@ -183,6 +185,87 @@
         return JSON.stringify(out);
     }
 
+    // ---- 最后一次使用的功能（下次打开回到那里） ----
+    // 只存「哪一项」：独立页存导航项 id，格式转换存「从 / 转为」这一对格式名。
+    // 不存页面内容、也不存整页状态——存得越少，版本来回切越不容易出事。
+    var FEATURE_KINDS = { page: 1, convert: 1 };
+    var MAX_FMT = 32;
+    var FEATURE_RESERVED = { v: 1, kind: 1, id: 1, src: 1, tgt: 1 };
+
+    /** 任何输入 -> 干净的短字符串；超长或非字符串一律当没有 */
+    function text(value, max) {
+        if (typeof value !== 'string') return '';
+        var t = value.trim();
+        return t && t.length <= max ? t : '';
+    }
+
+    function blankFeature(extra) {
+        return { kind: '', id: '', src: '', tgt: '', found: false, extra: extra || {} };
+    }
+
+    /**
+     * 存的一坨 JSON -> 「上次用的功能」。
+     * 两个方向都要扛住，这是这一小块存在的全部理由：
+     *   版本回退：新版本写的东西被老版本读到——`v` 更大没关系，认识的字段照用，
+     *     读不懂的字段进 extra，写回去时原样带上，别让老版本把新版本存的东西抹掉；
+     *   功能升级：老数据里的 id / 格式对可能已经改名或删掉了——解析层只管形状合法，
+     *     入口是否还在由调用方对着 DOM 查（查不到就不恢复，绝不跳去一个不存在的地方）。
+     * 坏数据（不是 JSON、不是对象、kind 不认识、缺字段）一律当「没存过」，不抛错。
+     */
+    function parseLastFeature(raw) {
+        if (typeof raw !== 'string' || !raw.trim()) return blankFeature();
+        var parsed;
+        try {
+            parsed = JSON.parse(raw);
+        } catch (e) {
+            return blankFeature();
+        }
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return blankFeature();
+        // 未来版本塞进来的字段先收好，不管后面认不认得出 kind
+        var extra = {};
+        Object.keys(parsed).forEach(function (k) {
+            if (FEATURE_RESERVED[k]) return;
+            extra[k] = parsed[k];
+        });
+        var kind = text(parsed.kind, 16);
+        if (!FEATURE_KINDS[kind]) return blankFeature(extra);
+        if (kind === 'page') {
+            var id = text(parsed.id, MAX_ID);
+            if (!id) return blankFeature(extra);
+            return { kind: 'page', id: id, src: '', tgt: '', found: true, extra: extra };
+        }
+        var src = text(parsed.src, MAX_FMT);
+        var tgt = text(parsed.tgt, MAX_FMT);
+        if (!src || !tgt) return blankFeature(extra);
+        return { kind: 'convert', id: '', src: src, tgt: tgt, found: true, extra: extra };
+    }
+
+    /** 记录 -> 存档字符串；形状不对就给空串（调用方空串=不写） */
+    function serializeLastFeature(rec) {
+        var src = rec && typeof rec === 'object' ? rec : {};
+        var out = { v: 1 };
+        var extra = src.extra && typeof src.extra === 'object' && !Array.isArray(src.extra) ? src.extra : {};
+        Object.keys(extra).forEach(function (k) {
+            if (FEATURE_RESERVED[k] || k === 'v') return;
+            out[k] = extra[k];
+        });
+        var kind = FEATURE_KINDS[src.kind] ? src.kind : '';
+        if (!kind) return '';
+        out.kind = kind;
+        if (kind === 'page') {
+            var id = text(src.id, MAX_ID);
+            if (!id) return '';
+            out.id = id;
+        } else {
+            var s = text(src.src, MAX_FMT);
+            var t = text(src.tgt, MAX_FMT);
+            if (!s || !t) return '';
+            out.src = s;
+            out.tgt = t;
+        }
+        return JSON.stringify(out);
+    }
+
     return {
         MAX_ITEMS: MAX_ITEMS,
         MAX_PINS: MAX_PINS,
@@ -194,6 +277,8 @@
         togglePin: togglePin,
         isPinned: isPinned,
         parsePrefs: parsePrefs,
-        serializePrefs: serializePrefs
+        serializePrefs: serializePrefs,
+        parseLastFeature: parseLastFeature,
+        serializeLastFeature: serializeLastFeature
     };
 });

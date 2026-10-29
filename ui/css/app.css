@@ -12,6 +12,11 @@
     --text-main: var(--color-foreground, #09090b);
     --text-muted: var(--color-muted-foreground, #71717a);
     --border-light: var(--color-border, #e4e4e7);
+    /* 常规描边（比分隔线 --border-light 深一档）。
+       样式表里有 7 处写着 var(--border, #e5e7eb) 却一直没人定义这个变量——
+       亮色下 fallback 的浅灰看着还算正常，暗色下就退成一道近白边，
+       面板一多就像「白色描边框」，跟旁边的暗色控件完全不是一套。 */
+    --border: var(--color-border, #d4d4d8);
     --primary: var(--color-primary, #18181b);
     --primary-text: var(--color-primary-foreground, #fafafa);
     --accent-bg: var(--color-muted, #f4f4f5);
@@ -40,6 +45,8 @@
     --text-main: var(--color-foreground, #f4f4f5);
     --text-muted: var(--color-muted-foreground, #a1a1aa);
     --border-light: var(--color-border, #27272a);
+    /* 暗色下这一档必须单独给：#e5e7eb 那种近白在深色面板上是一道刺眼的白边 */
+    --border: var(--color-border, #3f3f46);
     --accent-bg: var(--color-muted, #18181b);
     --accent-hover: var(--color-border, #27272a);
     --surface: var(--color-card, #121214);
@@ -251,6 +258,40 @@ body.nav-searching .nav-search-wrap {
     flex: 1 1 auto;
     max-width: 34rem;
     margin: 0 0.75rem;
+}
+/*
+ * 顶部布局搜索时：搜索框居中，语言与几个图标按钮留在右侧。
+ * 之前它只是 flex 里紧跟标题的一项，「标题多宽就往右让多少」——看着像跟着标题跑，
+ * 窗口一宽又整个贴在左边，视线没处落。改成绝对定位居中（左右各留出标题与按钮的
+ * 位置），窄屏放不下再退回「占满中间」，不会压住任何东西。
+ */
+body:not(.nav-left).nav-searching .topbar { position: relative; }
+body:not(.nav-left).nav-searching .nav-search-wrap {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    /* 34rem 是舒服的上限；窄一点时按「左右各留出标题与按钮的宽度」收缩，
+       别为了居中压到两边的东西 */
+    width: min(34rem, calc(100% - 38rem));
+    max-width: none;
+    margin: 0;
+    /* transform 会新建一个层叠上下文：不给 z-index 的话，
+       下拉列表（z-index 60）就被关在顶栏这一层里，压不过下面的工具栏 */
+    z-index: 70;
+}
+/* 搜索框脱离文档流后，剩下的按钮靠这个 margin 顶到右端 */
+body:not(.nav-left).nav-searching .lang-switcher { margin-left: auto; }
+@media (max-width: 1100px) {
+    /* 再窄就居中不下了：退回「吃掉中间剩余空间」，两侧各留一点缝 */
+    body:not(.nav-left).nav-searching .nav-search-wrap {
+        position: static;
+        transform: none;
+        width: auto;
+        flex: 0 1 34rem;
+        min-width: 0;
+        margin: 0 auto;
+    }
 }
 body:not(.nav-left).nav-searching .nav-side,
 body:not(.nav-left).nav-searching #navMore {
@@ -1043,6 +1084,23 @@ body:not(.nav-left).nav-searching #navMore {
     color: var(--text-main);
     border-color: var(--accent-hover);
 }
+/*
+ * 纯文字按钮：没有底色也没有边框，只在悬停时浮一层浅灰。
+ * 这个类一直是「HTML 里挂着、CSS 里没定义」的状态——浏览器于是把 <button>
+ * 的默认底色（buttonface，一块中灰）露了出来，看着像「按下去没弹起」的灰方块，
+ * 跟旁边白底描边的小按钮完全不是一套语言（「列类型」「导入 SQL / 清空 SQL」
+ * 「全部列」都中过这一枪）。补上定义，别让 UA 样式替我们做设计。
+ */
+.btn-ghost {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--text-muted);
+}
+.btn-ghost:hover {
+    background-color: var(--accent-bg);
+    color: var(--text-main);
+}
+
 /* 输出格式徽标已并入 pane-header，原来的 result-header 行已移除，
    左右两栏因此行数对称，编辑器高度严格相等 */
 /* 解析错误提示：绝对定位浮在编辑器底部，出现/消失都不改变两栏高度 */
@@ -3970,17 +4028,30 @@ body.datasql-resizing { cursor: row-resize; user-select: none; }
     background-image: linear-gradient(var(--accent-bg, #f4f4f5), var(--accent-bg, #f4f4f5));
 }
 
-/* 数据面板的「源码 / 表格」切换：两个小胶囊，别做得比列类型按钮还显眼 */
+/* 数据面板的「源码 / 表格」切换：站在「数据」标题右边，跟右端那排动作分开。
+   pane-header 默认 space-between，三个孩子会把切换推到正中间，所以这里改成左对齐，
+   动作区自己 margin-left: auto 顶到最右。 */
+#dataSqlWorkspace .pane-header {
+    justify-content: flex-start;
+    /* 标题行默认 overflow: hidden（防长列名把整行撑破），下拉得从这里钻出去——
+       不然点开只有箭头翻过去，选项被裁在 1.75rem 高的那条缝里。
+       数据面板里没有会撑破标题行的长文本，放开这一处是安全的。 */
+    overflow: visible;
+}
+#dataSqlWorkspace .compare-pane > .pane-header > .pane-actions { margin-left: auto; }
 .datasql-view-tabs {
     display: inline-flex;
     flex: 0 0 auto;
+    padding: 2px;
     border: 1px solid var(--border, #e5e7eb);
     border-radius: var(--radius-md, 0.5rem);
     overflow: hidden;
 }
+/* 跟旁边那排 26px 的小按钮同高，别高出一截 */
 .datasql-view-tabs .compare-tab {
-    padding: 0.15rem 0.5rem;
+    padding: 0.08rem 0.5rem;
     font-size: 0.72rem;
+    line-height: 1.5;
     border: 0;
     border-radius: 0;
     background-color: transparent;
@@ -4067,11 +4138,27 @@ li.CodeMirror-hint-active .datasql-hint-kind { opacity: 0.85; }
 [data-dbx-theme="dark"] li.CodeMirror-hint-active { background-color: #0f766e; color: #fff; }
 
 /* 数据面板右上角：列类型入口 */
+/*
+ * 「列类型」跟「导入数据 / 清空数据」同一档小号描边按钮。
+ * 它右边紧挨着「源码 / 表格」的分段框，两者若没有间距会连成一体、看着像分段里
+ * 多出来的第三段（而且分段框有边框、它是透明底，那一块特别扎眼），所以留一点缝。
+ */
 .datasql-types-btn {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
+    padding: 0.2rem 0.55rem;
+    margin-left: 0.15rem;
     font-size: 0.72rem;
+    line-height: 1.5;
+}
+/* 面板开着的时候按钮得看得出来：脚本只加了 .active，样式在这儿补。
+   只垫浅灰底不够——亮色下 --accent-bg(#f4f4f5) 与白底几乎同色，肉眼看不出来，
+   用户会以为「点了没反应」。描边跟着主色调走，才是一个明确的「开着」状态。 */
+.datasql-types-btn.active {
+    background-color: var(--accent-bg);
+    border-color: var(--primary);
+    color: var(--text-main);
 }
 /*
  * 「导入数据 / 清空数据」跟着数据面板走，落在它的标题行里。
@@ -4097,12 +4184,6 @@ li.CodeMirror-hint-active .datasql-hint-kind { opacity: 0.85; }
 }
 .datasql-sample-pick .custom-select-trigger .label { flex: 0 0 auto; }
 .datasql-sample-pick .custom-select-trigger svg { width: 0.7rem; height: 0.7rem; }
-/*
- * 标题行默认 overflow: hidden（防长列名把整行撑破），下拉得从这里钻出去——
- * 不然点开只有箭头翻过去，选项被裁在 1.75rem 高的那条缝里。
- * 数据面板里没有会撑破标题行的长文本，放开这一处是安全的。
- */
-#dataSqlWorkspace .pane-header { overflow: visible; }
 .datasql-sample-pick .custom-select-options { font-size: 0.74rem; }
 .datasql-types-count {
     font-size: 0.68rem;
