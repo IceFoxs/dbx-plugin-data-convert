@@ -325,10 +325,152 @@
         return lines.join('\n');
     }
 
+    /* ---------------- JSON 数组 -> 表格 ---------------- */
+    /*
+     * 接口响应、日志导出基本都是 JSON，可这里原本只吃分隔符文本——整段 JSON 会
+     * 落在第一列里，一行就是全部。所以先把数组摊成表，再交给 parse() 走同一条路。
+     *
+     * 只认数组（顶层必须是 `[ ... ]`），元素分三种：
+     *   [{...}, {...}]      对象数组 —— 键做列名，某一行缺的键留空（最常见的形状）
+     *   [["a","b"],[1,2]]   二维数组 —— 首行全是字符串就当表头
+     *   [1, 2, 3]           标量数组 —— 单列，没有表头
+     * 顶层不是数组（对象、纯值、parse 失败）一律 ok=false：宁可报一句「格式有误」，
+     * 也别去猜 `{data:[...]}` 到底该取哪个键——猜错了用户连错在哪都看不出来。
+     *
+     * 嵌套的对象 / 数组值用 JSON.stringify 塞进一个单元格，不往上摊平：
+     * 摊开的话列名会随数据变化，同一句 SQL 换个响应就查不了了。
+     *
+     * @param {string} text
+     * @param {{maxRows?: number}} [options]
+     * @returns {{ok: boolean, reason: string, shape: string, header: string[]|null,
+     *            rows: string[][], count: number}}
+     *          ok=false 时 reason 是 'empty' / 'not-array' / 'bad'，供调用方决定怎么提示
+     */
+    function jsonCell(v) {
+        if (v == null) return '';
+        var t = typeof v;
+        if (t === 'string') return v;
+        if (t === 'number') return isFinite(v) ? String(v) : '';
+        if (t === 'boolean') return v ? 'true' : 'false';
+        try {
+            var s = JSON.stringify(v);
+            return s == null ? '' : s;
+        } catch (e) {
+            return '';      // 循环引用
+        }
+    }
+
+    // 一批对象共有哪些键：按第一次出现的顺序，先到先得
+    function jsonKeys(list, cap) {
+        var index = Object.create(null);
+        var keys = [];
+        for (var i = 0; i < list.length && keys.length < cap; i++) {
+            var o = list[i];
+            if (!o || typeof o !== 'object' || Array.isArray(o)) continue;
+            var own = Object.keys(o);
+            for (var j = 0; j < own.length && keys.length < cap; j++) {
+                if (!(own[j] in index)) { index[own[j]] = 1; keys.push(own[j]); }
+            }
+        }
+        return keys;
+    }
+
+    function jsonObjectsToRows(list, keys, cap) {
+        var rows = [];
+        var n = Math.min(list.length, cap);
+        for (var i = 0; i < n; i++) {
+            var o = list[i];
+            if (!o || typeof o !== 'object' || Array.isArray(o)) continue;
+            var row = new Array(keys.length);
+            for (var c = 0; c < keys.length; c++) row[c] = jsonCell(o[keys[c]]);
+            rows.push(row);
+        }
+        return rows;
+    }
+
+    function jsonArraysToRows(list, cap) {
+        var width = 0;
+        for (var i = 0; i < list.length; i++) {
+            var n = (list[i] || []).length;
+            if (n > width) width = n;
+        }
+        if (!width) return { header: null, rows: [] };
+        // 首行全是字符串就当表头：二维数组写成 [[表头],[数据]] 是绝大多数情况
+        var first = list[0] || [];
+        var headRow = null;
+        if (list.length > 1) {
+            var allText = true;
+            for (var k = 0; k < first.length; k++) {
+                if (typeof first[k] !== 'string') { allText = false; break; }
+            }
+            if (allText) headRow = first;
+        }
+        var header = null;
+        if (headRow) {
+            header = headRow.map(function (v) { return String(v); });
+            // 数据行比表头宽：多出来的列没名字，补 c1 / c2 …（引擎认这套别名）
+            for (var h = header.length; h < width; h++) header.push('c' + (h + 1));
+        }
+        var start = headRow ? 1 : 0;
+        var rows = [];
+        for (var r = start; r < list.length && rows.length < cap; r++) {
+            var src = list[r] || [];
+            var row = new Array(width);
+            for (var c = 0; c < width; c++) row[c] = jsonCell(src[c]);
+            rows.push(row);
+        }
+        return { header: header, rows: rows };
+    }
+
+    function jsonToRows(text, options) {
+        var cap = (options && options.maxRows) || LIMITS.rows;
+        var no = function (reason) {
+            return { ok: false, reason: reason, shape: '', header: null, rows: [], count: 0 };
+        };
+        var src = String(text == null ? '' : text).replace(/^\uFEFF/, '').trim();
+        if (!src) return no('empty');
+        if (src.charAt(0) !== '[') return no('not-array');
+        var doc;
+        try {
+            doc = JSON.parse(src);
+        } catch (e) {
+            return no('bad');
+        }
+        if (!Array.isArray(doc)) return no('not-array');
+        if (!doc.length) return no('empty');
+
+        // 元素是什么：只看前 50 个，几万行全扫一遍没必要
+        var probe = Math.min(doc.length, 50);
+        var objs = 0;
+        var arrays = 0;
+        for (var i = 0; i < probe; i++) {
+            if (Array.isArray(doc[i])) arrays++;
+            else if (doc[i] && typeof doc[i] === 'object') objs++;
+        }
+        if (objs) {
+            var keys = jsonKeys(doc, LIMITS.cols);
+            return {
+                ok: true, reason: '', shape: 'objects',
+                header: keys, rows: jsonObjectsToRows(doc, keys, cap), count: doc.length
+            };
+        }
+        if (arrays) {
+            var r2 = jsonArraysToRows(doc, cap);
+            return {
+                ok: true, reason: '', shape: 'arrays',
+                header: r2.header, rows: r2.rows, count: doc.length
+            };
+        }
+        var one = [];
+        for (var k = 0; k < doc.length && one.length < cap; k++) one.push([jsonCell(doc[k])]);
+        return { ok: true, reason: '', shape: 'values', header: null, rows: one, count: doc.length };
+    }
+
     return {
         LIMITS: LIMITS,
         METRICS: METRICS,
         DEFAULT_METRICS: DEFAULT_METRICS,
+        jsonToRows: jsonToRows,
         sniff: sniff,
         toNumber: toNumber,
         parse: parse,

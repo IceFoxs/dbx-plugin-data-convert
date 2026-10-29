@@ -76,6 +76,7 @@ const DATASQL_I18N = {
         dataSqlImportFail: '读取失败：{name}',
         dataSqlImportEmpty: '这个文件里没有数据',
         dataSqlImportBin: '这是二进制文件，读不出文本',
+        dataSqlJsonBad: '数据格式有误：这里只认 JSON 数组 [{…}, {…}]',
         dataSqlResizeTip: '拖动调整 SQL 区高度（双击恢复默认）',
         dataSqlClearData: '清空数据',
         dataSqlClearDataTip: '清空左侧数据，SQL 语句保留',
@@ -86,7 +87,7 @@ const DATASQL_I18N = {
         dataSqlCtxSelInfo: '选中 {lines} 行 · {chars} 字符',
         dataSqlCtxSelNone: '没有选中内容，将执行当前语句',
         dataSqlImportData: '导入数据',
-        dataSqlImportDataTip: '导入表格数据（csv / tsv / txt / xlsx）',
+        dataSqlImportDataTip: '导入表格数据（csv / tsv / txt / json / xlsx）',
         dataSqlLoadSql: '导入 SQL',
         dataSqlLoadSqlTip: '读入 .sql 文件，填进上面的编辑框',
         dataSqlInsertColTip: '点一下插入到 SQL 光标处',
@@ -157,6 +158,7 @@ const DATASQL_I18N = {
         dataSqlImportFail: '讀取失敗：{name}',
         dataSqlImportEmpty: '這個檔案裡沒有資料',
         dataSqlImportBin: '這是二進位檔，讀不出文字',
+        dataSqlJsonBad: '資料格式有誤：這裡只認 JSON 陣列 [{…}, {…}]',
         dataSqlResizeTip: '拖動調整 SQL 區高度（雙擊恢復預設）',
         dataSqlClearData: '清空資料',
         dataSqlClearDataTip: '清空左側資料，SQL 語句保留',
@@ -167,7 +169,7 @@ const DATASQL_I18N = {
         dataSqlCtxSelInfo: '選取 {lines} 列 · {chars} 字元',
         dataSqlCtxSelNone: '沒有選取內容，將執行目前語句',
         dataSqlImportData: '匯入資料',
-        dataSqlImportDataTip: '匯入表格資料（csv / tsv / txt / xlsx）',
+        dataSqlImportDataTip: '匯入表格資料（csv / tsv / txt / json / xlsx）',
         dataSqlLoadSql: '匯入 SQL',
         dataSqlLoadSqlTip: '讀入 .sql 檔案，填入上面的編輯框',
         dataSqlInsertColTip: '點一下插入到 SQL 游標處',
@@ -238,6 +240,7 @@ const DATASQL_I18N = {
         dataSqlImportFail: 'Could not read {name}',
         dataSqlImportEmpty: 'No data in this file',
         dataSqlImportBin: 'This is a binary file — no text to read',
+        dataSqlJsonBad: 'Bad data format: only a JSON array is accepted, like [{…}, {…}]',
         dataSqlResizeTip: 'Drag to resize the SQL area (double-click to reset)',
         dataSqlClearData: 'Clear data',
         dataSqlClearDataTip: 'Clear the data on the left, keep the SQL',
@@ -248,7 +251,7 @@ const DATASQL_I18N = {
         dataSqlCtxSelInfo: '{lines} lines · {chars} chars selected',
         dataSqlCtxSelNone: 'Nothing selected — runs the current statement',
         dataSqlImportData: 'Import data',
-        dataSqlImportDataTip: 'Import table data (csv / tsv / txt / xlsx)',
+        dataSqlImportDataTip: 'Import table data (csv / tsv / txt / json / xlsx)',
         dataSqlLoadSql: 'Import SQL',
         dataSqlLoadSqlTip: 'Load a .sql file into the editor above',
         dataSqlInsertColTip: 'Click to insert at the SQL cursor',
@@ -319,6 +322,7 @@ const DATASQL_I18N = {
         dataSqlImportFail: '{name} oxunmadı',
         dataSqlImportEmpty: 'Bu faylda məlumat yoxdur',
         dataSqlImportBin: 'Bu binar fayldır — mətn oxunmur',
+        dataSqlJsonBad: 'Məlumat formatı yanlışdır: yalnız [{…}, {…}] kimi JSON massivi qəbul olunur',
         dataSqlResizeTip: 'SQL sahəsinin hündürlüyünü dəyişmək üçün dartın (iki dəfə klik = sıfırla)',
         dataSqlClearData: 'Məlumatı təmizlə',
         dataSqlClearDataTip: 'Soldakı məlumatı təmizlə, SQL qalsın',
@@ -329,7 +333,7 @@ const DATASQL_I18N = {
         dataSqlCtxSelInfo: '{lines} sətir · {chars} simvol seçildi',
         dataSqlCtxSelNone: 'Heç nə seçilməyib — cari ifadə işə düşəcək',
         dataSqlImportData: 'Məlumat idxal et',
-        dataSqlImportDataTip: 'Cədvəl məlumatını idxal et (csv / tsv / txt / xlsx)',
+        dataSqlImportDataTip: 'Cədvəl məlumatını idxal et (csv / tsv / txt / json / xlsx)',
         dataSqlLoadSql: 'SQL idxal et',
         dataSqlLoadSqlTip: '.sql faylını yuxarıdakı redaktora yüklə',
         dataSqlInsertColTip: 'SQL kursoruna əlavə etmək üçün klikləyin',
@@ -400,6 +404,7 @@ const DATASQL_I18N = {
         dataSqlImportFail: 'No se pudo leer {name}',
         dataSqlImportEmpty: 'Este archivo no tiene datos',
         dataSqlImportBin: 'Es un archivo binario: no hay texto que leer',
+        dataSqlJsonBad: 'Formato incorrecto: solo se acepta un array JSON, como [{…}, {…}]',
         dataSqlResizeTip: 'Arrastra para cambiar la altura del área SQL (doble clic para restablecer)',
         dataSqlClearData: 'Borrar datos',
         dataSqlClearDataTip: 'Borra los datos de la izquierda y conserva el SQL',
@@ -410,7 +415,7 @@ const DATASQL_I18N = {
         dataSqlCtxSelInfo: '{lines} líneas · {chars} caracteres seleccionados',
         dataSqlCtxSelNone: 'Nada seleccionado: se ejecuta la sentencia actual',
         dataSqlImportData: 'Importar datos',
-        dataSqlImportDataTip: 'Importa datos de tabla (csv / tsv / txt / xlsx)',
+        dataSqlImportDataTip: 'Importa datos de tabla (csv / tsv / txt / json / xlsx)',
         dataSqlLoadSql: 'Importar SQL',
         dataSqlLoadSqlTip: 'Carga un archivo .sql en el editor de arriba',
         dataSqlInsertColTip: 'Clic para insertar en el cursor del SQL',
@@ -481,6 +486,7 @@ const DATASQL_I18N = {
         dataSqlImportFail: 'Gagal membaca {name}',
         dataSqlImportEmpty: 'File ini tidak berisi data',
         dataSqlImportBin: 'Ini file biner — tidak ada teks',
+        dataSqlJsonBad: 'Format data salah: hanya menerima array JSON seperti [{…}, {…}]',
         dataSqlResizeTip: 'Seret untuk mengatur tinggi area SQL (klik dua kali untuk reset)',
         dataSqlClearData: 'Hapus data',
         dataSqlClearDataTip: 'Hapus data di kiri, SQL tetap',
@@ -491,7 +497,7 @@ const DATASQL_I18N = {
         dataSqlCtxSelInfo: '{lines} baris · {chars} karakter dipilih',
         dataSqlCtxSelNone: 'Tidak ada yang dipilih — pernyataan ini dijalankan',
         dataSqlImportData: 'Impor data',
-        dataSqlImportDataTip: 'Impor data tabel (csv / tsv / txt / xlsx)',
+        dataSqlImportDataTip: 'Impor data tabel (csv / tsv / txt / json / xlsx)',
         dataSqlLoadSql: 'Impor SQL',
         dataSqlLoadSqlTip: 'Muat file .sql ke editor di atas',
         dataSqlInsertColTip: 'Klik untuk menyisipkan di kursor SQL',
@@ -562,6 +568,7 @@ const DATASQL_I18N = {
         dataSqlImportFail: 'Impossibile leggere {name}',
         dataSqlImportEmpty: 'Questo file non contiene dati',
         dataSqlImportBin: 'È un file binario: nessun testo da leggere',
+        dataSqlJsonBad: 'Formato dati non valido: si accetta solo un array JSON, come [{…}, {…}]',
         dataSqlResizeTip: 'Trascina per ridimensionare l’area SQL (doppio clic per ripristinare)',
         dataSqlClearData: 'Svuota dati',
         dataSqlClearDataTip: 'Svuota i dati a sinistra, il SQL resta',
@@ -572,7 +579,7 @@ const DATASQL_I18N = {
         dataSqlCtxSelInfo: '{lines} righe · {chars} caratteri selezionati',
         dataSqlCtxSelNone: 'Nessuna selezione: esegue l’istruzione corrente',
         dataSqlImportData: 'Importa dati',
-        dataSqlImportDataTip: 'Importa dati tabellari (csv / tsv / txt / xlsx)',
+        dataSqlImportDataTip: 'Importa dati tabellari (csv / tsv / txt / json / xlsx)',
         dataSqlLoadSql: 'Importa SQL',
         dataSqlLoadSqlTip: 'Carica un file .sql nell’editor sopra',
         dataSqlInsertColTip: 'Clic per inserire nel cursore SQL',
@@ -643,6 +650,7 @@ const DATASQL_I18N = {
         dataSqlImportFail: '{name} を読み込めませんでした',
         dataSqlImportEmpty: 'このファイルにはデータがありません',
         dataSqlImportBin: 'バイナリファイルのためテキストとして読めません',
+        dataSqlJsonBad: 'データ形式が正しくありません：JSON 配列 [{…}, {…}] のみ対応しています',
         dataSqlResizeTip: 'ドラッグで SQL 領域の高さを変更（ダブルクリックで既定に戻す）',
         dataSqlClearData: 'データをクリア',
         dataSqlClearDataTip: '左のデータを消す（SQL は残る）',
@@ -653,7 +661,7 @@ const DATASQL_I18N = {
         dataSqlCtxSelInfo: '{lines} 行・{chars} 文字を選択中',
         dataSqlCtxSelNone: '選択なし（現在のステートメントを実行）',
         dataSqlImportData: 'データを読み込む',
-        dataSqlImportDataTip: '表データを読み込む（csv / tsv / txt / xlsx）',
+        dataSqlImportDataTip: '表データを読み込む（csv / tsv / txt / json / xlsx）',
         dataSqlLoadSql: 'SQL を読み込む',
         dataSqlLoadSqlTip: '.sql ファイルを上のエディタに読み込む',
         dataSqlInsertColTip: 'クリックで SQL のカーソル位置に挿入',
@@ -724,6 +732,7 @@ const DATASQL_I18N = {
         dataSqlImportFail: '{name}을(를) 읽지 못했습니다',
         dataSqlImportEmpty: '이 파일에는 데이터가 없습니다',
         dataSqlImportBin: '바이너리 파일이라 텍스트를 읽을 수 없습니다',
+        dataSqlJsonBad: '데이터 형식이 잘못되었습니다: [{…}, {…}] 같은 JSON 배열만 지원합니다',
         dataSqlResizeTip: '드래그해서 SQL 영역 높이 조절 (더블클릭하면 기본값)',
         dataSqlClearData: '데이터 지우기',
         dataSqlClearDataTip: '왼쪽 데이터를 지우고 SQL은 유지',
@@ -734,7 +743,7 @@ const DATASQL_I18N = {
         dataSqlCtxSelInfo: '{lines}행 · {chars}자 선택됨',
         dataSqlCtxSelNone: '선택 없음 — 현재 문을 실행합니다',
         dataSqlImportData: '데이터 가져오기',
-        dataSqlImportDataTip: '표 데이터 가져오기 (csv / tsv / txt / xlsx)',
+        dataSqlImportDataTip: '표 데이터 가져오기 (csv / tsv / txt / json / xlsx)',
         dataSqlLoadSql: 'SQL 가져오기',
         dataSqlLoadSqlTip: '.sql 파일을 위 편집기에 불러오기',
         dataSqlInsertColTip: '클릭하면 SQL 커서 위치에 삽입',
@@ -805,6 +814,7 @@ const DATASQL_I18N = {
         dataSqlImportFail: 'Não foi possível ler {name}',
         dataSqlImportEmpty: 'Este arquivo não tem dados',
         dataSqlImportBin: 'É um arquivo binário: não há texto para ler',
+        dataSqlJsonBad: 'Formato de dados inválido: só é aceito um array JSON, como [{…}, {…}]',
         dataSqlResizeTip: 'Arraste para ajustar a altura da área SQL (duplo clique restaura)',
         dataSqlClearData: 'Limpar dados',
         dataSqlClearDataTip: 'Limpa os dados à esquerda e mantém o SQL',
@@ -815,7 +825,7 @@ const DATASQL_I18N = {
         dataSqlCtxSelInfo: '{lines} linhas · {chars} caracteres selecionados',
         dataSqlCtxSelNone: 'Nada selecionado — executa a instrução atual',
         dataSqlImportData: 'Importar dados',
-        dataSqlImportDataTip: 'Importa dados de tabela (csv / tsv / txt / xlsx)',
+        dataSqlImportDataTip: 'Importa dados de tabela (csv / tsv / txt / json / xlsx)',
         dataSqlLoadSql: 'Importar SQL',
         dataSqlLoadSqlTip: 'Carrega um arquivo .sql no editor acima',
         dataSqlInsertColTip: 'Clique para inserir no cursor do SQL',
@@ -886,6 +896,7 @@ const DATASQL_I18N = {
         dataSqlImportFail: 'Nie udało się odczytać {name}',
         dataSqlImportEmpty: 'Ten plik nie zawiera danych',
         dataSqlImportBin: 'To plik binarny — brak tekstu do odczytu',
+        dataSqlJsonBad: 'Nieprawidłowy format danych: akceptowana jest tylko tablica JSON, np. [{…}, {…}]',
         dataSqlResizeTip: 'Przeciągnij, aby zmienić wysokość obszaru SQL (dwuklik przywraca domyślną)',
         dataSqlClearData: 'Wyczyść dane',
         dataSqlClearDataTip: 'Czyści dane po lewej, SQL zostaje',
@@ -896,7 +907,7 @@ const DATASQL_I18N = {
         dataSqlCtxSelInfo: 'Zaznaczono {lines} wierszy · {chars} znaków',
         dataSqlCtxSelNone: 'Brak zaznaczenia — wykona bieżące polecenie',
         dataSqlImportData: 'Importuj dane',
-        dataSqlImportDataTip: 'Importuje dane tabeli (csv / tsv / txt / xlsx)',
+        dataSqlImportDataTip: 'Importuje dane tabeli (csv / tsv / txt / json / xlsx)',
         dataSqlLoadSql: 'Importuj SQL',
         dataSqlLoadSqlTip: 'Wczytuje plik .sql do edytora powyżej',
         dataSqlInsertColTip: 'Kliknij, aby wstawić w miejscu kursora SQL',
@@ -967,6 +978,7 @@ const DATASQL_I18N = {
         dataSqlImportFail: 'Не удалось прочитать {name}',
         dataSqlImportEmpty: 'В этом файле нет данных',
         dataSqlImportBin: 'Это двоичный файл — текста нет',
+        dataSqlJsonBad: 'Неверный формат данных: принимается только JSON-массив, например [{…}, {…}]',
         dataSqlResizeTip: 'Потяните, чтобы изменить высоту области SQL (двойной клик — сброс)',
         dataSqlClearData: 'Очистить данные',
         dataSqlClearDataTip: 'Очистить данные слева, SQL остаётся',
@@ -977,7 +989,7 @@ const DATASQL_I18N = {
         dataSqlCtxSelInfo: 'Выбрано {lines} строк · {chars} симв.',
         dataSqlCtxSelNone: 'Ничего не выбрано — выполнится текущая инструкция',
         dataSqlImportData: 'Импорт данных',
-        dataSqlImportDataTip: 'Импорт табличных данных (csv / tsv / txt / xlsx)',
+        dataSqlImportDataTip: 'Импорт табличных данных (csv / tsv / txt / json / xlsx)',
         dataSqlLoadSql: 'Импорт SQL',
         dataSqlLoadSqlTip: 'Загрузить .sql в редактор выше',
         dataSqlInsertColTip: 'Нажмите, чтобы вставить в позицию курсора SQL',
@@ -1048,6 +1060,7 @@ const DATASQL_I18N = {
         dataSqlImportFail: 'อ่าน {name} ไม่สำเร็จ',
         dataSqlImportEmpty: 'ไฟล์นี้ไม่มีข้อมูล',
         dataSqlImportBin: 'เป็นไฟล์ไบนารี จึงอ่านเป็นข้อความไม่ได้',
+        dataSqlJsonBad: 'รูปแบบข้อมูลไม่ถูกต้อง: รองรับเฉพาะอาร์เรย์ JSON เช่น [{…}, {…}]',
         dataSqlResizeTip: 'ลากเพื่อปรับความสูงของพื้นที่ SQL (ดับเบิลคลิกเพื่อรีเซ็ต)',
         dataSqlClearData: 'ล้างข้อมูล',
         dataSqlClearDataTip: 'ล้างข้อมูลด้านซ้าย เก็บ SQL ไว้',
@@ -1058,7 +1071,7 @@ const DATASQL_I18N = {
         dataSqlCtxSelInfo: 'เลือก {lines} แถว · {chars} ตัวอักษร',
         dataSqlCtxSelNone: 'ไม่ได้เลือก — จะรันคำสั่งปัจจุบัน',
         dataSqlImportData: 'นำเข้าข้อมูล',
-        dataSqlImportDataTip: 'นำเข้าข้อมูลตาราง (csv / tsv / txt / xlsx)',
+        dataSqlImportDataTip: 'นำเข้าข้อมูลตาราง (csv / tsv / txt / json / xlsx)',
         dataSqlLoadSql: 'นำเข้า SQL',
         dataSqlLoadSqlTip: 'โหลดไฟล์ .sql ขึ้นไปยังช่องแก้ไขด้านบน',
         dataSqlInsertColTip: 'คลิกเพื่อแทรกที่ตำแหน่งเคอร์เซอร์ SQL',
@@ -1129,6 +1142,7 @@ const DATASQL_I18N = {
         dataSqlImportFail: '{name} okunamadı',
         dataSqlImportEmpty: 'Bu dosyada veri yok',
         dataSqlImportBin: 'Bu ikili (binary) bir dosya — metin yok',
+        dataSqlJsonBad: 'Veri biçimi hatalı: yalnızca [{…}, {…}] gibi bir JSON dizisi kabul edilir',
         dataSqlResizeTip: 'SQL alanının yüksekliğini değiştirmek için sürükleyin (çift tık = sıfırla)',
         dataSqlClearData: 'Veriyi temizle',
         dataSqlClearDataTip: 'Soldaki veriyi temizle, SQL kalsın',
@@ -1139,7 +1153,7 @@ const DATASQL_I18N = {
         dataSqlCtxSelInfo: '{lines} satır · {chars} karakter seçili',
         dataSqlCtxSelNone: 'Seçim yok — geçerli ifade çalışır',
         dataSqlImportData: 'Veri içe aktar',
-        dataSqlImportDataTip: 'Tablo verisini içe aktar (csv / tsv / txt / xlsx)',
+        dataSqlImportDataTip: 'Tablo verisini içe aktar (csv / tsv / txt / json / xlsx)',
         dataSqlLoadSql: 'SQL içe aktar',
         dataSqlLoadSqlTip: '.sql dosyasını yukarıdaki düzenleyiciye yükle',
         dataSqlInsertColTip: 'SQL imlecine eklemek için tıklayın',
@@ -2659,6 +2673,8 @@ function dataSqlEnsureEditors() {
         dataSqlDataEditor.on('change', () => {
             const next = dataSqlDataEditor.getValue();
             if (dataSqlInputEl.value !== next) dataSqlInputEl.value = next;
+            // 粘进来的整段 JSON 先摊成表（摊完里面的 setValue 会再进一次这里，被守卫挡住）
+            if (dataSqlMaybeJson()) return;
             dataSqlSchedule();
         });
         linkTextareaToEditor(dataSqlInputEl, dataSqlDataEditor);
@@ -2777,20 +2793,83 @@ function dataSqlOnLangChange() {
  *   · .xls（BIFF 二进制）读不了，给一句明确的话，别让人对着空白页猜
  * 导入完自动切到表格预览：文件刚进来第一件事就是看列对不对。
  */
-function dataSqlRowsToTsv(rows) {
+function dataSqlRowsToTsv(rows, header) {
+    const push = (cells) => {
+        // 单元格里的换行 / 制表符会把一列劈成两列，换成空格
+        return cells.map((v) => String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' ')).join('\t');
+    };
     let out = '';
+    const head = Array.isArray(header) ? header : null;
+    if (head && head.length) out += push(head) + '\n';
     for (let r = 0; r < rows.length; r++) {
-        const row = rows[r] || [];
-        const line = [];
-        for (let c = 0; c < row.length; c++) {
-            const v = row[c];
-            // 单元格里的换行 / 制表符会把一列劈成两列，换成空格
-            line.push(String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' '));
-        }
-        out += line.join('\t') + '\n';
+        out += push(rows[r] || []) + '\n';
         if (out.length > DATASQL_MAX_CHARS) break;
     }
     return out;
+}
+
+/* ------------------------------ JSON 数据 ------------------------------ */
+/*
+ * 接口响应、日志导出大多是 JSON，可这一页原本只吃分隔符文本——整段 JSON 会
+ * 落在第一列里，一行就是全部。所以先把数组摊成表，转成 TSV 再走同一条解析，
+ * 后面分隔符 / 表头 / 类型 / SQL 全都不用另开一条路。
+ *
+ * 只认顶层是数组的三种形状（元素只取一级，嵌套值整体当一个单元格）：
+ *   [{…}, {…}]      对象数组 —— 键做列名，某一行缺的键留空
+ *   [["a","b"],[1,2]] 二维数组 —— 首行全是字符串就当表头
+ *   [1, 2, 3]       标量数组 —— 单列，没有表头
+ * 顶层不是数组（对象、坏 JSON）一律报「数据格式有误」：不去猜 {data:[…]} 该取
+ * 哪个键，猜错了用户连错在哪都看不出来。
+ */
+let dataSqlJsonGuard = false;   // 摊成表这件事自己会触发 change，别递归到自己
+
+function dataSqlJsonToTable(text) {
+    if (!dataSqlStats || typeof dataSqlStats.jsonToRows !== 'function') return null;
+    return dataSqlStats.jsonToRows(text, { maxRows: dataSqlStats.LIMITS.rows });
+}
+
+function dataSqlSetDelimiter(delim) {
+    dataSqlDelimiter = delim || 'auto';
+    if (!dataSqlDelimEl) return;
+    dataSqlDelimEl.querySelectorAll('.compare-tab').forEach((t) => {
+        t.classList.toggle('active', (t.dataset.delim || 'auto') === dataSqlDelimiter);
+    });
+}
+
+function dataSqlSetHeader(on) {
+    // 这里给的是确定答案（键就是列名），别再让自动嗅探把它改回去
+    dataSqlHeaderAuto = false;
+    if (dataSqlHeaderEl) dataSqlHeaderEl.checked = !!on;
+}
+
+// 摊完的表落进数据框：分隔符定死 Tab、首行定死表头，然后切到表格预览看一眼
+function dataSqlApplyJson(res) {
+    dataSqlSetData(dataSqlRowsToTsv(res.rows, res.header));
+    dataSqlSetDelimiter('\t');
+    dataSqlSetHeader(!!(res.header && res.header.length));
+    dataSqlDataChanged();
+    dataSqlSetView('grid');
+}
+
+/*
+ * 数据框里整段是 JSON 数组就摊成表。粘贴进来的场景特别常见（从接口工具里
+ * 复制一段响应），不处理的话整段落在第一列里。
+ * 判据只认「以 [ 开头且整段能解析成数组」：手打到一半、或者别的内容以 [ 开头
+ * 都不成立，不会打断正在输入的人。
+ */
+function dataSqlMaybeJson() {
+    if (dataSqlJsonGuard) return false;
+    const text = dataSqlDataText();
+    if (!text.trim() || text.trim().charAt(0) !== '[') return false;
+    const res = dataSqlJsonToTable(text);
+    if (!res || !res.ok || !res.rows.length) return false;
+    dataSqlJsonGuard = true;
+    try {
+        dataSqlApplyJson(res);
+    } finally {
+        dataSqlJsonGuard = false;
+    }
+    return true;
 }
 
 function dataSqlImportNote(name, size, tone) {
@@ -2876,6 +2955,25 @@ async function dataSqlImportFile(file) {
     if (!text.trim()) {
         dataSqlImportFail('dataSqlImportEmpty', '', name);
         return;
+    }
+    /*
+     * JSON 先看扩展名，再看内容：接口导出常叫 .json，可 .txt / .log / 无扩展名的
+     * 也一样是 JSON 数组，按扩展名拒收等于把人挡在门外。反过来，.json 里装的不是
+     * 数组就得说清楚是格式不对，不能悄悄当分隔符文本塞进去（那样第一列会是
+     * 一整段 JSON，用户根本看不出哪里错了）。
+     */
+    if (/\.json$/i.test(name) || /^\s*\[/.test(text)) {
+        const res = dataSqlJsonToTable(text);
+        if (res && res.ok && res.rows.length) {
+            dataSqlApplyJson(res);
+            dataSqlImportNote(name, file.size);
+            return;
+        }
+        if (/\.json$/i.test(name)) {
+            dataSqlImportFail('dataSqlJsonBad', '数据格式有误：这里只认 JSON 数组', name);
+            return;
+        }
+        // 不是 .json：可能只是恰好以 [ 开头的普通文本，照旧按分隔符处理
     }
     dataSqlSetData(text);
     // 同上：导入只填数据，不自动执行

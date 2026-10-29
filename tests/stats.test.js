@@ -292,5 +292,90 @@ check('不分组时输出没有分组列', () => {
     eq(tsv.split('\n'), ['col\tcount', 'C2\t3']);
 });
 
+/* ---------------- JSON 数组 -> 表格（SQL 分析页的导入用） ---------------- */
+
+check('JSON：对象数组按首次出现的键做列名', () => {
+    const r = S.jsonToRows('[{"region":"华东","orders":12},{"region":"华南","orders":7}]');
+    eq(r.ok, true, 'ok');
+    eq(r.shape, 'objects', 'shape');
+    eq(r.header, ['region', 'orders'], '表头');
+    eq(r.rows, [['华东', '12'], ['华南', '7']], '数据行');
+});
+
+check('JSON：某一行缺的键留空，列数不会错开', () => {
+    const r = S.jsonToRows('[{"a":1,"b":2},{"b":3},{"a":4,"c":5}]');
+    eq(r.header, ['a', 'b', 'c'], '键的并集');
+    eq(r.rows, [['1', '2', ''], ['', '3', ''], ['4', '', '5']], '缺键补空');
+});
+
+check('JSON：只取一级，嵌套值整体当一个单元格', () => {
+    const r = S.jsonToRows('[{"id":1,"user":{"name":"A","vip":true},"tags":["x","y"]}]');
+    eq(r.header, ['id', 'user', 'tags'], '嵌套不摊平');
+    eq(r.rows[0][1], '{"name":"A","vip":true}', '嵌套对象成 JSON 串');
+    eq(r.rows[0][2], '["x","y"]', '嵌套数组成 JSON 串');
+});
+
+check('JSON：null / 布尔 / 小数 / 科学计数都落到单元格里', () => {
+    const r = S.jsonToRows('[{"a":null,"b":true,"c":1.5,"d":1e3}]');
+    eq(r.rows[0], ['', 'true', '1.5', '1000'], '取值');
+    // 1e400 会解析成 Infinity，落进单元格应该是空的（写进去只会污染这一列的类型）
+    eq(S.jsonToRows('[1e400]').rows, [['']], 'Infinity 留空');
+});
+
+check('JSON：二维数组，首行全是字符串就当表头', () => {
+    const r = S.jsonToRows('[["region","orders"],["华东",12],["华南",7]]');
+    eq(r.shape, 'arrays', 'shape');
+    eq(r.header, ['region', 'orders'], '表头取首行');
+    eq(r.rows, [['华东', '12'], ['华南', '7']], '数据行');
+});
+
+check('JSON：二维数组首行不是全字符串就没有表头', () => {
+    const r = S.jsonToRows('[[1,2],[3,4]]');
+    eq(r.header, null, '无表头');
+    eq(r.rows, [['1', '2'], ['3', '4']], '数据行');
+});
+
+check('JSON：数据行比表头宽时多出来的列补 c1 / c2', () => {
+    const r = S.jsonToRows('[["a"],[1,2,3]]');
+    eq(r.header, ['a', 'c2', 'c3'], '表头补齐');
+    eq(r.rows, [['1', '2', '3']], '数据行');
+});
+
+check('JSON：标量数组是单列、没有表头', () => {
+    const r = S.jsonToRows('[1, "two", true, null]');
+    eq(r.shape, 'values', 'shape');
+    eq(r.header, null, '无表头');
+    eq(r.rows, [['1'], ['two'], ['true'], ['']], '一行一个值');
+});
+
+check('JSON：顶层是对象 / 坏 JSON / 空数组都报格式有误', () => {
+    eq(S.jsonToRows('{"data":[{"a":1}]}').ok, false, '对象不认');
+    eq(S.jsonToRows('{"data":[{"a":1}]}').reason, 'not-array', '对象的原因');
+    eq(S.jsonToRows('{"a":1}').ok, false, '纯对象不认');
+    eq(S.jsonToRows('[{"a":1}').ok, false, '坏 JSON 不认');
+    eq(S.jsonToRows('[{"a":1}').reason, 'bad', '坏 JSON 的原因');
+    eq(S.jsonToRows('[]').ok, false, '空数组不认');
+    eq(S.jsonToRows('').ok, false, '空文本不认');
+});
+
+check('JSON：不是数组形状的文本直接回绝，不猜内容', () => {
+    eq(S.jsonToRows('a\tb\n1\t2').ok, false, '分隔符文本不认');
+    eq(S.jsonToRows('{"a":1}\n{"a":2}').ok, false, 'NDJSON 不认（只认数组）');
+});
+
+check('JSON：BOM 与前后空白不影响解析', () => {
+    const r = S.jsonToRows('\uFEFF  [{"a":1}]  ');
+    eq(r.ok, true, 'ok');
+    eq(r.rows, [['1']], '数据行');
+});
+
+check('JSON：行数超上限就截断，count 仍是原始条数', () => {
+    const big = [];
+    for (let i = 0; i < 120; i++) big.push({ a: i });
+    const r = S.jsonToRows(JSON.stringify(big), { maxRows: 10 });
+    eq(r.rows.length, 10, '截断到 10 行');
+    eq(r.count, 120, 'count 是原始条数');
+});
+
 console.log('\n--- stats: ' + pass + '/' + (pass + fail) + ' passed ---');
 if (fail) process.exit(1);
