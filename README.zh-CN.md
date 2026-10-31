@@ -1,6 +1,6 @@
 # 数据转换 (Data Format Converter)
 
-一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties / TOML / INI / `.env` / CSV / TSV / Query / Headers / Cookie / HTML 共 13 种格式互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON、图片 ⇄ Base64、JSON / `CREATE TABLE` 直接生成多语言模型代码，外加 JSONPath / jq 查询、JSON Schema 校验、一组转义工具、字节换算（1000 / 1024 两套进制）、时间戳与日期互转（本地 / UTC / ISO 8601 / 相对时间，批量），以及把 JSON 直接画成 ECharts 图表并导出 PNG / SVG，还有把一张表贴进来直接用 SQL 查（自带离线引擎，中文列名也能补全），以及二维码的生成与识别（批量生成，或把图片解回文本）。每个编辑器里选中一段右键，就能就地编码解码、整理、生成 SQL 或转成二维码图片，结果直接进剪贴板。十四个页面，一个 `Ctrl/⌘ + K` 搜索框就能按中文、英文、近义词、拼音或首字母找到。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
+一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties / TOML / INI / `.env` / CSV / TSV / Query / Headers / Cookie / HTML 共 13 种格式互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON、CSV 源码与表格双栏编辑、图片 ⇄ Base64、JSON / `CREATE TABLE` 直接生成多语言模型代码，外加 JSONPath / jq 查询、JSON Schema 校验、一组转义工具、字节换算（1000 / 1024 两套进制）、时间戳与日期互转（本地 / UTC / ISO 8601 / 相对时间，批量），以及把 JSON 直接画成 ECharts 图表并导出 PNG / SVG，还有把一张表贴进来直接用 SQL 查（自带离线引擎，中文列名也能补全），以及二维码的生成与识别（批量生成，或把图片解回文本）。每个编辑器里选中一段右键，就能就地编码解码、整理、生成 SQL 或转成二维码图片，结果直接进剪贴板。十五个页面，一个 `Ctrl/⌘ + K` 搜索框就能按中文、英文、近义词、拼音或首字母找到。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
 
 ![数据转换工作台](docs/screen.png)
 
@@ -12,6 +12,7 @@
 | **对比** | 按 JSON Pointer 逐字段对比 JSON，或对任意文本逐行对比；左右两栏各有自己的导入按钮 |
 | **SQL 转换** | 粘贴一列值 → `IN` / `NOT IN` / 值列表 / `INSERT`；整段 SQL 片段也能反向拆回干净的值 |
 | **表格转 JSON** | `.xlsx` / `.csv` / `.tsv` → JSON 数组或 SQL `INSERT`，全程在浏览器里解析 |
+| **CSV 编辑** | 左边 CodeMirror 源码、右边可编辑表格，两边互相定位；十万行不卡（分块解析 + 虚拟滚动），单元格行内改或放大弹窗改（CodeMirror）、表头可改、行列增删排序撤销，搜索定位与逐个替换，选中哪格源码里那颗格子就精确高亮，Markdown 页签直接渲染成表格 |
 | **数据统计** | 贴一段分隔符文本 → 计数 / 求和 / 均值 / 最大 / 最小 / 去重数 / 标准差，可再按某一列分组；表头就是勾选框，没勾时自动挑数字列；预览表带原文行号、和编辑器光标双向定位，点单元格即复制，也能只显示想看的几列，大表按批懒加载 |
 | **SQL 分析** | 贴一张表直接用 SQL 查（`SELECT` / `WHERE` / `GROUP BY` / `HAVING` / `ORDER BY` / `LIMIT` + 常用函数），自带的纯 JS 引擎离线跑；中文列名能补全、点预览表头即插列、选中右键即执行、行号边点一下只跑那一条，多条语句逐条跑（单条失败不影响其它），`--` / `//` 注释都认，写过的语句关掉再回来还在，永远不会自己跑；支持导入 `.sql` 与 `.csv` / `.tsv` / `.txt` / `.json` / `.xlsx` |
 | **图片 Base64** | 图片 → DataURI / 纯 Base64 / CSS / HTML / Markdown，Base64（带前缀或裸串）→ 图片；两边都能导入文件，导出能再导回来 |
@@ -64,6 +65,18 @@
 - 大文件不假死：单文件 20 MB / 10 万行上限，预览只画 500 行，序列化分批让出主线程并显示进度，切文件时旧任务作废；导出走宿主 `fileTransfer`，没有宿主才回退浏览器下载。
 
 ![表格转 JSON 页](docs/screen-sheet.png)
+
+## CSV 编辑
+
+- **左边源码、右边表格，说的是同一份数据**：点表格某一行，源码光标落到那条记录上；在源码里挪光标，表格跟着选中同一格——两边互相定位，改哪边都行。
+- **十万行也不卡**：源码解析按 128 KB 分块让出主线程（徽标上直接显示进度百分比），表格只渲染视口内的行（固定 30 px 行高 + 虚拟滚动），5000 行数据 DOM 里只有几十个 `<tr>`；打开上限 22 MB，超了直接提示先拆分。源码超过 512 KB 就不再自动重解析，改完点「解析到表格」。
+- **单元格有三条改法**：双击行内改、`Enter` / `F2` 进编辑、点单元格右上角那枚铅笔开**放大弹窗**（CodeMirror 编辑，带换行的值自动走这条，`⌘/Ctrl + Enter` 保存、`Esc` 取消）；表头双击也能改名。工具栏上是行 / 列增删、按列升 / 降序、撤销重做（撤销记的是操作，不是整表快照）。
+- **选中一格，源码里那颗格子亮起来**：不是把整行染个色——按值回找记录起点、再逐格比对算出这一格的字符区间精确标出，行号槽同时打一道竖条，横向滚到右边也看得见；值对不上时只亮整行，宁可不标也不标错。
+- **搜索定位 + 一个一个替换**：命中计数「3 / 128」、上一个 / 下一个、「只看命中」过滤；「替换」只改当前那一格并自动跳到下一个命中，可以一路按下去，「全部替换」再收尾。
+- **导出与预览**：分隔符 / 引号 / UTF-8 BOM / LF-CRLF 都能改；复制 CSV 与下载 CSV 都在右下角给一句 toast 回执，不再靠工具栏末尾那行小字；Markdown 页签默认把结果**渲染成真表格**（可切回源码），JSON 页签出记录数组。
+- 「示例」收成一个下拉（简单表格 / 订单流水 / 引号与换行），点一下换一份；进页面不预填示例，空着等你自己打开文件或挑一份。
+
+![CSV 编辑页](docs/screen-csv.png)
 
 ## 图片 ⇄ Base64
 
@@ -250,17 +263,17 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## 构建与测试
 
 ```bash
-./scripts/build.sh test         # 全部用例（1318 条）
+./scripts/build.sh test         # 全部用例（1373 条）
 ./scripts/build.sh              # 先跑用例，再打包 dist/*.dbxp
 ./scripts/run.sh                # 等价于 build.sh dev
 
-npm test                        # 纯函数用例，无第三方依赖（1318 条）
-npm install && npm run test:ui  # jsdom 页面接线冒烟（340 项）
+npm test                        # 纯函数用例，无第三方依赖（1373 条）
+npm install && npm run test:ui  # jsdom 页面接线冒烟（366 项）
 
-node scripts/shoot-screens.js   # 重拍 README 那十四张截图，直接写进 docs/
+node scripts/shoot-screens.js   # 重拍 README 那十五张截图，直接写进 docs/
 ```
 
-推送和 PR 由 GitHub Actions 跑同一套：`npm ci` → `npm test`（23 个纯函数套件）→ 页面冒烟 → 清单与内联脚本检查。
+推送和 PR 由 GitHub Actions 跑同一套：`npm ci` → `npm test`（24 个纯函数套件）→ 页面冒烟 → 清单与内联脚本检查。
 
 Windows 下使用 `scripts\build.cmd`（需要 Git Bash）。
 
@@ -291,7 +304,9 @@ ui/js/app/18-flow.js           工作流：拖放路由、批量合并、最近�
 ui/js/app/19-datasql.js        SQL 分析页（编辑器、自研引擎接线、草稿记忆）
 ui/js/app/20-last-feature.js   记住上次用的功能，下次打开恢复
 ui/js/app/21-editor-menu.js    编辑器选区右键菜单：定位、键盘、剪贴板、粘图、二维码
+ui/js/app/22-csv-edit.js       CSV 编辑页（源码 ↔ 表格双向定位、虚拟滚动、高亮、导出）
 ui/js/selectconv.js    选区转换规则 —— 转义 / 整理 / 生成 SQL，纯函数、无 DOM、可单测
+ui/js/csvedit.js       CSV 内核 —— 分块解析 / 序列化 / 编辑操作 / Markdown 渲染，纯函数、可单测
 ui/js/converters.js    转换核心 —— 纯函数、无 DOM 依赖、可单测
 ui/js/objdiff.js       结构化差异 —— 按 JSON Pointer 比较对象树
 ui/js/diff.js          逐行差异 —— 带行号的 ops、超限自动降级

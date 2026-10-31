@@ -1,6 +1,6 @@
 # 数据转换 (Data Format Converter)
 
-A [DBX](https://dbxio.com) plugin that moves data between formats without leaving the workbench: JSON / YAML / XML / Properties conversion, a field-level diff, a batch-value SQL builder, Excel / CSV → JSON, Image ⇄ Base64, JSON / `CREATE TABLE` straight into model code, JSONPath / jq queries with JSON Schema validation, an escape toolbox, byte conversion (1000 and 1024 scales), timestamps and dates in every notation (local / UTC / ISO 8601 / relative, batched), JSON straight into an ECharts chart exported as PNG / SVG, QR codes both ways — batch generation, or decoding pictures back into text — and pasting a table in to query it with SQL (its own offline engine, completion included). Select anything in any editor and right-click to encode, clean up, build SQL or turn it into a QR image — results land on the clipboard. Fourteen pages, one `Ctrl/⌘ + K` search box that finds them by Chinese, English, synonym, pinyin or initials. Built from the **frontend-only (universal)** template — one cross-platform `.dbxp`, no native backend, no network calls, works offline.
+A [DBX](https://dbxio.com) plugin that moves data between formats without leaving the workbench: JSON / YAML / XML / Properties conversion, a field-level diff, a batch-value SQL builder, Excel / CSV → JSON, a CSV editor with a source pane and an editable grid side by side, Image ⇄ Base64, JSON / `CREATE TABLE` straight into model code, JSONPath / jq queries with JSON Schema validation, an escape toolbox, byte conversion (1000 and 1024 scales), timestamps and dates in every notation (local / UTC / ISO 8601 / relative, batched), JSON straight into an ECharts chart exported as PNG / SVG, QR codes both ways — batch generation, or decoding pictures back into text — and pasting a table in to query it with SQL (its own offline engine, completion included). Select anything in any editor and right-click to encode, clean up, build SQL or turn it into a QR image — results land on the clipboard. Fifteen pages, one `Ctrl/⌘ + K` search box that finds them by Chinese, English, synonym, pinyin or initials. Built from the **frontend-only (universal)** template — one cross-platform `.dbxp`, no native backend, no network calls, works offline.
 
 ![Data Format Converter workbench](docs/screen.png)
 
@@ -14,6 +14,7 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 | **Compare** | Field-level JSON diff by JSON Pointer, or a line-level text diff for anything else; each side has its own import button |
 | **SQL** | Paste values → `IN` / `NOT IN` / value list / `INSERT`; pasted SQL fragments parse back into clean values |
 | **Sheet to JSON** | `.xlsx` / `.csv` / `.tsv` → JSON array or SQL `INSERT`, parsed entirely in the browser |
+| **CSV editor** | CodeMirror source on the left, editable grid on the right, both pointing at the same record; 100k rows without freezing (chunked parsing + virtual scrolling), in-cell editing or a CodeMirror popup for long values, editable headers, row/column insert-delete-sort with undo, find & replace one at a time, and the selected cell highlighted exactly in the source with a gutter mark; the Markdown tab renders the result as a real table |
 | **Data stats** | Pasted delimited text → count / sum / mean / max / min / distinct / standard deviation, optionally grouped by another column; the table header doubles as the column picker, numeric columns are picked for you, every preview row carries its source line number with two-way caret syncing; click a cell to copy it, hide the columns you don't need, and big tables lazy-load in batches |
 | **SQL analysis** | Paste a table and query it with SQL (`SELECT` / `WHERE` / `GROUP BY` / `HAVING` / `ORDER BY` / `LIMIT` plus the usual functions) through a plain-JS engine that runs offline; Chinese column names complete as you type, clicking a preview header inserts the column, right-clicking a selection runs it, the triangle in the gutter re-runs just that statement, several statements run one by one with a tab each (one failure never stops the rest), `--` and `//` comments are both understood, the statement you wrote is still there next time, and it never executes on its own; imports `.sql` as well as `.csv` / `.tsv` / `.txt` / `.json` / `.xlsx` |
 | **Image ⇄ Base64** | Image → DataURI / raw Base64 / CSS / HTML / Markdown, and Base64 (prefixed or bare) back into a picture; both sides import files, and exports import back |
@@ -66,6 +67,18 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 - Large files stay responsive: 20 MB / 100k rows caps, 500-row preview, chunked serialisation with a progress bar, and a cancel token so a slow file never overwrites a newer one. Exports go through the host `fileTransfer` channel, falling back to `<a download>`.
 
 ![Sheet to JSON page](docs/screen-sheet.png)
+
+## CSV editor
+
+- **One record, two views**: click a row in the grid and the source cursor lands on that record; move the cursor in the source and the grid selects the same cell. Edit from either side — they can never drift apart.
+- **100k rows stay smooth**: the source is parsed in 128 KB chunks that yield to the main thread (the badge shows a percentage), and the grid only renders rows inside the viewport (fixed 30 px row height + virtual scrolling), so 5000 rows leave a few dozen `<tr>` in the DOM. Files up to 22 MB open; anything larger says "split it first" instead of spinning. Past 512 KB the source stops re-parsing on every keystroke — hit **Parse into table** when you are done.
+- **Three ways to edit a cell**: double-click for in-cell editing, press `Enter` / `F2`, or click the pencil in the cell corner for the **popup editor** (CodeMirror; values containing newlines go there automatically, `⌘/Ctrl + Enter` saves, `Esc` cancels). Headers are editable the same way, and the toolbar carries row/column insert-delete, ascending/descending sort, and undo/redo (undo stores operations, not whole-table snapshots).
+- **Select a cell, the cell lights up in the source**: not a whole-line tint — the record start is located by value, then each field is compared to find the exact character span and marked with `markText`, with a bar in the gutter so it stays visible after scrolling right. When the values cannot be reconciled it highlights only the row: better to mark nothing than to mark the wrong cell.
+- **Find & replace one at a time**: a running hit counter ("3 / 128"), previous/next, and a matches-only filter. **Replace** fixes just the current cell and jumps to the next hit, so you can keep clicking; **Replace all** finishes the job.
+- **Export and preview**: delimiter, quote char, UTF-8 BOM and LF/CRLF are all adjustable. Copy CSV and Download CSV report back with a toast in the bottom-right corner instead of a line of small grey text squeezed at the end of the toolbar. The Markdown tab renders the result as a **real table** by default (switch back to source any time) and the JSON tab emits an array of records.
+- The sample buttons collapsed into one dropdown (simple table / orders / quotes & newlines); the page no longer preloads a sample, so you start empty and pick one yourself.
+
+![CSV editor page](docs/screen-csv.png)
 
 ## Image ⇄ Base64
 
@@ -252,17 +265,17 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## Build & test
 
 ```bash
-./scripts/build.sh test         # all suites (1318 cases)
+./scripts/build.sh test         # all suites (1373 cases)
 ./scripts/build.sh              # run tests, then package dist/*.dbxp
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
-npm test                        # pure-function suites, no dependencies (1318 cases)
-npm install && npm run test:ui  # jsdom smoke test of the UI wiring (340 checks)
+npm test                        # pure-function suites, no dependencies (1373 cases)
+npm install && npm run test:ui  # jsdom smoke test of the UI wiring (366 checks)
 
-node scripts/shoot-screens.js   # re-shoot the fourteen README screenshots into docs/
+node scripts/shoot-screens.js   # re-shoot the fifteen README screenshots into docs/
 ```
 
-Every push and pull request runs the same set on GitHub Actions: `npm ci` → `npm test` (all 23 pure-function suites) → UI smoke → manifest and inline-script checks.
+Every push and pull request runs the same set on GitHub Actions: `npm ci` → `npm test` (all 24 pure-function suites) → UI smoke → manifest and inline-script checks.
 
 On Windows use `scripts\build.cmd` instead (requires Git Bash).
 

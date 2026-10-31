@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // README 截图：1440×900、1x、亮色，逐页装好内容再抓，拍完直接写进 docs/。
 //
-//   node scripts/shoot-screens.js            全部 14 张
+//   node scripts/shoot-screens.js            全部 15 张
 //   node scripts/shoot-screens.js screen-qr  只拍一张（名字见下面 SHOTS）
 //
 // 装内容一律走页面自己的入口（loadTextIntoConvert / putTextIntoPage /
@@ -78,6 +78,15 @@ const QR_LINES = JOIN([
     'https://example.com/items/1004',
     'https://example.com/items/1005',
     'https://example.com/items/1006'
+]);
+
+// CSV 编辑页：插件自带的「订单流水」样例（自造数据），截图里带文件名更像真在用
+const CSV_SAMPLE = JOIN([
+    '订单号,客户,金额,状态',
+    'SO-1001,张三,128.00,已支付',
+    'SO-1002,李四,59.90,待支付',
+    'SO-1003,王五,233.50,已发货',
+    'SO-1004,赵六,18.00,已取消'
 ]);
 
 // 混着中文与 & 才看得出转义前后差别
@@ -235,10 +244,15 @@ const SHOTS = [
         async run(ev) {
             await ev(`handleNavClick(document.getElementById('navDataSql'))`);
             await sleep(500);
-            // 示例自带一句 SQL：左边表格、右边分组结果，一次就摆好
-            await ev(`document.querySelector('#dataSqlSamples .sample-chip[data-sample="orders"]').click()`);
+            // 示例只装数据、不碰 SQL 框（换掉别人正在写的语句不合适），
+            // 所以截图要自己补一句：点「分组汇总」快捷语句，再按「运行」
+            await ev(`document.querySelector('#dataSqlSamples .custom-option[data-sample="orders"]').click()`);
+            await sleep(300);
+            await ev(`document.querySelector('#dataSqlSnippets .sample-chip[data-snippet="group"]').click()`);
+            await sleep(200);
+            await ev(`document.getElementById('dataSqlRun').click()`);
             // 改数据是防抖 220 ms + 异步执行，等它跑完再拍
-            await sleep(1100);
+            await sleep(1400);
         }
     },
     {
@@ -271,6 +285,24 @@ const SHOTS = [
             await sleep(400);
             await ev(`openSheetSample('users')`);
             await sleep(1000);
+        }
+    },
+    {
+        name: 'screen-csv',
+        label: 'CSV 编辑',
+        async run(ev) {
+            await ev(`handleNavClick(document.getElementById('navCsv'))`);
+            await sleep(500);
+            // 进页面不再预填示例，这里用「订单流水」那份样例，带上文件名
+            await ev(`csvLoadText(${JSON.stringify(CSV_SAMPLE)}, 'orders.csv', ${CSV_SAMPLE.length})`);
+            await sleep(900);
+            // 选中一行里的金额格：左边源码会精确高亮那颗格子 + 行号槽竖条
+            await ev(`(() => {
+                const td = document.querySelector('#csvTbody tr.csv-row[data-r="1"] td[data-c="2"]');
+                if (td) td.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                return td ? 'ok' : 'no-cell';
+            })()`);
+            await sleep(600);
         }
     },
     {
