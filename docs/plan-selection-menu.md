@@ -46,7 +46,7 @@
 | | 包引号（单 / 双 / 反引号） | 每行各包一层，`'` 内部成对转义 |
 | | JSON 美化 / JSON 压缩 | 解析不了就置灰，不做「尽力而为」 |
 | SQL | 生成 `IN (…)` / `NOT IN (…)` / `INSERT … VALUES` | 复用 `DBXSql.analyze`，按行拆值、顿号也认；表名用 `your_table` 占位，不跨页取隐式状态 |
-| 二维码 | 复制为二维码图片 | PNG 进剪贴板；失败退存文件 |
+| 二维码 | 复制为二维码图片 / 保存为 PNG 图片 | 能写位图剪贴板时复制，写不了（DBX 宿主）时这一项改名并直接存文件 |
 | | 在「二维码」页打开 | 填进去并切页，批量生成走那一页 |
 | 页内扩展 | 执行所选 / 执行当前语句 / 清空 SQL | **仅**「SQL 分析」页的两个编辑器，见 §6 |
 
@@ -102,6 +102,15 @@
 - **复制**：`DBXQr.matrixOf` → `drawToCanvas` → `canvas.toBlob('image/png')` → `ClipboardItem`；写不进去就用现成的 `qrCopyImage()` 降级链存 PNG 并给出文件名。**这段逻辑直接抽成公共函数**，二维码页与新菜单共用，不再写第二份。
 
 ---
+
+### 5.1 落地后补记：DBX 宿主里只能存不能复制
+
+原方案写的是「`ClipboardItem` 写不进去就退存文件」。实测下来要改口：**DBX 宿主里没有「写进去」这一步**，退存文件不是兜底而是唯一结果，所以菜单项得改名。
+
+- 沙箱是 opaque origin → `navigator.clipboard` 不存在；宿主桥 `dbxPlugin.copy` / `clipboard.writeText` 只吃字符串。
+- 剩下的 `execCommand('copy')` 在本机 WKWebView（macOS 15.8，DBX 同引擎）实测：真实点击下返回 `true`，但系统剪贴板只有 `public.html` / `public.rtf` / 纯文本，**没有** `public.png` / `public.tiff`；沙箱 iframe 里同样如此；没有用户手势则直接 `false`（我们代码里的 `await` 正好会吃掉这枚手势）。
+- 所以改成按能力切文案：`selImageClipSupported()` 为真（浏览器 / 预览）叫「复制为二维码图片」，为假（宿主）叫「保存为 PNG 图片」，二维码页那张卡的按钮同步在「复制图片 / 保存图片」之间切。
+- 想要真复制只有两条路：宿主提供 `writeImage`，或给插件加 sidecar 后端调用系统剪贴板。都超出「纯前端」的范围，没做。
 
 ## 6. 与「SQL 分析」现有右键菜单的关系（**最终实现：不合并，让路**）
 

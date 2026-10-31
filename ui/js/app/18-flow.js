@@ -466,7 +466,7 @@ function qrRenderGrid(opts) {
         const copy = qrEl('button', 'qr-mini', currentDict.copyBtn || '复制');
         copy.type = 'button';
         copy.addEventListener('click', () => { qrCopyText(item.text); });
-        const copyImage = qrEl('button', 'qr-mini', qrT('qrCopyImage', '复制图片'));
+        const copyImage = qrEl('button', 'qr-mini', qrImageCopyLabel());
         copyImage.type = 'button';
         copyImage.addEventListener('click', () => { qrCopyImage(index); });
         foot.appendChild(exportBtn);
@@ -703,6 +703,23 @@ async function qrCopyText(text) {
  * 复制图片到剪贴板。沙箱里 clipboard.write 不一定放行图片，
  * 写不进去就退成「存一张 PNG」——用户点了一次，总得拿到东西。
  */
+function qrImageCopyLabel() {
+    return qrImageCanCopy() ? qrImageLabel('selCopyImage', '复制图片') : qrImageLabel('selSaveImage', '保存图片');
+}
+
+/** 这个环境能不能把图片写进系统剪贴板（DBX 宿主不能：沙箱是 opaque origin，宿主桥只搬文本） */
+function qrImageCanCopy() {
+    if (typeof selImageClipSupported === 'function') return selImageClipSupported();
+    return typeof ClipboardItem !== 'undefined'
+        && !!navigator.clipboard && typeof navigator.clipboard.write === 'function';
+}
+
+function qrImageLabel(key, fallback) {
+    // 文案在 21-editor-menu.js 的 SEL_I18N 里（14 语言），两边用同一套术语
+    if (typeof selT === 'function') return selT(key, fallback);
+    return qrT(key, fallback);
+}
+
 async function qrCopyImage(index) {
     const item = qrItems[index];
     if (!item || !QR) return;
@@ -712,10 +729,14 @@ async function qrCopyImage(index) {
         showToast(currentDict.toastCopyError || '复制失败', 'error');
         return;
     }
-    const blob = await new Promise((resolve) => {
-        if (typeof canvas.toBlob === 'function') canvas.toBlob(resolve, 'image/png');
-        else resolve(null);
-    });
+    // 同步出 PNG（toDataURL 而不是 toBlob）：点到 write 之间不跨任务，
+    // 否则 WKWebView 会把用户手势收走，clipboard.write 直接 NotAllowedError
+    const blob = typeof selCanvasBlobSync === 'function'
+        ? selCanvasBlobSync(canvas)
+        : await new Promise((resolve) => {
+            if (typeof canvas.toBlob === 'function') canvas.toBlob(resolve, 'image/png');
+            else resolve(null);
+        });
     canvas.width = 0;
     canvas.height = 0;
     // 「画布 → PNG → 剪贴板 → 写不进去就存盘」这条降级链在 21-editor-menu.js 里，
@@ -723,7 +744,11 @@ async function qrCopyImage(index) {
     // 迟早会出现「这页存得下来、那页静默失败」的偏差。
     const res = await copyPngToClipboard(blob, qrFileName(index, 'png'));
     if (!res.ok) {
-        showToast(currentDict.toastCopyError || '复制失败', 'error');
+        // 失败原因要说清（宿主不放行 / 开发宿主存不了盘 / 用户取消），别统一「复制失败」
+        const text = typeof selImageFailText === 'function'
+            ? selImageFailText(res.code, res.detail)
+            : (currentDict.toastCopyError || '复制失败');
+        showToast(text, 'error');
         return;
     }
     if (res.via === 'clipboard') {

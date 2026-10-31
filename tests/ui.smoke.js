@@ -4155,6 +4155,51 @@ function check(name, fn) {
         if (value.indexOf('data:image/png;base64,') !== 0) throw new Error('内容: ' + value.slice(0, 60));
     });
 
+    /* ---------------- 二维码项：写不进图片剪贴板就老实改叫「保存」 ---------------- */
+
+    // jsdom 默认没有 ClipboardItem / clipboard.write，等价于 DBX 宿主：
+    // 那一项必须是「保存为 PNG 图片」，点下去真的走 saveBinaryFile，不是假装复制
+    homeCm.setValue('hello');
+    homeCm.setSelection({ line: 0, ch: 0 }, { line: 0, ch: 5 });
+    rightClick(homeCm);
+
+    var qrItem = doc.querySelector('#selMenuList [data-sel-id="qr-copy"]');
+    check('二维码项：环境写不了图片剪贴板时改叫「保存为 PNG 图片」', function () {
+        if (!qrItem) throw new Error('没找到 qr-copy 这一项');
+        if (qrItem.textContent.indexOf('保存') === -1) {
+            throw new Error('文案是「' + qrItem.textContent + '」，应当说明是保存');
+        }
+    });
+
+    var savedName = null;
+    var realSaveBinary = win.saveBinaryFile;
+    win.saveBinaryFile = function (name) {
+        savedName = name;
+        return Promise.resolve('host');
+    };
+    var pngBlob = new win.Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' });
+    var copyRes = await win.copyPngToClipboard(pngBlob, 'selection.png');
+    win.saveBinaryFile = realSaveBinary;
+    check('二维码图片：没有 Clipboard API 时走存盘，并如实回报 via=file', function () {
+        if (!copyRes || copyRes.via !== 'file') throw new Error('结果 ' + JSON.stringify(copyRes));
+        if (savedName !== 'selection.png') throw new Error('存盘文件名: ' + savedName);
+    });
+
+    // 有 ClipboardItem + clipboard.write 时（浏览器 / 预览），名字回到「复制」
+    win.ClipboardItem = function () {};
+    win.navigator.clipboard.write = async function () {};
+    homeCm.setSelection({ line: 0, ch: 0 }, { line: 0, ch: 5 });
+    rightClick(homeCm);
+    var qrItem2 = doc.querySelector('#selMenuList [data-sel-id="qr-copy"]');
+    check('二维码项：能写位图时叫「复制为二维码图片」', function () {
+        if (!qrItem2) throw new Error('没找到 qr-copy 这一项');
+        if (qrItem2.textContent.indexOf('复制') === -1) {
+            throw new Error('文案是「' + qrItem2.textContent + '」');
+        }
+    });
+    delete win.ClipboardItem;
+    win.EditorMenu.hide();
+
     /* ---------------- SQL 分析页的右键菜单保持原样 ---------------- */
 
     doc.getElementById('navDataSql').click();

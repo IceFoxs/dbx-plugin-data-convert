@@ -32,6 +32,8 @@ const SEL_I18N = {
         selEscNewline: '转义换行', selUnescNewline: '还原换行',
         selSqlIn: '生成 IN 列表', selSqlNotIn: '生成 NOT IN 列表', selSqlInsert: '生成 INSERT 语句',
         selQrCopy: '复制为二维码图片', selQrOpen: '在二维码页打开',
+        selCopyImage: '复制图片', selSaveImage: '保存图片',
+        selDevNoSave: '开发宿主不支持保存文件，请用打包后的插件再试',
         selImgB64: 'Base64 纯文本', selImgDataUri: 'Data URI', selImgTag: '<img> 标签',
         selCopied: '{what} · 已复制（{size}）',
         selTooLarge: '内容超过 {n} 字符，请到对应功能页处理',
@@ -42,7 +44,8 @@ const SEL_I18N = {
         selImgTooBig: '图片 {size}，超过 {max} 上限',
         selImgWarn: '图片 {size}，转成 Base64 会更大，继续？',
         selImgInserted: '已插入图片 {w}×{h} · {size}',
-        selQrSaved: '剪贴板不接收图片，已存为 {name}'
+        selQrSaved: '剪贴板不接收图片，已存为 {name}',
+        selQrSaveAs: '保存为 PNG 图片',
     },
     'zh-TW': {
         selHead: '{lines} 列 · {chars} 字元', selNone: '未選取內容',
@@ -58,6 +61,8 @@ const SEL_I18N = {
         selEscNewline: '轉義換行', selUnescNewline: '還原換行',
         selSqlIn: '產生 IN 清單', selSqlNotIn: '產生 NOT IN 清單', selSqlInsert: '產生 INSERT 語句',
         selQrCopy: '複製為 QR 圖片', selQrOpen: '在 QR 頁開啟',
+        selCopyImage: '複製圖片', selSaveImage: '儲存圖片',
+        selDevNoSave: '開發宿主不支援儲存檔案，請用打包後的插件再試',
         selImgB64: 'Base64 純文字', selImgDataUri: 'Data URI', selImgTag: '<img> 標籤',
         selCopied: '{what} · 已複製（{size}）',
         selTooLarge: '內容超過 {n} 字元，請到對應功能頁處理',
@@ -68,7 +73,8 @@ const SEL_I18N = {
         selImgTooBig: '圖片 {size}，超過 {max} 上限',
         selImgWarn: '圖片 {size}，轉成 Base64 會更大，繼續？',
         selImgInserted: '已插入圖片 {w}×{h} · {size}',
-        selQrSaved: '剪貼簿不收圖片，已存為 {name}'
+        selQrSaved: '剪貼簿不收圖片，已存為 {name}',
+        selQrSaveAs: '儲存為 PNG 圖片',
     },
     'en': {
         selHead: '{lines} lines · {chars} chars', selNone: 'Nothing selected',
@@ -84,6 +90,8 @@ const SEL_I18N = {
         selEscNewline: 'Escape newlines', selUnescNewline: 'Restore newlines',
         selSqlIn: 'Build IN list', selSqlNotIn: 'Build NOT IN list', selSqlInsert: 'Build INSERT',
         selQrCopy: 'Copy as QR image', selQrOpen: 'Open in QR page',
+        selCopyImage: 'Copy image', selSaveImage: 'Save image',
+        selDevNoSave: 'The dev host cannot save files — try the packaged plugin',
         selImgB64: 'Plain Base64', selImgDataUri: 'Data URI', selImgTag: '<img> tag',
         selCopied: '{what} · copied ({size})',
         selTooLarge: 'Over {n} characters — use the dedicated page',
@@ -94,7 +102,8 @@ const SEL_I18N = {
         selImgTooBig: 'Image is {size}, over the {max} limit',
         selImgWarn: 'Image is {size}; Base64 will be larger. Continue?',
         selImgInserted: 'Image inserted {w}×{h} · {size}',
-        selQrSaved: 'Clipboard refused the image — saved as {name}'
+        selQrSaved: 'Clipboard refused the image — saved as {name}',
+        selQrSaveAs: 'Save as PNG image',
     },
     'az': {
         selHead: '{lines} sətir · {chars} simvol', selNone: 'Seçim yoxdur',
@@ -110,6 +119,8 @@ const SEL_I18N = {
         selEscNewline: 'Sətir keçidini escaping et', selUnescNewline: 'Sətir keçidini bərpa et',
         selSqlIn: 'IN siyahısı yarat', selSqlNotIn: 'NOT IN siyahısı yarat', selSqlInsert: 'INSERT ifadəsi yarat',
         selQrCopy: 'QR kod kimi kopyala', selQrOpen: 'QR səhifəsində aç',
+        selCopyImage: 'Şəkli kopyala', selSaveImage: 'Şəkli saxla',
+        selDevNoSave: 'Dev host fayl saxlaya bilmir — paketlənmiş plaqini yoxlayın',
         selImgB64: 'Base64 mətni', selImgDataUri: 'Data URI', selImgTag: '<img> teqi',
         selCopied: '{what} · kopyalandı ({size})',
         selTooLarge: 'Mətn {n} simvolu aşır — müvafiq səhifədə işləyin',
@@ -120,7 +131,8 @@ const SEL_I18N = {
         selImgTooBig: 'Şəkil {size} — {max} həddini aşır',
         selImgWarn: 'Şəkil {size} — Base64 daha böyük olacaq, davam edilsin?',
         selImgInserted: 'Şəkil yerləşdirildi {w}×{h} · {size}',
-        selQrSaved: 'Bufer şəkil qəbul etmir — {name} kimi saxlanıldı'
+        selQrSaved: 'Bufer şəkil qəbul etmir — {name} kimi saxlanıldı',
+        selQrSaveAs: 'PNG şəkil kimi saxla',
     },
     'es': {
         selHead: '{lines} líneas · {chars} caracteres', selNone: 'Nada seleccionado',
@@ -136,6 +148,8 @@ const SEL_I18N = {
         selEscNewline: 'Escapar saltos de línea', selUnescNewline: 'Restaurar saltos de línea',
         selSqlIn: 'Generar lista IN', selSqlNotIn: 'Generar lista NOT IN', selSqlInsert: 'Generar INSERT',
         selQrCopy: 'Copiar como imagen QR', selQrOpen: 'Abrir en la página QR',
+        selCopyImage: 'Copiar imagen', selSaveImage: 'Guardar imagen',
+        selDevNoSave: 'El host de desarrollo no puede guardar archivos: prueba el plugin empaquetado',
         selImgB64: 'Base64 puro', selImgDataUri: 'Data URI', selImgTag: 'Etiqueta <img>',
         selCopied: '{what} · copiado ({size})',
         selTooLarge: 'El contenido supera {n} caracteres: usa la página correspondiente',
@@ -146,7 +160,8 @@ const SEL_I18N = {
         selImgTooBig: 'La imagen {size} supera el límite {max}',
         selImgWarn: 'La imagen {size}: Base64 será mayor. ¿Continuar?',
         selImgInserted: 'Imagen insertada {w}×{h} · {size}',
-        selQrSaved: 'El portapapeles no acepta imágenes: guardado como {name}'
+        selQrSaved: 'El portapapeles no acepta imágenes: guardado como {name}',
+        selQrSaveAs: 'Guardar como imagen PNG',
     },
     'id': {
         selHead: '{lines} baris · {chars} karakter', selNone: 'Tidak ada pilihan',
@@ -162,6 +177,8 @@ const SEL_I18N = {
         selEscNewline: 'Escape baris baru', selUnescNewline: 'Kembalikan baris baru',
         selSqlIn: 'Buat daftar IN', selSqlNotIn: 'Buat daftar NOT IN', selSqlInsert: 'Buat INSERT',
         selQrCopy: 'Salin sebagai gambar QR', selQrOpen: 'Buka di halaman QR',
+        selCopyImage: 'Salin gambar', selSaveImage: 'Simpan gambar',
+        selDevNoSave: 'Host dev tidak bisa menyimpan berkas — coba plugin yang sudah dipaketkan',
         selImgB64: 'Base64 murni', selImgDataUri: 'Data URI', selImgTag: 'Tag <img>',
         selCopied: '{what} · disalin ({size})',
         selTooLarge: 'Isi melebihi {n} karakter — pakai halaman fiturnya',
@@ -172,7 +189,8 @@ const SEL_I18N = {
         selImgTooBig: 'Gambar {size} melebihi batas {max}',
         selImgWarn: 'Gambar {size} — Base64 akan lebih besar. Lanjutkan?',
         selImgInserted: 'Gambar disisipkan {w}×{h} · {size}',
-        selQrSaved: 'Clipboard tidak menerima gambar — disimpan sebagai {name}'
+        selQrSaved: 'Clipboard tidak menerima gambar — disimpan sebagai {name}',
+        selQrSaveAs: 'Simpan sebagai gambar PNG',
     },
     'it': {
         selHead: '{lines} righe · {chars} caratteri', selNone: 'Nessuna selezione',
@@ -188,6 +206,8 @@ const SEL_I18N = {
         selEscNewline: 'Codifica gli a capo', selUnescNewline: 'Ripristina gli a capo',
         selSqlIn: 'Genera lista IN', selSqlNotIn: 'Genera lista NOT IN', selSqlInsert: 'Genera INSERT',
         selQrCopy: 'Copia come immagine QR', selQrOpen: 'Apri nella pagina QR',
+        selCopyImage: 'Copia immagine', selSaveImage: 'Salva immagine',
+        selDevNoSave: 'L\'host di sviluppo non salva file: prova il plugin pacchettizzato',
         selImgB64: 'Base64 puro', selImgDataUri: 'Data URI', selImgTag: 'Tag <img>',
         selCopied: '{what} · copiato ({size})',
         selTooLarge: 'Il contenuto supera {n} caratteri: usa la pagina dedicata',
@@ -198,7 +218,8 @@ const SEL_I18N = {
         selImgTooBig: "L'immagine {size} supera il limite {max}",
         selImgWarn: "L'immagine {size}: Base64 sarà più grande. Continuare?",
         selImgInserted: 'Immagine inserita {w}×{h} · {size}',
-        selQrSaved: 'Gli appunti non accettano immagini: salvata come {name}'
+        selQrSaved: 'Gli appunti non accettano immagini: salvata come {name}',
+        selQrSaveAs: 'Salva come immagine PNG',
     },
     'ja': {
         selHead: '{lines} 行 · {chars} 文字', selNone: '選択なし',
@@ -214,6 +235,8 @@ const SEL_I18N = {
         selEscNewline: '改行をエスケープ', selUnescNewline: '改行に戻す',
         selSqlIn: 'IN リストを生成', selSqlNotIn: 'NOT IN リストを生成', selSqlInsert: 'INSERT を生成',
         selQrCopy: 'QR コード画像としてコピー', selQrOpen: 'QR ページで開く',
+        selCopyImage: '画像をコピー', selSaveImage: '画像を保存',
+        selDevNoSave: '開発用ホストはファイルを保存できません。パッケージ版のプラグインで試してください',
         selImgB64: 'Base64 のみ', selImgDataUri: 'Data URI', selImgTag: '<img> タグ',
         selCopied: '{what} · コピーしました（{size}）',
         selTooLarge: '内容が {n} 文字を超えています。専用ページで処理してください',
@@ -224,7 +247,8 @@ const SEL_I18N = {
         selImgTooBig: '画像 {size} は上限 {max} を超えています',
         selImgWarn: '画像 {size}。Base64 はさらに大きくなります。続けますか？',
         selImgInserted: '画像を挿入しました {w}×{h} · {size}',
-        selQrSaved: 'クリップボードが画像を受け付けません。{name} として保存しました'
+        selQrSaved: 'クリップボードが画像を受け付けません。{name} として保存しました',
+        selQrSaveAs: 'PNG 画像として保存',
     },
     'ko': {
         selHead: '{lines}행 · {chars}자', selNone: '선택 없음',
@@ -240,6 +264,8 @@ const SEL_I18N = {
         selEscNewline: '줄바꿈 이스케이프', selUnescNewline: '줄바꿈 복원',
         selSqlIn: 'IN 목록 생성', selSqlNotIn: 'NOT IN 목록 생성', selSqlInsert: 'INSERT 생성',
         selQrCopy: 'QR 코드 이미지로 복사', selQrOpen: 'QR 페이지에서 열기',
+        selCopyImage: '이미지 복사', selSaveImage: '이미지 저장',
+        selDevNoSave: '개발 호스트는 파일을 저장할 수 없습니다. 패키징된 플러그인으로 시도해 보세요',
         selImgB64: 'Base64 원문', selImgDataUri: 'Data URI', selImgTag: '<img> 태그',
         selCopied: '{what} · 복사됨({size})',
         selTooLarge: '내용이 {n}자를 넘습니다. 해당 기능 페이지를 사용하세요',
@@ -250,7 +276,8 @@ const SEL_I18N = {
         selImgTooBig: '이미지 {size} — {max} 한도를 넘습니다',
         selImgWarn: '이미지 {size} — Base64는 더 커집니다. 계속할까요?',
         selImgInserted: '이미지 삽입됨 {w}×{h} · {size}',
-        selQrSaved: '클립보드가 이미지를 받지 않습니다. {name}으로 저장했습니다'
+        selQrSaved: '클립보드가 이미지를 받지 않습니다. {name}으로 저장했습니다',
+        selQrSaveAs: 'PNG 이미지로 저장',
     },
     'pt': {
         selHead: '{lines} linhas · {chars} caracteres', selNone: 'Nada selecionado',
@@ -266,6 +293,8 @@ const SEL_I18N = {
         selEscNewline: 'Escapar quebras de linha', selUnescNewline: 'Restaurar quebras de linha',
         selSqlIn: 'Gerar lista IN', selSqlNotIn: 'Gerar lista NOT IN', selSqlInsert: 'Gerar INSERT',
         selQrCopy: 'Copiar como imagem QR', selQrOpen: 'Abrir na página de QR',
+        selCopyImage: 'Copiar imagem', selSaveImage: 'Salvar imagem',
+        selDevNoSave: 'O host de desenvolvimento não salva arquivos — use o plugin empacotado',
         selImgB64: 'Base64 puro', selImgDataUri: 'Data URI', selImgTag: 'Tag <img>',
         selCopied: '{what} · copiado ({size})',
         selTooLarge: 'O conteúdo passa de {n} caracteres — use a página do recurso',
@@ -276,7 +305,8 @@ const SEL_I18N = {
         selImgTooBig: 'Imagem {size} passa do limite {max}',
         selImgWarn: 'Imagem {size} — o Base64 ficará maior. Continuar?',
         selImgInserted: 'Imagem inserida {w}×{h} · {size}',
-        selQrSaved: 'A área de transferência não aceita imagens — salvo como {name}'
+        selQrSaved: 'A área de transferência não aceita imagens — salvo como {name}',
+        selQrSaveAs: 'Salvar como imagem PNG',
     },
     'pl': {
         selHead: '{lines} wierszy · {chars} znaków', selNone: 'Brak zaznaczenia',
@@ -292,6 +322,8 @@ const SEL_I18N = {
         selEscNewline: 'Zakoduj nowe linie', selUnescNewline: 'Przywróć nowe linie',
         selSqlIn: 'Zbuduj listę IN', selSqlNotIn: 'Zbuduj listę NOT IN', selSqlInsert: 'Zbuduj INSERT',
         selQrCopy: 'Kopiuj jako kod QR', selQrOpen: 'Otwórz na stronie QR',
+        selCopyImage: 'Kopiuj obraz', selSaveImage: 'Zapisz obraz',
+        selDevNoSave: 'Host deweloperski nie zapisuje plików — użyj spakowanego pluginu',
         selImgB64: 'Czysty Base64', selImgDataUri: 'Data URI', selImgTag: 'Znacznik <img>',
         selCopied: '{what} · skopiowano ({size})',
         selTooLarge: 'Treść przekracza {n} znaków — użyj osobnej strony',
@@ -302,7 +334,8 @@ const SEL_I18N = {
         selImgTooBig: 'Obraz {size} przekracza limit {max}',
         selImgWarn: 'Obraz {size} — Base64 będzie większy. Kontynuować?',
         selImgInserted: 'Wstawiono obraz {w}×{h} · {size}',
-        selQrSaved: 'Schowek nie przyjmuje obrazów — zapisano jako {name}'
+        selQrSaved: 'Schowek nie przyjmuje obrazów — zapisano jako {name}',
+        selQrSaveAs: 'Zapisz jako obraz PNG',
     },
     'ru': {
         selHead: '{lines} строк · {chars} символов', selNone: 'Ничего не выделено',
@@ -318,6 +351,8 @@ const SEL_I18N = {
         selEscNewline: 'Экранировать переводы строк', selUnescNewline: 'Вернуть переводы строк',
         selSqlIn: 'Собрать список IN', selSqlNotIn: 'Собрать список NOT IN', selSqlInsert: 'Собрать INSERT',
         selQrCopy: 'Копировать как QR-код', selQrOpen: 'Открыть на странице QR',
+        selCopyImage: 'Копировать изображение', selSaveImage: 'Сохранить изображение',
+        selDevNoSave: 'Хост разработки не сохраняет файлы — используйте собранный плагин',
         selImgB64: 'Чистый Base64', selImgDataUri: 'Data URI', selImgTag: 'Тег <img>',
         selCopied: '{what} · скопировано ({size})',
         selTooLarge: 'Текст больше {n} символов — откройте отдельную страницу',
@@ -328,7 +363,8 @@ const SEL_I18N = {
         selImgTooBig: 'Изображение {size} превышает предел {max}',
         selImgWarn: 'Изображение {size} — Base64 будет больше. Продолжить?',
         selImgInserted: 'Вставлено изображение {w}×{h} · {size}',
-        selQrSaved: 'Буфер не принимает изображения — сохранено как {name}'
+        selQrSaved: 'Буфер не принимает изображения — сохранено как {name}',
+        selQrSaveAs: 'Сохранить как PNG',
     },
     'th': {
         selHead: '{lines} บรรทัด · {chars} ตัวอักษร', selNone: 'ยังไม่ได้เลือก',
@@ -344,6 +380,8 @@ const SEL_I18N = {
         selEscNewline: 'escape ตัวขึ้นบรรทัด', selUnescNewline: 'คืนค่าตัวขึ้นบรรทัด',
         selSqlIn: 'สร้างรายการ IN', selSqlNotIn: 'สร้างรายการ NOT IN', selSqlInsert: 'สร้าง INSERT',
         selQrCopy: 'คัดลอกเป็นภาพ QR', selQrOpen: 'เปิดในหน้า QR',
+        selCopyImage: 'คัดลอกรูป', selSaveImage: 'บันทึกรูป',
+        selDevNoSave: 'โฮสต์สำหรับพัฒนาบันทึกไฟล์ไม่ได้ — ลองใช้ปลั๊กอินที่แพ็กเกจแล้ว',
         selImgB64: 'Base64 ล้วน', selImgDataUri: 'Data URI', selImgTag: 'แท็ก <img>',
         selCopied: '{what} · คัดลอกแล้ว ({size})',
         selTooLarge: 'เนื้อหายาวเกิน {n} ตัวอักษร — ใช้หน้าฟีเจอร์นั้นแทน',
@@ -354,7 +392,8 @@ const SEL_I18N = {
         selImgTooBig: 'รูป {size} เกินขีดจำกัด {max}',
         selImgWarn: 'รูป {size} — Base64 จะใหญ่ขึ้น ดำเนินการต่อ?',
         selImgInserted: 'แทรกรูปแล้ว {w}×{h} · {size}',
-        selQrSaved: 'คลิปบอร์ดไม่รับรูป — บันทึกเป็น {name}'
+        selQrSaved: 'คลิปบอร์ดไม่รับรูป — บันทึกเป็น {name}',
+        selQrSaveAs: 'บันทึกเป็นรูป PNG',
     },
     'tr': {
         selHead: '{lines} satır · {chars} karakter', selNone: 'Seçim yok',
@@ -370,6 +409,8 @@ const SEL_I18N = {
         selEscNewline: 'Satır sonlarını kaçır', selUnescNewline: 'Satır sonlarını geri al',
         selSqlIn: 'IN listesi üret', selSqlNotIn: 'NOT IN listesi üret', selSqlInsert: 'INSERT üret',
         selQrCopy: 'QR kod olarak kopyala', selQrOpen: 'QR sayfasında aç',
+        selCopyImage: 'Görseli kopyala', selSaveImage: 'Görseli kaydet',
+        selDevNoSave: 'Geliştirme ana bilgisayarı dosya kaydedemiyor — paketlenmiş eklentiyi deneyin',
         selImgB64: 'Düz Base64', selImgDataUri: 'Data URI', selImgTag: '<img> etiketi',
         selCopied: '{what} · kopyalandı ({size})',
         selTooLarge: 'Metin {n} karakteri aşıyor — ilgili sayfayı kullanın',
@@ -380,7 +421,8 @@ const SEL_I18N = {
         selImgTooBig: 'Resim {size} — {max} sınırını aşıyor',
         selImgWarn: 'Resim {size} — Base64 daha büyük olacak. Devam?',
         selImgInserted: 'Resim eklendi {w}×{h} · {size}',
-        selQrSaved: 'Pano resim kabul etmiyor — {name} olarak kaydedildi'
+        selQrSaved: 'Pano resim kabul etmiyor — {name} olarak kaydedildi',
+        selQrSaveAs: 'PNG görseli olarak kaydet',
     }
 };
 
@@ -541,7 +583,6 @@ const SEL_LABEL_KEYS = {
     'sql-in': 'selSqlIn',
     'sql-not-in': 'selSqlNotIn',
     'sql-insert': 'selSqlInsert',
-    'qr-copy': 'selQrCopy',
     'qr-open': 'selQrOpen'
 };
 
@@ -551,6 +592,8 @@ function selLabelOf(item) {
     if (item.id === 'copy') return (currentDict && currentDict.copyBtn) || 'Copy';
     if (item.id === 'paste') return (currentDict && currentDict.pasteBtn) || 'Paste';
     if (item.id === 'cut') return selT('selCut');
+    // 同一个位置：宿主能写图片剪贴板就叫「复制」，写不了就老实叫「保存」
+    if (item.id === 'qr-copy') return selT(selImageClipSupported() ? 'selQrCopy' : 'selQrSaveAs');
     const key = SEL_LABEL_KEYS[item.id];
     return key ? selT(key) : item.id;
 }
@@ -1039,35 +1082,124 @@ async function selInsertImage(st, format, source) {
 
 function selCanvasPng(canvas) {
     return new Promise((resolve) => {
-        if (typeof canvas.toBlob !== 'function') { resolve(null); return; }
+        if (typeof canvas.toBlob !== 'function') { resolve(selCanvasBlobSync(canvas)); return; }
         canvas.toBlob((blob) => resolve(blob || null), 'image/png');
     });
 }
 
+function selDataUrlBlob(url) {
+    const text = String(url || '');
+    const at = text.indexOf(',');
+    if (at < 0) return null;
+    try {
+        const bin = atob(text.slice(at + 1));
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new Blob([bytes], { type: 'image/png' });
+    } catch (err) {
+        return null;
+    }
+}
+
 /**
- * 把一张 PNG 送进剪贴板；宿主/浏览器不收就退成存盘。
- * 返回 { ok:true, via:'clipboard' } | { ok:true, via:'file', name } | { ok:false }。
- * 二维码页与右键菜单共用这一条降级链，别再各写一份。
+ * 同步拿到 PNG。
+ *
+ * 为什么不用 `canvas.toBlob()`：它是异步的，回调落在下一个任务里，
+ * 而 WebKit 的「用户手势」到那个任务边界就没了——`navigator.clipboard.write`
+ * 会以 NotAllowedError 拒绝，表现就是「点了复制什么也没发生」。
+ * `toDataURL()` 是同步的，从这里到 write 全程不出这个任务，手势才还在。
  */
-async function copyPngToClipboard(blob, fileName) {
+function selCanvasBlobSync(canvas) {
+    if (!canvas || typeof canvas.toDataURL !== 'function') return null;
+    try {
+        const url = canvas.toDataURL('image/png');
+        if (!url || url.indexOf('data:image/png') !== 0) return null;
+        return selDataUrlBlob(url);
+    } catch (err) {
+        return null;
+    }
+}
+
+/**
+ * 能不能直接把图片写进系统剪贴板。
+ *
+ * 只有标准 Clipboard API 这一条路能写「位图」；宿主桥（dbxPlugin.copy /
+ * clipboard.writeText）参数是字符串，写不了图片。没有它就只能存文件——
+ * 调用方要么把菜单项改名，要么把话说清楚，不能点「复制」却弹出保存框。
+ */
+// 一次失败就记住：有些宿主「API 在但不放行」，不该每点一次都白试一遍，
+// 菜单项名字也要跟着从「复制」变成「保存」
+let selImageClipVerdict = null;   // null 还没试过 / true 能用 / false 用不了
+let selImageClipError = '';       // 最近一次失败的错误名，失败提示里带上
+
+function selImageClipSupported() {
+    if (selImageClipVerdict === false) return false;
+    return typeof ClipboardItem !== 'undefined'
+        && !!navigator.clipboard && typeof navigator.clipboard.write === 'function';
+}
+
+/** 写一张 PNG 进剪贴板；顺带把「这个环境到底能不能写」记下来 */
+async function selWriteImage(blob) {
+    if (!selImageClipSupported()) return { ok: false, error: 'no-api' };
+    try {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        selImageClipVerdict = true;
+        return { ok: true };
+    } catch (err) {
+        selImageClipVerdict = false;
+        selImageClipError = (err && (err.name || err.message)) || 'error';
+        return { ok: false, error: selImageClipError };
+    }
+}
+
+/** 复制 / 存盘失败的原因翻成人话；带 detail 时把错误名缀在后面，省得再猜 */
+function selImageFailText(code, detail) {
+    if (code === 'cancelled') return (currentDict && currentDict.saveCancelled) || 'Export cancelled';
+    if (code === 'sel-dev-no-save') return selT('selDevNoSave');
+    const base = selT('selFail');
+    return detail ? base + ' (' + detail + ')' : base;
+}
+
+function selHostFileTransfer() {
+    return (window.dbxPlugin && window.dbxPlugin.fileTransfer) || null;
+}
+
+/**
+ * 把一张 PNG 送进剪贴板。
+ * 返回 { ok:true, via:'clipboard' } | { ok:true, via:'file', name } | { ok:false, code }。
+ *
+ * 顺序：标准 Clipboard API → 存盘。存盘是「备选」不是「默认」：
+ * opts.saveFallback === false 时直接报 sel-img-clip-unsupported，让调用方把话说明白，
+ * 而不是点「复制」弹出保存框。
+ */
+async function copyPngToClipboard(blob, fileName, opts) {
     if (!blob) return { ok: false, code: 'sel-fail' };
-    const canWrite = typeof ClipboardItem !== 'undefined'
-        && navigator.clipboard && typeof navigator.clipboard.write === 'function';
-    if (canWrite) {
-        try {
-            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-            return { ok: true, via: 'clipboard' };
-        } catch (err) { /* 没有 clipboard-write 权限：退到写文件 */ }
+    const written = await selWriteImage(blob);
+    if (written.ok) return { ok: true, via: 'clipboard' };
+    if (opts && opts.saveFallback === false) {
+        return { ok: false, code: 'sel-img-clip-unsupported', detail: written.error };
     }
     if (typeof saveBinaryFile !== 'function') return { ok: false, code: 'sel-fail' };
     const base64 = await selBlobBase64(blob);
     if (!base64) return { ok: false, code: 'sel-fail' };
     const status = await saveBinaryFile(fileName, base64, 'image/png');
+    // 开发宿主（dbx-plugin dev）没有 fileTransfer，iframe 又没有 allow-downloads，
+    // <a download> 会被静默拦掉。saveBinaryFile 那边只看到「点了链接」，回报 browser——
+    // 照它说「已保存」，就成了「什么都拿到了」的假成功。这里拆开说清楚。
+    if (status === 'browser' && window.dbxPlugin && !selHostFileTransfer()) {
+        return { ok: false, code: 'sel-dev-no-save' };
+    }
     if (status === 'cancelled' || status === 'failed') return { ok: false, code: status };
     return { ok: true, via: 'file', name: fileName };
 }
 
-/** 右键菜单里的「复制为二维码图片」：参数固定（512 / M / 黑白 / 边距 4），结果可预期 */
+/**
+ * 右键菜单里的二维码动作：参数固定（512 / M / 黑白 / 边距 4），结果可预期。
+ *
+ * 写不进图片剪贴板的环境（DBX 宿主就是：沙箱是 opaque origin，navigator.clipboard
+ * 整个不可用，宿主桥只搬文本）就退成「存一张 PNG」。菜单项名字会跟着变，
+ * 叫「保存为 PNG 图片」，点下去真的存文件——不做「点了复制却弹保存框」这种事。
+ */
 async function selQrCopyToClipboard(st) {
     const QR = window.DBXQr;
     if (!QR || typeof qrEnsureGenLib !== 'function') {
@@ -1094,19 +1226,24 @@ async function selQrCopyToClipboard(st) {
         showToast(selT('selFail'), 'error');
         return;
     }
-    const blob = await selCanvasPng(canvas);
+    // 同步出 PNG：从这里到 clipboard.write 不跨任务，用户手势还在
+    const blob = selCanvasBlobSync(canvas);
     canvas.width = 0;
     canvas.height = 0;
     const res = await copyPngToClipboard(blob, 'selection.png');
+    if (st.cm && typeof st.cm.focus === 'function') {
+        try { st.cm.focus(); } catch (err) { /* 编辑器已销毁：无所谓 */ }
+    }
     if (!res.ok) {
-        showToast(selT('selFail'), 'error');
+        showToast(selImageFailText(res.code, res.detail), 'error');
         return;
     }
-    if (res.via === 'clipboard') {
-        showToast(selT('selQrCopy'));
+    if (res.via === 'file') {
+        // 存盘这条路：二维码页用的是同一句提示，术语对齐
+        showToast(selFmt('selQrSaved', { name: res.name }));
         return;
     }
-    showToast(selFmt('selQrSaved', { name: res.name }));
+    showToast(selT('selQrCopy'));
 }
 
 function selOpenQrPage(st) {
