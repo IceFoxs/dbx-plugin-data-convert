@@ -1194,56 +1194,84 @@ async function copyPngToClipboard(blob, fileName, opts) {
 }
 
 /**
- * 右键菜单里的二维码动作：参数固定（512 / M / 黑白 / 边距 4），结果可预期。
+ * 「一张二维码 → PNG → 剪贴板 / 存盘」的唯一实现。
  *
- * 写不进图片剪贴板的环境（DBX 宿主就是：沙箱是 opaque origin，navigator.clipboard
- * 整个不可用，宿主桥只搬文本）就退成「存一张 PNG」。菜单项名字会跟着变，
- * 叫「保存为 PNG 图片」，点下去真的存文件——不做「点了复制却弹保存框」这种事。
+ * 右键菜单和二维码页都调这里。之前两边各写一份，二维码页那份调了个根本不存在的
+ * `qrFileName()`：ReferenceError 落进 async 没人接，于是点「复制图片」既没复制、
+ * 也没存盘，连一句提示都没有——看上去就是「按钮坏了」。一条链路只留一份代码，
+ * 才不会出现「这页能用、那页静默失效」。
+ *
+ * job: { text?, matrix?, opts?, fileName?, cm? }
+ *   text      没有现成 matrix 时用它现生成
+ *   opts      默认 512 / M / 黑白 / 边距 4；二维码页传自己的面板参数（尺寸 / 颜色 / logo）
+ *   fileName  存盘时的文件名
+ *   cm        有编辑器时把焦点还回去
  */
-async function selQrCopyToClipboard(st) {
+async function selQrCopyJob(job) {
+    job = job || {};
     const QR = window.DBXQr;
-    if (!QR || typeof qrEnsureGenLib !== 'function') {
+    if (!QR) {
         showToast(selT('selNoEngine'), 'error');
-        return;
+        return { ok: false, code: 'sel-no-engine' };
     }
-    let lib;
-    try {
-        lib = await qrEnsureGenLib();
-    } catch (err) {
-        showToast(selT('selNoEngine'), 'error');
-        return;
+
+    let matrix = job.matrix || null;
+    if (!matrix) {
+        try {
+            if (typeof qrEnsureGenLib !== 'function') throw new Error('no-lib');
+            const lib = await qrEnsureGenLib();
+            matrix = QR.matrixOf(String(job.text == null ? '' : job.text), 'M', lib);
+        } catch (err) {
+            showToast(selT('selNoEngine'), 'error');
+            return { ok: false, code: 'sel-no-engine' };
+        }
     }
-    let matrix;
-    try {
-        matrix = QR.matrixOf(st.text, 'M', lib);
-    } catch (err) {
-        showToast(selT('selFail'), 'error');
-        return;
-    }
+
+    const opts = Object.assign(
+        { size: 512, margin: 4, ecc: 'M', dark: '#000000', light: '#ffffff' },
+        job.opts || {}
+    );
     const canvas = document.createElement('canvas');
-    const opts = { size: 512, margin: 4, ecc: 'M', dark: '#000000', light: '#ffffff' };
-    if (!QR.drawToCanvas(canvas, matrix, opts)) {
-        showToast(selT('selFail'), 'error');
-        return;
+    let blob = null;
+    try {
+        // 同步出 PNG：从这里到 clipboard.write 不跨任务，用户手势还在
+        if (QR.drawToCanvas(canvas, matrix, opts)) blob = selCanvasBlobSync(canvas);
+        // 带 logo 时画布可能被判成「污染」，toDataURL 直接抛：退一张不带图标的。
+        // 宁可少个 logo，也不能点下去没反应。
+        if (!blob) {
+            canvas.width = 0;
+            canvas.height = 0;
+            const plain = Object.assign({}, opts, { icon: null, iconHref: '' });
+            if (QR.drawToCanvas(canvas, matrix, plain)) blob = selCanvasBlobSync(canvas);
+        }
+    } catch (err) {
+        blob = null;
     }
-    // 同步出 PNG：从这里到 clipboard.write 不跨任务，用户手势还在
-    const blob = selCanvasBlobSync(canvas);
     canvas.width = 0;
     canvas.height = 0;
-    const res = await copyPngToClipboard(blob, 'selection.png');
-    if (st.cm && typeof st.cm.focus === 'function') {
-        try { st.cm.focus(); } catch (err) { /* 编辑器已销毁：无所谓 */ }
+
+    if (job.cm && typeof job.cm.focus === 'function') {
+        try { job.cm.focus(); } catch (err) { /* 编辑器已销毁：无所谓 */ }
+    }
+
+    const res = await copyPngToClipboard(blob, job.fileName || 'qr.png');
+    // 试过一次就知道了：二维码页的按钮名字跟着环境刷一遍
+    if (typeof qrRefreshCopyLabels === 'function') {
+        try { qrRefreshCopyLabels(); } catch (err) { /* 不在二维码页：无所谓 */ }
     }
     if (!res.ok) {
         showToast(selImageFailText(res.code, res.detail), 'error');
-        return;
+        return res;
     }
-    if (res.via === 'file') {
-        // 存盘这条路：二维码页用的是同一句提示，术语对齐
-        showToast(selFmt('selQrSaved', { name: res.name }));
-        return;
-    }
-    showToast(selT('selQrCopy'));
+    // 存盘这条路和复制用同一句术语；写不进图片剪贴板的环境（DBX 宿主就是）
+    // 菜单项名字本身就改叫「保存」，不会出现「点了复制却弹保存框」
+    showToast(res.via === 'file' ? selFmt('selQrSaved', { name: res.name }) : selT('selQrCopy'));
+    return res;
+}
+
+/** 右键菜单里的二维码动作：参数固定（512 / M / 黑白 / 边距 4），结果可预期 */
+function selQrCopyToClipboard(st) {
+    return selQrCopyJob({ text: st.text, cm: st.cm, fileName: 'selection.png' });
 }
 
 function selOpenQrPage(st) {
@@ -1495,6 +1523,12 @@ const EditorMenu = (function () {
     const excludes = window.__selMenuExcludes || [];
     excludes.forEach((cm) => exclude(cm));
     window.__selMenuExcludes = [];
+
+    // 二维码页在本文件之前加载，画卡片时还判定不了「能不能写图片剪贴板」，
+    // 一律显示「保存图片」。这里补刷一遍，让按钮名字和环境一致。
+    if (typeof qrRefreshCopyLabels === 'function') {
+        try { qrRefreshCopyLabels(); } catch (err) { /* 不在二维码页：无所谓 */ }
+    }
 
     return {
         bind: selBind,

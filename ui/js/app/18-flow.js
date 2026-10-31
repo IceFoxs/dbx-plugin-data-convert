@@ -468,7 +468,17 @@ function qrRenderGrid(opts) {
         copy.addEventListener('click', () => { qrCopyText(item.text); });
         const copyImage = qrEl('button', 'qr-mini', qrImageCopyLabel());
         copyImage.type = 'button';
-        copyImage.addEventListener('click', () => { qrCopyImage(index); });
+        copyImage.setAttribute('data-qr-copy-image', '');
+        copyImage.addEventListener('click', () => {
+            const p = qrCopyImage(index);
+            // 兜底：异步里抛出来的错也要落到提示上。之前这里没人接异常，
+            // 表现就是「点了按钮什么都不发生」
+            if (p && typeof p.catch === 'function') {
+                p.catch(() => {
+                    showToast(currentDict.toastCopyError || '复制失败', 'error');
+                });
+            }
+        });
         foot.appendChild(exportBtn);
         foot.appendChild(copy);
         foot.appendChild(copyImage);
@@ -714,48 +724,43 @@ function qrImageCanCopy() {
         && !!navigator.clipboard && typeof navigator.clipboard.write === 'function';
 }
 
+/**
+ * 补刷一遍卡片上的按钮文案。
+ * 本文件在 21-editor-menu.js 之前加载，画卡片时环境判定可能还没就位，
+ * 一律显示「保存图片」；等那边加载完再刷成真正的「复制图片 / 保存图片」。
+ */
+function qrRefreshCopyLabels() {
+    if (!qrGridEl) return;
+    const label = qrImageCopyLabel();
+    qrGridEl.querySelectorAll('[data-qr-copy-image]').forEach((btn) => {
+        btn.textContent = label;
+    });
+}
+
 function qrImageLabel(key, fallback) {
     // 文案在 21-editor-menu.js 的 SEL_I18N 里（14 语言），两边用同一套术语
     if (typeof selT === 'function') return selT(key, fallback);
     return qrT(key, fallback);
 }
 
-async function qrCopyImage(index) {
+/**
+ * 复制 / 保存这张二维码图片。
+ *
+ * 直接走右键菜单那条链路（`selQrCopyJob`）：能写位图剪贴板的环境里就是「复制」，
+ * DBX 宿主里落成一张 PNG。以前这里自己写了一份，还调了个根本不存在的
+ * `qrFileName()`——ReferenceError 掉进 async 里没人接，点下去什么都不会发生，
+ * 连提示都没有。两边共用一份代码，才不会一边正常、一边静默失效。
+ */
+function qrCopyImage(index) {
     const item = qrItems[index];
-    if (!item || !QR) return;
-    const opts = qrOpts();
-    const canvas = document.createElement('canvas');
-    if (!QR.drawToCanvas(canvas, item.matrix, opts)) {
-        showToast(currentDict.toastCopyError || '复制失败', 'error');
-        return;
-    }
-    // 同步出 PNG（toDataURL 而不是 toBlob）：点到 write 之间不跨任务，
-    // 否则 WKWebView 会把用户手势收走，clipboard.write 直接 NotAllowedError
-    const blob = typeof selCanvasBlobSync === 'function'
-        ? selCanvasBlobSync(canvas)
-        : await new Promise((resolve) => {
-            if (typeof canvas.toBlob === 'function') canvas.toBlob(resolve, 'image/png');
-            else resolve(null);
-        });
-    canvas.width = 0;
-    canvas.height = 0;
-    // 「画布 → PNG → 剪贴板 → 写不进去就存盘」这条降级链在 21-editor-menu.js 里，
-    // 右键菜单的「复制为二维码图片」走同一份——两处各写一遍的话，
-    // 迟早会出现「这页存得下来、那页静默失败」的偏差。
-    const res = await copyPngToClipboard(blob, qrFileName(index, 'png'));
-    if (!res.ok) {
-        // 失败原因要说清（宿主不放行 / 开发宿主存不了盘 / 用户取消），别统一「复制失败」
-        const text = typeof selImageFailText === 'function'
-            ? selImageFailText(res.code, res.detail)
-            : (currentDict.toastCopyError || '复制失败');
-        showToast(text, 'error');
-        return;
-    }
-    if (res.via === 'clipboard') {
-        showToast(currentDict.toastCopySuccess || '已复制');
-        return;
-    }
-    saveToast('host', res.name);
+    if (!item || !QR) return Promise.resolve(null);
+    if (typeof selQrCopyJob !== 'function') return Promise.resolve(null);
+    return selQrCopyJob({
+        matrix: item.matrix,
+        // 用页面上的参数（尺寸 / 纠错 / 配色 / logo），不是右键那套固定值
+        opts: qrOpts(),
+        fileName: QR.fileNameFor('', 'png', qrBaseName(index))
+    });
 }
 
 /** 输入行 ↔ 结果卡片互相定位：光标落在哪行，哪张卡片就亮起来 */
