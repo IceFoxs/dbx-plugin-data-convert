@@ -111,6 +111,7 @@
 - 剩下的 `execCommand('copy')` 在本机 WKWebView（macOS 15.8，DBX 同引擎）实测：真实点击下返回 `true`，但系统剪贴板只有 `public.html` / `public.rtf` / 纯文本，**没有** `public.png` / `public.tiff`；沙箱 iframe 里同样如此；没有用户手势则直接 `false`（我们代码里的 `await` 正好会吃掉这枚手势）。
 - 所以改成按能力切文案：`selImageClipSupported()` 为真（浏览器 / 预览）叫「复制为二维码图片」，为假（宿主）叫「保存为 PNG 图片」，二维码页那张卡的按钮同步在「复制图片 / 保存图片」之间切。
 - 想要真复制只有两条路：宿主提供 `writeImage`，或给插件加 sidecar 后端调用系统剪贴板。都超出「纯前端」的范围，没做。
+- **二维码页不再自己写一份**：`qrCopyImage` 直接调菜单那条 `selQrCopyJob(matrix, opts, fileName)`，页面上的尺寸 / 纠错 / 配色 / logo 照旧生效。起因是它此前调了个不存在的 `qrFileName()`，`ReferenceError` 落进 async 没人接，按钮点了毫无反应；右键却能用的那种「一半好一半坏」，正是两份实现带来的。
 
 ## 6. 与「SQL 分析」现有右键菜单的关系（**最终实现：不合并，让路**）
 

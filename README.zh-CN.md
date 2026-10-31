@@ -255,7 +255,7 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ./scripts/run.sh                # 等价于 build.sh dev
 
 npm test                        # 纯函数用例，无第三方依赖（1318 条）
-npm install && npm run test:ui  # jsdom 页面接线冒烟（335 项）
+npm install && npm run test:ui  # jsdom 页面接线冒烟（340 项）
 
 node scripts/shoot-screens.js   # 重拍 README 那十四张截图，直接写进 docs/
 ```

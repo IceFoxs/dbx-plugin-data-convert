@@ -4200,6 +4200,52 @@ function check(name, fn) {
     delete win.ClipboardItem;
     win.EditorMenu.hide();
 
+    /* ---------------- 二维码页卡片上的按钮：点下去必须有结果 ---------------- */
+
+    // 这条用例是被真实 bug 逼出来的：qrCopyImage 里调了个不存在的 qrFileName()，
+    // ReferenceError 掉进 async 里没人接，按钮点了完全没反应、连提示都没有。
+    // 光测右键菜单测不出来——必须点页面上那颗按钮。
+    var canvasProto = win.HTMLCanvasElement.prototype;
+    var realGetContext = canvasProto.getContext;
+    var realToDataURL = canvasProto.toDataURL;
+    canvasProto.getContext = function () {
+        return {
+            fillStyle: '', fillRect: function () {}, clearRect: function () {},
+            drawImage: function () {}, beginPath: function () {}, arc: function () {},
+            fill: function () {}, save: function () {}, restore: function () {},
+            clip: function () {}, getImageData: function () { return { data: [] }; }
+        };
+    };
+    canvasProto.toDataURL = function () { return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg=='; };
+
+    doc.getElementById('navQr').click();
+    await wait(200);
+    qrSetInput('二维码页按钮回归');
+    await wait(500);
+
+    var cardBtn = doc.querySelector('#qrGrid .qr-card [data-qr-copy-image]');
+    check('二维码页卡片上有「复制图片 / 保存图片」按钮', function () {
+        if (!cardBtn) throw new Error('卡片上没找到按钮');
+        if (!/图片/.test(cardBtn.textContent)) throw new Error('按钮文案 ' + cardBtn.textContent);
+    });
+
+    var pageSavedName = null;
+    var realSaveBinary3 = win.saveBinaryFile;
+    win.saveBinaryFile = function (name) {
+        pageSavedName = name;
+        return Promise.resolve('host');
+    };
+    if (cardBtn) cardBtn.click();
+    await wait(500);
+    win.saveBinaryFile = realSaveBinary3;
+    canvasProto.getContext = realGetContext;
+    canvasProto.toDataURL = realToDataURL;
+
+    check('二维码页按钮：点下去真的落成 PNG，不是点了没反应', function () {
+        if (!pageSavedName) throw new Error('没有调用 saveBinaryFile');
+        if (!/\.png$/.test(pageSavedName)) throw new Error('文件名 ' + pageSavedName);
+    });
+
     /* ---------------- SQL 分析页的右键菜单保持原样 ---------------- */
 
     doc.getElementById('navDataSql').click();

@@ -759,6 +759,7 @@ function qrCopyImage(index) {
         matrix: item.matrix,
         // 用页面上的参数（尺寸 / 纠错 / 配色 / logo），不是右键那套固定值
         opts: qrOpts(),
+        // 文件名走 QR.fileNameFor（面板导出用的同一个函数），之前这里写了个不存在的 qrFileName()
         fileName: QR.fileNameFor('', 'png', qrBaseName(index))
     });
 }

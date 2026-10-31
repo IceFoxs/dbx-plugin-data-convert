@@ -257,7 +257,7 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
 npm test                        # pure-function suites, no dependencies (1318 cases)
-npm install && npm run test:ui  # jsdom smoke test of the UI wiring (335 checks)
+npm install && npm run test:ui  # jsdom smoke test of the UI wiring (340 checks)
 
 node scripts/shoot-screens.js   # re-shoot the fourteen README screenshots into docs/
 ```
