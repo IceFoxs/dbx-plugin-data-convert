@@ -3464,10 +3464,10 @@ function check(name, fn) {
     });
 
     navCustomizeBtn.click();
-    check('面板列出全部 15 项，顺序跟导航条一致', function () {
+    check('面板列出全部 14 项，顺序跟导航条一致', function () {
         if (navPanelMask.hidden) throw new Error('面板没打开');
         var rows = panelRows();
-        if (rows.length !== 15) throw new Error('行数 ' + rows.length);
+        if (rows.length !== 14) throw new Error('行数 ' + rows.length);
         if (rows.join(',') !== navIds().join(',')) {
             throw new Error('面板 ' + rows.join(',') + ' / 导航 ' + navIds().join(','));
         }
@@ -3659,7 +3659,7 @@ function check(name, fn) {
         if (navIds()[2] !== 'navFuture') throw new Error('置顶后顺序: ' + navIds().join(','));
         var name = String(win.name || '');
         if (name.indexOf('navFuture') === -1) throw new Error('没写进窗口记忆: ' + name);
-        // 面板行数跟着长到 15（导航 14 项 + 新加的 navFuture）
+        // 面板行数跟着长到 15（导航原有 14 项 + 新加的 navFuture）
         if (panelRows().length !== 15) throw new Error('行数 ' + panelRows().length);
     });
 
