@@ -97,6 +97,46 @@ test('空输入返回空数组', function () {
 test('一行里带空格的短语保持完整', function () {
     assert.deepStrictEqual(S.parseValues('New York\nLos Angeles'), ['New York', 'Los Angeles']);
 });
+test('顿号分隔的一列值', function () {
+    assert.deepStrictEqual(
+        S.parseValues('100000000000000001、100000000000000002、100000000000000003'),
+        ['100000000000000001', '100000000000000002', '100000000000000003']
+    );
+});
+test('顿号结尾 / 顿号后带空格都不产出空值', function () {
+    assert.deepStrictEqual(S.parseValues('甲、乙、丙、'), ['甲', '乙', '丙']);
+    assert.deepStrictEqual(S.parseValues('a、 b、\tc'), ['a', 'b', 'c']);
+});
+test('全角逗号 / 全角分号 / 竖线也算分隔', function () {
+    assert.deepStrictEqual(S.parseValues('1，2；3'), ['1', '2', '3']);
+    assert.deepStrictEqual(S.parseValues('a|b｜c'), ['a', 'b', 'c']);
+});
+test('中文标点混着半角一起用', function () {
+    assert.deepStrictEqual(S.parseValues('a、b, c；d\ne'), ['a', 'b', 'c', 'd', 'e']);
+});
+test('拆完去掉首尾空白：不间断空格 / 全角空格都算', function () {
+    assert.deepStrictEqual(S.parseValues(' a 、\u00a0b、\u3000c '), ['a', 'b', 'c']);
+});
+test('零宽字符不算值的一部分，去重也能合并', function () {
+    assert.deepStrictEqual(S.parseValues('a\u200b、b\ufeff'), ['a', 'b']);
+    var r = S.analyze('a\u200b、 a 、b');
+    assert.strictEqual(r.count, 2);
+    assert.strictEqual(r.duplicates, 1);
+});
+test('值中间的连续空白压成一个，但词间空格保留', function () {
+    assert.deepStrictEqual(S.parseValues('  New   York \n Los Angeles '), ['New York', 'Los Angeles']);
+});
+test('引号里的顿号不被拆开', function () {
+    assert.deepStrictEqual(S.parseValues("'甲、乙'、丙"), ['甲、乙', '丙']);
+    assert.deepStrictEqual(S.parseValues("id IN ('甲、乙','丙')"), ['甲、乙', '丙']);
+});
+test('18 位 ID 一个字符都不丢', function () {
+    var ids = ['100000000000000001', '900719925474099199'];
+    assert.deepStrictEqual(S.parseValues(ids.join('、')), ids);
+    assert.strictEqual(S.generateSql(ids, { template: 'list', multiline: false }), "'" + ids.join("', '") + "'");
+    // 勾了「数字不加引号」也只是去掉引号，不做数字运算（超 Number.MAX_SAFE_INTEGER 也不丢精度）
+    assert.strictEqual(S.generateSql(ids, { template: 'list', multiline: false, numeric: true }), ids.join(', '));
+});
 
 console.log('\n[去重]');
 test('重复值只留第一次出现', function () {

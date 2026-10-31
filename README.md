@@ -49,7 +49,9 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 ## SQL builder
 
 - Paste one value per line (commas, semicolons and tabs work too) and get SQL on the right: `IN (...)`, `NOT IN (...)`, a plain value list, or `INSERT INTO ... VALUES ...;` — single-line or one per line.
-- Quoting is a choice: single quotes, double quotes or none. Numbers are quoted by default (`'31010100003922409'`, because id columns are usually varchar), with a toggle for bare numbers so `int` indexes keep working.
+- **Chinese lists paste straight in**: `、` (ideographic comma), `，` (full-width comma), `；` (full-width semicolon) and `|` all count as separators. A column of ids copied out of Excel or a chat window (`100000000000000001、100000000000000002、…`) becomes one value per line instead of one giant string — the kind of failure that "generates fine" and then matches nothing in the database.
+- **Whitespace is cleaned up after splitting**: each value is trimmed and its zero-width characters (`\u200B`, BOM), non-breaking spaces (what Excel gives you), full-width spaces and repeated blanks are normalised, so duplicates actually collapse (`'a'` and `'a\u200B'` are no longer two values). Ordinary spaces inside a value are kept — `New York` does not become `NewYork`.
+- Quoting is a choice: single quotes, double quotes or none. Numbers are quoted by default (`'31010100003922409'`, because id columns are usually varchar), with a toggle for bare numbers so `int` indexes keep working. Long 18–19 digit ids are handled as text end to end — not a single character is lost.
 - A whole `WHERE id IN ('a','b')` or `INSERT ... VALUES ('a'),('b')` fragment parses back into clean values; paired quotes are unescaped, `O'Brien` is not split, duplicates are dropped and both counts are shown.
 - Generates as you type, `Cmd/Ctrl+Enter` to force it, one-click copy.
 

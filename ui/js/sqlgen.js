@@ -20,6 +20,14 @@
 
     // 引号外的分隔符：逗号、分号、换行、制表符、括号（兼容直接粘 IN (...) / VALUES (...)）
     var DELIMITERS = { ',': 1, ';': 1, '\n': 1, '\r': 1, '\t': 1, '(': 1, ')': 1, '[': 1, ']': 1 };
+    /*
+     * 中文输入法 / 表格里复制出来的一列值，分隔符多半是顿号：
+     *   `100000000000000001、100000000000000002、…`
+     * 全角逗号、全角分号、竖线同理（`1，2`、`a|b`、`x｜y`）。
+     * 只认半角逗号的话，整列会被塞进一个值里，输出成一条超长字符串——
+     * 看起来「生成成功了」，拿去查库一条也匹配不上，比报错更难发现。
+     */
+    var CN_DELIMITERS = { '\u3001': 1, '\uFF0C': 1, '\uFF1B': 1, '|': 1, '\uFF5C': 1 };
     var QUOTES = { "'": 1, '"': 1, '`': 1 };
     var NUMERIC = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?$/;
     var SQL_HEAD = /(?:^|[\s),])(?:not\s+in|in|values)\s*\(/i;
@@ -135,7 +143,7 @@
 
         while (i < src.length) {
             var ch = src.charAt(i);
-            if (DELIMITERS[ch]) {
+            if (DELIMITERS[ch] || CN_DELIMITERS[ch]) {
                 flush();
                 i++;
                 continue;
@@ -159,13 +167,35 @@
 
     /* ---------------------------------------------------------------- parse */
 
+    /*
+     * 拆完之后统一洗一遍值里的空白。
+     * 粘贴来源的空白花样太多：Excel 单元格给的是不间断空格 \u00A0、中文输入法打的
+     * 全角空格 \u3000、聊天窗口复制出来的零宽字符 \u200B、折行带进来的 \n / \t。
+     * 这些都不是值的一部分，留着会一路带到 SQL 里（`'100000000000000001\u200B'`
+     * 肉眼跟正常值一样，查库就是查不到），去重也会把同一个值当成两个。
+     *
+     * 规则：零宽 / 方向控制符直接删；其余空白（含换行、制表符、全角空格、不间断空格）
+     * 压成一个普通空格；再去掉首尾。值中间的普通空格保留——`New York` 不能被粘成
+     * `NewYork`，那才是真的改数据。
+     */
+    var INVISIBLE = /[\u00AD\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g;
+    var SPACES = /[\u0000-\u001F\u007F\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]/g;
+
+    function cleanValue(text) {
+        return String(text == null ? '' : text)
+            .replace(INVISIBLE, '')
+            .replace(SPACES, ' ')
+            .replace(/ {2,}/g, ' ')
+            .replace(/^ +| +$/g, '');
+    }
+
     function parseValues(text) {
         var src = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
         if (!src) return [];
         var tokens = scan(stripSqlHead(src));
         var values = [];
         for (var i = 0; i < tokens.length; i++) {
-            var value = tokens[i].value.trim();
+            var value = cleanValue(tokens[i].value);
             // 空行、多余分隔符直接跳过；但显式写的 '' 是一个值
             if (!value && !tokens[i].quoted) continue;
             values.push(value);
