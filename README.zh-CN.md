@@ -1,6 +1,6 @@
 # 数据转换 (Data Format Converter)
 
-一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties / TOML / INI / `.env` / CSV / TSV / Query / Headers / Cookie / HTML 共 13 种格式互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON、图片 ⇄ Base64、JSON / `CREATE TABLE` 直接生成多语言模型代码，外加 JSONPath / jq 查询、JSON Schema 校验、一组转义工具、字节换算（1000 / 1024 两套进制）、时间戳与日期互转（本地 / UTC / ISO 8601 / 相对时间，批量），以及把 JSON 直接画成 ECharts 图表并导出 PNG / SVG，还有把一张表贴进来直接用 SQL 查（自带离线引擎，中文列名也能补全），以及二维码的生成与识别（批量生成，或把图片解回文本）。十四个页面，一个 `Ctrl/⌘ + K` 搜索框就能按中文、英文、近义词、拼音或首字母找到。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
+一个 [DBX](https://dbxio.com) 插件，把数据在工作台里转来转去：JSON / YAML / XML / Properties / TOML / INI / `.env` / CSV / TSV / Query / Headers / Cookie / HTML 共 13 种格式互转、按字段对比、批量值生成 SQL、Excel / CSV 转 JSON、图片 ⇄ Base64、JSON / `CREATE TABLE` 直接生成多语言模型代码，外加 JSONPath / jq 查询、JSON Schema 校验、一组转义工具、字节换算（1000 / 1024 两套进制）、时间戳与日期互转（本地 / UTC / ISO 8601 / 相对时间，批量），以及把 JSON 直接画成 ECharts 图表并导出 PNG / SVG，还有把一张表贴进来直接用 SQL 查（自带离线引擎，中文列名也能补全），以及二维码的生成与识别（批量生成，或把图片解回文本）。每个编辑器里选中一段右键，就能就地编码解码、整理、生成 SQL 或转成二维码图片，结果直接进剪贴板。十四个页面，一个 `Ctrl/⌘ + K` 搜索框就能按中文、英文、近义词、拼音或首字母找到。采用 **纯前端（通用）** 模板构建——单个跨平台 `.dbxp`，没有原生后端、不联网、可离线运行。
 
 ![数据转换工作台](docs/screen.png)
 
@@ -207,6 +207,20 @@
 - 页面内的投放区与全局入口共用一套判定：图片页的拖拽区先接住图片（页面级处理器先跑，全局处理器看到事件已被处理就让开），拖到窗口别处也只会交给当前这一页，结果一致。
 - 拖放走的是宿主通道：DBX 窗口是 Tauri / WebView，系统文件拖放由宿主先接管，页面里收不到原生 `drop`；插件用 `dbxPlugin.fileTransfer.onDrop` 拿句柄（`handleId`）再按 256 KB 分片读回内容，蒙层跟 `onDragState` 走。直接打开 `index.html` 预览时自动退回浏览器事件，两条路都能拖。
 
+## 编辑器右键菜单
+
+- **任何一个编辑器里选中一段，右键就地处理**：全站十四个页面的输入 / 输出 / 查询框共用一套菜单，不用先复制出去再找工具页。菜单顶上写着这一下作用于什么（`3 行 · 128 字符`），没选中时写「未选中内容」，除了复制 / 粘贴 / 全选，其余一律置灰——避免「只想复制一行，结果把整份文档塞进剪贴板」。
+- **结果只进剪贴板，不改原文**：编码解码、整理、生成 SQL 都是算出结果写剪贴板，编辑器内容一个字符都不动（唯一的例外是「粘贴图片」，它的本意就是插入）。
+- **基础**：复制（有选区复制选区、没选区复制全文）、剪切、粘贴、全选，快捷键提示按平台给 `⌘C` / `Ctrl+C`。
+- **转义**：Base64 / URL / JSON 字符串 / 换行的编解码在主菜单，HTML / `\uXXXX` / Hex / SQL 字面量 / 正则收在「更多转义」里；标签直接复用「转义工具」页的 14 语言术语，不另造一套译名。
+- **整理**：去首尾空白、去所有空白、按行去重、排序、反转、JSON 美化 / 压缩（美化走词法重排，`120101000001417742` 这种 18 位 ID 不会被 `Number` 改掉末位），再加「更多整理」里的数值排序、加行号（宽度按总行数补零）、大小写，以及「拼接成一行」（逗号 / 顿号 / 空格）和「包引号」（单 / 双 / 反引号，内部同种引号成对转义）。
+- **生成 SQL**：选中的一列值直接出 `IN (…)` / `NOT IN (…)` / `INSERT INTO … VALUES …`，表名用 `your_table` 占位；分隔规则与「SQL 转换」页同一套（顿号、全角逗号、竖线都认），默认去重。
+- **二维码**：选中内容直接复制成 512×512 的 PNG（M 级纠错、纯黑白、边距 4，参数固定，结果可预期）；单张放不下时按纠错级别的字节上限置灰，改用二维码页批量生成。剪贴板不收图片就退成存一张 PNG，并告诉你文件名。
+- **粘贴图片**：剪贴板里的图直接变成 Base64 纯文本 / Data URI / `<img>` 标签插到光标处（有选区就替换选区）。取图按可靠性排队：标准 `clipboard.read()` → 宿主 `clipboard.readImage()` → `paste` 事件兜底；前两条被环境拒了会明说「请按 ⌘V」，不会点了没反应。2 MB 以上先问一次，10 MB 以上直接拒绝。
+- **键盘能用**：`↑↓` 移动（自动跳过分隔线与置灰项）、`→` 展开子菜单、`←` 收起、`Enter` 执行、`Esc` 关闭；菜单打开期间按键不会被 CodeMirror 抢走。菜单贴指针弹出并按视口收边，子菜单右侧放不下自动翻到左边。
+- **长菜单也能滚**：主菜单限高、超出内部滚动（滚动条隐藏，滚轮与方向键都行），在菜单里滚动不会把菜单关掉；滚页面 / 改窗口 / 点到别处才收起。
+- **「SQL 分析」页保持自己的菜单**：那一页的「执行所选 / 执行当前语句 / 清空 SQL」是页内专属的，通用菜单会主动让路（`EditorMenu.exclude`），右键行为与以前完全一致。
+
 ## 通用
 
 - **国际化**——14 种语言：zh-CN、zh-TW、en、ja、ko、es、id、it、pl、pt、ru、th、tr、az。切换器里列出前三种，其余随宿主 locale 自动匹配；十四个页面（格式转换、对比、SQL、表格、数据统计、SQL 分析、图片、代码生成、查询校验、转义工具、字节转换、时间转换、图表、二维码）的文案都已覆盖全部 14 种，连 20 条 Schema 校验错误也有译文，缺一条会退回英文而不是中文。
@@ -236,17 +250,17 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## 构建与测试
 
 ```bash
-./scripts/build.sh test         # 全部用例（976 条）
+./scripts/build.sh test         # 全部用例（1318 条）
 ./scripts/build.sh              # 先跑用例，再打包 dist/*.dbxp
 ./scripts/run.sh                # 等价于 build.sh dev
 
-npm test                        # 纯函数用例，无第三方依赖（976 条）
-npm install && npm run test:ui  # jsdom 页面接线冒烟（323 项）
+npm test                        # 纯函数用例，无第三方依赖（1318 条）
+npm install && npm run test:ui  # jsdom 页面接线冒烟（335 项）
 
 node scripts/shoot-screens.js   # 重拍 README 那十四张截图，直接写进 docs/
 ```
 
-推送和 PR 由 GitHub Actions 跑同一套：`npm ci` → `npm test`（20 个纯函数套件）→ 页面冒烟 → 清单与内联脚本检查。
+推送和 PR 由 GitHub Actions 跑同一套：`npm ci` → `npm test`（23 个纯函数套件）→ 页面冒烟 → 清单与内联脚本检查。
 
 Windows 下使用 `scripts\build.cmd`（需要 Git Bash）。
 
@@ -276,6 +290,8 @@ ui/js/app/17-stats.js          数据统计页
 ui/js/app/18-flow.js           工作流：拖放路由、批量合并、最近使用
 ui/js/app/19-datasql.js        SQL 分析页（编辑器、自研引擎接线、草稿记忆）
 ui/js/app/20-last-feature.js   记住上次用的功能，下次打开恢复
+ui/js/app/21-editor-menu.js    编辑器选区右键菜单：定位、键盘、剪贴板、粘图、二维码
+ui/js/selectconv.js    选区转换规则 —— 转义 / 整理 / 生成 SQL，纯函数、无 DOM、可单测
 ui/js/converters.js    转换核心 —— 纯函数、无 DOM 依赖、可单测
 ui/js/objdiff.js       结构化差异 —— 按 JSON Pointer 比较对象树
 ui/js/diff.js          逐行差异 —— 带行号的 ops、超限自动降级

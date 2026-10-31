@@ -32,6 +32,7 @@ run_tests() {
     node "$ROOT/tests/stats.test.js"
     node "$ROOT/tests/sqlrun.test.js"
     node "$ROOT/tests/qr.test.js"
+    node "$ROOT/tests/selectconv.test.js"
     node "$ROOT/tests/flow.test.js"
     node "$ROOT/tests/i18n.test.js"
     node "$ROOT/tests/assets.test.js"

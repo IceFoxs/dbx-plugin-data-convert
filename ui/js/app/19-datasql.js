@@ -3700,6 +3700,16 @@ function dataSqlCtxShow(x, y) {
 function dataSqlBindCtxMenu(el) {
     if (!el || el.__dataSqlCtxBound) return;
     el.__dataSqlCtxBound = true;
+    // 全站通用的选区菜单（21-editor-menu.js）会接管所有 .CodeMirror 的右键。
+    // 这一页有自己的菜单，先把它登记成「别接管」，否则两套会抢同一个右键。
+    const cm = el.CodeMirror || null;
+    if (cm) {
+        if (window.EditorMenu && typeof window.EditorMenu.exclude === 'function') {
+            window.EditorMenu.exclude(cm);
+        } else {
+            (window.__selMenuExcludes = window.__selMenuExcludes || []).push(cm);
+        }
+    }
     el.addEventListener('contextmenu', (e) => {
         // 编辑器里右键一律用自己的菜单（原生菜单在宿主里也是被屏蔽的）
         e.preventDefault();

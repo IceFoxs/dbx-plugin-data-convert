@@ -1,6 +1,6 @@
 # 数据转换 (Data Format Converter)
 
-A [DBX](https://dbxio.com) plugin that moves data between formats without leaving the workbench: JSON / YAML / XML / Properties conversion, a field-level diff, a batch-value SQL builder, Excel / CSV → JSON, Image ⇄ Base64, JSON / `CREATE TABLE` straight into model code, JSONPath / jq queries with JSON Schema validation, an escape toolbox, byte conversion (1000 and 1024 scales), timestamps and dates in every notation (local / UTC / ISO 8601 / relative, batched), JSON straight into an ECharts chart exported as PNG / SVG, QR codes both ways — batch generation, or decoding pictures back into text — and pasting a table in to query it with SQL (its own offline engine, completion included). Fourteen pages, one `Ctrl/⌘ + K` search box that finds them by Chinese, English, synonym, pinyin or initials. Built from the **frontend-only (universal)** template — one cross-platform `.dbxp`, no native backend, no network calls, works offline.
+A [DBX](https://dbxio.com) plugin that moves data between formats without leaving the workbench: JSON / YAML / XML / Properties conversion, a field-level diff, a batch-value SQL builder, Excel / CSV → JSON, Image ⇄ Base64, JSON / `CREATE TABLE` straight into model code, JSONPath / jq queries with JSON Schema validation, an escape toolbox, byte conversion (1000 and 1024 scales), timestamps and dates in every notation (local / UTC / ISO 8601 / relative, batched), JSON straight into an ECharts chart exported as PNG / SVG, QR codes both ways — batch generation, or decoding pictures back into text — and pasting a table in to query it with SQL (its own offline engine, completion included). Select anything in any editor and right-click to encode, clean up, build SQL or turn it into a QR image — results land on the clipboard. Fourteen pages, one `Ctrl/⌘ + K` search box that finds them by Chinese, English, synonym, pinyin or initials. Built from the **frontend-only (universal)** template — one cross-platform `.dbxp`, no native backend, no network calls, works offline.
 
 ![Data Format Converter workbench](docs/screen.png)
 
@@ -209,6 +209,20 @@ A [DBX](https://dbxio.com) plugin that moves data between formats without leavin
 - A page's own drop zone and the window-wide entry share one rule: the Image page's zone catches the image first (page-level handlers run before the global one, which steps aside when the event was already handled), and dropping anywhere else still hands the file to the current page — same outcome either way.
 - Drops go through the host channel: the DBX window is a Tauri / WebView host, which takes system file drops before the page ever sees a native `drop` event. The plugin uses `dbxPlugin.fileTransfer.onDrop` to get a `handleId`, reads the content back in 256 KB chunks, and drives the overlay from `onDragState`. Opening `index.html` directly falls back to browser events, so both paths work.
 
+## Editor selection menu
+
+- **Select something in any editor, right-click, done** — all fourteen pages share one menu, so you no longer copy text out and hunt for the tool page. The header says what the action applies to (`3 lines · 128 chars`), or "Nothing selected" — in which case everything except Copy / Paste / Select all is greyed out, so "copy one line" can never quietly copy the whole document.
+- **Results go to the clipboard, never into your text** — encode / decode, cleanup and SQL generation all compute a result and write it to the clipboard; not one character of the editor changes. The single exception is Paste image, whose whole point is insertion.
+- **Basics** — copy (selection, or the whole document when nothing is selected), cut, paste, select all, with `⌘C` / `Ctrl+C` hints that match the platform.
+- **Escapes** — Base64 / URL / JSON string / newline encode & decode on the main menu; HTML / `\uXXXX` / Hex / SQL literal / regex under "More escapes". Labels reuse the Escape toolbox's own terminology in all 14 languages instead of inventing a second set of names.
+- **Cleanups** — trim each line, strip all whitespace, remove duplicate lines, sort, reverse, JSON pretty-print / minify (pretty-printing reflows tokens, so an 18-digit id like `120101000001417742` never gets its last digit rewritten by `Number`), plus "More cleanups": numeric sort, line numbers (zero-padded to the widest number), upper / lower / title case, "Join into one line" (comma / ideographic comma / space) and "Wrap in quotes" (single / double / backtick, with the same quote doubled inside).
+- **Build SQL** — a selected column of values becomes `IN (…)` / `NOT IN (…)` / `INSERT INTO … VALUES …`, with `your_table` as the placeholder table; the split rules are the same ones the SQL builder page uses (ideographic comma, full-width comma and pipes all count), and duplicates are removed by default.
+- **QR code** — copy the selection as a 512×512 PNG (error correction M, pure black on white, margin 4 — fixed on purpose so the result is predictable). Content beyond one symbol's capacity is greyed out per error-correction level, with the QR page for batch generation. If the clipboard refuses images it falls back to saving a PNG and tells you the file name.
+- **Paste image** — an image on the clipboard becomes plain Base64 / a Data URI / an `<img>` tag at the cursor (replacing the selection when there is one). The image is fetched in order of reliability: standard `clipboard.read()` → host `clipboard.readImage()` → a `paste` event as the last resort; if the first two are refused the menu says "press ⌘V" instead of silently doing nothing. Above 2 MB it asks first, above 10 MB it refuses.
+- **Keyboard works** — `↑↓` move (skipping separators and disabled items), `→` opens a submenu, `←` closes it, `Enter` runs, `Esc` dismisses, and keys pressed while the menu is open never reach CodeMirror. The menu opens at the pointer and is nudged back inside the viewport; a submenu that does not fit on the right flips to the left.
+- **Long menus still scroll** — the main menu is height-capped and scrolls internally (scrollbar hidden; wheel and arrow keys both work), and scrolling inside the menu never dismisses it. Scrolling the page, resizing or clicking elsewhere does.
+- **The SQL analysis page keeps its own menu** — its "Run selected / Run current statement / Clear SQL" are page-specific, so the shared menu steps aside (`EditorMenu.exclude`) and right-clicking there behaves exactly as before.
+
 ## Everywhere
 
 - **Internationalization** — 14 languages: zh-CN, zh-TW, en, ja, ko, es, id, it, pl, pt, ru, th, tr, az. Every page (convert, compare, SQL, sheet, data stats, SQL analysis, image, code gen, query, escape, bytes, time, chart, QR code) is translated into all 14, including the 20 schema-validation messages.
@@ -238,17 +252,17 @@ git clone <repo-url> && cd dbx-plugin-data-convert
 ## Build & test
 
 ```bash
-./scripts/build.sh test         # all suites (976 cases)
+./scripts/build.sh test         # all suites (1318 cases)
 ./scripts/build.sh              # run tests, then package dist/*.dbxp
 ./scripts/run.sh                # shorthand for `build.sh dev`
 
-npm test                        # pure-function suites, no dependencies (976 cases)
-npm install && npm run test:ui  # jsdom smoke test of the UI wiring (323 checks)
+npm test                        # pure-function suites, no dependencies (1318 cases)
+npm install && npm run test:ui  # jsdom smoke test of the UI wiring (335 checks)
 
 node scripts/shoot-screens.js   # re-shoot the fourteen README screenshots into docs/
 ```
 
-Every push and pull request runs the same set on GitHub Actions: `npm ci` → `npm test` (all 20 pure-function suites) → UI smoke → manifest and inline-script checks.
+Every push and pull request runs the same set on GitHub Actions: `npm ci` → `npm test` (all 23 pure-function suites) → UI smoke → manifest and inline-script checks.
 
 On Windows use `scripts\build.cmd` instead (requires Git Bash).
 
@@ -278,6 +292,8 @@ ui/js/app/17-stats.js          data stats page
 ui/js/app/18-flow.js           workflow: drop routing, batch merge, recent list
 ui/js/app/19-datasql.js        SQL analysis page (editor, engine wiring, draft memory)
 ui/js/app/20-last-feature.js   remembers the last feature and restores it on launch
+ui/js/app/21-editor-menu.js    editor selection menu: placement, keys, clipboard, images, QR
+ui/js/selectconv.js    selection conversions — escapes / cleanups / SQL, pure functions, no DOM
 ui/js/converters.js    conversion core — pure functions, no DOM, unit tested
 ui/js/objdiff.js       structured diff — compares object trees by JSON Pointer
 ui/js/diff.js          line diff — ops carry line numbers, degrades on huge input

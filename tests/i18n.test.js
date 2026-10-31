@@ -86,7 +86,8 @@ var tables = {
     QR_I18N: readLiteral(html, 'QR_I18N'),
     STATS_I18N: readLiteral(html, 'STATS_I18N'),
     FLOW_I18N: readLiteral(html, 'FLOW_I18N'),
-    DATASQL_I18N: readLiteral(html, 'DATASQL_I18N')
+    DATASQL_I18N: readLiteral(html, 'DATASQL_I18N'),
+    SEL_I18N: readLiteral(html, 'SEL_I18N')
 };
 
 var langCodes = languageConfigs.map(function (l) { return l.code; });

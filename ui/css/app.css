@@ -4238,8 +4238,112 @@ li.CodeMirror-hint-active .datasql-hint-kind { opacity: 0.85; }
     border-color: #fca5a5;
 }
 
-/* SQL 编辑器右键菜单：fixed 挂 body 下，不会被 pane 的 overflow 裁掉；
-   display:flex 会把 [hidden] 的 display:none 压掉，必须自己补一条 */
+/* 编辑器选区右键菜单：fixed 挂 body 下，不会被 pane 的 overflow 裁掉；
+   display:flex 会把 [hidden] 的 display:none 压掉，必须自己补一条。
+   列表区单独滚动：30 来项在主菜单里放不下小屏，但标题和「关闭」不该跟着滚。 */
+.sel-menu {
+    position: fixed;
+    z-index: 80;
+    min-width: 13.5rem;
+    max-width: 20rem;
+    display: flex;
+    flex-direction: column;
+    padding: 0.3rem;
+    background-color: var(--surface, #fff);
+    border: 1px solid var(--border-light, #e4e4e7);
+    border-radius: var(--radius-md, 0.5rem);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+.sel-menu[hidden] { display: none; }
+.sel-menu-head {
+    padding: 0.15rem 0.55rem 0.35rem;
+    margin-bottom: 0.25rem;
+    font-size: 0.7rem;
+    color: var(--text-muted, #71717a);
+    border-bottom: 1px solid var(--border-light, #e4e4e7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sel-menu-list {
+    display: flex;
+    flex-direction: column;
+    max-height: min(70vh, 32rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* 菜单里不画滚动条：30 来项时右侧会多出一条灰槽，跟右键菜单的气质不搭。
+       滚轮 / 方向键照样能滚，只是不显示条。 */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.sel-menu-list::-webkit-scrollbar { width: 0; height: 0; }
+.sel-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.36rem 0.55rem;
+    font-size: 0.8125rem;
+    color: var(--text-main, #09090b);
+    background: none;
+    border: 0;
+    border-radius: calc(var(--radius-md, 0.5rem) - 2px);
+    cursor: pointer;
+    white-space: nowrap;
+    text-align: left;
+    outline: none;
+}
+.sel-menu-item.is-active,
+.sel-menu-item:hover:not(.is-disabled) { background-color: var(--accent-bg, #f4f4f5); }
+.sel-menu-item.is-disabled {
+    color: var(--text-muted, #71717a);
+    opacity: 0.5;
+    cursor: default;
+}
+.sel-menu-item .sel-label {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sel-menu-item .sel-kbd {
+    flex: 0 0 auto;
+    font-size: 0.68rem;
+    color: var(--text-muted, #71717a);
+    font-variant-numeric: tabular-nums;
+}
+.sel-menu-item .sel-arrow {
+    flex: 0 0 auto;
+    font-size: 0.7rem;
+    color: var(--text-muted, #71717a);
+}
+.sel-menu-sep {
+    height: 1px;
+    margin: 0.25rem 0.2rem;
+    background-color: var(--border-light, #e4e4e7);
+}
+/* 二级面板：贴在主菜单右侧，右侧放不下时由 JS 翻到左边 */
+.sel-menu-sub {
+    position: absolute;
+    left: calc(100% - 6px);
+    min-width: 12.5rem;
+    max-width: 20rem;
+    max-height: min(60vh, 26rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    padding: 0.3rem;
+    background-color: var(--surface, #fff);
+    border: 1px solid var(--border-light, #e4e4e7);
+    border-radius: var(--radius-md, 0.5rem);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.sel-menu-sub::-webkit-scrollbar { width: 0; height: 0; }
+.sel-menu-sub[hidden] { display: none; }
+.sel-menu-sub.is-flipped { left: auto; right: calc(100% - 6px); }
+
+/* SQL 分析页自己的右键菜单（它不走通用选区菜单，见 EditorMenu.exclude） */
 .datasql-ctx {
     position: fixed;
     z-index: 70;

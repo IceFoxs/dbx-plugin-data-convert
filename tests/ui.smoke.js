@@ -4056,6 +4056,123 @@ function check(name, fn) {
         if (toRows('a\tb\n1\t2').ok) throw new Error('分隔符文本不该被当 JSON');
     });
 
+    /* ---------------- 编辑器选区右键菜单（全站共用一套） ---------------- */
+
+    var homeCm = doc.querySelector('#mainWorkspace .CodeMirror').CodeMirror;
+    var homeWrap = homeCm.getWrapperElement();
+    var selMenuEl = doc.getElementById('selMenu');
+
+    function rightClick(cm) {
+        var wrap = cm.getWrapperElement();
+        wrap.dispatchEvent(new win.MouseEvent('mousedown', { bubbles: true, button: 2, clientX: 40, clientY: 60 }));
+        wrap.dispatchEvent(new win.MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 }));
+        return wrap;
+    }
+
+    homeCm.setValue('alpha\nbeta\nbeta');
+    homeCm.setSelection({ line: 0, ch: 0 }, { line: 2, ch: 4 });
+    rightClick(homeCm);
+
+    check('编辑器里右键弹出统一菜单，标题报选中行数', function () {
+        if (selMenuEl.hidden) throw new Error('菜单没出现');
+        var head = doc.getElementById('selMenuHead').textContent;
+        if (head.indexOf('3 行') === -1) throw new Error('标题: ' + head);
+    });
+
+    check('菜单按基础 / 转义 / 整理 / SQL / 二维码分组', function () {
+        var ids = Array.prototype.map.call(
+            doc.querySelectorAll('#selMenuList [data-sel-id]'),
+            function (el) { return el.dataset.selId; }
+        );
+        ['copy', 'cut', 'paste', 'select-all', 'esc-base64-encode', 'tidy-dedupe', 'sql-in', 'qr-copy']
+            .forEach(function (id) {
+                if (ids.indexOf(id) === -1) throw new Error('缺 ' + id + '：' + ids.join(','));
+            });
+        if (doc.querySelectorAll('#selMenuList .sel-menu-sep').length < 3) {
+            throw new Error('分组分隔线不够');
+        }
+    });
+
+    check('在菜单里滚动不会把菜单关掉（否则滚轮像点了没反应）', function () {
+        doc.getElementById('selMenuList').dispatchEvent(new win.Event('scroll'));
+        if (selMenuEl.hidden) throw new Error('菜单被自己的滚动关掉了');
+    });
+
+    check('滚页面仍然收起菜单', function () {
+        (doc.scrollingElement || doc.documentElement).dispatchEvent(new win.Event('scroll'));
+        if (!selMenuEl.hidden) throw new Error('滚页面时菜单没关');
+    });
+
+    rightClick(homeCm);
+    doc.querySelector('#selMenuList [data-sel-id="esc-base64-encode"]').click();
+    await wait(120);
+
+    check('点「Base64 编码」把结果写进剪贴板', function () {
+        var want = win.DBXEscape.convert('alpha\nbeta\nbeta', 'base64', 'encode').text;
+        var got = win.__clip[win.__clip.length - 1];
+        if (got !== want) throw new Error('剪贴板: ' + got);
+    });
+
+    check('转换只写剪贴板，不动编辑器内容', function () {
+        if (homeCm.getValue() !== 'alpha\nbeta\nbeta') throw new Error('内容被改了: ' + homeCm.getValue());
+    });
+
+    homeCm.setCursor({ line: 0, ch: 0 });
+    rightClick(homeCm);
+
+    check('没选中内容时转换项置灰，复制仍可用', function () {
+        if (!doc.querySelector('#selMenuList [data-sel-id="esc-base64-encode"]').classList.contains('is-disabled')) {
+            throw new Error('转换项没置灰');
+        }
+        if (doc.querySelector('#selMenuList [data-sel-id="copy"]').classList.contains('is-disabled')) {
+            throw new Error('复制不该置灰');
+        }
+        if (doc.getElementById('selMenuHead').textContent.indexOf('未选中') === -1) {
+            throw new Error('标题: ' + doc.getElementById('selMenuHead').textContent);
+        }
+    });
+
+    // ⌘V 粘图片：宿主 WebView 里唯一稳的一条路，走 paste 事件
+    win.EditorMenu.hide();
+    homeCm.setValue('X');
+    homeCm.setSelection({ line: 0, ch: 0 }, { line: 0, ch: 1 });
+    var pasteEvent = new win.Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(pasteEvent, 'clipboardData', {
+        value: {
+            items: [{
+                type: 'image/png',
+                getAsFile: function () {
+                    return new win.File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], 'p.png', { type: 'image/png' });
+                }
+            }]
+        }
+    });
+    homeWrap.dispatchEvent(pasteEvent);
+    await wait(250);
+
+    check('⌘V 粘图片：Data URI 落进编辑器并替换选区', function () {
+        var value = homeCm.getValue();
+        if (value.indexOf('data:image/png;base64,') !== 0) throw new Error('内容: ' + value.slice(0, 60));
+    });
+
+    /* ---------------- SQL 分析页的右键菜单保持原样 ---------------- */
+
+    doc.getElementById('navDataSql').click();
+    await wait(350);
+    var dataCmWrap = doc.querySelector('#dataSqlWorkspace .CodeMirror');
+    if (dataCmWrap) {
+        dataCmWrap.dispatchEvent(new win.MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 30, clientY: 40 }));
+        check('SQL 分析页右键：出本页菜单，通用菜单让路', function () {
+            if (!selMenuEl.hidden) throw new Error('通用菜单抢了 SQL 分析页');
+            if (doc.getElementById('dataSqlCtx').hidden) throw new Error('本页菜单没出来');
+        });
+        var runStmt = doc.querySelector('#dataSqlCtx [data-ctx="run-stmt"]');
+        if (runStmt) runStmt.click();
+        check('SQL 分析页点完菜单项照常收起', function () {
+            if (!doc.getElementById('dataSqlCtx').hidden) throw new Error('点完没收起');
+        });
+    }
+
     results.forEach(function (r) {
         console.log('  ' + r[0] + ' ' + r[1]);
     });

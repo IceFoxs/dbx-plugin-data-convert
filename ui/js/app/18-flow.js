@@ -699,19 +699,6 @@ async function qrCopyText(text) {
     }
 }
 
-function qrBlobBase64(blob) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-            const url = String(reader.result || '');
-            const at = url.indexOf(',');
-            resolve(at > 0 ? url.slice(at + 1) : '');
-        };
-        reader.onerror = () => resolve('');
-        reader.readAsDataURL(blob);
-    });
-}
-
 /**
  * 复制图片到剪贴板。沙箱里 clipboard.write 不一定放行图片，
  * 写不进去就退成「存一张 PNG」——用户点了一次，总得拿到东西。
@@ -731,27 +718,19 @@ async function qrCopyImage(index) {
     });
     canvas.width = 0;
     canvas.height = 0;
-    if (!blob) {
+    // 「画布 → PNG → 剪贴板 → 写不进去就存盘」这条降级链在 21-editor-menu.js 里，
+    // 右键菜单的「复制为二维码图片」走同一份——两处各写一遍的话，
+    // 迟早会出现「这页存得下来、那页静默失败」的偏差。
+    const res = await copyPngToClipboard(blob, qrFileName(index, 'png'));
+    if (!res.ok) {
         showToast(currentDict.toastCopyError || '复制失败', 'error');
         return;
     }
-    const canWriteImage = typeof ClipboardItem !== 'undefined'
-        && navigator.clipboard && typeof navigator.clipboard.write === 'function';
-    if (canWriteImage) {
-        try {
-            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-            showToast(currentDict.toastCopySuccess || '已复制');
-            return;
-        } catch (err) { /* 没有 clipboard-write 权限：退到写文件 */ }
-    }
-    const base64 = await qrBlobBase64(blob);
-    if (!base64) {
-        showToast(currentDict.toastCopyError || '复制失败', 'error');
+    if (res.via === 'clipboard') {
+        showToast(currentDict.toastCopySuccess || '已复制');
         return;
     }
-    const name = qrFileName(index, 'png');
-    const status = await saveBinaryFile(name, base64, 'image/png');
-    saveToast(status, name);
+    saveToast('host', res.name);
 }
 
 /** 输入行 ↔ 结果卡片互相定位：光标落在哪行，哪张卡片就亮起来 */

@@ -50,6 +50,7 @@
     <script src="js/stats.js"></script>
     <script src="js/sqlrun.js"></script>
     <script src="js/qr.js"></script>
+    <script src="js/selectconv.js"></script>
     <script src="js/flow.js"></script>
     <script src="js/nav.js"></script>
 
@@ -1740,8 +1741,19 @@
     </div>
 </div>
 
+<!-- 编辑器选区右键菜单：全站 CodeMirror 共用一个，打开那一刻就冻结选区快照
+     （右键会把选区点没，之后每个动作都用快照，不再回读编辑器）。
+     挂 body 下、fixed 定位——pane 有 overflow，挂在里面会被裁掉。
+     菜单项由 21-editor-menu.js 按分组生成，这里只留骨架。 -->
+<div class="sel-menu" id="selMenu" hidden role="menu" aria-label="Selection actions">
+    <div class="sel-menu-head" id="selMenuHead"></div>
+    <div class="sel-menu-list" id="selMenuList"></div>
+    <div class="sel-menu-sub" id="selMenuSub" hidden></div>
+</div>
+
 <!-- SQL 编辑器的右键菜单：选中一段就能就地跑，不用再去够右下角的「运行」
-     挂 body 下、fixed 定位（和列类型面板同一个理由：pane 有 overflow，会被裁掉） -->
+     挂 body 下、fixed 定位（和列类型面板同一个理由：pane 有 overflow，会被裁掉）。
+     这一套是 SQL 分析页专用的，通用选区菜单会主动跳过它的编辑器（EditorMenu.exclude）。 -->
 <div class="datasql-ctx" id="dataSqlCtx" hidden role="menu">
     <div class="datasql-ctx-head" id="dataSqlCtxHead"></div>
     <button type="button" class="datasql-ctx-item" data-ctx="run-sel" role="menuitem"
@@ -1793,6 +1805,7 @@
 <script src="js/app/18-flow.js"></script>
 <script src="js/app/19-datasql.js"></script>
 <script src="js/app/20-last-feature.js"></script>
+<script src="js/app/21-editor-menu.js"></script>
 
 </body>
 </html>
