@@ -87,7 +87,8 @@ var tables = {
     STATS_I18N: readLiteral(html, 'STATS_I18N'),
     FLOW_I18N: readLiteral(html, 'FLOW_I18N'),
     DATASQL_I18N: readLiteral(html, 'DATASQL_I18N'),
-    SEL_I18N: readLiteral(html, 'SEL_I18N')
+    SEL_I18N: readLiteral(html, 'SEL_I18N'),
+    CSV_I18N: readLiteral(html, 'CSV_I18N')
 };
 
 var langCodes = languageConfigs.map(function (l) { return l.code; });

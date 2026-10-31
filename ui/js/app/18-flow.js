@@ -1416,6 +1416,9 @@ function importKindForPage(page) {
     if (page === 'navImage') return imgMode === 'encode' ? 'image' : 'text';
     if (page === 'navQr') return qrMode === 'encode' ? 'text' : 'image';
     if (page === 'navSheet') return 'sheet';
+    // CSV 编辑页只吃 csv / tsv / txt，但守门按「表格」那一档放行：
+    // 它和表格页共用同一套体积上限，也能挡住把图片拖进编辑区的操作
+    if (page === 'navCsv') return 'sheet';
     return 'text';
 }
 
@@ -1648,6 +1651,14 @@ function dispatchDroppedFiles(files) {
         return;
     }
     if (kind === 'sheet') {
+        // CSV 编辑页不合并文件，一次只开一个（多份合并是表格页干的事）
+        if (page === 'navCsv') {
+            if (files.length > 1) {
+                showToast(fTpl('flowDropOneOnly', '这一页一次只导入一个文件，已用 {name}', { name: files[0].name || '—' }), 'diff');
+            }
+            if (typeof csvOpenFileFromFlow === 'function') csvOpenFileFromFlow(files[0]);
+            return;
+        }
         if (files.length > 1) openSheetBatch(files);
         else openSheetFile(files[0]);
         return;

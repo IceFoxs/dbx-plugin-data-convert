@@ -58,6 +58,11 @@ const NAV_SEARCH_ALIAS = {
         keys: ['表格', '转表格', '合并', 'excel', 'csv', 'xlsx', 'sheet', 'table'],
         py: 'biaoge bg hebing hb zhuanbiaoge zbg excel csv'
     },
+    navCsv: {
+        keys: ['csv', '编辑', '编辑器', '表格编辑', '单元格', '行列', '源码', 'tsv',
+            'editor', 'edit', 'cell', 'row', 'column', 'source'],
+        py: 'csv bianji bj bianjiqi bjq biaogebianji bgbj danyuange dyg hanglie hl yuanma ym tsv'
+    },
     navQuery: {
         keys: ['查询', '校验', '过滤', '筛选', '断言', 'jsonpath', 'jq', 'schema'],
         py: 'chaxun cx jiaoyan jy guolv gl shaixuan sx duanyan dy'
@@ -167,7 +172,8 @@ const NAV_SUB_TABS = [
     { page: 'navEscape', box: 'escDirTabs', keys: ['转义', '编码', '解码', 'escape', 'encode', 'decode'] },
     { page: 'navEscape', box: 'escKinds', keys: ['转义', '编码', '解码', 'escape'], fill: 'escRenderKinds' },
     { page: 'navQr', box: 'qrModeTabs', keys: ['二维码', '生成', '解码', '识别', 'qr'] },
-    { page: 'navSheet', box: 'sheetOutputMode', keys: ['表格', '输出', 'json', 'sql'] }
+    { page: 'navSheet', box: 'sheetOutputMode', keys: ['表格', '输出', 'json', 'sql'] },
+    { page: 'navCsv', box: 'csvTabs', keys: ['表格', '编辑', 'json', 'markdown', '输出'] }
 ];
 
 function navSubTabEntries() {
@@ -643,7 +649,9 @@ function applyI18n() {
         FLOW_I18N[currentLang] || FLOW_I18N.en || {},
         STATS_I18N[currentLang] || STATS_I18N.en || {},
         // 19-datasql.js 在 08 之后加载：切语言发生在用户操作时，那时它已经在了
-        (typeof DATASQL_I18N !== 'undefined' ? (DATASQL_I18N[currentLang] || DATASQL_I18N.en || {}) : {})
+        (typeof DATASQL_I18N !== 'undefined' ? (DATASQL_I18N[currentLang] || DATASQL_I18N.en || {}) : {}),
+        // 22-csv-edit.js 同理；它自己在末尾又会 applyI18n 一次，补上首屏这一次
+        (typeof CSV_I18N !== 'undefined' ? (CSV_I18N[currentLang] || CSV_I18N.en || {}) : {})
     );
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');

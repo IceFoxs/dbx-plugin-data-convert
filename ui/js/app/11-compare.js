@@ -464,6 +464,8 @@ function exitOtherModes(keep) {
     if (keep !== 'stats' && statsModeActive) exitStatsMode();
     // typeof 守卫：19-datasql.js 最后加载，这里不能在它之前就解引用
     if (keep !== 'dataSql' && typeof dataSqlModeActive !== 'undefined' && dataSqlModeActive) exitDataSqlMode();
+    // 22-csv-edit.js 同理（比 19 还晚）
+    if (keep !== 'csv' && typeof csvModeActive !== 'undefined' && csvModeActive) exitCsvMode();
 }
 
 // 当前停在哪一页（关掉快捷页时用来回原处），'' 表示格式转换页
@@ -480,6 +482,7 @@ function currentPageId() {
     if (qrModeActive) return 'navQr';
     if (statsModeActive) return 'navStats';
     if (typeof dataSqlModeActive !== 'undefined' && dataSqlModeActive) return 'navDataSql';
+    if (typeof csvModeActive !== 'undefined' && csvModeActive) return 'navCsv';
     return '';
 }
 

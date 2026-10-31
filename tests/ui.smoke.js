@@ -2848,7 +2848,7 @@ function check(name, fn) {
             throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
         }
         // 直属项（从左到右）：JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / 字节转换 / JSON 转图表 / 时间转换 / 二维码转换 / 代码生成 / 表格转 JSON / 数据统计 / 查询校验
-        if (inlineNavLinks().length !== 13) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 14) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
         if (!doc.getElementById('navConvertTrigger')) throw new Error('缺少「格式转换」触发器');
         // 触发器直接显示当前这一对格式，而不是固定的「格式转换」
         var label = doc.getElementById('navConvertLabel').textContent.trim();
@@ -2865,7 +2865,7 @@ function check(name, fn) {
     check('默认是顶部导航，切换按钮在', function () {
         if (!doc.getElementById('navToggle')) throw new Error('缺少切换按钮');
         if (doc.body.classList.contains('nav-left')) throw new Error('默认不该是左侧');
-        if (inlineNavLinks().length !== 13) throw new Error('顶部直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 14) throw new Error('顶部直属项 ' + inlineNavLinks().length);
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('左侧') === -1) throw new Error('提示文案: ' + label);
     });
@@ -2874,7 +2874,7 @@ function check(name, fn) {
     check('点切换后导航变左侧', function () {
         if (!doc.body.classList.contains('nav-left')) throw new Error('没切到左侧');
         // 竖排能放下全部项，不该再收进「更多」
-        if (inlineNavLinks().length !== 13) throw new Error('左侧直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 14) throw new Error('左侧直属项 ' + inlineNavLinks().length);
         if (moreEl.classList.contains('show')) throw new Error('左侧模式不该出现「更多」');
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('顶部') === -1) throw new Error('提示没切成「顶部」: ' + label);
@@ -2940,7 +2940,7 @@ function check(name, fn) {
         // 顶部布局下收起不成立：类要摘掉，否则顶部导航整条都点不到
         if (doc.body.classList.contains('nav-collapsed')) throw new Error('顶部布局还带着收起类');
         if (navSide.hasAttribute('inert')) throw new Error('顶部布局的导航被设成 inert');
-        if (inlineNavLinks().length !== 13) throw new Error('顶部直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 14) throw new Error('顶部直属项 ' + inlineNavLinks().length);
         doc.getElementById('navToggle').click();      // 切回左侧
         if (!doc.body.classList.contains('nav-collapsed')) throw new Error('切回左侧没恢复收起状态');
         if (!navSide.hasAttribute('inert')) throw new Error('恢复收起后没设 inert');
@@ -3114,7 +3114,7 @@ function check(name, fn) {
         if (env.indexOf('format:sourceSelect:env') < 0) throw new Error('env 没搜到 .env: ' + env.join(','));
         // 页面仍然排在格式前面
         var csv = typeSearch('csv');
-        if (csv[0] !== 'navSheet') throw new Error('csv 第一条应该是表格页: ' + csv.join(','));
+        if (csv[0] !== 'navSheet' && csv[0] !== 'navCsv') throw new Error('csv 应该先落到表格 / CSV 编辑页: ' + csv.join(','));
     });
 
     doc.getElementById('navQr').click();
@@ -3184,7 +3184,7 @@ function check(name, fn) {
         searchBtn.click();
         if (doc.body.classList.contains('nav-searching')) throw new Error('再点没收起');
         if (searchBtn.getAttribute('aria-expanded') !== 'false') throw new Error('aria-expanded 没复位');
-        if (inlineNavLinks().length !== 13) throw new Error('收起后导航没回来: ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 14) throw new Error('收起后导航没回来: ' + inlineNavLinks().length);
     });
 
     check('Ctrl+K / ⌘K 也能唤起搜索', function () {
@@ -3328,7 +3328,7 @@ function check(name, fn) {
     doc.getElementById('navToggle').click();
     check('再点一次回到顶部导航', function () {
         if (doc.body.classList.contains('nav-left')) throw new Error('没切回顶部');
-        if (inlineNavLinks().length !== 13) throw new Error('回顶部后直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 14) throw new Error('回顶部后直属项 ' + inlineNavLinks().length);
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('左侧') === -1) throw new Error('提示没切成「左侧」: ' + label);
         if (String(win.name || '').indexOf('dbx-nav:top') === -1) throw new Error('window.name 没跟着回到 top: ' + win.name);
@@ -3432,7 +3432,7 @@ function check(name, fn) {
     check('宽度恢复后导航项全部回到导航条', function () {
         if (moreEl.classList.contains('show')) throw new Error('「更多」仍显示');
         if (moreMenu.querySelectorAll('a').length !== 0) throw new Error('菜单仍有残留');
-        if (inlineNavLinks().length !== 13) throw new Error('导航项数 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 14) throw new Error('导航项数 ' + inlineNavLinks().length);
         if (convertMenu.querySelectorAll('a').length !== 7) throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
     });
 
@@ -3464,10 +3464,10 @@ function check(name, fn) {
     });
 
     navCustomizeBtn.click();
-    check('面板列出全部 13 项，顺序跟导航条一致', function () {
+    check('面板列出全部 14 项，顺序跟导航条一致', function () {
         if (navPanelMask.hidden) throw new Error('面板没打开');
         var rows = panelRows();
-        if (rows.length !== 13) throw new Error('行数 ' + rows.length);
+        if (rows.length !== 14) throw new Error('行数 ' + rows.length);
         if (rows.join(',') !== navIds().join(',')) {
             throw new Error('面板 ' + rows.join(',') + ' / 导航 ' + navIds().join(','));
         }
@@ -3659,7 +3659,7 @@ function check(name, fn) {
         if (navIds()[2] !== 'navFuture') throw new Error('置顶后顺序: ' + navIds().join(','));
         var name = String(win.name || '');
         if (name.indexOf('navFuture') === -1) throw new Error('没写进窗口记忆: ' + name);
-        // 面板行数跟着长到 13
+        // 面板行数跟着长到 14
         if (panelRows().length !== 14) throw new Error('行数 ' + panelRows().length);
     });
 
@@ -3700,8 +3700,8 @@ function check(name, fn) {
     dom.window.dispatchEvent(new dom.window.Event('resize'));
     await wait(250);
 
-    check('摘掉临时项后回到 13 项、出厂顺序', function () {
-        if (inlineNavLinks().length !== 13) throw new Error('项数 ' + inlineNavLinks().length);
+    check('摘掉临时项后回到 14 项、出厂顺序', function () {
+        if (inlineNavLinks().length !== 14) throw new Error('项数 ' + inlineNavLinks().length);
         if (navIds().slice(0, 2).join(',') !== 'navCompare,navSql') throw new Error('顺序: ' + navIds().join(','));
     });
 
@@ -4264,15 +4264,320 @@ function check(name, fn) {
         });
     }
 
+    /* ---------------- CSV 编辑页 ---------------- */
+
+    doc.getElementById('navCsv').click();
+    await wait(500);
+    var csvWs = doc.getElementById('csvWorkspace');
+    var csvCmWrap = doc.querySelector('#csvWorkspace .csv-src-pane .CodeMirror');
+
+    check('进 CSV 编辑页：页面显示、导航高亮、源码编辑器就位', function () {
+        if (!csvWs.classList.contains('active')) throw new Error('页面没显示');
+        if (!doc.getElementById('navCsv').classList.contains('active')) throw new Error('导航没高亮');
+        if (!csvCmWrap) throw new Error('源码 CodeMirror 没挂上');
+    });
+
+    check('进页面不再默认塞示例：源码和表格都是空的', function () {
+        if (doc.querySelectorAll('#csvTbody tr.csv-row').length) throw new Error('表格里还有默认数据');
+        if (csvCmWrap.CodeMirror.getValue()) throw new Error('源码里还有默认内容');
+    });
+
+    /* 后面几条要靠一份数据，走「示例」下拉自己挑（默认不塞样例了） */
+    var csvSamplesSel = doc.getElementById('csvSamples');
+    csvSamplesSel.querySelector('.custom-select-trigger').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    csvSamplesSel.querySelector('.custom-option[data-sample="basic"]').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await wait(400);
+
+    check('从示例下拉挑「简单表格」：表格渲染出行、统计徽标有值', function () {
+        if (!doc.querySelectorAll('#csvTbody tr.csv-row').length) throw new Error('表格是空的');
+        if (!/行/.test(doc.getElementById('csvStat').textContent)) throw new Error('统计徽标：' + doc.getElementById('csvStat').textContent);
+    });
+
+    var csvCm = csvCmWrap && csvCmWrap.CodeMirror;
+
+    check('表格点某一行：源码光标跳到对应行（表格 → 源码定位）', function () {
+        var td = doc.querySelector('#csvTbody tr.csv-row[data-r="2"] td[data-c="1"]');
+        if (!td) throw new Error('找不到第 3 行的单元格');
+        td.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        if (!csvCm) throw new Error('没有源码编辑器');
+        // 首行是表头，所以第 3 条记录在源码第 4 行（0 基的 3）
+        if (csvCm.getCursor().line !== 3) throw new Error('源码光标在第 ' + csvCm.getCursor().line + ' 行');
+    });
+
+    check('源码光标移动：表格跟着选中（源码 → 表格定位）', function () {
+        csvCm.setCursor({ line: 3, ch: 0 });
+        var td = doc.querySelector('#csvTbody td.is-sel');
+        if (!td) throw new Error('表格里没有选中格');
+        if (Number(td.dataset.r) !== 2) throw new Error('选中了第 ' + td.dataset.r + ' 行');
+    });
+
+    var csvFirstCell = doc.querySelector('#csvTbody td[data-c="0"]');
+    var csvFirstIco = csvFirstCell && csvFirstCell.querySelector('.csv-cell-ico');
+
+    check('每个单元格都带一颗放大编辑图标（不点它不进弹窗）', function () {
+        if (!csvFirstIco) throw new Error('单元格里没有编辑图标');
+        var cells = doc.querySelectorAll('#csvTbody td.csv-cell');
+        var icons = doc.querySelectorAll('#csvTbody td.csv-cell > .csv-cell-ico');
+        if (!cells.length) throw new Error('一格都没有');
+        if (cells.length !== icons.length) throw new Error('图标 ' + icons.length + ' 个 / 格子 ' + cells.length + ' 个');
+        // 图标是伪元素画的字，不能混进单元格的 textContent
+        if (/✎/.test(csvFirstCell.textContent)) throw new Error('图标字混进了单元格文本');
+    });
+
+    csvFirstIco.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await wait(60);
+
+    var csvModalCmWrap = doc.querySelector('#csvCellModal .CodeMirror');
+
+    check('点编辑图标：弹放大编辑框（CodeMirror），内容带出来', function () {
+        if (doc.getElementById('csvCellModal').hidden) throw new Error('弹窗没出来');
+        if (!csvModalCmWrap) throw new Error('弹窗里没挂 CodeMirror');
+        if (!csvModalCmWrap.CodeMirror.getValue()) throw new Error('弹窗里没有内容');
+    });
+
+    csvModalCmWrap.CodeMirror.setValue('张三丰');
+    doc.getElementById('csvCellModalSave').click();
+    await wait(260);
+
+    check('放大弹窗保存后：单元格与源码同时更新', function () {
+        if (doc.getElementById('csvCellModal').hidden !== true) throw new Error('弹窗没关');
+        var cell = doc.querySelector('#csvTbody td[data-c="0"]');
+        var text = cell && cell.firstChild && cell.firstChild.nodeType === 3 ? cell.firstChild.nodeValue : null;
+        if (text !== '张三丰') throw new Error('单元格是 ' + (cell && cell.textContent));
+        if (!cell.querySelector('.csv-cell-ico')) throw new Error('保存后编辑图标被抹掉了');
+        if (csvCm.getValue().indexOf('张三丰') < 0) throw new Error('源码没同步');
+    });
+
+    /* 双击 = 行内编辑；只有点图标才放大 */
+    var csvInlineCell = doc.querySelector('#csvTbody tr.csv-row[data-r="0"] td[data-c="1"]');
+    csvInlineCell.dispatchEvent(new win.MouseEvent('dblclick', { bubbles: true }));
+    await wait(60);
+    var csvEditEl = doc.getElementById('csvCellEdit');
+
+    check('双击单元格：走行内编辑，不弹放大框', function () {
+        if (csvEditEl.hidden) throw new Error('行内编辑框没出来');
+        if (!doc.getElementById('csvCellModal').hidden) throw new Error('不该弹放大框');
+        if (!csvEditEl.value) throw new Error('行内编辑框没带出原值');
+    });
+
+    csvEditEl.value = '28';
+    csvEditEl.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await wait(200);
+
+    check('行内编辑回车保存：单元格与源码都更新', function () {
+        if (!csvEditEl.hidden) throw new Error('行内编辑框没关');
+        var cell = doc.querySelector('#csvTbody tr.csv-row[data-r="0"] td[data-c="1"]');
+        var text = cell && cell.firstChild && cell.firstChild.nodeType === 3 ? cell.firstChild.nodeValue : null;
+        if (text !== '28') throw new Error('单元格是 ' + (cell && cell.textContent));
+        if (csvCm.getValue().indexOf('张三丰,28') < 0) throw new Error('源码没同步：' + csvCm.getValue().split('\n')[1]);
+    });
+
+    /* 选中单元格 -> 左边源码里精确高亮那一格 */
+    check('选中单元格：源码里该格高亮（不是只亮整行）', function () {
+        var td = doc.querySelector('#csvTbody tr.csv-row[data-r="2"] td[data-c="1"]');
+        if (!td) throw new Error('找不到第 3 行的单元格');
+        td.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        var marks = csvCm.getAllMarks ? csvCm.getAllMarks() : [];
+        if (!marks.length) throw new Error('源码里没有单元格高亮');
+        var text = marks[marks.length - 1].find().from;
+        // 同上：表头占一行，第 3 条记录落在源码第 4 行（0 基的 3）
+        if (text.line !== 3) throw new Error('高亮跑到第 ' + text.line + ' 行');
+        // 高亮的应该是这一格的值，不是整行开头
+        if (text.ch === 0) throw new Error('高亮从行首开始，落到了整行而不是这一格');
+        // 行号槽上要有标记，横向滚动也不会看丢
+        var gutterCls = csvCm.getLineHandle(3).gutterClass || '';
+        if (gutterCls.indexOf('csv-gutter-mark') < 0) throw new Error('行号槽上没有标记：' + gutterCls);
+    });
+
+    check('换一格：高亮跟着走，不会越积越多', function () {
+        var td = doc.querySelector('#csvTbody tr.csv-row[data-r="1"] td[data-c="2"]');
+        td.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        var marks = csvCm.getAllMarks ? csvCm.getAllMarks() : [];
+        if (marks.length !== 1) throw new Error('源码里留了 ' + marks.length + ' 个高亮');
+        if (marks[0].find().from.line !== 2) throw new Error('高亮还在第 ' + marks[0].find().from.line + ' 行');
+    });
+
+    var csvTh = doc.querySelector('#csvThead th[data-c="1"]');
+    csvTh.dispatchEvent(new win.MouseEvent('dblclick', { bubbles: true }));
+    await wait(60);
+    csvEditEl.value = '年纪';
+    csvEditEl.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await wait(200);
+
+    check('表头也能改：双击列名行内改，改完立刻生效', function () {
+        var th = doc.querySelector('#csvThead th[data-c="1"]');
+        if (th.textContent !== '年纪') throw new Error('表头是 ' + th.textContent);
+    });
+
+    /* 大文件：只渲染视口内的行（懒加载），DOM 里不该出现 5000 行 */
+    var bigRows = ['编号,名称,备注'];
+    for (var bi = 0; bi < 5000; bi++) bigRows.push(bi + ',行' + bi + ',说明' + bi);
+    csvCm.setValue(bigRows.join('\n'));
+    await wait(1000);
+
+    check('5000 行数据只渲染视口内的几十行（懒加载生效）', function () {
+        var rows = doc.querySelectorAll('#csvTbody tr.csv-row').length;
+        if (!rows) throw new Error('一行都没渲染');
+        if (rows > 80) throw new Error('渲染了 ' + rows + ' 行，虚拟滚动没生效');
+        var stat = doc.getElementById('csvStat').textContent;
+        if (stat.indexOf('5,000') < 0) throw new Error('统计徽标：' + stat);
+    });
+
+    var csvScroller = doc.getElementById('csvScroll');
+    // jsdom 没有布局，scrollTop 会被夹回 0；这里直接钉一个值，让懒加载按 30000 算窗口
+    Object.defineProperty(csvScroller, 'scrollTop', { configurable: true, writable: true, value: 30000 });
+    csvScroller.dispatchEvent(new win.Event('scroll'));
+    await wait(160);
+
+    check('滚到中段：窗口内的行换了一批，DOM 里仍然只有几十行', function () {
+        var rows = doc.querySelectorAll('#csvTbody tr.csv-row');
+        if (rows.length > 80) throw new Error('渲染了 ' + rows.length + ' 行');
+        var hasDeep = Array.prototype.some.call(rows, function (tr) {
+            return Number(tr.dataset.r) > 900;
+        });
+        if (!hasDeep) throw new Error('滚动后还是顶部那批行');
+    });
+
+    /* 搜索与替换 */
+    var csvFind = doc.getElementById('csvFind');
+    csvFind.value = '行4321';
+    csvFind.dispatchEvent(new win.Event('input'));
+    await wait(360);
+
+    check('搜索：命中计数正确，命中格高亮', function () {
+        var count = doc.getElementById('csvFindCount').textContent;
+        if (count.indexOf('/') < 0) throw new Error('命中计数：' + count);
+        if (!doc.querySelector('#csvTbody td.is-hit')) throw new Error('没有高亮命中格');
+    });
+
+    check('搜索定位：按回车跳到命中格（行、列都对）', function () {
+        csvFind.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        var td = doc.querySelector('#csvTbody td.is-cur');
+        if (!td) throw new Error('没有当前命中格');
+        if (Number(td.dataset.r) !== 4321) throw new Error('定位到第 ' + td.dataset.r + ' 行');
+    });
+
+    doc.getElementById('csvReplace').value = '行四三二一';
+    doc.getElementById('csvReplaceOne').click();
+    await wait(360);
+
+    check('单个替换：只改当前这一格（不是全部替换）', function () {
+        if (csvCm.getValue().indexOf('行四三二一') < 0) throw new Error('源码里没替换到');
+        var left = (csvCm.getValue().match(/行4321/g) || []).length;
+        if (left !== 0) throw new Error('还剩 ' + left + ' 处没替换');
+        var others = (csvCm.getValue().match(/行4320/g) || []).length;
+        if (!others) throw new Error('不该动到别的行');
+    });
+
+    /* 页内反馈统一走右下角 toast，工具栏末尾那行小字（#csvTip）已经拿掉了 */
+    check('工具栏里不再有内联提示文字（改成 toast 弹出）', function () {
+        if (doc.getElementById('csvTip')) throw new Error('#csvTip 还在');
+        var bar = doc.querySelector('#csvWorkspace .compare-bar');
+        if (bar && bar.querySelector('.compare-tip')) throw new Error('工具栏里还挂着 .compare-tip');
+    });
+
+    /* jsdom 没有剪贴板，给一个能写通的实现，好验证「点了有提示」这条路 */
+    var csvClipText = null;
+    try {
+        Object.defineProperty(win.navigator, 'clipboard', {
+            configurable: true,
+            value: { writeText: function (t) { csvClipText = t; return Promise.resolve(); } }
+        });
+    } catch (e) { /* 定义不上就只验证有没有 toast */ }
+
+    doc.getElementById('csvCopy').click();
+    await wait(160);
+
+    check('复制 CSV：右下角弹出成功提示（不再是角落里那行小字）', function () {
+        var toasts = doc.querySelectorAll('#toastContainer .toast');
+        if (!toasts.length) throw new Error('没有 toast');
+        var last = toasts[toasts.length - 1];
+        if (!/(已复制|Copied|已複製)/.test(last.textContent)) throw new Error('toast 文案：' + last.textContent);
+        if (last.classList.contains('error')) throw new Error('成功提示被当成报错弹出来');
+        if (csvClipText && csvClipText.indexOf(',') < 0) throw new Error('写进剪贴板的内容不对');
+    });
+
+    doc.querySelector('#csvTabs [data-view="json"]').click();
+    await wait(200);
+
+    check('切到 JSON 视图：输出是记录数组', function () {
+        var outWrap = doc.querySelector('#csvOutWrap .CodeMirror');
+        if (!outWrap) throw new Error('输出编辑器没建起来');
+        var out = outWrap.CodeMirror.getValue();
+        if (out.trim().charAt(0) !== '[') throw new Error('输出不是数组：' + out.slice(0, 40));
+    });
+
+    /* Markdown 页签：默认出预览（真渲染成表格），可切回源码 */
+    doc.querySelector('#csvTabs [data-view="md"]').click();
+    await wait(160);
+
+    check('切到 Markdown：默认是预览，渲染出真表格', function () {
+        var prev = doc.getElementById('csvMdPreview');
+        if (prev.hidden) throw new Error('预览没显示');
+        if (!prev.querySelector('table.md-table')) throw new Error('预览里没有表格');
+        if (!prev.querySelectorAll('thead th').length) throw new Error('预览没有表头');
+        if (!prev.querySelectorAll('tbody tr').length) throw new Error('预览没有数据行');
+        var seg = doc.getElementById('csvMdSeg');
+        if (!seg || seg.hidden) throw new Error('预览 / 源码切换没露出来');
+    });
+
+    check('Markdown 预览：切到源码能看到 Markdown 原文', function () {
+        doc.querySelector('#csvMdSeg [data-md="source"]').click();
+        var outWrap = doc.querySelector('#csvOutWrap .CodeMirror');
+        if (!outWrap) throw new Error('源码编辑器没建起来');
+        var text = outWrap.CodeMirror.getValue();
+        if (text.indexOf('| ---') < 0) throw new Error('源码不是 Markdown 表格：' + text.slice(0, 40));
+        if (doc.getElementById('csvMdPreview').hidden !== true) throw new Error('切源码后预览还盖着');
+    });
+
+    doc.querySelector('#csvMdSeg [data-md="preview"]').click();
+    await wait(80);
+
+    /* 工具栏与解析选项合成一条；示例从三个 chip 收成下拉（省宽度） */
+    check('工具栏和解析选项在同一条里，操作按钮还在最右', function () {
+        var bar = doc.querySelector('#csvWorkspace .compare-bar');
+        if (!bar || !bar.classList.contains('csv-bar')) throw new Error('工具栏没标 csv-bar');
+        if (!bar.querySelector('.csv-options')) throw new Error('解析选项不在工具栏里');
+        if (!bar.querySelector('#csvDelim')) throw new Error('分隔符不在工具栏里');
+        if (!bar.querySelector('#csvCopy')) throw new Error('复制按钮不在工具栏里');
+    });
+
+    check('示例收成下拉：点开三条，点一条就载入', function () {
+        var sel = doc.getElementById('csvSamples');
+        if (!sel) throw new Error('没有示例下拉');
+        if (sel.querySelectorAll('.sample-chip').length) throw new Error('还留着 chip');
+        var trig = sel.querySelector('.custom-select-trigger');
+        var opts = sel.querySelector('.custom-select-options');
+        trig.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        if (!opts.classList.contains('open')) throw new Error('点触发器没打开');
+        if (!trig.classList.contains('active')) throw new Error('触发器没有 active 态');
+        var items = opts.querySelectorAll('.custom-option[data-sample]');
+        if (items.length !== 3) throw new Error('选项 ' + items.length + ' 条');
+        items[1].dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        if (opts.classList.contains('open')) throw new Error('选完没收起');
+        if (trig.classList.contains('active')) throw new Error('选完触发器还是 active');
+        if (csvCm.getValue().indexOf('SO-1001') < 0) throw new Error('没载入订单流水示例');
+    });
+
+    doc.querySelector('#csvTabs [data-view="table"]').click();
+    doc.getElementById('navSheet').click();
+    await wait(150);
+
+    check('离开 CSV 编辑页后入口状态复原', function () {
+        if (csvWs.classList.contains('active')) throw new Error('页面还在显示');
+        if (doc.getElementById('navCsv').classList.contains('active')) throw new Error('导航还高亮');
+    });
+
     results.forEach(function (r) {
         console.log('  ' + r[0] + ' ' + r[1]);
     });
-    var failed = results.filter(function (r) {
+
+    var failedCount = results.filter(function (r) {
         return r[0] === 'FAIL';
     }).length;
-    console.log('\n==== ' + (results.length - failed) + ' passed, ' + failed + ' failed ====');
+    console.log('\n==== ' + (results.length - failedCount) + ' passed, ' + failedCount + ' failed ====');
     // 直接退出：主窗口里挂着 CodeMirror 的定时器，close() 反而可能卡在拆解阶段
-    process.exit(failed ? 1 : 0);
+    process.exit(failedCount ? 1 : 0);
 })().catch(function (err) {
     results.forEach(function (r) {
         console.log('  ' + r[0] + ' ' + r[1]);

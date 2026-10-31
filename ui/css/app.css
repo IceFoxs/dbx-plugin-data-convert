@@ -1148,6 +1148,9 @@ body:not(.nav-left).nav-searching #navMore {
     border-radius: var(--radius-md, 0.5rem);
     font-size: 0.875rem;
     font-weight: 500;
+    line-height: 1.45;
+    /* 报错文案可能很长（文件名、上限），别让它撑出屏幕 */
+    max-width: min(28rem, calc(100vw - 4rem));
     box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
     display: flex;
     align-items: center;
@@ -1157,6 +1160,21 @@ body:not(.nav-left).nav-searching #navMore {
     transition: opacity 0.3s, transform 0.3s;
 }
 .toast.error { background-color: #ef4444; color: #fff; }
+/* 前面那颗小白点：成功打勾、失败打感叹号，不用往 innerHTML 里拼图标 */
+.toast::before {
+    content: "\2713";
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.18);
+    font-size: 0.72rem;
+    line-height: 1;
+}
+.toast.error::before { content: "\0021"; background-color: rgba(255, 255, 255, 0.24); }
 .toast.hide { opacity: 0; transform: translateX(100%); }
 @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
 
@@ -1415,6 +1433,13 @@ body:not(.nav-left).nav-searching #navMore {
     font-size: 0.78rem;
     border-radius: var(--radius-md, 0.5rem);
 }
+/* 工具栏里的主按钮不参与拉伸：.btn-primary 全局带 flex:1（面板里两个按钮平分宽度用），
+   放进 .compare-bar 这条横向工具栏会被拉成一整条黑带，把文件名 / 示例 / 操作挤到右边甚至换行 */
+.compare-bar > .btn-primary {
+    flex: 0 0 auto;
+    padding: 0.4rem 1rem;
+    border-radius: 9999px;
+}
 .compare-tip {
     font-size: 0.74rem;
     color: var(--text-muted);
@@ -1449,6 +1474,7 @@ body:not(.nav-left).nav-searching #navMore {
    查询校验页 / 转义工具页 / 字节转换页 共用同一套「隐藏除非 active」的骨架 ================= */
 .sql-workspace,
 .sheet-workspace,
+.csv-workspace,
 .img-workspace,
 .code-workspace,
 .query-workspace,
@@ -1463,6 +1489,7 @@ body:not(.nav-left).nav-searching #navMore {
 }
 .sql-workspace.active,
 .sheet-workspace.active,
+.csv-workspace.active,
 .img-workspace.active,
 .code-workspace.active,
 .query-workspace.active,
@@ -4478,3 +4505,600 @@ li.CodeMirror-hint-active .datasql-hint-kind { opacity: 0.85; }
     font-size: 0.75rem;
     color: var(--text-muted, #6b7280);
 }
+
+/* ================= CSV 编辑页 =================
+   左边源码（CodeMirror），右边表格。表格靠「只渲染视口内的行」撑住十万行，
+   所以行高必须是固定的：虚拟滚动按 30px 算位移，改成自适应就把定位算错了
+   （ui/js/csvedit.js 里 LIMITS.rowHeight 与这里必须一致）。 */
+.csv-grid {
+    grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.55fr);
+}
+.csv-file {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.csv-file.has-file { color: var(--text-main); }
+
+/* 工具栏（打开 / 示例）和解析选项合并在一条 .csv-bar 里。
+   排布规则：
+   1. 三个操作按钮（复制 / 下载 / 清空）永远贴着第一行右端，不许自己掉到下一行留个洞；
+   2. 地方不够时整块下移的是「解析选项」，它自己再按需折行；
+   3. 够宽（≥1240px）时三块并成一行。
+   组的顺序靠 order 调（DOM 里是 工具 → 选项 → 按钮），换行才不会把按钮甩出去。 */
+.csv-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+}
+.csv-bar-top {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+.csv-bar > .compare-actions {
+    flex: 0 0 auto;
+    margin-left: auto;
+}
+.csv-bar > .csv-options {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    row-gap: 0.35rem;
+    flex: 1 1 100%;
+    order: 2;
+    min-width: 0;
+}
+.csv-bar .csv-file { flex: 0 1 auto; max-width: 200px; }
+.csv-samples { flex: 0 0 auto; }
+.csv-options .csv-opt-tail {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+}
+/* 只有特别宽（选项能整条塞下）时才并成一行；宿主侧栏基本吃不到这个宽度 */
+@media (min-width: 1560px) {
+    .csv-bar { flex-wrap: nowrap; }
+    .csv-bar > .csv-options { flex: 1 1 auto; order: 1; }
+    .csv-bar > .compare-actions { order: 2; }
+}
+
+.csv-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding: 0 0 0.45rem;
+}
+.csv-toolbar[hidden] { display: none; }
+.csv-tools {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-wrap: wrap;
+}
+.csv-tools-sep {
+    width: 1px;
+    height: 14px;
+    background: var(--border-light);
+    margin: 0 4px;
+}
+.csv-tool {
+    border: 1px solid var(--border-light);
+    background: var(--bg-card);
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 0.74rem;
+    line-height: 1.5;
+    padding: 3px 8px;
+    border-radius: var(--radius-md, 0.5rem);
+    cursor: pointer;
+    white-space: nowrap;
+}
+.csv-tool:hover:not(:disabled) { background: var(--accent-bg); }
+.csv-tool:active:not(:disabled) { transform: translateY(0.5px); }
+.csv-tool:disabled { opacity: 0.45; cursor: default; }
+.csv-find {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+/* 查找框做成一整条：输入 + 命中数 + 上下跳 + 只看命中 */
+.csv-find-box {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 28px;
+    padding-right: 2px;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md, 0.5rem);
+    background: var(--bg-card);
+}
+.csv-find-box:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px var(--accent-bg);
+}
+.csv-find-box input {
+    height: 26px;
+    width: 132px;
+    border: 0;
+    background: transparent;
+    font-family: inherit;
+    font-size: 0.76rem;
+    padding: 0 8px;
+    color: var(--text-main);
+}
+.csv-find-box input:focus { outline: none; }
+.csv-find-box input.has-filter { color: var(--primary); }
+.csv-find-count {
+    min-width: 2.8em;
+    text-align: right;
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+}
+.csv-find-count.is-empty { color: #dc2626; }
+.csv-find-step {
+    border: 0;
+    background: transparent;
+    padding: 1px 6px;
+    line-height: 1.6;
+}
+.csv-find-step:hover:not(:disabled) { background: var(--accent-bg); }
+.csv-find input[type="text"] {
+    height: 28px;
+    width: 118px;
+    font-family: inherit;
+    font-size: 0.76rem;
+    padding: 0 8px;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md, 0.5rem);
+    background: var(--bg-card);
+    color: var(--text-main);
+}
+.csv-find input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px var(--accent-bg);
+}
+#csvFilterToggle.is-on {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--accent-bg);
+}
+
+.csv-grid-wrap {
+    position: relative;
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+}
+.csv-grid-wrap[hidden] { display: none; }
+.csv-scroll {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: auto;
+    outline: none;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg, 0.75rem);
+    background: var(--bg-card);
+    position: relative;
+}
+.csv-scroll:focus-visible { border-color: var(--primary); }
+.csv-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.csv-scroll::-webkit-scrollbar-track { background: transparent; }
+.csv-scroll::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: 5px;
+}
+.csv-canvas {
+    position: relative;
+    display: inline-block;
+    min-width: 100%;
+}
+.csv-table {
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+}
+.csv-table[hidden] { display: none; }
+.csv-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    height: 32px;
+    padding: 0 9px;
+    text-align: left;
+    font-size: 0.73rem;
+    letter-spacing: 0.01em;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--accent-bg);
+    border-bottom: 1px solid var(--border-light);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    user-select: none;
+}
+.csv-table thead th.csv-th:hover { color: var(--text-main); }
+.csv-rowno-head,
+.csv-rowno {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    width: 44px;
+    min-width: 44px;
+    padding: 0 6px;
+    text-align: right;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    /* sticky 列必须自己把底下遮住：横向滚动时单元格会从数字下面穿过去。
+       光靠 var(--bg-card) 不够——宿主给的是半透明卡片色就白搭，
+       所以先垫一层实色，再把卡片色叠上去，外观不变但一定不透明。 */
+    background-color: #ffffff;
+    background-image: linear-gradient(var(--bg-card, #ffffff), var(--bg-card, #ffffff));
+    border-right: 1px solid var(--border-light);
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+}
+[data-dbx-theme="dark"] .csv-rowno-head,
+[data-dbx-theme="dark"] .csv-rowno { background-color: #121214; }
+.csv-rowno-head {
+    background-color: #ffffff;
+    background-image: linear-gradient(var(--accent-bg, #f4f4f5), var(--accent-bg, #f4f4f5));
+}
+/* 左上角那格要同时压住表头和数据：只写 .csv-rowno-head 会被
+   `.csv-table thead th { z-index: 3 }` 按 specificity 反超，
+   横向滚动时后面的表头盖住它，# 就没了 */
+.csv-table thead th.csv-rowno-head {
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 6;
+}
+.csv-table tbody td.csv-rowno { z-index: 3; }
+.csv-row { height: 30px; }
+.csv-row:hover .csv-cell { background: var(--accent-bg); }
+.csv-cell {
+    position: relative;
+    height: 30px;
+    padding: 0 8px;
+    font-size: 0.78rem;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid var(--border-light);
+    cursor: cell;
+}
+/* 每格右上角的小铅笔：悬停 / 选中才露出来，点它才进放大弹窗。
+   用伪元素写字，别让图标进 textContent（那边还要拿单元格的值）。 */
+.csv-cell-ico {
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    background: var(--bg-card);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.66rem;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.9;
+}
+.csv-cell-ico::before { content: "\270E"; }
+.csv-cell:hover .csv-cell-ico,
+.csv-cell.is-sel .csv-cell-ico { display: flex; }
+.csv-cell-ico:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+    opacity: 1;
+}
+.csv-cell.is-empty::before {
+    content: "";
+}
+.csv-row.is-sel .csv-cell { background: var(--accent-bg); }
+/* 行号列是 sticky 的，底子必须是实色：用半透明的 accent 会让横向滚动过来的
+   单元格文字从数字底下穿过去，看着像数字被涂花了 */
+.csv-row.is-sel .csv-rowno {
+    background-color: #ffffff;
+    background-image: linear-gradient(var(--bg-card, #ffffff), var(--bg-card, #ffffff));
+    box-shadow: inset -3px 0 0 var(--primary);
+    color: var(--text-main);
+    font-weight: 600;
+}
+[data-dbx-theme="dark"] .csv-row.is-sel .csv-rowno { background-color: #121214; }
+.csv-row.is-sel .csv-cell.is-sel {
+    background: var(--accent-bg);
+    box-shadow: inset 0 0 0 2px var(--primary);
+    border-radius: 2px;
+}
+.csv-th.is-sel { color: var(--text-main); box-shadow: inset 0 -2px 0 var(--primary); }
+/* 搜索命中：普通命中浅黄，当前停的那一格加深 + 描边，一眼能看出跳到哪了 */
+.csv-cell.is-hit { background: rgba(250, 204, 21, 0.28); }
+.csv-cell.is-cur {
+    background: rgba(250, 204, 21, 0.55);
+    box-shadow: inset 0 0 0 2px var(--primary);
+}
+.csv-spacer td {
+    padding: 0;
+    border: 0;
+}
+.csv-cell-edit {
+    position: absolute;
+    z-index: 6;
+    margin: 0;
+    padding: 0 7px;
+    border: 2px solid var(--primary);
+    border-radius: 3px;
+    background: var(--bg-card);
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 0.78rem;
+    line-height: 26px;
+    resize: none;
+    overflow: auto;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+}
+.csv-out-wrap[hidden] { display: none; }
+
+/* Markdown 预览：真渲染成表格，光看源码看不出表长什么样 */
+.csv-md-seg[hidden] { display: none; }
+.csv-out-wrap.is-preview .CodeMirror,
+.csv-out-wrap.is-preview > textarea { display: none; }
+.csv-md-preview {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+    padding: 1rem 1.1rem 1.4rem;
+    background: var(--bg-card);
+}
+.csv-md-preview[hidden] { display: none; }
+/* 38 列的表塞进一屏只会挤成竖排单字：按内容撑开，宽了就横向滚 */
+.csv-md-preview .md-table {
+    border-collapse: collapse;
+    width: max-content;
+    min-width: 100%;
+    font-size: 0.8rem;
+    color: var(--text-main);
+}
+.csv-md-preview .md-table th,
+.csv-md-preview .md-table td {
+    padding: 6px 12px;
+    border: 1px solid var(--border-light);
+    text-align: left;
+    vertical-align: top;
+    line-height: 1.55;
+    max-width: 360px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.csv-md-preview .md-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--accent-bg);
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.csv-md-preview .md-table tbody tr:nth-child(even) { background: rgba(127, 127, 127, 0.06); }
+.csv-md-preview .md-table tbody tr:hover { background: var(--accent-bg); }
+.csv-md-preview .md-table code {
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: var(--accent-bg);
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+}
+.csv-md-preview .csv-md-empty {
+    margin: 0;
+    padding: 1rem 0;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+/* 源码里与表格选中行对应的那一行：淡底 + 左边一条竖线，扫一眼就能找到 */
+.CodeMirror .csv-line-hl,
+.cm-s-default .csv-line-hl,
+.csv-src-pane .csv-line-hl {
+    background: rgba(250, 204, 21, 0.28) !important;
+    box-shadow: inset 3px 0 0 var(--primary);
+}
+/* 行号槽必须不透明：横向滚动的源码会从数字底下穿过去，叠在一起就没法看；
+   宽度也给足，三位数行号不至于被裁掉半截 */
+.csv-src-pane .CodeMirror-gutters,
+.csv-out-wrap .CodeMirror-gutters,
+.csv-cell-modal-body .CodeMirror-gutters {
+    /* 同上：代码会横向滚到行号底下，槽的底色必须实心 */
+    background-color: #ffffff !important;
+    background-image: linear-gradient(var(--bg-card, #ffffff), var(--bg-card, #ffffff)) !important;
+}
+[data-dbx-theme="dark"] .csv-src-pane .CodeMirror-gutters,
+[data-dbx-theme="dark"] .csv-out-wrap .CodeMirror-gutters,
+[data-dbx-theme="dark"] .csv-cell-modal-body .CodeMirror-gutters {
+    background-color: #121214 !important;
+}
+.csv-src-pane .CodeMirror-gutter.CodeMirror-linenumbers,
+.csv-out-wrap .CodeMirror-gutter.CodeMirror-linenumbers,
+.csv-cell-modal-body .CodeMirror-gutter.CodeMirror-linenumbers {
+    min-width: 46px;
+}
+.csv-src-pane .CodeMirror-linenumber,
+.csv-out-wrap .CodeMirror-linenumber,
+.csv-cell-modal-body .CodeMirror-linenumber {
+    padding: 0 10px 0 6px;
+    min-width: 30px;
+}
+
+/* 行号槽上的选中标记：一条竖线 + 底色，横向滚到哪儿都能看见这行被选中。
+   CodeMirror 会给这一行生成一条 .CodeMirror-gutter-background，直接给它上色最稳。 */
+.csv-src-pane .CodeMirror-gutter-background.csv-gutter-mark,
+.csv-out-wrap .CodeMirror-gutter-background.csv-gutter-mark {
+    background: rgba(250, 204, 21, 0.5);
+    box-shadow: inset 3px 0 0 var(--primary);
+}
+.csv-src-pane .CodeMirror-gutter-wrapper.csv-gutter-mark .CodeMirror-linenumber {
+    background: rgba(250, 204, 21, 0.55);
+    color: var(--text-main);
+    font-weight: 700;
+    box-shadow: inset 3px 0 0 var(--primary);
+}
+.csv-out-wrap .CodeMirror-gutter-wrapper.csv-gutter-mark .CodeMirror-linenumber {
+    background: rgba(250, 204, 21, 0.55);
+    color: var(--text-main);
+    font-weight: 700;
+}
+
+/* 选中那一格在源码里的那一段：比整行亮一档，一眼看出选的是哪格 */
+.CodeMirror .csv-cell-hl {
+    background: rgba(250, 204, 21, 0.6) !important;
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 1px var(--primary);
+}
+@media (max-width: 900px) {
+    .csv-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+}
+
+/* 单元格放大编辑弹窗
+   高度必须写死：盒子是 flex 列布局，body 用 flex:1 撑开，
+   如果 box 只有 max-height 没有 height，body 的可用空间就是 0，
+   输入框会被压成一行、内容溢到盒子外面（第一版就是这么翻车的）。 */
+.csv-cell-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+    background: rgba(15, 15, 18, 0.42);
+    backdrop-filter: blur(1.5px);
+}
+.csv-cell-modal[hidden] { display: none; }
+.csv-cell-modal-box {
+    display: flex;
+    flex-direction: column;
+    width: min(720px, 92vw);
+    height: min(600px, 82vh);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius-lg, 0.75rem) + 2px);
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.32), 0 2px 8px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+.csv-cell-modal-head {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.7rem 0.9rem 0.65rem;
+}
+.csv-cell-modal-title {
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--text-main);
+    letter-spacing: 0.01em;
+}
+.csv-cell-modal-meta {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background: var(--accent-bg);
+    border-radius: 999px;
+    padding: 1px 8px;
+    max-width: 46%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.csv-cell-modal-head .sheet-cell-pop-close {
+    margin-left: auto;
+    width: 24px;
+    height: 24px;
+    line-height: 22px;
+    border-radius: var(--radius-md, 0.5rem);
+    color: var(--text-muted);
+}
+.csv-cell-modal-head .sheet-cell-pop-close:hover {
+    background: var(--accent-bg);
+    color: var(--text-main);
+}
+.csv-cell-modal-body {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0 0.9rem;
+}
+.csv-cell-modal-text {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    padding: 0.6rem 0.7rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.65;
+    color: var(--text-main);
+    background: var(--bg-base);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md, 0.5rem);
+    outline: none;
+    resize: none;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.csv-cell-modal-text:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+}
+/* 弹窗里用 CodeMirror：它自己带编辑器外框，这里只负责撑满与圆角 */
+.csv-cell-modal-body > .CodeMirror {
+    flex: 1 1 auto;
+    height: 100%;
+    width: 100%;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md, 0.5rem);
+    background: var(--bg-base);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.65;
+}
+.csv-cell-modal-body > .CodeMirror-focused {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+}
+.csv-cell-modal-body > .CodeMirror .CodeMirror-lines { padding: 0.45rem 0; }
+.csv-cell-modal-body > .CodeMirror .CodeMirror-line { padding: 0 0.6rem; }
+.csv-cell-modal-foot {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 0.9rem 0.8rem;
+}
+.csv-cell-modal-hint {
+    flex: 1 1 auto;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+.csv-cell-modal-foot .btn { min-width: 72px; justify-content: center; }

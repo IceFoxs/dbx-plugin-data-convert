@@ -51,6 +51,7 @@
     <script src="js/sqlrun.js"></script>
     <script src="js/qr.js"></script>
     <script src="js/selectconv.js"></script>
+    <script src="js/csvedit.js"></script>
     <script src="js/flow.js"></script>
     <script src="js/nav.js"></script>
 
@@ -183,6 +184,7 @@
         <a id="navQr" class="nav-qr" data-i18n="navQr">二维码</a>
         <a id="navCodegen" class="nav-code" data-i18n="navCodegen">代码生成</a>
         <a id="navSheet" class="nav-sheet" data-i18n="navSheet">表格转 JSON</a>
+        <a id="navCsv" class="nav-csv" data-i18n="navCsv">CSV 编辑</a>
         <a id="navStats" class="nav-stats" data-i18n="navStats">数据统计</a>
         <a id="navDataSql" class="nav-datasql" data-i18n="navDataSql">SQL 分析</a>
         <a id="navQuery" class="nav-query" data-i18n="navQuery">查询校验</a>
@@ -646,6 +648,182 @@
                 <div class="sheet-cell-pop-foot">
                     <span class="sheet-cell-pop-hint" data-i18n="sheetCellHint">双击其他单元格可继续查看</span>
                     <button type="button" class="btn btn-outline" id="sheetCellPopCopy" data-i18n="sheetCellCopy">复制</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= CSV 编辑 =================
+         左边 CSV 源码（CodeMirror），右边可编辑表格（虚拟滚动：只渲染视口内的行）。
+         两边互相定位：点表格某行 → 源码光标跳到那一行；源码光标移动 → 表格滚到那条记录。
+         内核在 js/csvedit.js（window.DBXCsv，纯函数），这里只放结构。 -->
+    <section class="csv-workspace" id="csvWorkspace">
+        <!-- 工具栏：左边「打开 / 文件名 / 示例」，右边「复制 / 下载 / 清空」；
+             解析选项单独占一行（#csvOptions）。这样窄了只会整块下移，不会出现半行按钮孤零零挂着。 -->
+        <div class="compare-bar csv-bar">
+            <div class="csv-bar-top">
+                <input type="file" id="csvFileInput" accept=".csv,.tsv,.txt" hidden>
+                <button type="button" class="btn btn-primary" id="csvPick">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span data-i18n="csvOpen">打开 CSV</span>
+                </button>
+                <span class="csv-file" id="csvFileInfo" data-i18n="csvNoFile">未选择文件</span>
+
+                <!-- 示例收成一个下拉（原来三个 chip 占一百多像素，挤得选项行换行）。
+                     这是「点了就载入」的动作菜单，不是选中值，所以触发器文案固定是「示例」。 -->
+                <div class="custom-select select-compact csv-samples" id="csvSamples">
+                    <div class="custom-select-trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">
+                        <span class="label" data-i18n="csvSamples">示例</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="custom-select-options">
+                        <div class="custom-option" data-sample="basic" data-i18n="csvSampleBasic">简单表格</div>
+                        <div class="custom-option" data-sample="orders" data-i18n="csvSampleOrders">订单流水</div>
+                        <div class="custom-option" data-sample="quoted" data-i18n="csvSampleQuoted">引号与换行</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="csv-options">
+                <span class="compare-samples-label" data-i18n="csvDelim">分隔符</span>
+                <div class="compare-tabs sql-seg" id="csvDelim">
+                    <button type="button" class="compare-tab active" data-delim="auto" data-i18n="csvDelimAuto">自动</button>
+                    <button type="button" class="compare-tab" data-delim=",">,</button>
+                    <button type="button" class="compare-tab" data-delim="&#9;">Tab</button>
+                    <button type="button" class="compare-tab" data-delim=";">;</button>
+                    <button type="button" class="compare-tab" data-delim="|">|</button>
+                </div>
+
+                <span class="compare-samples-label" data-i18n="csvQuote">引号</span>
+                <div class="compare-tabs sql-seg" id="csvQuote">
+                    <button type="button" class="compare-tab active" data-quote="&quot;">"</button>
+                    <button type="button" class="compare-tab" data-quote="'">'</button>
+                    <button type="button" class="compare-tab" data-quote="">—</button>
+                </div>
+
+                <label class="sql-check"><input type="checkbox" id="csvHeader" checked><span data-i18n="csvHeader">首行为表头</span></label>
+                <label class="sql-check"><input type="checkbox" id="csvTrim"><span data-i18n="csvTrim">去首尾空白</span></label>
+                <label class="sql-check"><input type="checkbox" id="csvSkipEmpty" checked><span data-i18n="csvSkipEmpty">跳过空行</span></label>
+
+                <!-- 输出编码这一组（BOM + 换行）当成一整块，换行时不会被 flex 拆开 -->
+                <div class="csv-opt-tail">
+                    <label class="sql-check"><input type="checkbox" id="csvBom"><span data-i18n="csvBom">UTF-8 BOM</span></label>
+
+                    <span class="compare-samples-label" data-i18n="csvEol">换行</span>
+                    <div class="compare-tabs sql-seg" id="csvEol">
+                        <button type="button" class="compare-tab active" data-eol="&#10;">LF</button>
+                        <button type="button" class="compare-tab" data-eol="&#13;&#10;">CRLF</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="compare-actions">
+                <button type="button" class="btn btn-outline" id="csvCopy" data-i18n="csvCopyCsv">复制 CSV</button>
+                <button type="button" class="btn btn-outline" id="csvDownload" data-i18n="csvDownload">下载 CSV</button>
+                <button type="button" class="btn btn-outline" id="csvClear" data-i18n="csvClear">清空</button>
+            </div>
+        </div>
+
+        <div class="compare-grid csv-grid">
+            <div class="compare-pane csv-src-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="csvSource">CSV 源码</span>
+                        <span class="pane-badge" id="csvSrcBadge">0</span>
+                    </div>
+                    <div class="pane-actions">
+                        <button type="button" class="btn btn-ghost" id="csvParse" data-i18n="csvParse">解析到表格</button>
+                        <button type="button" class="btn btn-ghost" id="csvSync" data-i18n="csvSync">同步源码</button>
+                    </div>
+                </div>
+                <div class="editor-container">
+                    <textarea id="csvSrcText" class="textarea" spellcheck="false"></textarea>
+                </div>
+            </div>
+
+            <div class="compare-pane csv-table-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="csvTable">表格</span>
+                        <span class="pane-badge" id="csvStat">0 × 0</span>
+                    </div>
+                    <div class="pane-actions">
+                        <div class="compare-tabs sql-seg" id="csvTabs">
+                            <button type="button" class="compare-tab active" data-view="table" data-i18n="csvTabTable">表格</button>
+                            <button type="button" class="compare-tab" data-view="json" data-i18n="csvTabJson">JSON</button>
+                            <button type="button" class="compare-tab" data-view="md" data-i18n="csvTabMarkdown">Markdown</button>
+                        </div>
+                        <div class="compare-tabs sql-seg csv-md-seg" id="csvMdSeg" hidden>
+                            <button type="button" class="compare-tab active" data-md="preview" data-i18n="csvMdPreview">预览</button>
+                            <button type="button" class="compare-tab" data-md="source" data-i18n="csvMdSource">源码</button>
+                        </div>
+                        <button type="button" class="btn btn-ghost" id="csvCopyOut" data-i18n="csvCopy" hidden>复制</button>
+                    </div>
+                </div>
+
+                <div class="csv-toolbar" id="csvToolbar">
+                    <div class="csv-tools">
+                        <button type="button" class="csv-tool" id="csvAddRow" data-i18n="csvAddRow">+ 行</button>
+                        <button type="button" class="csv-tool" id="csvAddCol" data-i18n="csvAddCol">+ 列</button>
+                        <button type="button" class="csv-tool" id="csvDelRow" data-i18n="csvDelRow">删行</button>
+                        <button type="button" class="csv-tool" id="csvDelCol" data-i18n="csvDelCol">删列</button>
+                        <span class="csv-tools-sep"></span>
+                        <button type="button" class="csv-tool" id="csvSortAsc" data-i18n="csvSortAsc">升序</button>
+                        <button type="button" class="csv-tool" id="csvSortDesc" data-i18n="csvSortDesc">降序</button>
+                        <span class="csv-tools-sep"></span>
+                        <button type="button" class="csv-tool" id="csvUndo" data-i18n="csvUndo" disabled>撤销</button>
+                        <button type="button" class="csv-tool" id="csvRedo" data-i18n="csvRedo" disabled>重做</button>
+                    </div>
+                    <div class="csv-find">
+                        <div class="csv-find-box">
+                            <input type="search" id="csvFind" spellcheck="false" data-i18n-placeholder="csvFindPh" placeholder="查找，定位单元格">
+                            <span class="csv-find-count" id="csvFindCount"></span>
+                            <button type="button" class="csv-tool csv-find-step" id="csvFindPrev" data-i18n-title="csvFindPrev" aria-label="prev">↑</button>
+                            <button type="button" class="csv-tool csv-find-step" id="csvFindNext" data-i18n-title="csvFindNext" aria-label="next">↓</button>
+                            <button type="button" class="csv-tool" id="csvFilterToggle" aria-pressed="false" data-i18n="csvOnlyHits">只看命中</button>
+                        </div>
+                        <input type="text" id="csvReplace" spellcheck="false" data-i18n-placeholder="csvReplacePh" placeholder="替换为">
+                        <button type="button" class="csv-tool" id="csvReplaceOne" data-i18n="csvReplaceOne">替换</button>
+                        <button type="button" class="csv-tool" id="csvReplaceAll" data-i18n="csvReplaceAll">全部替换</button>
+                    </div>
+                </div>
+
+                <div class="csv-grid-wrap" id="csvGridWrap">
+                    <div class="sheet-empty" id="csvEmpty" data-i18n="csvEmptyHint">打开 CSV、贴一段文本，或把文件拖到这里</div>
+                    <div class="csv-scroll" id="csvScroll" tabindex="0">
+                        <div class="csv-canvas" id="csvCanvas">
+                            <table class="sheet-table csv-table" id="csvTable" hidden>
+                                <colgroup id="csvColgroup"></colgroup>
+                                <thead id="csvThead"></thead>
+                                <tbody id="csvTbody"></tbody>
+                            </table>
+                            <textarea class="csv-cell-edit" id="csvCellEdit" spellcheck="false" hidden></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="editor-container csv-out-wrap" id="csvOutWrap" hidden>
+                    <textarea id="csvOutText" class="textarea" spellcheck="false"></textarea>
+                    <div class="csv-md-preview" id="csvMdPreview" hidden></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 单元格放大编辑：长文本（换行、上千字）在 30px 的行里根本改不动 -->
+        <div class="csv-cell-modal" id="csvCellModal" hidden>
+            <div class="csv-cell-modal-box" role="dialog" aria-modal="true" aria-labelledby="csvCellModalTitle">
+                <div class="csv-cell-modal-head">
+                    <span class="csv-cell-modal-title" id="csvCellModalTitle">编辑单元格</span>
+                    <span class="csv-cell-modal-meta" id="csvCellModalMeta"></span>
+                    <button type="button" class="sheet-cell-pop-close" id="csvCellModalClose" aria-label="close">×</button>
+                </div>
+                <div class="csv-cell-modal-body">
+                    <textarea id="csvCellModalText" class="csv-cell-modal-text" spellcheck="false"></textarea>
+                </div>
+                <div class="csv-cell-modal-foot">
+                    <span class="csv-cell-modal-hint" id="csvCellModalHint"></span>
+                    <button type="button" class="btn btn-outline" id="csvCellModalCancel" data-i18n="csvCellCancel">取消</button>
+                    <button type="button" class="btn btn-primary" id="csvCellModalSave" data-i18n="csvCellSave">保存</button>
                 </div>
             </div>
         </div>
@@ -1806,6 +1984,7 @@
 <script src="js/app/19-datasql.js"></script>
 <script src="js/app/20-last-feature.js"></script>
 <script src="js/app/21-editor-menu.js"></script>
+<script src="js/app/22-csv-edit.js"></script>
 
 </body>
 </html>

@@ -316,7 +316,9 @@ outputText.addEventListener('input', () => {
     }
 });
 
-function showToast(message, type = 'success') {
+/* duration 可选：默认 3 秒。报错类提示会读得久一点，调用方可以单独给。 */
+function showToast(message, type = 'success', duration = 3000) {
+    if (!toastContainer) return;
     const toast = document.createElement('div');
     toast.className = `toast ${type === 'error' ? 'error' : ''}`;
     toast.innerHTML = `<span>${message}</span>`;
@@ -324,7 +326,7 @@ function showToast(message, type = 'success') {
     setTimeout(() => {
         toast.classList.add('hide');
         setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    }, duration > 0 ? duration : 3000);
 }
 
 async function readClipboardText() {
@@ -383,6 +385,11 @@ function navGoto(link) {
     // 「表格转 JSON」是 Excel / CSV 转 JSON 的独立页
     if (link.id === 'navSheet') {
         enterSheetMode();
+        return;
+    }
+    // 「CSV 编辑」是源码 / 表格双向编辑的独立页
+    if (link.id === 'navCsv') {
+        enterCsvMode();
         return;
     }
     // 「图片 Base64」是图片 ↔ Base64 的独立页
