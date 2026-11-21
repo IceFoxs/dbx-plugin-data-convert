@@ -218,6 +218,13 @@ function syncEditorModes() {
     outputEditor.setOption('mode', MODE_MAP[targetFormat.value] || 'text/plain');
 }
 
+/* 后加载页面注册「换主题时刷我的编辑器」的地方。
+   必须声明在 syncEditorTheme 之前：下面第 248 行在加载期就会调一次。 */
+const editorThemeHooks = [];
+function onEditorTheme(fn) {
+    if (typeof fn === 'function' && editorThemeHooks.indexOf(fn) < 0) editorThemeHooks.push(fn);
+}
+
 function syncEditorTheme() {
     const isDark = document.documentElement.getAttribute('data-dbx-theme') === 'dark';
     const theme = isDark ? 'material-darker' : 'default';
@@ -230,6 +237,13 @@ function syncEditorTheme() {
         cm.setOption('theme', theme);
         // setOption('theme') 内部已经 refresh 过一次，只有主题没变（仅换了皮肤令牌）时才需要手动刷新
         if (!switching) cm.refresh();
+    });
+    // 后加载的页面（CSV 编辑 / URL 分析）建的编辑器不在上面这份清单里，
+    // 由它们自己注册一个刷新函数——不用每加一页就回头改这份列表（以前就这么漏过）
+    editorThemeHooks.forEach((fn) => {
+        try {
+            fn();
+        } catch (e) { /* 某一页刷不动别影响其它页 */ }
     });
     // 图表页不用管：出图配色与底色固定，见 chartBg() / chartThemeName()
 }
@@ -440,6 +454,11 @@ function navGoto(link) {
     // 「SQL 分析」是贴表格 -> 写 SELECT 查询的独立页
     if (link.id === 'navDataSql') {
         if (typeof enterDataSqlMode === 'function') enterDataSqlMode();
+        return;
+    }
+    // 「URL 分析」是一行一条 URL、逐段拆开看的独立页
+    if (link.id === 'navUrl') {
+        if (typeof enterUrlMode === 'function') enterUrlMode();
         return;
     }
     // 剩下的是「格式转换」的十几对格式之一

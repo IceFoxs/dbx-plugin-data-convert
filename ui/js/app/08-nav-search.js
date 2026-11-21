@@ -63,6 +63,13 @@ const NAV_SEARCH_ALIAS = {
             'editor', 'edit', 'cell', 'row', 'column', 'source'],
         py: 'csv bianji bj bianjiqi bjq biaogebianji bgbj danyuange dyg hanglie hl yuanma ym tsv'
     },
+    navUrl: {
+        keys: ['url', '链接', '网址', '地址', '域名', '主机', '端口', '路径', '参数', '查询串',
+            '解析', '拆解', '分析', 'idn', 'punycode', 'query', 'params', 'host', 'port', 'path',
+            'parse', 'parser', 'analyze', 'origin'],
+        py: 'url lianjie lj wangzhi wz dizhi dz yuming ym zhuji zj duankou dk lujing lj canshu cs'
+            + ' jiexi jx chai jie fenxi fx'
+    },
     navQuery: {
         keys: ['查询', '校验', '过滤', '筛选', '断言', 'jsonpath', 'jq', 'schema'],
         py: 'chaxun cx jiaoyan jy guolv gl shaixuan sx duanyan dy'
@@ -651,7 +658,9 @@ function applyI18n() {
         // 19-datasql.js 在 08 之后加载：切语言发生在用户操作时，那时它已经在了
         (typeof DATASQL_I18N !== 'undefined' ? (DATASQL_I18N[currentLang] || DATASQL_I18N.en || {}) : {}),
         // 22-csv-edit.js 同理；它自己在末尾又会 applyI18n 一次，补上首屏这一次
-        (typeof CSV_I18N !== 'undefined' ? (CSV_I18N[currentLang] || CSV_I18N.en || {}) : {})
+        (typeof CSV_I18N !== 'undefined' ? (CSV_I18N[currentLang] || CSV_I18N.en || {}) : {}),
+        // 23-url.js 同理
+        (typeof URL_I18N !== 'undefined' ? (URL_I18N[currentLang] || URL_I18N.en || {}) : {})
     );
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');

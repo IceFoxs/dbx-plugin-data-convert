@@ -92,6 +92,15 @@ const CSV_SAMPLE = JOIN([
 // 混着中文与 & 才看得出转义前后差别
 const ESC_TEXT = 'https://dbx.test/api?q=中文关键词&page=1';
 
+// URL 分析页：四种协议各一条（https / jdbc / sftp / ssh），全部自造域名
+const URL_SAMPLE = JOIN([
+    'mysql://app:secret@db.example.com:53306/demo',
+    'jdbc:dm://10.1.2.3:5236/DEMO',
+    'jdbc:mysql://db.example.com:3306/demo?user=app&password=secret',
+    'https://demo:secret@api.example.com:8443/v1/items?page=2&size=20&q=%E4%B8%AD%E6%96%87#section-2',
+    'sftp://deploy@files.example.com:2222/upload/inbox'
+]);
+
 // 故意混四种写法：纯数字、带单位、1024 制、字节序列（最后一行能出三种表示）
 const BYTES_TEXT = JOIN([
     '1234567890',
@@ -303,6 +312,24 @@ const SHOTS = [
                 return td ? 'ok' : 'no-cell';
             })()`);
             await sleep(600);
+        }
+    },
+    {
+        name: 'screen-url',
+        label: 'URL 分析',
+        async run(ev) {
+            await ev(`handleNavClick(document.getElementById('navUrl'))`);
+            await sleep(600);
+            // 三条不同写法，右边是三张卡片；进页面不预填，这里直接塞文本再解析
+            await ev(`urlLoadText(${JSON.stringify(URL_SAMPLE)})`);
+            await sleep(700);
+            // 点一下卡片上的行号徽标 → 左边光标落到那一行（截图里能看到两边对上）
+            await ev(`(() => {
+                const badge = document.querySelector('#urlResults .url-card[data-line="1"] .url-line-badge');
+                if (badge) badge.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                return badge ? 'ok' : 'no-card';
+            })()`);
+            await sleep(500);
         }
     },
     {

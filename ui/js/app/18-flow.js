@@ -1460,6 +1460,16 @@ function pageImportTargets(page, side) {
             tipId: 'dataSqlTip'
         };
     }
+
+    // URL 分析页：一行一条 URL，拖 .txt / .log 进来直接铺到左边（23-url.js 比这里晚加载）
+    if (page === 'navUrl') {
+        return {
+            editor: typeof urlEditor !== 'undefined' ? urlEditor : null,
+            el: document.getElementById('urlSrcText'),
+            tipId: ''
+        };
+    }
+
     if (page === 'navCodegen') return { editor: codeInputEditor, el: codeInput, tipId: 'codeTip' };
     if (page === 'navQuery') {
         const schemaPane = byId('querySchemaPane');

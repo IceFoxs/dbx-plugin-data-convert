@@ -2847,8 +2847,8 @@ function check(name, fn) {
         if (convertMenu.querySelectorAll('a').length !== 7) {
             throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
         }
-        // 直属项（从左到右）：JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / 字节转换 / JSON 转图表 / 时间转换 / 二维码转换 / 代码生成 / 表格转 JSON / 数据统计 / 查询校验
-        if (inlineNavLinks().length !== 14) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
+        // 直属项（从左到右）：JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / URL 分析 / 字节转换 / JSON 转图表 / 时间转换 / 二维码转换 / 代码生成 / 表格转 JSON / CSV 编辑 / 数据统计 / SQL 分析 / 查询校验
+        if (inlineNavLinks().length !== 15) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
         if (!doc.getElementById('navConvertTrigger')) throw new Error('缺少「格式转换」触发器');
         // 触发器直接显示当前这一对格式，而不是固定的「格式转换」
         var label = doc.getElementById('navConvertLabel').textContent.trim();
@@ -2865,7 +2865,7 @@ function check(name, fn) {
     check('默认是顶部导航，切换按钮在', function () {
         if (!doc.getElementById('navToggle')) throw new Error('缺少切换按钮');
         if (doc.body.classList.contains('nav-left')) throw new Error('默认不该是左侧');
-        if (inlineNavLinks().length !== 14) throw new Error('顶部直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 15) throw new Error('顶部直属项 ' + inlineNavLinks().length);
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('左侧') === -1) throw new Error('提示文案: ' + label);
     });
@@ -2874,7 +2874,7 @@ function check(name, fn) {
     check('点切换后导航变左侧', function () {
         if (!doc.body.classList.contains('nav-left')) throw new Error('没切到左侧');
         // 竖排能放下全部项，不该再收进「更多」
-        if (inlineNavLinks().length !== 14) throw new Error('左侧直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 15) throw new Error('左侧直属项 ' + inlineNavLinks().length);
         if (moreEl.classList.contains('show')) throw new Error('左侧模式不该出现「更多」');
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('顶部') === -1) throw new Error('提示没切成「顶部」: ' + label);
@@ -2940,7 +2940,7 @@ function check(name, fn) {
         // 顶部布局下收起不成立：类要摘掉，否则顶部导航整条都点不到
         if (doc.body.classList.contains('nav-collapsed')) throw new Error('顶部布局还带着收起类');
         if (navSide.hasAttribute('inert')) throw new Error('顶部布局的导航被设成 inert');
-        if (inlineNavLinks().length !== 14) throw new Error('顶部直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 15) throw new Error('顶部直属项 ' + inlineNavLinks().length);
         doc.getElementById('navToggle').click();      // 切回左侧
         if (!doc.body.classList.contains('nav-collapsed')) throw new Error('切回左侧没恢复收起状态');
         if (!navSide.hasAttribute('inert')) throw new Error('恢复收起后没设 inert');
@@ -3184,7 +3184,7 @@ function check(name, fn) {
         searchBtn.click();
         if (doc.body.classList.contains('nav-searching')) throw new Error('再点没收起');
         if (searchBtn.getAttribute('aria-expanded') !== 'false') throw new Error('aria-expanded 没复位');
-        if (inlineNavLinks().length !== 14) throw new Error('收起后导航没回来: ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 15) throw new Error('收起后导航没回来: ' + inlineNavLinks().length);
     });
 
     check('Ctrl+K / ⌘K 也能唤起搜索', function () {
@@ -3328,7 +3328,7 @@ function check(name, fn) {
     doc.getElementById('navToggle').click();
     check('再点一次回到顶部导航', function () {
         if (doc.body.classList.contains('nav-left')) throw new Error('没切回顶部');
-        if (inlineNavLinks().length !== 14) throw new Error('回顶部后直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 15) throw new Error('回顶部后直属项 ' + inlineNavLinks().length);
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('左侧') === -1) throw new Error('提示没切成「左侧」: ' + label);
         if (String(win.name || '').indexOf('dbx-nav:top') === -1) throw new Error('window.name 没跟着回到 top: ' + win.name);
@@ -3371,7 +3371,7 @@ function check(name, fn) {
         var names = [].map.call(moreMenu.querySelectorAll('a'), function (a) { return a.textContent.trim(); });
         // 120px 只塞得下一项：先是非置顶的搬走，还不够才动置顶项，塞得下就停；
         // 菜单顺序必须接着导航条往下排（置顶项在最前）
-        var expect = ['SQL 转换', '图片 Base64', '转义工具', '字节转换', 'JSON 转图表',
+        var expect = ['SQL 转换', '图片 Base64', '转义工具', 'URL 分析', '字节转换', 'JSON 转图表',
             '时间转换', '二维码转换', '代码生成', '表格转 JSON', 'CSV 编辑', '数据统计', 'SQL 分析', '查询校验'];
         if (names.join('|') !== expect.join('|')) {
             throw new Error('菜单项: ' + names.join(','));
@@ -3432,7 +3432,7 @@ function check(name, fn) {
     check('宽度恢复后导航项全部回到导航条', function () {
         if (moreEl.classList.contains('show')) throw new Error('「更多」仍显示');
         if (moreMenu.querySelectorAll('a').length !== 0) throw new Error('菜单仍有残留');
-        if (inlineNavLinks().length !== 14) throw new Error('导航项数 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 15) throw new Error('导航项数 ' + inlineNavLinks().length);
         if (convertMenu.querySelectorAll('a').length !== 7) throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
     });
 
@@ -3464,10 +3464,10 @@ function check(name, fn) {
     });
 
     navCustomizeBtn.click();
-    check('面板列出全部 14 项，顺序跟导航条一致', function () {
+    check('面板列出全部 15 项，顺序跟导航条一致', function () {
         if (navPanelMask.hidden) throw new Error('面板没打开');
         var rows = panelRows();
-        if (rows.length !== 14) throw new Error('行数 ' + rows.length);
+        if (rows.length !== 15) throw new Error('行数 ' + rows.length);
         if (rows.join(',') !== navIds().join(',')) {
             throw new Error('面板 ' + rows.join(',') + ' / 导航 ' + navIds().join(','));
         }
@@ -3659,8 +3659,8 @@ function check(name, fn) {
         if (navIds()[2] !== 'navFuture') throw new Error('置顶后顺序: ' + navIds().join(','));
         var name = String(win.name || '');
         if (name.indexOf('navFuture') === -1) throw new Error('没写进窗口记忆: ' + name);
-        // 面板行数跟着长到 15（导航原有 14 项 + 新加的 navFuture）
-        if (panelRows().length !== 15) throw new Error('行数 ' + panelRows().length);
+        // 面板行数跟着长到 16（导航原有 15 项 + 新加的 navFuture）
+        if (panelRows().length !== 16) throw new Error('行数 ' + panelRows().length);
     });
 
     check('偏好存在独立 key/token 里，旧版本那套读写不会碰它', function () {
@@ -3700,8 +3700,8 @@ function check(name, fn) {
     dom.window.dispatchEvent(new dom.window.Event('resize'));
     await wait(250);
 
-    check('摘掉临时项后回到 14 项、出厂顺序', function () {
-        if (inlineNavLinks().length !== 14) throw new Error('项数 ' + inlineNavLinks().length);
+    check('摘掉临时项后回到 15 项、出厂顺序', function () {
+        if (inlineNavLinks().length !== 15) throw new Error('项数 ' + inlineNavLinks().length);
         if (navIds().slice(0, 2).join(',') !== 'navCompare,navSql') throw new Error('顺序: ' + navIds().join(','));
     });
 
@@ -4566,6 +4566,259 @@ function check(name, fn) {
     check('离开 CSV 编辑页后入口状态复原', function () {
         if (csvWs.classList.contains('active')) throw new Error('页面还在显示');
         if (doc.getElementById('navCsv').classList.contains('active')) throw new Error('导航还高亮');
+    });
+
+    /* ---------------- URL 分析页 ---------------- */
+
+    doc.getElementById('navUrl').click();
+    await wait(400);
+    var urlWs = doc.getElementById('urlWorkspace');
+    var urlCmWrap = doc.querySelector('#urlWorkspace .CodeMirror');
+
+    check('进 URL 分析页：页面显示、导航高亮、编辑器就位', function () {
+        if (!urlWs.classList.contains('active')) throw new Error('页面没显示');
+        if (!doc.getElementById('navUrl').classList.contains('active')) throw new Error('导航没高亮');
+        if (!urlCmWrap) throw new Error('CodeMirror 没挂上');
+        var cmEl = doc.getElementById('mainWorkspace');
+        if (!cmEl.classList.contains('hidden')) throw new Error('格式转换页没让位');
+    });
+
+    check('空页：结果区给出提示，两个徽标都是 0', function () {
+        var empty = doc.querySelector('#urlResults .url-empty');
+        if (!empty) throw new Error('没有空态提示');
+        if (doc.getElementById('urlSrcBadge').textContent !== '0') throw new Error('行数徽标 ' + doc.getElementById('urlSrcBadge').textContent);
+        if (doc.getElementById('urlOutBadge').textContent !== '0') throw new Error('通过徽标 ' + doc.getElementById('urlOutBadge').textContent);
+    });
+
+    var urlCm = urlCmWrap && urlCmWrap.CodeMirror;
+    var URL_DEMO = [
+        'https://demo:secret@api.example.com:8443/v1/items?page=2&tag=a&tag=b#top',
+        'http://example.com:99999/bad',
+        'example.com:8080/a'
+    ].join('\n');
+
+    urlCm.setValue(URL_DEMO);
+    await wait(420);
+
+    function urlCards() {
+        return doc.querySelectorAll('#urlResults .url-card');
+    }
+
+    // 按行号取卡片文字：卡片是动态铺的，用 data-line 找最稳
+    function cardText(line) {
+        var card = doc.querySelector('#urlResults .url-card[data-line="' + line + '"]');
+        return card ? card.textContent : '';
+    }
+
+    check('批量 3 条：一条一张卡片，统计写清通过 / 失败', function () {
+        var cards = urlCards();
+        if (cards.length !== 3) throw new Error('卡片 ' + cards.length + ' 张');
+        var stat = doc.getElementById('urlStat').textContent;
+        if (!/3/.test(stat) || !/2/.test(stat) || !/1/.test(stat)) throw new Error('统计文案：' + stat);
+        if (doc.getElementById('urlSrcBadge').textContent !== '3') throw new Error('行数徽标没更新');
+        if (doc.getElementById('urlOutBadge').textContent !== '2') throw new Error('通过徽标没更新');
+    });
+
+    check('第一条：协议 / 用户名 / 端口 / 两个参数都拆出来了', function () {
+        var card = doc.querySelector('#urlResults .url-card[data-line="1"]');
+        if (!card) throw new Error('第 1 行没有卡片');
+        var text = card.textContent;
+        if (text.indexOf('https') < 0) throw new Error('没有协议');
+        if (text.indexOf('demo') < 0) throw new Error('没有用户名');
+        if (text.indexOf('8443') < 0) throw new Error('没有端口');
+        if (card.querySelectorAll('.url-param').length !== 3) throw new Error('参数个数 ' + card.querySelectorAll('.url-param').length);
+        if (!card.querySelector('.url-param-flag')) throw new Error('重复键没标出来');
+        if (text.indexOf('https://api.example.com:8443') < 0) throw new Error('来源不对：' + text);
+    });
+
+    check('坏地址：卡片标红并写明原因，不当成正常结果', function () {
+        var card = doc.querySelector('#urlResults .url-card[data-line="2"]');
+        if (!card) throw new Error('第 2 行没有卡片');
+        if (!card.classList.contains('is-bad')) throw new Error('没有标红');
+        if (!card.querySelector('.url-card-bad')) throw new Error('没写原因');
+    });
+
+    /* 点行号定位：CodeMirror 的行号在 jsdom 里不一定渲染出来（没有布局，
+       视口高度算成 0），所以直接造一个同 class 的节点打进去——验的是
+       「行号上那一下点击能定位到右面对应卡片」这条接线，不是 CM 的渲染。 */
+    var fakeLineNo = doc.createElement('div');
+    fakeLineNo.className = 'CodeMirror-linenumber';
+    fakeLineNo.textContent = '3';
+    urlCmWrap.appendChild(fakeLineNo);
+    fakeLineNo.dispatchEvent(new win.MouseEvent('mousedown', { bubbles: true }));
+    await wait(90);
+
+    check('点编辑器里的行号 3 → 第 3 张卡片被高亮定位', function () {
+        var card = doc.querySelector('#urlResults .url-card[data-line="3"]');
+        if (!card) throw new Error('第 3 行没有卡片');
+        if (!card.classList.contains('is-active')) throw new Error('没有高亮');
+        var others = doc.querySelectorAll('#urlResults .url-card.is-active');
+        if (others.length !== 1) throw new Error('高亮的不止一张：' + others.length);
+    });
+
+    check('点卡片上的行号徽标 → 编辑器光标跳回那一行（反向定位）', function () {
+        var card = doc.querySelector('#urlResults .url-card[data-line="1"]');
+        card.querySelector('.url-line-badge').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        if (urlCm.getCursor().line !== 0) throw new Error('光标在第 ' + (urlCm.getCursor().line + 1) + ' 行');
+    });
+
+    check('「只看失败」：只剩坏的那一条', function () {
+        doc.querySelector('#urlFilter [data-filter="bad"]').click();
+        var cards = urlCards();
+        if (cards.length !== 1) throw new Error('卡片 ' + cards.length + ' 张');
+        if (!cards[0].classList.contains('is-bad')) throw new Error('留下的不是坏的那条');
+    });
+
+    doc.querySelector('#urlFilter [data-filter="all"]').click();
+
+    check('切回「全部」：3 张卡片都回来', function () {
+        if (urlCards().length !== 3) throw new Error('卡片 ' + urlCards().length + ' 张');
+    });
+
+    /* 剪贴板：上面 CSV 那段把 navigator.clipboard 换成了写进 csvClipText 的实现，
+       这里再换一个本段专用的捕获，免得两段互相踩 */
+    var urlClip = null;
+    Object.defineProperty(win.navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: function (t) { urlClip = t; return Promise.resolve(); } }
+    });
+    doc.getElementById('urlCopyJson').click();
+    await wait(120);
+
+    check('复制 JSON：写进剪贴板的是能解析的数组，字段齐全', function () {
+        if (!urlClip) throw new Error('没写剪贴板');
+        var data = JSON.parse(urlClip);
+        if (!Array.isArray(data) || data.length !== 3) throw new Error('条数 ' + (Array.isArray(data) ? data.length : '不是数组'));
+        if (data[0].host !== 'api.example.com') throw new Error('主机 ' + data[0].host);
+        if (data[0].port !== 8443) throw new Error('端口不是数字：' + data[0].port);
+        if (data[1].ok !== false) throw new Error('坏的那条没标 ok=false');
+        if (!data[0].params || data[0].params.length !== 3) throw new Error('参数没带上');
+    });
+
+    // 单条复制：剪贴板里是对象而不是数组，行号对得上
+    urlClip = null;
+    urlCards()[0].querySelector('.url-card-copy').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await wait(120);
+
+    check('单条复制 JSON：出对象、带行号，不是整页数组', function () {
+        if (!urlClip) throw new Error('没写剪贴板');
+        var one = JSON.parse(urlClip);
+        if (Array.isArray(one)) throw new Error('单条应该是对象');
+        if (one.line !== 1) throw new Error('行号 ' + one.line);
+        if (one.host !== 'api.example.com') throw new Error('主机 ' + one.host);
+    });
+
+    /* 示例下拉：点开三条，选「混合写法」 */
+    var urlSamplesSel = doc.getElementById('urlSamples');
+    urlSamplesSel.querySelector('.custom-select-trigger').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await wait(30);
+    urlSamplesSel.querySelector('.custom-option[data-sample="mixed"]').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await wait(420);
+
+    check('示例下拉载入「混合写法」：13 行 13 张卡片，协议族各自成卡', function () {
+        if (urlCm.getValue().split('\n').length !== 13) throw new Error('行数 ' + urlCm.getValue().split('\n').length);
+        if (urlCards().length !== 13) throw new Error('卡片 ' + urlCards().length + ' 张');
+        var protoRel = null;
+        urlCards().forEach(function (c) {
+            if (c.getAttribute('data-line') === '2') protoRel = c.textContent;
+        });
+        if (!protoRel || protoRel.indexOf('cdn.example.com') < 0) throw new Error('协议相对地址没拆出主机');
+        if (doc.querySelector('#urlResults .url-card.is-bad')) throw new Error('混合示例里不该有坏的');
+        // JDBC 连接串：协议写成 jdbc:mysql，主机 / 端口 / 库名各就各位
+        var jdbc = cardText(6);
+        if (!jdbc || jdbc.indexOf('jdbc:mysql') < 0) throw new Error('JDBC 协议没拆对：' + jdbc);
+        // 协议与驱动分两行：协议就写 `jdbc`，`mysql` 另起一行（不是 `jdbc:mysql:` 一整串）
+        if (jdbc.indexOf('协议jdbc驱动mysql主机名') < 0) throw new Error('协议 / 驱动没分开：' + jdbc);
+        if (!jdbc || jdbc.indexOf('db.example.com') < 0) throw new Error('JDBC 主机没拆对');
+        if (!jdbc || jdbc.indexOf('3306') < 0) throw new Error('JDBC 端口没拆对');
+        if (jdbc.indexOf('数据库demo') < 0) throw new Error('JDBC 的库名没单独显示：' + jdbc);
+    });
+
+    check('协议标签：JDBC / SSH / SFTP / FTP / SCP 各显示自己的名字', function () {
+        function kindOf(line) {
+            var card = doc.querySelector('#urlResults .url-card[data-line="' + line + '"]');
+            var chip = card && card.querySelector('.url-kind');
+            return chip ? chip.textContent : '';
+        }
+        if (kindOf(6) !== 'JDBC') throw new Error('第 6 行标签：' + kindOf(6));
+        if (kindOf(7) !== 'JDBC') throw new Error('第 7 行标签：' + kindOf(7));
+        if (kindOf(8) !== 'SSH') throw new Error('第 8 行标签：' + kindOf(8));
+        if (kindOf(9) !== 'SFTP') throw new Error('第 9 行标签：' + kindOf(9));
+        if (kindOf(10) !== 'FTP') throw new Error('第 10 行标签：' + kindOf(10));
+        if (kindOf(11) !== 'SCP') throw new Error('第 11 行标签：' + kindOf(11));
+        // 裸数据库地址用驱动名，不写成 MYSQL 那种全大写
+        if (kindOf(12) !== 'MySQL') throw new Error('第 12 行标签：' + kindOf(12));
+        if (kindOf(13) !== 'JDBC') throw new Error('第 13 行标签：' + kindOf(13));
+        // 没写协议的行不贴标签
+        if (kindOf(1) !== '') throw new Error('相对地址不该有标签：' + kindOf(1));
+    });
+
+    check('裸数据库地址 mysql://：账号 / 密码 / 库名 / 连接属性都在，且不用路径那套标签', function () {
+        var bare = cardText(12);
+        if (!bare) throw new Error('第 12 行没有卡片');
+        if (bare.indexOf('协议mysql') < 0) throw new Error('协议没显示：' + bare);
+        if (bare.indexOf('用户名app') < 0) throw new Error('账号没拆出来：' + bare);
+        if (bare.indexOf('密码secret') < 0) throw new Error('密码没拆出来：' + bare);
+        if (bare.indexOf('端口53306') < 0) throw new Error('端口没拆出来：' + bare);
+        if (bare.indexOf('数据库demo') < 0) throw new Error('库名没按「数据库」显示：' + bare);
+        if (bare.indexOf('路径') >= 0) throw new Error('数据库地址不该出现「路径」：' + bare);
+        if (bare.indexOf('连接属性') >= 0) throw new Error('没有参数时不该有连接属性表：' + bare);
+    });
+
+    check('国产数据库：jdbc:dm 拆出驱动 dm 与库名，默认端口标出来', function () {
+        var dm = cardText(13);
+        if (!dm) throw new Error('第 13 行没有卡片');
+        if (dm.indexOf('驱动dm') < 0) throw new Error('驱动没单独显示：' + dm);
+        if (dm.indexOf('10.1.2.3') < 0) throw new Error('主机没拆出来：' + dm);
+        if (dm.indexOf('数据库DEMO') < 0) throw new Error('库名没拆出来：' + dm);
+        if (dm.indexOf('默认端口') < 0) throw new Error('5236 是达梦默认端口，应该标出来：' + dm);
+    });
+
+    check('SQL Server 连接串：分号属性拆开，databaseName 当库名', function () {
+        var ss = cardText(7);
+        if (ss.indexOf('数据库demo') < 0) throw new Error('databaseName 没当库名：' + ss);
+        if (ss.indexOf('连接属性') < 0) throw new Error('JDBC 的参数标题不是「连接属性」：' + ss);
+        if (ss.indexOf('databaseName=demo') < 0) throw new Error('属性没拆出来：' + ss);
+        if (ss.indexOf('user=sa') < 0) throw new Error('第二个属性没拆出来：' + ss);
+    });
+
+    check('FTP / SSH：账号、主机、端口、路径各就各位', function () {
+        var ftp = cardText(10);
+        if (ftp.indexOf('用户名user') < 0) throw new Error('FTP 账号没拆出来：' + ftp);
+        if (ftp.indexOf('ftp.example.com') < 0) throw new Error('FTP 主机没拆出来');
+        var ssh = cardText(8);
+        if (ssh.indexOf('用户名root') < 0) throw new Error('SSH 账号没拆出来：' + ssh);
+        if (ssh.indexOf('/var/log/app.log') < 0) throw new Error('SSH 路径没拆出来');
+        if (ssh.indexOf('默认端口') < 0) throw new Error('SSH 22 没标成默认端口');
+    });
+
+    /* 示例里的「数据库连接串」：带 / 不带 jdbc、国产库、NoSQL 都在一遍 */
+    urlSamplesSel.querySelector('.custom-select-trigger').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await wait(30);
+    urlSamplesSel.querySelector('.custom-option[data-sample="db"]').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await wait(420);
+
+    check('示例「数据库连接串」：12 行 12 张卡片，库名统一叫「数据库」，不出现「路径」', function () {
+        if (urlCm.getValue().split('\n').length !== 12) throw new Error('行数 ' + urlCm.getValue().split('\n').length);
+        if (urlCards().length !== 12) throw new Error('卡片 ' + urlCards().length + ' 张');
+        if (doc.querySelector('#urlResults .url-card.is-bad')) throw new Error('数据库示例里不该有坏行');
+        urlCards().forEach(function (c) {
+            var text = c.textContent;
+            // 图数据库的路径是「图空间」，其余是「数据库」；两种都算对上。
+            // IoTDB 的连接串通常不写库名，那张卡片允许没有这一行
+            if (text.indexOf('数据库') < 0 && text.indexOf('图空间') < 0 && text.toLowerCase().indexOf('iotdb') < 0) {
+                throw new Error('第 ' + c.getAttribute('data-line') + ' 行没有库名字段：' + text.slice(0, 90));
+            }
+            if (text.indexOf('路径') >= 0) throw new Error('数据库地址不该出现「路径」：' + text.slice(0, 90));
+        });
+    });
+
+    doc.getElementById('navSheet').click();
+    await wait(150);
+
+    check('离开 URL 分析页后入口状态复原', function () {
+        if (urlWs.classList.contains('active')) throw new Error('页面还在显示');
+        if (doc.getElementById('navUrl').classList.contains('active')) throw new Error('导航还高亮');
     });
 
     results.forEach(function (r) {

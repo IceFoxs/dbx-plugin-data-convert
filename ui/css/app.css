@@ -1475,6 +1475,7 @@ body:not(.nav-left).nav-searching #navMore {
 .sql-workspace,
 .sheet-workspace,
 .csv-workspace,
+.url-workspace,
 .img-workspace,
 .code-workspace,
 .query-workspace,
@@ -1490,6 +1491,7 @@ body:not(.nav-left).nav-searching #navMore {
 .sql-workspace.active,
 .sheet-workspace.active,
 .csv-workspace.active,
+.url-workspace.active,
 .img-workspace.active,
 .code-workspace.active,
 .query-workspace.active,
@@ -5102,3 +5104,345 @@ li.CodeMirror-hint-active .datasql-hint-kind { opacity: 0.85; }
     font-variant-numeric: tabular-nums;
 }
 .csv-cell-modal-foot .btn { min-width: 72px; justify-content: center; }
+
+/* ================= URL 分析页 =================
+   左边一行一条 URL，右边每条一张卡片。卡片是「读」的东西，不是「填」的东西，
+   所以排版按字段表来：标签窄且灰、值宽且等宽字体，复制按钮只在悬停时露出来
+   （常显的话每张卡片会多出十来个按钮，一眼看过去全是图标）。 */
+.url-grid {
+    grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.4fr);
+}
+.url-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+}
+.url-bar-top {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+.url-bar > .compare-actions {
+    flex: 0 0 auto;
+    margin-left: auto;
+}
+.url-stat {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.url-stat:empty { display: none; }
+.url-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* 结果区自己滚：卡片可能上百张，不能把整页撑高 */
+.url-results {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.3rem 0.15rem 0.6rem;
+    scroll-padding-block: 0.5rem;
+}
+.url-empty {
+    margin: auto;
+    max-width: 24rem;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    color: var(--text-muted);
+}
+
+.url-card {
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-card);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.url-card.is-active {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px var(--accent-bg);
+}
+/* 点行号定位时闪一下：只闪底色，不闪边框——边框已经在 is-active 里了 */
+.url-card.is-flash { animation: url-card-flash 1.1s ease-out; }
+@keyframes url-card-flash {
+    0%, 30% { background-color: var(--accent-hover); }
+    100% { background-color: var(--bg-card); }
+}
+.url-card.is-bad {
+    border-color: rgba(220, 38, 38, 0.45);
+    background-color: rgba(220, 38, 38, 0.04);
+}
+[data-dbx-theme="dark"] .url-card.is-bad {
+    border-color: rgba(248, 113, 113, 0.45);
+    background-color: rgba(248, 113, 113, 0.06);
+}
+
+.url-card-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.55rem;
+    min-height: 1.9rem;
+}
+.url-card-body {
+    padding: 0 0.55rem 0.5rem;
+    border-top: 1px solid var(--border-light);
+    padding-top: 0.35rem;
+}
+.url-line-badge {
+    flex: 0 0 auto;
+    min-width: 1.5rem;
+    padding: 0.05rem 0.35rem;
+    border: 1px solid var(--border-light);
+    border-radius: 9999px;
+    background-color: var(--accent-bg);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1.5;
+    text-align: center;
+    cursor: pointer;
+}
+.url-line-badge:hover {
+    color: var(--text-main);
+    border-color: var(--primary);
+}
+/* 协议标签：HTTPS / FTP / SFTP / SSH / JDBC，一眼分清这行按哪套规则解的 */
+.url-kind {
+    flex: 0 0 auto;
+    padding: 0 0.3rem;
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    background-color: var(--accent-bg);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1.6;
+    /* 不强制大写：MySQL / PostgreSQL / openGauss 这些名字有自己的写法，
+       text-transform 会把它们变成 MYSQL / POSTGRESQL，像乱码 */
+    white-space: nowrap;
+}
+.url-card-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.url-card-bad {
+    flex: 0 0 auto;
+    font-size: 0.7rem;
+    color: #dc2626;
+    white-space: nowrap;
+}
+[data-dbx-theme="dark"] .url-card-bad { color: #fca5a5; }
+
+/* 卡片头部的「复制这条 JSON」。常驻但压得很淡，鼠标进卡片才亮起来——
+   完全藏起来的话，没人知道单条能复制 */
+.url-card-copy {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0.35;
+    transition: opacity 0.12s ease, color 0.12s ease, background-color 0.12s ease;
+}
+.url-card:hover .url-card-copy,
+.url-card-copy:focus-visible { opacity: 1; }
+.url-card-copy:hover {
+    color: var(--primary);
+    background-color: var(--accent-bg);
+}
+.url-card-copy:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+}
+
+.url-field {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 1.5rem;
+    padding: 0.05rem 0;
+}
+.url-field-label {
+    flex: 0 0 4.6rem;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.url-field-value {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.78rem;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.url-field-value.is-mono { font-family: var(--font-mono); }
+.url-field.is-muted .url-field-value { color: var(--text-muted); }
+.url-field-flag,
+.url-param-flag {
+    flex: 0 0 auto;
+    font-size: 0.64rem;
+    line-height: 1.5;
+    padding: 0.02rem 0.4rem;
+    border-radius: 9999px;
+    background-color: var(--accent-bg);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+/* 值里面的小标记（「默认端口」）：跟在数字后面，别被 flex 推到行尾 */
+.url-field-value .url-field-flag {
+    display: inline-block;
+    margin-left: 0.45rem;
+    vertical-align: 1px;
+}
+.url-field-copy {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.3rem;
+    height: 1.3rem;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s ease, color 0.12s ease, background-color 0.12s ease;
+}
+.url-field:hover .url-field-copy,
+.url-param:hover .url-field-copy,
+.url-field-copy:focus-visible { opacity: 1; }
+.url-field-copy:hover {
+    color: var(--text-main);
+    background-color: var(--accent-bg);
+}
+
+.url-params {
+    margin-top: 0.35rem;
+    padding-top: 0.35rem;
+    border-top: 1px dashed var(--border-light);
+}
+.url-params-head {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    padding-bottom: 0.15rem;
+}
+.url-param {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 1.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    /* 面板窄的时候三个复制按钮换到下一行右侧，别把值挤没 */
+    flex-wrap: wrap;
+    row-gap: 0.15rem;
+}
+.url-param-key { color: var(--text-main); white-space: nowrap; }
+.url-param-eq { color: var(--text-muted); }
+.url-param-val {
+    min-width: 0;
+    max-width: 55%;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.url-param-val.is-muted { color: var(--text-muted); font-style: italic; }
+.url-param-flag { font-family: var(--font-sans); }
+
+/* 参数行右端的三个复制入口：键 / 值 / 键=值。
+   做成小号文字按钮——浏览器默认按钮那套立体边框塞在卡片里特别扎眼，
+   而且三颗并排会把「值」推得很远，得靠 margin-left:auto 收到行尾当成一列操作。 */
+.url-param-acts {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-left: auto;
+    padding-left: 0.5rem;
+}
+/* 手指能稳稳按到的尺寸：高度 22 px 上下、左右留白，别做成 10 px 的小字 */
+.url-param-act {
+    padding: 0.1rem 0.42rem;
+    border: 1px solid var(--border-light);
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    line-height: 1.35;
+    white-space: nowrap;
+    cursor: pointer;
+    opacity: 0.82;
+    transition: color 0.12s ease, border-color 0.12s ease, background-color 0.12s ease, opacity 0.12s ease;
+}
+.url-param:hover .url-param-act { opacity: 1; }
+.url-param-act:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+    background-color: var(--accent-bg);
+}
+.url-param-act:active { transform: translateY(0.5px); }
+.url-param-act:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+    opacity: 1;
+}
+
+.url-more {
+    align-self: center;
+    margin: 0.35rem 0 0.6rem;
+    padding: 0.35rem 0.9rem;
+    border: 1px dashed var(--border-light);
+    border-radius: 9999px;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.74rem;
+    cursor: pointer;
+}
+.url-more:hover {
+    color: var(--text-main);
+    border-color: var(--primary);
+}
+
+/* 窄一点的侧栏里，字段标签再窄一档，值能多看几个字 */
+@media (max-width: 1100px) {
+    .url-grid { grid-template-columns: minmax(240px, 0.9fr) minmax(0, 1.1fr); }
+    .url-field-label { flex-basis: 3.8rem; }
+}
