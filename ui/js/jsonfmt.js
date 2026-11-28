@@ -46,6 +46,10 @@
         clipboard: 128 * 1024,
         // 键排序要建对象树，只能在小文件上做
         sortKeys: 1024 * 1024,
+        // 表格视图：要建整棵树，2 MB 是「点开就出表」的上限，再大让人导出
+        tableInput: 2 * 1024 * 1024,
+        // 一张表最多这么多列；再多就截断（列比行更吃布局）
+        tableCols: 80,
         // 异步扫描每片最多占用主线程多久（毫秒）
         sliceMs: 12,
         // 缩进最多长到这么多层。`[[[[…]]]]` 两万层时，缩进随深度线性增长的输出
@@ -625,15 +629,17 @@
      * 解析和序列化都用显式栈（不用递归）：一万层的 [[[…]]] 也不会爆栈。
      * 只在 LIMITS.sortKeys（1 MB）以内调用，树撑死几万个节点。
      */
-    function parseTree(raw) {
+    /* 多根解析：每行一条（JSONL）时整段会有好几个根值，这里全收下来。
+       单条 JSON 就是只有一根。 */
+    function parseTreeMulti(raw) {
         var i = 0;
         var len = raw.length;
         var stack = [];
-        var root = null;
+        var roots = [];
 
         function attach(node) {
             var top = stack[stack.length - 1];
-            if (!top) { root = node; return; }
+            if (!top) { roots.push(node); return; }
             if (top.node.kind === 'arr') top.node.items.push(node);
             else {
                 top.node.entries.push({ key: top.key, sort: keySortText(top.key), value: node });
@@ -684,7 +690,11 @@
             if (top && top.node.kind === 'obj' && top.key === null) top.key = token;
             else attach({ kind: 'raw', text: token });
         }
-        return root;
+        return roots;
+    }
+
+    function parseTree(raw) {
+        return parseTreeMulti(raw)[0] || null;
     }
 
     /* 排序用的比较文本：不含转义就直接比原文，省掉一次 JSON.parse */
@@ -874,6 +884,189 @@
         return { ok: true, text: out.join(''), lenient: lenient, quoted: quoted };
     }
 
+    /* ------------------------------- 表格视图 -------------------------------
+       把 JSON 摊成一张表：
+         · 根是对象        → 「字段 / 值」两列（键值表）
+         · 根是对象数组    → 一行一条，列取所有成员键的并集（按出现顺序）
+         · 其余（标量数组）→ 单列「值」
+       行存的是节点引用，单元格文本按需生成——一屏只字符串化二三十个格子，
+       几万行也不会一打开就卡住（懒加载）。 */
+
+    function unquoteKey(token) {
+        if (!token) return '';
+        if (token.charCodeAt(0) !== 34) return token;
+        try { return JSON.parse(token); } catch (e) { return token.slice(1, -1); }
+    }
+
+    function rawDisplay(node) {
+        var t = node && node.text != null ? node.text : '';
+        if (t.charCodeAt(0) === 34) {
+            try { return JSON.parse(t); } catch (e) { return t.slice(1, -1); }
+        }
+        return t;
+    }
+
+    // 子树有多大：早停计数。别为了一个格子把整个 2 MB 子树序列化一遍
+    function countNodes(node, cap) {
+        var stack = [node];
+        var n = 0;
+        while (stack.length) {
+            var cur = stack.pop();
+            n++;
+            if (n > cap) return n;
+            if (cur.kind === 'arr') {
+                for (var i = 0; i < cur.items.length; i++) stack.push(cur.items[i]);
+            } else if (cur.kind === 'obj') {
+                for (var k = 0; k < cur.entries.length; k++) stack.push(cur.entries[k].value);
+            }
+        }
+        return n;
+    }
+
+    // 一个值在表里长什么样：字符串去引号、数字原样、容器紧凑序列化（有长度上限）
+    function nodeText(node, max) {
+        if (!node) return '';
+        var limit = max || 240;
+        if (node.kind === 'raw') {
+            var t = rawDisplay(node);
+            return t.length > limit ? t.slice(0, limit) + '…' : t;
+        }
+        if (countNodes(node, 4000) > 4000) return node.kind === 'arr' ? '[ … ]' : '{ … }';
+        var text = serializeTree(node, 2, true, false);
+        return text.length > limit ? text.slice(0, limit) + '…' : text;
+    }
+
+    // 取一行里某个字段对应的节点（详情弹窗要拿它做完整展示）
+    function nodeOf(row, colKey, kind) {
+        if (!row) return null;
+        if (kind === 'kv') return colKey === '#key' ? null : row.value;
+        if (kind === 'values') return row;
+        if (row.kind !== 'obj') return colKey === '#value' ? row : null;
+        for (var i = 0; i < row.entries.length; i++) {
+            if (unquoteKey(row.entries[i].key) === colKey) return row.entries[i].value;
+        }
+        return null;
+    }
+
+    function cellOf(row, colKey, kind, max) {
+        if (!row) return '';
+        if (kind === 'kv' && colKey === '#key') return unquoteKey(row.key);
+        return nodeText(nodeOf(row, colKey, kind), max);
+    }
+
+    /* 完整的值：表格里那一格只显示前几百字符，点开详情要全文。
+       容器按两空格缩进美化——详情就是要看清楚结构 */
+    function cellFull(row, colKey, kind) {
+        if (!row) return '';
+        if (kind === 'kv' && colKey === '#key') return unquoteKey(row.key);
+        var node = nodeOf(row, colKey, kind);
+        if (!node) return '';
+        if (node.kind === 'raw') return rawDisplay(node);
+        return serializeTree(node, '  ', false, false);
+    }
+
+    /**
+     * 建表模型。不做 DOM，纯数据，宿主 / node 里都能测。
+     * 返回 { ok, kind, columns, rows, rowCount, keys, colsTruncated } 或 { ok:false, error }
+     */
+    function buildTable(raw, opts) {
+        var options = opts || {};
+        var maxCols = options.maxCols || LIMITS.tableCols;
+        var text = String(raw == null ? '' : raw);
+        if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+        if (!text.trim()) return { ok: false, error: { code: 'empty' } };
+        if (text.length > LIMITS.tableInput) {
+            return { ok: false, error: { code: 'tooLarge', limit: LIMITS.tableInput, size: text.length } };
+        }
+        // 先用扫描器过一遍：既校验，也数出一共几条记录。
+        // 每行一条（JSONL / NDJSON）时不能整段丢给 parseTree —— 它会当成「一个值 + 后面还有内容」，
+        // 只剩最后一条。
+        var sc = createScanner(text, {});
+        while (sc.step(1e9) !== 'done') { /* 一次跑完 */ }
+        var res = sc.result();
+        if (!res.ok) return { ok: false, error: res.error };
+        var records = (res.stats && res.stats.records) || 1;
+
+        if (records > 1) {
+            // 每行一条：可能是「一行一条」的原文，也可能是美化后一条占多行——
+            // 都交给多根解析，别按换行硬拆（美化过的会被拆成半截对象）
+            var nodes = parseTreeMulti(text);
+            if (!nodes.length) return { ok: false, error: { code: 'empty' } };
+            var lineModel = tableFromNodes(nodes, maxCols);
+            lineModel.jsonl = true;
+            return lineModel;
+        }
+
+        var root = parseTree(text);
+        if (!root) return { ok: false, error: { code: 'empty' } };
+        return tableFromNodes([root], maxCols);
+    }
+
+    /* 一批「第一层记录」→ 表模型。单条 JSON 和每行一条（JSONL）共用这段：
+       全是对象就摊成多列，否则单列「值」 */
+    function tableFromNodes(items, maxCols) {
+        var model = { ok: true, kind: 'values', columns: [{ key: '#value' }], rows: [], rowCount: 0, keys: [], colsTruncated: false, jsonl: false };
+        if (!items.length) return model;
+
+        var root = items[0];
+        if (items.length === 1 && root.kind === 'obj') {
+            model.kind = 'kv';
+            model.columns = [{ key: '#key' }, { key: '#value' }];
+            model.rows = root.entries;
+            model.rowCount = root.entries.length;
+            var keys = [];
+            for (var i = 0; i < root.entries.length; i++) keys.push(unquoteKey(root.entries[i].key));
+            model.keys = keys;
+            return model;
+        }
+
+        // 单条数组：元素就是行；多条记录：一条一行
+        var rows = items.length === 1 && root.kind === 'arr' ? root.items : items;
+        var allObj = rows.length > 0;
+        for (var a = 0; a < rows.length; a++) {
+            if (rows[a].kind !== 'obj') { allObj = false; break; }
+        }
+        model.rows = rows;
+        model.rowCount = rows.length;
+        if (!allObj) return model;
+
+        var seen = Object.create(null);
+        var cols = [];
+        for (var r = 0; r < rows.length; r++) {
+            var entries = rows[r].entries;
+            for (var e = 0; e < entries.length; e++) {
+                var key = unquoteKey(entries[e].key);
+                if (seen[key]) continue;
+                seen[key] = 1;
+                if (cols.length >= maxCols) { model.colsTruncated = true; continue; }
+                cols.push({ key: key });
+            }
+        }
+        if (cols.length) {
+            model.kind = 'rows';
+            model.columns = cols;
+            model.keys = cols.map(function (c) { return c.key; });
+        }
+        return model;
+    }
+
+    /** 某一行在某个字段上是否命中关键字（colKey 为空 = 所有字段） */
+    function tableRowMatches(model, row, colKey, needle) {
+        var q = String(needle == null ? '' : needle).toLowerCase();
+        if (!q || !model) return true;
+        var cols;
+        if (colKey) cols = [colKey];
+        else {
+            cols = [];
+            for (var i = 0; i < model.columns.length; i++) cols.push(model.columns[i].key);
+        }
+        for (var k = 0; k < cols.length; k++) {
+            var text = cellOf(row, cols[k], model.kind, 4000);
+            if (text.toLowerCase().indexOf(q) >= 0) return true;
+        }
+        return false;
+    }
+
     function formatBytes(n) {
         var v = Number(n) || 0;
         if (v < 1024) return v + ' B';
@@ -891,6 +1084,10 @@
         escapeText: escapeText,
         unescapeText: unescapeText,
         utf8Bytes: utf8Bytes,
-        formatBytes: formatBytes
+        formatBytes: formatBytes,
+        buildTable: buildTable,
+        tableCell: cellOf,
+        tableCellFull: cellFull,
+        tableRowMatches: tableRowMatches
     };
 });

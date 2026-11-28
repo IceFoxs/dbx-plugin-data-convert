@@ -476,6 +476,106 @@ check('formatBytes / utf8Bytes', () => {
     eq(J.utf8Bytes('😀'), 4);
 });
 
+// ---------------------------------------------------------------- 表格视图
+console.log('\n== 表格视图（只摊第一层键） ==');
+
+check('对象数组：列取第一层键的并集，按出现顺序', () => {
+    const m = J.buildTable('[{"a":1,"b":2},{"b":3,"c":4}]');
+    ok(m.ok, '应该建表成功');
+    eq(m.kind, 'rows');
+    eq(m.columns.map((c) => c.key), ['a', 'b', 'c']);
+    eq(m.rowCount, 2);
+});
+
+check('嵌套对象只当一个值，不再往下摊', () => {
+    const m = J.buildTable('[{"id":1,"meta":{"x":1,"y":[1,2]}}]');
+    eq(m.columns.map((c) => c.key), ['id', 'meta']);
+    eq(J.tableCell(m.rows[0], 'meta', m.kind, 80), '{"x":1,"y":[1,2]}');
+});
+
+check('根是对象：字段 / 值两列，字段名去掉引号', () => {
+    const m = J.buildTable('{"url":"http://a","status":200}');
+    eq(m.kind, 'kv');
+    eq(m.columns.map((c) => c.key), ['#key', '#value']);
+    eq(J.tableCell(m.rows[0], '#key', m.kind, 20), 'url');
+    eq(J.tableCell(m.rows[0], '#value', m.kind, 20), 'http://a');
+    eq(J.tableCell(m.rows[1], '#value', m.kind, 20), '200');
+});
+
+check('标量数组：单列值', () => {
+    const m = J.buildTable('[1,2,3]');
+    eq(m.kind, 'values');
+    eq(m.columns.map((c) => c.key), ['#value']);
+    eq(m.rowCount, 3);
+    eq(J.tableCell(m.rows[2], '#value', m.kind, 20), '3');
+});
+
+check('数组里混了对象和标量：退回单列，不硬凑列', () => {
+    const m = J.buildTable('[{"a":1},2]');
+    eq(m.kind, 'values');
+    eq(m.columns.length, 1);
+});
+
+check('每行一条（JSONL）：一行一条记录，列取并集', () => {
+    const m = J.buildTable('{"a":1,"b":2}\n{"a":3,"c":4}\n');
+    ok(m.ok, '应该能建表');
+    ok(m.jsonl, '应标记为每行一条');
+    eq(m.kind, 'rows');
+    eq(m.rowCount, 2);
+    eq(m.columns.map((c) => c.key), ['a', 'b', 'c']);
+    eq(J.tableCell(m.rows[1], 'c', m.kind, 20), '4');
+    eq(J.tableCell(m.rows[0], 'c', m.kind, 20), '');
+});
+
+check('每行一条且都是标量：单列，一行一个值', () => {
+    const m = J.buildTable('1\n2\n3');
+    eq(m.kind, 'values');
+    eq(m.rowCount, 3);
+    eq(J.tableCell(m.rows[2], '#value', m.kind, 5), '3');
+});
+
+check('每行一条里有坏行：照样报错，不静默吞掉', () => {
+    const m = J.buildTable('{"a":1}\n{"a":}\n');
+    eq(m.ok, false);
+    ok(m.error && m.error.line >= 1, '要带上出错行号');
+});
+
+check('大整数照原样显示，不走 double', () => {
+    const m = J.buildTable('[{"id":9007199254740993}]');
+    eq(J.tableCell(m.rows[0], 'id', m.kind, 40), '9007199254740993');
+});
+
+check('超长值截断带省略号', () => {
+    const m = J.buildTable('[{"t":"' + 'x'.repeat(500) + '"}]');
+    const cell = J.tableCell(m.rows[0], 't', m.kind, 20);
+    eq(cell.length, 21);
+    ok(cell.endsWith('…'), '应该以省略号结尾');
+});
+
+check('列太多会截断并留标记', () => {
+    const row = {};
+    for (let i = 0; i < 12; i++) row['k' + i] = i;
+    const m = J.buildTable(JSON.stringify([row]), { maxCols: 5 });
+    eq(m.columns.length, 5);
+    ok(m.colsTruncated, '应该记下截断');
+});
+
+check('非法 JSON / 空内容 / 超大内容都有错误码', () => {
+    eq(J.buildTable('{"a":}').ok, false);
+    eq(J.buildTable('').error.code, 'empty');
+    const big = '[{"a":"' + 'x'.repeat(J.LIMITS.tableInput) + '"}]';
+    eq(J.buildTable(big).error.code, 'tooLarge');
+});
+
+check('检索：全字段命中、指定字段命中、不命中', () => {
+    const m = J.buildTable('[{"name":"alpha","city":"bj"},{"name":"beta","city":"sh"}]');
+    ok(J.tableRowMatches(m, m.rows[0], '', 'BETA') === false, '第一行不该命中 beta');
+    ok(J.tableRowMatches(m, m.rows[1], '', 'beta') === true);
+    ok(J.tableRowMatches(m, m.rows[0], 'city', 'bj') === true);
+    ok(J.tableRowMatches(m, m.rows[0], 'city', 'sh') === false);
+    ok(J.tableRowMatches(m, m.rows[0], '', '') === true, '空关键字等于不过滤');
+});
+
 // ---------------------------------------------------------------- 汇总
 console.log('\n--- jsonfmt: ' + passed + '/' + (passed + failed) + ' passed ---');
 if (failed) {

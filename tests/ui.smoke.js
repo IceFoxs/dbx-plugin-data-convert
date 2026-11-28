@@ -5000,6 +5000,156 @@ function check(name, fn) {
         if (!doc.getElementById('jsonError').hidden) throw new Error('不该有提示条');
     });
 
+    // ---- 表格视图：第一层键摊表、行虚拟滚动、检索 ----
+    var rowsJson = [];
+    for (var ri = 0; ri < 500; ri++) {
+        rowsJson.push({ id: 'row-' + ri, name: 'item ' + ri, city: (ri % 2 ? 'bj' : 'sh') });
+    }
+    win.jsonLoadText(JSON.stringify(rowsJson), 'rows.json', true);
+    await wait(1200);
+
+    doc.getElementById('jsonTableBtn').click();
+    await wait(400);
+
+    check('表格视图：按第一层键出表头，DOM 里只有视口那几十行', function () {
+        if (doc.getElementById('jsonTable').hidden) throw new Error('表格没显示');
+        if (!doc.getElementById('jsonOutEditorWrap').classList.contains('is-hidden')) throw new Error('编辑器该让位');
+        var head = doc.querySelectorAll('#jsonTableHead .json-table-head-cell');
+        var names = [];
+        for (var i = 0; i < head.length; i++) names.push(head[i].textContent.trim());
+        names.sort();
+        if (names.join(',') !== 'city,id,name') throw new Error('表头不对: ' + names.join(','));
+        var rows = doc.querySelectorAll('#jsonTableRows .json-table-row');
+        if (!rows.length) throw new Error('一行都没渲染');
+        if (rows.length > 80) throw new Error('没做虚拟滚动，DOM 里塞了 ' + rows.length + ' 行');
+        if (doc.getElementById('jsonTableCount').textContent.indexOf('500') < 0) {
+            throw new Error('行数没显示: ' + doc.getElementById('jsonTableCount').textContent);
+        }
+    });
+
+    var tq = doc.getElementById('jsonTableQuery');
+    tq.value = 'row-499';
+    tq.dispatchEvent(new win.Event('input', { bubbles: true }));
+    await wait(500);
+
+    check('检索：只留命中行，命中的字标出来', function () {
+        var count = doc.getElementById('jsonTableCount').textContent;
+        if (count.indexOf('1 /') !== 0) throw new Error('过滤后行数不对: ' + count);
+        if (!doc.querySelector('#jsonTableRows mark')) throw new Error('没有高亮命中');
+    });
+
+    tq.value = 'zzz-没有这个';
+    tq.dispatchEvent(new win.Event('input', { bubbles: true }));
+    await wait(400);
+
+    check('检索无结果：给一句「没有匹配的行」，不是空白一片', function () {
+        if (doc.getElementById('jsonTableNoMatch').hidden) throw new Error('空结果提示没出来');
+        if (doc.querySelectorAll('#jsonTableRows .json-table-row').length) throw new Error('还有行残留');
+    });
+
+    // 指定字段检索：city 里搜 bj，应该正好一半
+    tq.value = '';
+    tq.dispatchEvent(new win.Event('input', { bubbles: true }));
+    await wait(300);
+    doc.querySelector('#jsonTableScope .custom-select-trigger').click();
+    doc.querySelector('#jsonTableScope .custom-option[data-key="city"]')
+        .dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await wait(300);
+    tq.value = 'bj';
+    tq.dispatchEvent(new win.Event('input', { bubbles: true }));
+    await wait(500);
+
+    check('按字段过滤：选了 city 就只在 city 里搜', function () {
+        var count = doc.getElementById('jsonTableCount').textContent;
+        if (count.indexOf('250') < 0) throw new Error('city=bj 应该 250 行，实际: ' + count);
+        if (doc.querySelector('#jsonTableScopeValue').textContent !== 'city') throw new Error('下拉没回显字段名');
+    });
+
+    // 单元格详情：小值用 pre，大文本 / 容器上只读编辑器
+    check('点单元格：弹出详情，小值直接给全文', function () {
+        var cell = doc.querySelectorAll('#jsonTableRows .json-table-row')[0].children[0];
+        cell.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        if (doc.getElementById('jsonCellModal').hidden) throw new Error('弹窗没开');
+        if (doc.getElementById('jsonCellPre').hidden) throw new Error('小值该用 pre 展示');
+        if (doc.getElementById('jsonCellTitle').textContent.indexOf('1') < 0) throw new Error('标题没带行号');
+        doc.getElementById('jsonCellDoneBtn').click();
+        if (!doc.getElementById('jsonCellModal').hidden) throw new Error('关不掉');
+    });
+
+    doc.getElementById('jsonTableBtn').click();
+    await wait(300);
+
+    check('再点表格：回到原来的编辑器视图', function () {
+        if (!doc.getElementById('jsonTable').hidden) throw new Error('表格没收起来');
+        if (doc.getElementById('jsonOutEditorWrap').classList.contains('is-hidden')) throw new Error('编辑器没回来');
+        if (jsonOut().indexOf('"city"') < 0) throw new Error('编辑器内容不见了');
+    });
+
+    // 每行一条（JSONL）：一条一行，列取并集
+    win.jsonLoadText('{"a":1,"b":2}\n{"a":3,"c":4}\n{"a":5}\n', 'lines.jsonl', true);
+    await wait(1200);
+    doc.getElementById('jsonTableBtn').click();
+    await wait(400);
+
+    check('每行一条（JSONL）：一行一条记录摊成表，列取并集', function () {
+        if (doc.getElementById('jsonTable').hidden) throw new Error('JSONL 没能出表');
+        var rows = doc.querySelectorAll('#jsonTableRows .json-table-row');
+        if (rows.length !== 3) throw new Error('应有 3 行，实际 ' + rows.length);
+        if (doc.getElementById('jsonTableCount').textContent.indexOf('3') < 0) throw new Error('行数不对');
+        var head = doc.querySelectorAll('#jsonTableHead .json-table-head-cell');
+        if (head.length !== 3) throw new Error('列数不对（a/b/c）: ' + head.length);
+    });
+
+    // 大文本格：详情要换成只读编辑器，而且给的是全文
+    win.jsonLoadText(JSON.stringify([{ big: new Array(9001).join('x'), small: 1 }]), 'big-cell.json', true);
+    await wait(1300);
+    doc.getElementById('jsonTableBtn').click();
+    await wait(400);
+
+    check('大文本单元格：详情用编辑器展示全文', function () {
+        var cell = doc.querySelectorAll('#jsonTableRows .json-table-row')[0].children[0];
+        cell.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        if (doc.getElementById('jsonCellEditorWrap').hidden) throw new Error('大值该上编辑器');
+        if (!doc.getElementById('jsonCellPre').hidden) throw new Error('pre 该让位');
+        var wrap = doc.getElementById('jsonCellEditorText').nextElementSibling;
+        var cm = wrap && wrap.CodeMirror;
+        if (!cm) throw new Error('详情编辑器没建起来');
+        if (cm.getValue().length !== 9000) throw new Error('不是全文: ' + cm.getValue().length);
+        doc.getElementById('jsonCellDoneBtn').click();
+        if (cm.getValue()) throw new Error('关掉后该把内容清掉，别占着内存');
+    });
+
+    // 容器值：详情给美化后的 JSON
+    win.jsonLoadText(JSON.stringify([{ meta: { a: 1, b: [1, 2] } }]), 'meta.json', true);
+    await wait(1300);
+    doc.getElementById('jsonTableBtn').click();
+    await wait(400);
+
+    check('容器值详情：给两空格缩进的 JSON，不是一行挤在一起', function () {
+        var cell = doc.querySelectorAll('#jsonTableRows .json-table-row')[0].children[0];
+        cell.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        var text = doc.getElementById('jsonCellPre').textContent;
+        if (text.indexOf('\n') < 0) throw new Error('没美化: ' + text);
+        if (text.indexOf('"a": 1') < 0) throw new Error('内容不对: ' + text);
+        doc.getElementById('jsonCellDoneBtn').click();
+    });
+
+    // 导入新文件：左侧旧内容先清掉
+    win.jsonLoadText('{"first":1}', 'first.json', true);
+    await wait(700);
+    win.jsonLoadText('{"second":2}', 'second.json', true);
+    await wait(700);
+
+    check('导入 / 拖入新文件：左侧旧内容先清掉，不会两份叠着', function () {
+        var t = jsonCm('jsonInput').getValue();
+        if (t.indexOf('"first"') >= 0) throw new Error('旧内容还在: ' + t);
+        if (t.indexOf('"second"') < 0) throw new Error('新内容没进来: ' + t);
+        if (doc.querySelector('.json-in-pane').classList.contains('is-big')) throw new Error('大文件摘要卡没清');
+    });
+
+    doc.getElementById('jsonTableBtn').click();
+    await wait(250);
+
     // 导入 / 拖入就该直接出结果，不该再让人点一次「格式化」
     win.jsonLoadText('{"b":1,"a":2}', 'auto.json', true);
     await wait(900);

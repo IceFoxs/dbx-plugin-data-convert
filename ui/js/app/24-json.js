@@ -22,6 +22,10 @@ const JSON_I18N = {
         jsonSamples: '示例', jsonSampleApi: '接口返回', jsonSampleDeep: '深层嵌套', jsonSampleJsonl: '每行一条', jsonSampleBroken: '故意写错',
         jsonSortLabel: "排序", jsonSortDefault: "默认", jsonSortAsc: "升序", jsonSortDesc: "降序", jsonRun: '格式化', jsonMinify: '压缩', jsonCopy: '复制', jsonExport: '导出', jsonClear: '清空', jsonImport: "导入", jsonFold: "折叠", jsonUnfold: "展开",
         jsonItemUnit: "项", jsonFoldTooBig: "结果有 {n} 行，折叠已关闭（太大会卡）", jsonFileTooBig: "文件超过 {max}，先切小", jsonImportFail: "读取失败：{e}",
+        jsonCellDone: "关闭", jsonCellTitle: "{key} · 第 {row} 行", jsonCellBig: "内容较大，用编辑器查看",
+        jsonTable: "表格", jsonTableFieldAll: "全部字段", jsonTableScope: "检索范围", jsonTableSearch: "检索字段值",
+        jsonTableColKey: "字段", jsonTableColValue: "值", jsonTableCount: "{shown} / {total} 行 · {cols} 列",
+        jsonTableNoMatch: "没有匹配的行", jsonTableTooBig: "内容 {size}，表格上限 {max}",
         jsonEmptyHint: '左边贴 JSON，这里出结果；Ctrl / ⌘ + Enter 直接跑',
         jsonStat: '{size} · {lines} 行 · {nodes} 个值 · 深度 {depth}',
         jsonTiming: '用时 {ms} ms',
@@ -55,6 +59,10 @@ const JSON_I18N = {
         jsonSamples: '範例', jsonSampleApi: '介面回傳', jsonSampleDeep: '深層巢狀', jsonSampleJsonl: '每行一筆', jsonSampleBroken: '故意寫錯',
         jsonSortLabel: "排序", jsonSortDefault: "預設", jsonSortAsc: "升序", jsonSortDesc: "降序", jsonRun: '格式化', jsonMinify: '壓縮', jsonCopy: '複製', jsonExport: '匯出', jsonClear: '清空', jsonImport: "匯入", jsonFold: "摺疊", jsonUnfold: "展開",
         jsonItemUnit: "項", jsonFoldTooBig: "結果有 {n} 行，摺疊已關閉（太大會卡）", jsonFileTooBig: "檔案超過 {max}，先切小", jsonImportFail: "讀取失敗：{e}",
+        jsonCellDone: "關閉", jsonCellTitle: "{key} · 第 {row} 列", jsonCellBig: "內容較大，用編輯器檢視",
+        jsonTable: "表格", jsonTableFieldAll: "全部欄位", jsonTableScope: "檢索範圍", jsonTableSearch: "檢索欄位值",
+        jsonTableColKey: "欄位", jsonTableColValue: "值", jsonTableCount: "{shown} / {total} 列 · {cols} 欄",
+        jsonTableNoMatch: "沒有符合的列", jsonTableTooBig: "內容 {size}，表格上限 {max}",
         jsonEmptyHint: '左邊貼 JSON，這裡出結果；Ctrl / ⌘ + Enter 直接跑',
         jsonStat: '{size} · {lines} 行 · {nodes} 個值 · 深度 {depth}',
         jsonTiming: '耗時 {ms} ms',
@@ -88,6 +96,10 @@ const JSON_I18N = {
         jsonSamples: 'Samples', jsonSampleApi: 'API response', jsonSampleDeep: 'Deep nesting', jsonSampleJsonl: 'One per line', jsonSampleBroken: 'Deliberate error',
         jsonSortLabel: "Sort", jsonSortDefault: "Default", jsonSortAsc: "A–Z", jsonSortDesc: "Z–A", jsonRun: 'Format', jsonMinify: 'Minify', jsonCopy: 'Copy', jsonExport: 'Export', jsonClear: 'Clear', jsonImport: "Import", jsonFold: "Fold", jsonUnfold: "Unfold",
         jsonItemUnit: "items", jsonFoldTooBig: "Result has {n} lines — folding stays off to keep things fast", jsonFileTooBig: "File is over {max} — split it first", jsonImportFail: "Could not read the file: {e}",
+        jsonCellDone: "Close", jsonCellTitle: "{key} · row {row}", jsonCellBig: "Large value — opened in the editor",
+        jsonTable: "Table", jsonTableFieldAll: "All fields", jsonTableScope: "Search in", jsonTableSearch: "Search values",
+        jsonTableColKey: "Field", jsonTableColValue: "Value", jsonTableCount: "{shown} / {total} rows · {cols} cols",
+        jsonTableNoMatch: "No matching rows", jsonTableTooBig: "Content is {size} — table view is capped at {max}",
         jsonEmptyHint: 'Paste JSON on the left and the result shows up here; Ctrl / ⌘ + Enter runs it',
         jsonStat: '{size} · {lines} lines · {nodes} values · depth {depth}',
         jsonTiming: '{ms} ms',
@@ -121,6 +133,10 @@ const JSON_I18N = {
         jsonSamples: 'Nümunələr', jsonSampleApi: 'API cavabı', jsonSampleDeep: 'Dərin iç-içə', jsonSampleJsonl: 'Hər sətirdə bir', jsonSampleBroken: 'Qəsdən xətalı',
         jsonSortLabel: "Sıra", jsonSortDefault: "Susmaya", jsonSortAsc: "Artan", jsonSortDesc: "Azalan", jsonRun: 'Formatla', jsonMinify: 'Sıx', jsonCopy: 'Kopyala', jsonExport: 'İxrac et', jsonClear: 'Təmizlə', jsonImport: "İdxal", jsonFold: "Yığ", jsonUnfold: "Aç",
         jsonItemUnit: "element", jsonFoldTooBig: "Nəticə {n} sətirdir — donmamaq üçün yığma söndürüldü", jsonFileTooBig: "Fayl {max} -dən böyükdür — əvvəlcə bölün", jsonImportFail: "Fayl oxunmadı: {e}",
+        jsonCellDone: "Bağla", jsonCellTitle: "{key} · {row}-ci sətir", jsonCellBig: "Böyük dəyər — redaktorda açılır",
+        jsonTable: "Cədvəl", jsonTableFieldAll: "Bütün sahələr", jsonTableScope: "Axtarış yeri", jsonTableSearch: "Dəyərlərdə axtar",
+        jsonTableColKey: "Sahə", jsonTableColValue: "Dəyər", jsonTableCount: "{shown} / {total} sətir · {cols} sütun",
+        jsonTableNoMatch: "Uyğun sətir yoxdur", jsonTableTooBig: "Məzmun {size} — cədvəl həddi {max}",
         jsonEmptyHint: 'Solda JSON yapışdırın, nəticə burada görünəcək; Ctrl / ⌘ + Enter ilə işə salın',
         jsonStat: '{size} · {lines} sətir · {nodes} dəyər · dərinlik {depth}',
         jsonTiming: '{ms} ms',
@@ -154,6 +170,10 @@ const JSON_I18N = {
         jsonSamples: 'Ejemplos', jsonSampleApi: 'Respuesta de API', jsonSampleDeep: 'Anidado profundo', jsonSampleJsonl: 'Uno por línea', jsonSampleBroken: 'Error a propósito',
         jsonSortLabel: "Orden", jsonSortDefault: "Original", jsonSortAsc: "A–Z", jsonSortDesc: "Z–A", jsonRun: 'Formatear', jsonMinify: 'Minificar', jsonCopy: 'Copiar', jsonExport: 'Exportar', jsonClear: 'Limpiar', jsonImport: "Importar", jsonFold: "Plegar", jsonUnfold: "Desplegar",
         jsonItemUnit: "elementos", jsonFoldTooBig: "El resultado tiene {n} líneas: plegado desactivado para no bloquear", jsonFileTooBig: "El archivo supera {max}: divídelo", jsonImportFail: "No se pudo leer: {e}",
+        jsonCellDone: "Cerrar", jsonCellTitle: "{key} · fila {row}", jsonCellBig: "Valor grande: se abre en el editor",
+        jsonTable: "Tabla", jsonTableFieldAll: "Todos los campos", jsonTableScope: "Buscar en", jsonTableSearch: "Buscar valores",
+        jsonTableColKey: "Campo", jsonTableColValue: "Valor", jsonTableCount: "{shown} / {total} filas · {cols} columnas",
+        jsonTableNoMatch: "Ninguna fila coincide", jsonTableTooBig: "El contenido ocupa {size}; la tabla llega a {max}",
         jsonEmptyHint: 'Pega JSON a la izquierda y el resultado aparece aquí; Ctrl / ⌘ + Enter lo ejecuta',
         jsonStat: '{size} · {lines} líneas · {nodes} valores · profundidad {depth}',
         jsonTiming: '{ms} ms',
@@ -187,6 +207,10 @@ const JSON_I18N = {
         jsonSamples: 'Contoh', jsonSampleApi: 'Respons API', jsonSampleDeep: 'Bersarang dalam', jsonSampleJsonl: 'Satu per baris', jsonSampleBroken: 'Sengaja salah',
         jsonSortLabel: "Urutan", jsonSortDefault: "Asli", jsonSortAsc: "A–Z", jsonSortDesc: "Z–A", jsonRun: 'Format', jsonMinify: 'Padatkan', jsonCopy: 'Salin', jsonExport: 'Ekspor', jsonClear: 'Hapus', jsonImport: "Impor", jsonFold: "Lipat", jsonUnfold: "Bentangkan",
         jsonItemUnit: "item", jsonFoldTooBig: "Hasil {n} baris — pelipatan dimatikan agar tidak berat", jsonFileTooBig: "Berkas melebihi {max} — pecah dulu", jsonImportFail: "Gagal membaca: {e}",
+        jsonCellDone: "Tutup", jsonCellTitle: "{key} · baris {row}", jsonCellBig: "Nilai besar — dibuka di editor",
+        jsonTable: "Tabel", jsonTableFieldAll: "Semua kolom", jsonTableScope: "Cari di", jsonTableSearch: "Cari nilai",
+        jsonTableColKey: "Kolom", jsonTableColValue: "Nilai", jsonTableCount: "{shown} / {total} baris · {cols} kolom",
+        jsonTableNoMatch: "Tidak ada baris yang cocok", jsonTableTooBig: "Isi {size} — tabel dibatasi {max}",
         jsonEmptyHint: 'Tempel JSON di kiri, hasilnya muncul di sini; Ctrl / ⌘ + Enter untuk menjalankan',
         jsonStat: '{size} · {lines} baris · {nodes} nilai · kedalaman {depth}',
         jsonTiming: '{ms} ms',
@@ -220,6 +244,10 @@ const JSON_I18N = {
         jsonSamples: 'Esempi', jsonSampleApi: 'Risposta API', jsonSampleDeep: 'Annidamento profondo', jsonSampleJsonl: 'Uno per riga', jsonSampleBroken: 'Errore voluto',
         jsonSortLabel: "Ordine", jsonSortDefault: "Originale", jsonSortAsc: "A–Z", jsonSortDesc: "Z–A", jsonRun: 'Formatta', jsonMinify: 'Minifica', jsonCopy: 'Copia', jsonExport: 'Esporta', jsonClear: 'Pulisci', jsonImport: "Importa", jsonFold: "Comprimi", jsonUnfold: "Espandi",
         jsonItemUnit: "elementi", jsonFoldTooBig: "Il risultato ha {n} righe: compressione disattivata per non bloccare", jsonFileTooBig: "Il file supera {max}: dividilo", jsonImportFail: "Lettura non riuscita: {e}",
+        jsonCellDone: "Chiudi", jsonCellTitle: "{key} · riga {row}", jsonCellBig: "Valore grande: aperto nell'editor",
+        jsonTable: "Tabella", jsonTableFieldAll: "Tutti i campi", jsonTableScope: "Cerca in", jsonTableSearch: "Cerca valori",
+        jsonTableColKey: "Campo", jsonTableColValue: "Valore", jsonTableCount: "{shown} / {total} righe · {cols} colonne",
+        jsonTableNoMatch: "Nessuna riga corrisponde", jsonTableTooBig: "Contenuto {size}: la tabella arriva a {max}",
         jsonEmptyHint: 'Incolla JSON a sinistra, il risultato appare qui; Ctrl / ⌘ + Enter per eseguire',
         jsonStat: '{size} · {lines} righe · {nodes} valori · profondità {depth}',
         jsonTiming: '{ms} ms',
@@ -253,6 +281,10 @@ const JSON_I18N = {
         jsonSamples: 'サンプル', jsonSampleApi: 'API レスポンス', jsonSampleDeep: '深いネスト', jsonSampleJsonl: '1 行 1 件', jsonSampleBroken: 'わざとエラー',
         jsonSortLabel: "並べ替え", jsonSortDefault: "そのまま", jsonSortAsc: "昇順", jsonSortDesc: "降順", jsonRun: '整形', jsonMinify: '圧縮', jsonCopy: 'コピー', jsonExport: '書き出し', jsonClear: 'クリア', jsonImport: "読み込み", jsonFold: "折りたたむ", jsonUnfold: "展開",
         jsonItemUnit: "項目", jsonFoldTooBig: "結果が {n} 行あるため、折りたたみは無効にしています（重くなるため）", jsonFileTooBig: "ファイルが {max} を超えています。分割してください", jsonImportFail: "読み込みに失敗しました：{e}",
+        jsonCellDone: "閉じる", jsonCellTitle: "{key} · {row} 行目", jsonCellBig: "大きい値はエディタで表示します",
+        jsonTable: "表", jsonTableFieldAll: "すべての項目", jsonTableScope: "検索範囲", jsonTableSearch: "値を検索",
+        jsonTableColKey: "項目", jsonTableColValue: "値", jsonTableCount: "{shown} / {total} 行 · {cols} 列",
+        jsonTableNoMatch: "一致する行がありません", jsonTableTooBig: "内容は {size}、表の上限は {max}",
         jsonEmptyHint: '左に JSON を貼ると結果がここに出ます。Ctrl / ⌘ + Enter で実行',
         jsonStat: '{size} · {lines} 行 · {nodes} 個の値 · 深さ {depth}',
         jsonTiming: '{ms} ms',
@@ -286,6 +318,10 @@ const JSON_I18N = {
         jsonSamples: '예시', jsonSampleApi: 'API 응답', jsonSampleDeep: '깊은 중첩', jsonSampleJsonl: '한 줄에 하나', jsonSampleBroken: '일부러 오류',
         jsonSortLabel: "정렬", jsonSortDefault: "기본", jsonSortAsc: "오름차순", jsonSortDesc: "내림차순", jsonRun: '정리', jsonMinify: '압축', jsonCopy: '복사', jsonExport: '내보내기', jsonClear: '지우기', jsonImport: "가져오기", jsonFold: "접기", jsonUnfold: "펼치기",
         jsonItemUnit: "개", jsonFoldTooBig: "결과가 {n}줄이라 접기를 꺼 두었습니다(무거워짐)", jsonFileTooBig: "파일이 {max} 를 넘습니다. 먼저 나누세요", jsonImportFail: "읽지 못했습니다: {e}",
+        jsonCellDone: "닫기", jsonCellTitle: "{key} · {row}행", jsonCellBig: "값이 커서 편집기로 표시합니다",
+        jsonTable: "표", jsonTableFieldAll: "전체 필드", jsonTableScope: "검색 범위", jsonTableSearch: "값 검색",
+        jsonTableColKey: "필드", jsonTableColValue: "값", jsonTableCount: "{shown} / {total} 행 · {cols} 열",
+        jsonTableNoMatch: "일치하는 행이 없습니다", jsonTableTooBig: "내용 {size}, 표 상한 {max}",
         jsonEmptyHint: '왼쪽에 JSON을 붙여넣으면 결과가 여기에 나옵니다. Ctrl / ⌘ + Enter 로 실행',
         jsonStat: '{size} · {lines}줄 · {nodes}개 값 · 깊이 {depth}',
         jsonTiming: '{ms} ms',
@@ -319,6 +355,10 @@ const JSON_I18N = {
         jsonSamples: 'Exemplos', jsonSampleApi: 'Resposta de API', jsonSampleDeep: 'Aninhamento profundo', jsonSampleJsonl: 'Um por linha', jsonSampleBroken: 'Erro de propósito',
         jsonSortLabel: "Ordem", jsonSortDefault: "Original", jsonSortAsc: "A–Z", jsonSortDesc: "Z–A", jsonRun: 'Formatar', jsonMinify: 'Minificar', jsonCopy: 'Copiar', jsonExport: 'Exportar', jsonClear: 'Limpar', jsonImport: "Importar", jsonFold: "Recolher", jsonUnfold: "Expandir",
         jsonItemUnit: "itens", jsonFoldTooBig: "O resultado tem {n} linhas: recolhimento desativado para não travar", jsonFileTooBig: "O arquivo passa de {max}: divida antes", jsonImportFail: "Falha ao ler: {e}",
+        jsonCellDone: "Fechar", jsonCellTitle: "{key} · linha {row}", jsonCellBig: "Valor grande — aberto no editor",
+        jsonTable: "Tabela", jsonTableFieldAll: "Todos os campos", jsonTableScope: "Buscar em", jsonTableSearch: "Buscar valores",
+        jsonTableColKey: "Campo", jsonTableColValue: "Valor", jsonTableCount: "{shown} / {total} linhas · {cols} colunas",
+        jsonTableNoMatch: "Nenhuma linha corresponde", jsonTableTooBig: "Conteúdo {size} — tabela limitada a {max}",
         jsonEmptyHint: 'Cole o JSON à esquerda e o resultado aparece aqui; Ctrl / ⌘ + Enter executa',
         jsonStat: '{size} · {lines} linhas · {nodes} valores · profundidade {depth}',
         jsonTiming: '{ms} ms',
@@ -352,6 +392,10 @@ const JSON_I18N = {
         jsonSamples: 'Przykłady', jsonSampleApi: 'Odpowiedź API', jsonSampleDeep: 'Głębokie zagnieżdżenie', jsonSampleJsonl: 'Jeden na wiersz', jsonSampleBroken: 'Celowy błąd',
         jsonSortLabel: "Kolejność", jsonSortDefault: "Domyślnie", jsonSortAsc: "Rosnąco", jsonSortDesc: "Malejąco", jsonRun: 'Formatuj', jsonMinify: 'Minifikuj', jsonCopy: 'Kopiuj', jsonExport: 'Eksportuj', jsonClear: 'Wyczyść', jsonImport: "Importuj", jsonFold: "Zwiń", jsonUnfold: "Rozwiń",
         jsonItemUnit: "elementów", jsonFoldTooBig: "Wynik ma {n} wierszy — zwijanie wyłączone, żeby nie zamulało", jsonFileTooBig: "Plik przekracza {max} — najpierw podziel", jsonImportFail: "Nie udało się odczytać: {e}",
+        jsonCellDone: "Zamknij", jsonCellTitle: "{key} · wiersz {row}", jsonCellBig: "Duża wartość — otwarta w edytorze",
+        jsonTable: "Tabela", jsonTableFieldAll: "Wszystkie pola", jsonTableScope: "Szukaj w", jsonTableSearch: "Szukaj wartości",
+        jsonTableColKey: "Pole", jsonTableColValue: "Wartość", jsonTableCount: "{shown} / {total} wierszy · {cols} kolumn",
+        jsonTableNoMatch: "Brak pasujących wierszy", jsonTableTooBig: "Zawartość {size} — tabela do {max}",
         jsonEmptyHint: 'Wklej JSON po lewej, wynik pojawi się tutaj; Ctrl / ⌘ + Enter uruchamia',
         jsonStat: '{size} · {lines} wierszy · {nodes} wartości · głębokość {depth}',
         jsonTiming: '{ms} ms',
@@ -385,6 +429,10 @@ const JSON_I18N = {
         jsonSamples: 'Примеры', jsonSampleApi: 'Ответ API', jsonSampleDeep: 'Глубокая вложенность', jsonSampleJsonl: 'По одному в строке', jsonSampleBroken: 'Специально с ошибкой',
         jsonSortLabel: "Порядок", jsonSortDefault: "Как есть", jsonSortAsc: "А–Я", jsonSortDesc: "Я–А", jsonRun: 'Форматировать', jsonMinify: 'Сжать', jsonCopy: 'Копировать', jsonExport: 'Экспорт', jsonClear: 'Очистить', jsonImport: "Импорт", jsonFold: "Свернуть", jsonUnfold: "Развернуть",
         jsonItemUnit: "элем.", jsonFoldTooBig: "В результате {n} строк — сворачивание отключено, чтобы не тормозило", jsonFileTooBig: "Файл больше {max} — разделите его", jsonImportFail: "Не удалось прочитать: {e}",
+        jsonCellDone: "Закрыть", jsonCellTitle: "{key} · строка {row}", jsonCellBig: "Большое значение — открыто в редакторе",
+        jsonTable: "Таблица", jsonTableFieldAll: "Все поля", jsonTableScope: "Искать в", jsonTableSearch: "Поиск по значениям",
+        jsonTableColKey: "Поле", jsonTableColValue: "Значение", jsonTableCount: "{shown} / {total} строк · {cols} столбцов",
+        jsonTableNoMatch: "Нет подходящих строк", jsonTableTooBig: "Содержимое {size} — таблица до {max}",
         jsonEmptyHint: 'Вставьте JSON слева, результат появится здесь; Ctrl / ⌘ + Enter запускает',
         jsonStat: '{size} · {lines} строк · {nodes} значений · глубина {depth}',
         jsonTiming: '{ms} ms',
@@ -418,6 +466,10 @@ const JSON_I18N = {
         jsonSamples: 'ตัวอย่าง', jsonSampleApi: 'ผลตอบกลับ API', jsonSampleDeep: 'ซ้อนกันลึก', jsonSampleJsonl: 'บรรทัดละรายการ', jsonSampleBroken: 'ผิดโดยตั้งใจ',
         jsonSortLabel: "ลำดับ", jsonSortDefault: "ค่าเริ่มต้น", jsonSortAsc: "น้อยไปมาก", jsonSortDesc: "มากไปน้อย", jsonRun: 'จัดรูปแบบ', jsonMinify: 'บีบอัด', jsonCopy: 'คัดลอก', jsonExport: 'ส่งออก', jsonClear: 'ล้าง', jsonImport: "นำเข้า", jsonFold: "พับ", jsonUnfold: "ขยาย",
         jsonItemUnit: "รายการ", jsonFoldTooBig: "ผลลัพธ์มี {n} บรรทัด ปิดการพับไว้เพื่อไม่ให้หน่วง", jsonFileTooBig: "ไฟล์เกิน {max} แบ่งก่อน", jsonImportFail: "อ่านไฟล์ไม่สำเร็จ: {e}",
+        jsonCellDone: "ปิด", jsonCellTitle: "{key} · แถว {row}", jsonCellBig: "ค่าขนาดใหญ่ แสดงในเอดิเตอร์",
+        jsonTable: "ตาราง", jsonTableFieldAll: "ทุกฟิลด์", jsonTableScope: "ค้นหาใน", jsonTableSearch: "ค้นหาค่า",
+        jsonTableColKey: "ฟิลด์", jsonTableColValue: "ค่า", jsonTableCount: "{shown} / {total} แถว · {cols} คอลัมน์",
+        jsonTableNoMatch: "ไม่มีแถวที่ตรงกัน", jsonTableTooBig: "เนื้อหา {size} ตารางรับได้ถึง {max}",
         jsonEmptyHint: 'วาง JSON ทางซ้าย ผลลัพธ์จะขึ้นที่นี่; Ctrl / ⌘ + Enter เพื่อรัน',
         jsonStat: '{size} · {lines} บรรทัด · {nodes} ค่า · ความลึก {depth}',
         jsonTiming: '{ms} ms',
@@ -451,6 +503,10 @@ const JSON_I18N = {
         jsonSamples: 'Örnekler', jsonSampleApi: 'API yanıtı', jsonSampleDeep: 'Derin iç içe', jsonSampleJsonl: 'Her satırda bir', jsonSampleBroken: 'Kasten hatalı',
         jsonSortLabel: "Sıra", jsonSortDefault: "Varsayılan", jsonSortAsc: "A–Z", jsonSortDesc: "Z–A", jsonRun: 'Biçimlendir', jsonMinify: 'Sıkıştır', jsonCopy: 'Kopyala', jsonExport: 'Dışa aktar', jsonClear: 'Temizle', jsonImport: "İçe aktar", jsonFold: "Katla", jsonUnfold: "Aç",
         jsonItemUnit: "öğe", jsonFoldTooBig: "Sonuç {n} satır — donmaması için katlama kapalı", jsonFileTooBig: "Dosya {max} üzerinde — önce bölün", jsonImportFail: "Dosya okunamadı: {e}",
+        jsonCellDone: "Kapat", jsonCellTitle: "{key} · satır {row}", jsonCellBig: "Büyük değer — düzenleyicide açıldı",
+        jsonTable: "Tablo", jsonTableFieldAll: "Tüm alanlar", jsonTableScope: "Arama kapsamı", jsonTableSearch: "Değerlerde ara",
+        jsonTableColKey: "Alan", jsonTableColValue: "Değer", jsonTableCount: "{shown} / {total} satır · {cols} sütun",
+        jsonTableNoMatch: "Eşleşen satır yok", jsonTableTooBig: "İçerik {size} — tablo sınırı {max}",
         jsonEmptyHint: 'Sola JSON yapıştırın, sonuç burada görünür; Ctrl / ⌘ + Enter çalıştırır',
         jsonStat: '{size} · {lines} satır · {nodes} değer · derinlik {depth}',
         jsonTiming: '{ms} ms',
@@ -759,6 +815,20 @@ function jsonFillBigMeta() {
     }
 }
 
+/* 清空左侧输入：编辑器、大文件摘要卡一起归零（导入 / 拖入前先走这一步） */
+function jsonClearInput() {
+    jsonBig = null;
+    if (jsonInPane) jsonInPane.classList.remove('is-big');
+    if (jsonBigIn) jsonBigIn.hidden = true;
+    if (jsonBigPeekPre) { jsonBigPeekPre.hidden = true; jsonBigPeekPre.textContent = ''; }
+    if (jsonInEditor) {
+        jsonSuppress = true;
+        if (jsonInEditor.getValue()) jsonInEditor.setValue('');
+        jsonSuppress = false;
+    }
+    if (jsonInputEl) jsonInputEl.value = '';
+}
+
 function jsonUseSmall(text) {
     jsonBig = null;
     if (jsonInPane) jsonInPane.classList.remove('is-big');
@@ -786,6 +856,8 @@ function jsonUseSmall(text) {
  */
 function jsonLoadText(text, name, quiet) {
     const t = String(text == null ? '' : text);
+    // 先把左边清干净：上一个文件的内容留在编辑器里，看起来像是「两个文件叠在一起」
+    jsonClearInput();
     jsonClearResult();
     jsonSeq++;
     if (jsonIsBigInput(t)) {
@@ -940,6 +1012,7 @@ function jsonClearOutputView() {
 }
 
 function jsonClearResult() {
+    if (jsonTableOn) jsonTableHide();
     jsonLast = null;
     jsonHideError();
     jsonClearOutputView();
@@ -961,6 +1034,8 @@ function jsonSetHint(el, text) {
 }
 
 function jsonRenderResult() {
+    // 结果一换，表格里的模型就过期了：先收起来，别让人对着一张旧表检索
+    if (jsonTableOn) jsonTableHide();
     const r = jsonLast;
     if (!r) { jsonClearResult(); return; }
     jsonSyncCopyBtn();
@@ -1255,6 +1330,7 @@ function jsonApplyI18n() {
             jsonShowError(jsonLast.error);
         }
     }
+    jsonTableRefresh();
     if (jsonSamples) {
         const opts = jsonSamples.querySelector('.custom-select-options');
         if (opts) opts.classList.remove('open');
@@ -1556,6 +1632,456 @@ function jsonFoldAll(open) {
 if (jsonFoldBtn) jsonFoldBtn.addEventListener('click', () => jsonFoldAll(false));
 if (jsonUnfoldBtn) jsonUnfoldBtn.addEventListener('click', () => jsonFoldAll(true));
 
+
+/* ------------------------------- 表格视图 -------------------------------
+   第一层键摊成表：根对象 → 「字段 / 值」；对象数组 → 一行一条、列取键的并集。
+   行只渲染视口里那几十条（虚拟滚动），单元格文本按需生成（懒加载），
+   所以几万行也只是「滚动时慢一点」，不会打开就卡住。 */
+
+const jsonTableBtn = document.getElementById('jsonTableBtn');
+const jsonTableEl = document.getElementById('jsonTable');
+const jsonTableScroll = document.getElementById('jsonTableScroll');
+const jsonTableInner = document.getElementById('jsonTableInner');
+const jsonTableHead = document.getElementById('jsonTableHead');
+const jsonTableSpacer = document.getElementById('jsonTableSpacer');
+const jsonTableRowsEl = document.getElementById('jsonTableRows');
+const jsonTableCountEl = document.getElementById('jsonTableCount');
+const jsonTableQueryEl = document.getElementById('jsonTableQuery');
+const jsonTableNoMatch = document.getElementById('jsonTableNoMatch');
+const jsonTableScopeEl = document.getElementById('jsonTableScope');
+const jsonTableScopeOpts = document.getElementById('jsonTableScopeOpts');
+const jsonTableScopeValue = document.getElementById('jsonTableScopeValue');
+
+const JSON_TABLE_ROW_H = 32;        // 跟 CSS 里的 --json-table-row-h 对齐
+const JSON_CELL_EDITOR_MIN = 8000;  // 超过这么多字符就用编辑器看，pre 里读不动
+const JSON_TABLE_CELL_CHARS = 400;  // 一格最多显示这么多字符，再多点开导出看
+
+let jsonTableOn = false;
+let jsonTableModel = null;
+let jsonTableScopeKey = '';         // '' = 全部字段
+let jsonTableRows = [];             // 过滤后的行下标
+let jsonTableFilterSeq = 0;
+let jsonTableScrollRAF = 0;
+let jsonTableTimer = 0;
+let jsonTablePrev = null;           // 打开前那一层是编辑器还是预览
+let jsonTableCellTemplate = '';     // 列宽模板，head 和每行都用同一份
+
+function jsonTableEsc(text) {
+    return String(text == null ? '' : text).replace(/[&<>"]/g, (c) => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+    ));
+}
+
+/* 关键字命中处高亮。先转义再匹配，免得把标签当 HTML 注进去 */
+function jsonTableMark(text, needle) {
+    const safe = jsonTableEsc(text);
+    if (!needle) return safe;
+    const pat = jsonTableEsc(needle).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    try {
+        return safe.replace(new RegExp(pat, 'ig'), (m) => '<mark>' + m + '</mark>');
+    } catch (e) {
+        return safe;
+    }
+}
+
+function jsonTableColLabel(model, col) {
+    if (col.key === '#key') return jsonT('jsonTableColKey');
+    if (col.key === '#value') return jsonT('jsonTableColValue');
+    return col.key === '' ? '—' : col.key;
+}
+
+/* 关掉表格（不负责把编辑器/预览放回来——那一步交给渲染流程） */
+function jsonTableHide() {
+    jsonTableOn = false;
+    jsonTableModel = null;
+    jsonTableRows = [];
+    jsonTableFilterSeq++;
+    clearTimeout(jsonTableTimer);
+    if (jsonTableEl) jsonTableEl.hidden = true;
+    if (jsonTableRowsEl) jsonTableRowsEl.innerHTML = '';
+    if (jsonTableHead) jsonTableHead.innerHTML = '';
+    if (jsonTableBtn) {
+        jsonTableBtn.classList.remove('is-on');
+        jsonTableBtn.setAttribute('aria-pressed', 'false');
+    }
+}
+
+function jsonTableShowCount() {
+    if (!jsonTableCountEl || !jsonTableModel) return;
+    jsonTableCountEl.textContent = jsonT('jsonTableCount', {
+        shown: jsonTableRows.length.toLocaleString(),
+        total: jsonTableModel.rowCount.toLocaleString(),
+        cols: jsonTableModel.columns.length.toLocaleString()
+    });
+}
+
+/* 只渲染视口那几十行；滚动时重算窗口，DOM 数量跟总行数无关 */
+function jsonTableRenderWindow() {
+    if (!jsonTableOn || !jsonTableModel || !jsonTableRowsEl) return;
+    const total = jsonTableRows.length;
+    const h = jsonTableScroll ? (jsonTableScroll.clientHeight || 400) : 400;
+    const top = jsonTableScroll ? jsonTableScroll.scrollTop : 0;
+    let start = Math.floor(top / JSON_TABLE_ROW_H) - 4;
+    if (start < 0) start = 0;
+    let end = start + Math.ceil(h / JSON_TABLE_ROW_H) + 8;
+    if (end > total) end = total;
+
+    const model = jsonTableModel;
+    const cols = model.columns;
+    const needle = jsonTableQueryEl ? jsonTableQueryEl.value.trim() : '';
+    const out = [];
+    for (let i = start; i < end; i++) {
+        const row = model.rows[jsonTableRows[i]];
+        const cells = [];
+        for (let c = 0; c < cols.length; c++) {
+            const text = DBXJson.tableCell(row, cols[c].key, model.kind, JSON_TABLE_CELL_CHARS);
+            let cls = '';
+            if (c === 0 && model.kind === 'kv') cls += ' is-key';
+            if (/^-?(?:\d+\.?\d*|\.\d+)$/.test(text)) cls += ' is-num';
+            cells.push('<div class="json-table-cell' + cls + '">' + jsonTableMark(text, needle) + '</div>');
+        }
+        out.push('<div class="json-table-row" style="top:' + (i * JSON_TABLE_ROW_H) + 'px;grid-template-columns:' +
+            (jsonTableCellTemplate || 'repeat(2, minmax(160px, 1fr))') + '">' + cells.join('') + '</div>');
+    }
+    jsonTableRowsEl.innerHTML = out.join('');
+    if (jsonTableNoMatch) jsonTableNoMatch.hidden = total > 0;
+}
+
+function jsonTableLayoutAfterFilter() {
+    const total = jsonTableRows.length;
+    if (jsonTableSpacer) jsonTableSpacer.style.height = (total * JSON_TABLE_ROW_H) + 'px';
+    if (jsonTableScroll) jsonTableScroll.scrollTop = 0;
+    jsonTableRenderWindow();
+    jsonTableShowCount();
+}
+
+/* 检索：大表分片扫，一片 4000 行，中间还主线程给 DOM */
+function jsonTableRefilter() {
+    if (!jsonTableModel) return;
+    const model = jsonTableModel;
+    const q = jsonTableQueryEl ? jsonTableQueryEl.value.trim() : '';
+    const seq = ++jsonTableFilterSeq;
+
+    if (!q) {
+        const all = new Array(model.rowCount);
+        for (let i = 0; i < model.rowCount; i++) all[i] = i;
+        jsonTableRows = all;
+        jsonTableLayoutAfterFilter();
+        return;
+    }
+
+    jsonTableRows = [];
+    let i = 0;
+    const step = () => {
+        if (seq !== jsonTableFilterSeq) return;
+        const end = Math.min(model.rowCount, i + 4000);
+        for (; i < end; i++) {
+            if (DBXJson.tableRowMatches(model, model.rows[i], jsonTableScopeKey, q)) jsonTableRows.push(i);
+        }
+        if (i < model.rowCount) {
+            jsonTableShowCount();
+            setTimeout(step, 0);
+            return;
+        }
+        jsonTableLayoutAfterFilter();
+    };
+    step();
+}
+
+function jsonTableRenderHead() {
+    if (!jsonTableModel) return;
+    const model = jsonTableModel;
+    const cols = Math.max(1, model.columns.length);
+    jsonTableCellTemplate = 'repeat(' + cols + ', minmax(160px, 1fr))';
+    if (jsonTableInner) jsonTableInner.style.setProperty('--json-table-cols', jsonTableCellTemplate);
+    if (jsonTableHead) {
+        jsonTableHead.style.gridTemplateColumns = jsonTableCellTemplate;
+        jsonTableHead.innerHTML = model.columns.map((c) => (
+            '<div class="json-table-head-cell">' + jsonTableEsc(jsonTableColLabel(model, c)) + '</div>'
+        )).join('');
+    }
+}
+
+function jsonTableRenderScope() {
+    if (!jsonTableScopeOpts || !jsonTableModel) return;
+    const model = jsonTableModel;
+    const parts = ['<div class="custom-option' + (jsonTableScopeKey ? '' : ' active') + '" data-key="">' +
+        jsonTableEsc(jsonT('jsonTableFieldAll')) + '</div>'];
+    model.columns.forEach((c) => {
+        const key = jsonTableEsc(c.key);
+        parts.push('<div class="custom-option' + (jsonTableScopeKey === c.key ? ' active' : '') + '" data-key="' + key + '">' +
+            jsonTableEsc(jsonTableColLabel(model, c)) + '</div>');
+    });
+    jsonTableScopeOpts.innerHTML = parts.join('');
+    if (jsonTableScopeValue) {
+        const hit = model.columns.find((c) => c.key === jsonTableScopeKey);
+        jsonTableScopeValue.textContent = hit ? jsonTableColLabel(model, hit) : jsonT('jsonTableFieldAll');
+    }
+}
+
+function jsonTableOpen() {
+    if (!jsonLast || !jsonLast.ok) {
+        showToast(jsonT('jsonNothing'), 'error');
+        return;
+    }
+    // 表建在「输入」上，而不是格式化结果上：结果可能是每行一条被美化成多行，
+    // 也可能被排序过——表格要看的是原始数据结构（第一层键）
+    const text = jsonCurrentText() || (jsonLast && jsonLast.text) || '';
+    const model = DBXJson.buildTable(text);
+    if (!model.ok) {
+        const err = model.error || {};
+        if (err.code === 'tooLarge') {
+            showToast(jsonT('jsonTableTooBig', {
+                size: jsonFmtBytes(DBXJson.utf8Bytes(text)),
+                max: jsonFmtBytes(DBXJson.LIMITS.tableInput)
+            }), 'error', 4200);
+        } else if (err.code === 'empty') {
+            showToast(jsonT('jsonNothing'), 'error');
+        } else {
+            showToast(jsonT('jsonErrUnknown'), 'error');
+        }
+        return;
+    }
+
+    jsonTableModel = model;
+    jsonTableScopeKey = '';
+    jsonTablePrev = {
+        editorHidden: jsonOutWrap ? jsonOutWrap.classList.contains('is-hidden') : false,
+        previewHidden: jsonPreview ? jsonPreview.hidden : true,
+        emptyHidden: jsonEmpty ? jsonEmpty.hidden : true
+    };
+    jsonTableOn = true;
+    if (jsonTableEl) jsonTableEl.hidden = false;
+    if (jsonOutWrap) jsonOutWrap.classList.add('is-hidden');
+    if (jsonPreview) jsonPreview.hidden = true;
+    if (jsonEmpty) jsonEmpty.hidden = true;
+    if (jsonTableBtn) {
+        jsonTableBtn.classList.add('is-on');
+        jsonTableBtn.setAttribute('aria-pressed', 'true');
+    }
+    if (jsonTableQueryEl) jsonTableQueryEl.value = '';
+    jsonTableRenderHead();
+    jsonTableRenderScope();
+    jsonTableRefilter();
+    jsonTableShowCount();
+}
+
+function jsonTableToggle() {
+    if (!jsonTableOn) {
+        jsonTableOpen();
+        return;
+    }
+    const prev = jsonTablePrev;
+    jsonTableHide();
+    jsonTablePrev = null;
+    // 把刚才藏起来的那一层放回来（原来是编辑器的还是编辑器，是预览的还是预览）
+    if (prev) {
+        if (jsonOutWrap) jsonOutWrap.classList.toggle('is-hidden', prev.editorHidden);
+        if (jsonPreview) jsonPreview.hidden = prev.previewHidden;
+        if (jsonEmpty) jsonEmpty.hidden = prev.emptyHidden;
+    }
+}
+
+if (jsonTableBtn) jsonTableBtn.addEventListener('click', jsonTableToggle);
+
+if (jsonTableScroll) {
+    jsonTableScroll.addEventListener('scroll', () => {
+        if (jsonTableScrollRAF) return;
+        jsonTableScrollRAF = requestAnimationFrame(() => {
+            jsonTableScrollRAF = 0;
+            jsonTableRenderWindow();
+        });
+    });
+}
+
+if (jsonTableQueryEl) {
+    jsonTableQueryEl.addEventListener('input', () => {
+        clearTimeout(jsonTableTimer);
+        jsonTableTimer = setTimeout(jsonTableRefilter, 220);
+    });
+}
+
+function jsonTableScopeOpen(open) {
+    if (!jsonTableScopeEl) return;
+    const opts = jsonTableScopeEl.querySelector('.custom-select-options');
+    const trig = jsonTableScopeEl.querySelector('.custom-select-trigger');
+    if (opts) opts.classList.toggle('open', !!open);
+    if (trig) {
+        trig.classList.toggle('active', !!open);
+        trig.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+}
+
+if (jsonTableScopeEl) {
+    jsonTableScopeEl.addEventListener('click', (e) => {
+        const pick = e.target.closest ? e.target.closest('.custom-option') : null;
+        if (pick) {
+            jsonTableScopeOpen(false);
+            jsonTableScopeKey = pick.getAttribute('data-key') || '';
+            jsonTableRenderScope();
+            jsonTableRefilter();
+            e.stopPropagation();
+            return;
+        }
+        const opts = jsonTableScopeEl.querySelector('.custom-select-options');
+        jsonTableScopeOpen(!opts.classList.contains('open'));
+        e.stopPropagation();
+    });
+    jsonTableScopeEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            const trig = e.target.closest ? e.target.closest('.custom-select-trigger') : null;
+            if (!trig) return;
+            e.preventDefault();
+            const opts = jsonTableScopeEl.querySelector('.custom-select-options');
+            jsonTableScopeOpen(!opts.classList.contains('open'));
+        } else if (e.key === 'Escape') {
+            jsonTableScopeOpen(false);
+        }
+    });
+}
+
+/* ---------------------------- 单元格详情 ----------------------------
+   表格一格只显示前几百字符，点开才给全文：短的用 <pre>，长的（或容器）丢进
+   只读编辑器——几 MB 的 JSON 摊在 pre 里既难读也卡。 */
+
+const jsonCellModal = document.getElementById('jsonCellModal');
+const jsonCellTitleEl = document.getElementById('jsonCellTitle');
+const jsonCellMeta = document.getElementById('jsonCellMeta');
+const jsonCellPre = document.getElementById('jsonCellPre');
+const jsonCellEditorWrap = document.getElementById('jsonCellEditorWrap');
+const jsonCellEditorText = document.getElementById('jsonCellEditorText');
+const jsonCellHint = document.getElementById('jsonCellHint');
+const jsonCellCopyBtn = document.getElementById('jsonCellCopyBtn');
+const jsonCellDoneBtn = document.getElementById('jsonCellDoneBtn');
+
+let jsonCellEditor = null;
+let jsonCellText = '';
+
+function jsonCellEnsureEditor() {
+    if (jsonCellEditor || !window.CodeMirror || !window.CodeMirror.fromTextArea) return;
+    jsonCellEditor = CodeMirror.fromTextArea(jsonCellEditorText, Object.assign({}, commonConfig, {
+        mode: 'application/json',
+        readOnly: true,
+        lineWrapping: true,
+        foldGutter: false,
+        gutters: ['CodeMirror-linenumbers'],
+        styleActiveLine: false,
+        autoCloseBrackets: false,
+        matchBrackets: false
+    }));
+    jsonSyncEditorTheme();
+}
+
+function jsonCellOpen(colIndex, rowIndex) {
+    if (!jsonTableModel || !jsonCellModal) return;
+    const model = jsonTableModel;
+    const rowAt = jsonTableRows[rowIndex];
+    if (rowAt == null) return;
+    const row = model.rows[rowAt];
+    const col = model.columns[colIndex];
+    if (!row || !col) return;
+
+    const full = DBXJson.tableCellFull(row, col.key, model.kind);
+    jsonCellText = full;
+    if (jsonCellTitleEl) {
+        jsonCellTitleEl.textContent = jsonT('jsonCellTitle', {
+            key: jsonTableColLabel(model, col),
+            row: rowAt + 1
+        });
+    }
+    if (jsonCellMeta) {
+        jsonCellMeta.textContent = jsonFmtBytes(DBXJson.utf8Bytes(full));
+    }
+
+    // 大文本 / 容器：用只读编辑器；小值用 pre 更轻
+    const big = full.length > JSON_CELL_EDITOR_MIN;
+    if (big) {
+        jsonCellEnsureEditor();
+        if (jsonCellEditor) {
+            const mode = /^\s*[[{]/.test(full) ? 'application/json' : 'text/plain';
+            jsonCellEditor.setOption('mode', mode);
+            jsonCellEditor.setValue(full);
+            jsonCellEditor.clearHistory();
+        } else if (jsonCellPre) {
+            jsonCellPre.textContent = full;
+        }
+    } else if (jsonCellPre) {
+        jsonCellPre.textContent = full;
+    }
+
+    if (jsonCellPre) jsonCellPre.hidden = big;
+    if (jsonCellEditorWrap) jsonCellEditorWrap.hidden = !big;
+    if (jsonCellHint) jsonCellHint.textContent = big ? jsonT('jsonCellBig') : '';
+    jsonCellModal.hidden = false;
+    if (big && jsonCellEditor) {
+        requestAnimationFrame(() => {
+            try { jsonCellEditor.refresh(); } catch (e) { /* noop */ }
+            jsonCellEditor.focus();
+        });
+    }
+}
+
+function jsonCellClose() {
+    if (!jsonCellModal || jsonCellModal.hidden) return;
+    jsonCellModal.hidden = true;
+    if (jsonCellEditor) {
+        jsonCellEditor.setValue('');
+        jsonCellEditor.clearHistory();
+    }
+    if (jsonCellPre) jsonCellPre.textContent = '';
+    jsonCellText = '';
+}
+
+async function jsonCellCopy() {
+    if (!jsonCellText) {
+        showToast(jsonT('jsonNothing'), 'error');
+        return;
+    }
+    if (jsonCellText.length > DBXJson.LIMITS.clipboard) {
+        // 跟主复制按钮同一套原则：太大就存文件，不往剪贴板里塞几 MB
+        const status = await saveTextFile('cell-value.json', jsonCellText, 'application/json;charset=utf-8');
+        saveToast(status, jsonT('jsonExported', { name: 'cell-value.json' }));
+        return;
+    }
+    try {
+        await writeClipboardText(jsonCellText);
+        showToast(jsonT('jsonCopied'));
+    } catch (e) {
+        showToast(jsonT('jsonNothing'), 'error');
+    }
+}
+
+if (jsonTableRowsEl) {
+    jsonTableRowsEl.addEventListener('click', (e) => {
+        const cell = e.target.closest ? e.target.closest('.json-table-cell') : null;
+        if (!cell) return;
+        const rowEl = cell.parentElement;
+        if (!rowEl) return;
+        const colIndex = Array.prototype.indexOf.call(rowEl.children, cell);
+        const top = parseFloat(rowEl.style.top) || 0;
+        jsonCellOpen(colIndex, Math.round(top / JSON_TABLE_ROW_H));
+    });
+}
+
+if (jsonCellDoneBtn) jsonCellDoneBtn.addEventListener('click', jsonCellClose);
+if (jsonCellCopyBtn) jsonCellCopyBtn.addEventListener('click', jsonCellCopy);
+if (jsonCellModal) {
+    jsonCellModal.addEventListener('click', (e) => {
+        if (e.target === jsonCellModal) jsonCellClose();
+    });
+}
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && jsonCellModal && !jsonCellModal.hidden) jsonCellClose();
+});
+
+/* 表格开着的时候换语言 / 窗口变化，头和列都要重铺一次 */
+function jsonTableRefresh() {
+    if (!jsonTableOn || !jsonTableModel) return;
+    jsonTableRenderHead();
+    jsonTableRenderScope();
+    jsonTableRenderWindow();
+    jsonTableShowCount();
+}
 
 // 首次进页面前把编辑器建好：徽标、空态都要它
 ensureJsonInEditor();

@@ -987,6 +987,7 @@
                         <span class="pane-badge" id="jsonOutBadge">0</span>
                     </div>
                     <div class="pane-actions">
+                        <button type="button" class="btn btn-outline btn-xs" id="jsonTableBtn" data-i18n="jsonTable" aria-pressed="false">表格</button>
                         <button type="button" class="btn btn-outline btn-xs" id="jsonFold" data-i18n="jsonFold">折叠</button>
                         <button type="button" class="btn btn-outline btn-xs" id="jsonUnfold" data-i18n="jsonUnfold">展开</button>
                         <span class="json-timing" id="jsonTiming"></span>
@@ -999,6 +1000,53 @@
                 <div class="json-preview" id="jsonPreview" hidden>
                     <pre class="json-preview-pre" id="jsonPreviewPre"></pre>
                     <div class="json-preview-note" id="jsonPreviewNote"></div>
+                </div>
+                <!-- 单元格详情：小值用 pre，大值 / 容器用只读编辑器 -->
+                <div class="json-cell-modal" id="jsonCellModal" hidden>
+                    <div class="json-cell-modal-box" role="dialog" aria-modal="true" aria-labelledby="jsonCellTitle">
+                        <div class="json-cell-modal-head">
+                            <span class="json-cell-modal-title" id="jsonCellTitle"></span>
+                            <span class="json-cell-modal-meta" id="jsonCellMeta"></span>
+                            <button type="button" class="sheet-cell-pop-close" id="jsonCellClose" aria-label="close">×</button>
+                        </div>
+                        <div class="json-cell-modal-body" id="jsonCellBody">
+                            <pre class="json-cell-pre" id="jsonCellPre"></pre>
+                            <div class="json-cell-editor" id="jsonCellEditorWrap" hidden>
+                                <textarea id="jsonCellEditorText" spellcheck="false"></textarea>
+                            </div>
+                        </div>
+                        <div class="json-cell-modal-foot">
+                            <span class="json-cell-modal-hint" id="jsonCellHint"></span>
+                            <button type="button" class="btn btn-outline" id="jsonCellCopyBtn" data-i18n="jsonCopy">复制</button>
+                            <button type="button" class="btn btn-primary" id="jsonCellDoneBtn" data-i18n="jsonCellDone">关闭</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 表格视图：第一层键摊成表，行虚拟滚动（一屏只渲染几十行） -->
+                <div class="json-table" id="jsonTable" hidden>
+                    <div class="json-table-bar">
+                        <div class="custom-select select-compact json-table-scope" id="jsonTableScope">
+                            <div class="custom-select-trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">
+                                <span class="label" data-i18n="jsonTableScope">检索范围</span>
+                                <span class="json-table-scope-value" id="jsonTableScopeValue" data-i18n="jsonTableFieldAll">全部字段</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            <div class="custom-select-options" id="jsonTableScopeOpts"></div>
+                        </div>
+                        <input type="text" class="json-table-search" id="jsonTableQuery" data-i18n-placeholder="jsonTableSearch" placeholder="检索字段值" spellcheck="false">
+                        <span class="json-table-count" id="jsonTableCount"></span>
+                    </div>
+                    <div class="json-table-scroll" id="jsonTableScroll">
+                        <div class="json-table-inner" id="jsonTableInner">
+                            <div class="json-table-head" id="jsonTableHead"></div>
+                            <div class="json-table-body" id="jsonTableBody">
+                                <div class="json-table-spacer" id="jsonTableSpacer"></div>
+                                <div class="json-table-rows" id="jsonTableRows"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="json-table-empty" id="jsonTableNoMatch" hidden data-i18n="jsonTableNoMatch">没有匹配的行</div>
                 </div>
                 <div class="json-empty" id="jsonEmpty" data-i18n="jsonEmptyHint">左边贴 JSON，这里出结果；Ctrl / ⌘ + Enter 直接跑</div>
                 <div class="json-error" id="jsonError" hidden>

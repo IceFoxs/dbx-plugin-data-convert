@@ -5695,6 +5695,237 @@ li.CodeMirror-hint-active .datasql-hint-kind { opacity: 0.85; }
 }
 [data-dbx-theme="dark"] .json-preview-note { color: #fbbf24; }
 
+/* ---- 表格视图：第一层键摊成表，行虚拟滚动 ----
+   行高固定 30px 是虚拟滚动的基准（JS 里的 JSON_TABLE_ROW_H 要跟这里对齐），
+   滚到第几行由 top 决定，DOM 里永远只有视口那几十个 .json-table-row。 */
+.json-table {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.json-table[hidden] { display: none; }
+.json-table-bar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+.json-table-bar .custom-select { flex: 0 0 auto; }
+.json-table-search {
+    flex: 1 1 auto;
+    min-width: 5rem;
+    height: 1.75rem;
+    padding: 0 0.55rem;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md, 0.5rem);
+    background-color: var(--bg-card, #fff);
+    color: var(--text-main);
+    font-size: 0.75rem;
+}
+.json-table-search:focus { outline: none; border-color: var(--accent, #2563eb); }
+.json-table-count {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.json-table-scroll {
+    position: relative;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: auto;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md, 0.5rem);
+    background-color: var(--bg-card);
+}
+.json-table-inner { min-width: 100%; }
+.json-table-head,
+.json-table-row {
+    display: grid;
+    grid-template-columns: var(--json-table-cols, repeat(2, minmax(160px, 1fr)));
+}
+.json-table-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background-color: var(--accent-bg, #f8fafc);
+    border-bottom: 1px solid var(--border-light);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.json-table-head-cell {
+    padding: 0.4rem 0.65rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-main);
+    border-right: 1px solid var(--border-light);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.json-table-body { position: relative; }
+.json-table-spacer { width: 1px; }
+.json-table-rows { position: absolute; top: 0; left: 0; right: 0; }
+.json-table-row {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: var(--json-table-row-h, 32px);
+    border-bottom: 1px solid var(--border-light);
+}
+.json-table-row:nth-child(even) { background-color: rgba(127, 127, 127, 0.05); }
+.json-table-row:hover { background-color: rgba(127, 127, 127, 0.1); }
+.json-table-cell {
+    display: flex;
+    align-items: center;
+    padding: 0 0.65rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.3;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-right: 1px solid var(--border-light);
+}
+.json-table-cell.is-key {
+    font-family: inherit;
+    font-weight: 600;
+}
+.json-table-cell.is-num {
+    justify-content: flex-end;
+    font-variant-numeric: tabular-nums;
+}
+.json-table-cell mark {
+    background: rgba(250, 204, 21, 0.55);
+    color: inherit;
+    border-radius: 2px;
+}
+[data-dbx-theme="dark"] .json-table-cell mark { background: rgba(250, 204, 21, 0.35); }
+.json-table-empty {
+    flex: 0 0 auto;
+    padding: 0.5rem 0;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+.json-table-empty[hidden] { display: none; }
+/* 表格按钮开着的时候按住高亮，让人知道现在是表视图 */
+#jsonTableBtn.is-on {
+    border-color: var(--accent, #2563eb);
+    color: var(--accent, #2563eb);
+    background-color: var(--accent-bg, #eff6ff);
+}
+
+/* ---- 单元格详情弹窗：小值 <pre>，大值 / 容器上只读编辑器 ---- */
+.json-cell-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+    background: rgba(15, 15, 18, 0.42);
+    backdrop-filter: blur(1.5px);
+}
+.json-cell-modal[hidden] { display: none; }
+.json-cell-modal-box {
+    display: flex;
+    flex-direction: column;
+    width: min(760px, 92vw);
+    height: min(620px, 82vh);
+    background: var(--bg-card);
+    border: 1px solid var(--border, var(--border-light));
+    border-radius: calc(var(--radius-lg, 0.75rem) + 2px);
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.32), 0 2px 8px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+.json-cell-modal-head {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.7rem 0.9rem 0.65rem;
+}
+.json-cell-modal-title {
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.json-cell-modal-meta {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background: var(--accent-bg, #f1f5f9);
+    border-radius: 999px;
+    padding: 1px 8px;
+    white-space: nowrap;
+}
+.json-cell-modal-head .sheet-cell-pop-close {
+    margin-left: auto;
+    width: 24px;
+    height: 24px;
+    line-height: 22px;
+    border-radius: var(--radius-md, 0.5rem);
+    color: var(--text-muted);
+}
+.json-cell-modal-head .sheet-cell-pop-close:hover {
+    background: var(--accent-bg);
+    color: var(--text-main);
+}
+.json-cell-modal-body {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0 0.9rem;
+}
+.json-cell-pre {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0.6rem 0.7rem;
+    overflow: auto;
+    background: var(--bg-base, var(--bg-card));
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md, 0.5rem);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--text-main);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.json-cell-pre[hidden] { display: none; }
+.json-cell-editor {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+.json-cell-editor[hidden] { display: none; }
+.json-cell-editor .CodeMirror {
+    flex: 1 1 auto;
+    height: 100%;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md, 0.5rem);
+}
+.json-cell-editor textarea { display: none; }
+.json-cell-modal-foot {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.9rem 0.8rem;
+}
+.json-cell-modal-hint {
+    flex: 1 1 auto;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
 /* ---- 进度条：大文件跑的时候在底部横一条，可以中途取消 ---- */
 .json-progress {
     display: flex;
