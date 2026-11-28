@@ -5741,11 +5741,24 @@ li.CodeMirror-hint-active .datasql-hint-kind { opacity: 0.85; }
     border-radius: var(--radius-md, 0.5rem);
     background-color: var(--bg-card);
 }
-.json-table-inner { min-width: 100%; }
+/* 宽度跟着内容走（max-content），行和表头都在同一条「内容宽」上，
+   横向滚动才有得滚；min-width 保证列少时铺满面板 */
+.json-table-inner {
+    width: max-content;
+    min-width: 100%;
+}
+/* 不用 grid：表头和数据行都用 flex + 同一个固定列宽，
+   WebKit / Blink 下的分配算法就不会各算各的（之前错位就出在这儿） */
 .json-table-head,
 .json-table-row {
-    display: grid;
-    grid-template-columns: var(--json-table-cols, repeat(2, minmax(160px, 1fr)));
+    display: flex;
+    align-items: stretch;
+}
+.json-table-head-cell,
+.json-table-cell {
+    flex: 0 0 var(--json-table-col-w, 200px);
+    width: var(--json-table-col-w, 200px);
+    min-width: 0;
 }
 .json-table-head {
     position: sticky;
@@ -5771,34 +5784,12 @@ li.CodeMirror-hint-active .datasql-hint-kind { opacity: 0.85; }
 .json-table-row {
     position: absolute;
     left: 0;
-    right: 0;
     width: 100%;
     height: var(--json-table-row-h, 32px);
     border-bottom: 1px solid var(--border-light);
 }
-/* 第一列横向滚动时钉在左边：列一多就得往右滚，滚没了 id 就不知道在看谁。
-   底必须是**不透明**的——后面滚过来的列会从半透明的斑马纹底下透出来，看起来像串行 */
-.json-table-head-cell:first-child,
-.json-table-cell:first-child {
-    position: sticky;
-    left: 0;
-}
-.json-table-head-cell:first-child {
-    z-index: 3;
-    background-color: var(--accent-bg, #f8fafc);
-}
-.json-table-row > .json-table-cell:first-child {
-    z-index: 1;
-    background-color: var(--bg-card);
-}
-/* 斑马纹用一层渐变叠在实底上，别改成半透明底色 */
-.json-table-row:nth-child(even) > .json-table-cell:first-child {
-    background-color: var(--bg-card);
-    background-image: linear-gradient(rgba(127, 127, 127, 0.045), rgba(127, 127, 127, 0.045));
-}
-.json-table-row:hover > .json-table-cell:first-child {
-    background-color: var(--bg-card);
-}
+/* 列宽由 JS 写成同一串 px（表头和数据行共用），这里不再用 fr 分空间：
+   两边算法稍有出入就会错半列，看起来就是「表头样式不统一」 */
 
 /* 斑马纹铺在单元格上：行盒子在某些布局下会被内容撑成别的宽度，
    铺在格子上就永远是整行一致的底色 */

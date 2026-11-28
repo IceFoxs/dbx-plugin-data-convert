@@ -1679,6 +1679,7 @@ let jsonTableScopeKey = '';         // '' = 全部字段
 let jsonTableRows = [];             // 过滤后的行下标
 let jsonTableFilterSeq = 0;
 let jsonTableScrollRAF = 0;
+let jsonTableResizeWatch = null;
 let jsonTableTimer = 0;
 let jsonTablePrev = null;           // 打开前那一层是编辑器还是预览
 let jsonTableCellTemplate = '';     // 列宽模板，head 和每行都用同一份
@@ -1757,8 +1758,7 @@ function jsonTableRenderWindow() {
             if (/^-?(?:\d+\.?\d*|\.\d+)$/.test(text)) cls += ' is-num';
             cells.push('<div class="json-table-cell' + cls + '">' + jsonTableMark(text, needle) + '</div>');
         }
-        out.push('<div class="json-table-row" style="top:' + (i * JSON_TABLE_ROW_H) + 'px;grid-template-columns:' +
-            (jsonTableCellTemplate || 'repeat(2, minmax(160px, 1fr))') + '">' + cells.join('') + '</div>');
+        out.push('<div class="json-table-row" style="top:' + (i * JSON_TABLE_ROW_H) + 'px">' + cells.join('') + '</div>');
     }
     jsonTableRowsEl.innerHTML = out.join('');
     if (jsonTableNoMatch) jsonTableNoMatch.hidden = total > 0;
@@ -1809,8 +1809,12 @@ function jsonTableRenderHead() {
     if (!jsonTableModel) return;
     const model = jsonTableModel;
     const cols = Math.max(1, model.columns.length);
-    jsonTableCellTemplate = 'repeat(' + cols + ', minmax(160px, 1fr))';
-    if (jsonTableInner) jsonTableInner.style.setProperty('--json-table-cols', jsonTableCellTemplate);
+    // 列宽用「写死的 px」，不用 1fr / minmax：表头和数据行必须拿到**同一串**列宽，
+    // 靠 fr 去分剩余空间时两边算法稍有不一致就会错半列（踩过）
+    const avail = jsonTableScroll ? Math.max(240, jsonTableScroll.clientWidth - 2) : 600;
+    const colW = cols <= 4 ? Math.max(140, Math.floor(avail / cols)) : 200;
+    jsonTableCellTemplate = colW + 'px';
+    if (jsonTableInner) jsonTableInner.style.setProperty('--json-table-col-w', jsonTableCellTemplate);
     if (jsonTableHead) {
         jsonTableHead.style.gridTemplateColumns = jsonTableCellTemplate;
         jsonTableHead.innerHTML = model.columns.map((c) => (
@@ -1881,6 +1885,11 @@ function jsonTableOpen() {
     jsonTableRenderScope();
     jsonTableRefilter();
     jsonTableShowCount();
+    // 面板宽度一变（导航收起 / 窗口缩放），列宽要重算，不然会露白或挤成一团
+    if (!jsonTableResizeWatch && jsonTableScroll && typeof ResizeObserver === 'function') {
+        jsonTableResizeWatch = new ResizeObserver(() => { jsonTableRenderHead(); jsonTableRenderWindow(); });
+        jsonTableResizeWatch.observe(jsonTableScroll);
+    }
 }
 
 function jsonTableToggle() {
