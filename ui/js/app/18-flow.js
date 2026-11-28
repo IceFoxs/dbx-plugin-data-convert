@@ -1475,6 +1475,10 @@ function pageImportTargets(page, side) {
     if (page === 'navJson') {
         return {
             load: typeof jsonLoadText === 'function' ? jsonLoadText : null,
+            // 拖进来先清左侧：等文件读完再清，中间那几十毫秒还挂着上一个文件
+            clear: typeof jsonClearInput === 'function'
+                ? () => { jsonClearInput(); jsonClearResult(); }
+                : null,
             el: document.getElementById('jsonInput'),
             tipId: ''
         };
@@ -1587,6 +1591,9 @@ async function importTextIntoPage(page, file, side) {
         showToast(dropTooBig(file.name, size, TEXT_IMPORT_MAX), 'error');
         return;
     }
+    // 页面自己要先腾地方（JSON 格式化页会清空左侧编辑器）：读盘要几十毫秒，
+    // 这期间旧文件还挂在编辑器里，看起来就像「拖进来的没生效」
+    if (typeof t.clear === 'function') t.clear();
     let text = '';
     try {
         text = await readFileText(file);
