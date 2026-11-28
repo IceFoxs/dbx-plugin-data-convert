@@ -12,7 +12,10 @@ const navConvertTrigger = document.getElementById('navConvertTrigger');
 const navConvertMenu = document.getElementById('navConvertMenu');
 // 默认置顶：「JSON 对比」「SQL 转换」是主入口，优先留在导航条上。
 // 用户可以在「导航设置」里改（见 3.7），这份只是出厂值。
-const NAV_DEFAULT_PINS = ['navCompare', 'navSql'];
+// 出厂置顶：对比 / 格式化 / SQL 三个主入口。JSON 格式化排在第二位，
+// 用户开口径就是「导航项排在第二个」，靠 DOM 顺序不够——导航条渲染时
+// 置顶项会被提到最前，所以得让它一起置顶。
+const NAV_DEFAULT_PINS = ['navCompare', 'navJson', 'navSql'];
 
 function navOverflow() {
     return navLinksEl.scrollWidth - navLinksEl.clientWidth > 1;

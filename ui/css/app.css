@@ -1481,6 +1481,7 @@ body:not(.nav-left).nav-searching #navMore {
 .query-workspace,
 .bytes-workspace,
 .time-workspace,
+.json-workspace,
 .esc-workspace {
     display: none;
     flex: 1 1 0;
@@ -1497,6 +1498,7 @@ body:not(.nav-left).nav-searching #navMore {
 .query-workspace.active,
 .bytes-workspace.active,
 .time-workspace.active,
+.json-workspace.active,
 .esc-workspace.active { display: flex; }
 /* 选项行：引号、去重、每行一项、数字不加引号 */
 .sql-options {
@@ -5446,3 +5448,333 @@ li.CodeMirror-hint-active .datasql-hint-kind { opacity: 0.85; }
     .url-grid { grid-template-columns: minmax(240px, 0.9fr) minmax(0, 1.1fr); }
     .url-field-label { flex-basis: 3.8rem; }
 }
+
+/* ================= JSON 格式化页 =================
+   左边输入、右边结果。这页的重点不是排版花样，而是「大文件别把界面冻住」：
+   体积一过线就不进 CodeMirror（只读摘要 + 预览），结果过大只渲染前一段，
+   复制改成导出——三处都在 24-json.js 里按 DBXJson.LIMITS 分流，这里只管长相。 */
+.json-grid {
+    grid-template-columns: minmax(280px, 1fr) minmax(0, 1fr);
+}
+.json-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+}
+.json-bar-top {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+.json-bar > .compare-actions {
+    flex: 0 0 auto;
+    margin-left: auto;
+}
+.json-stat {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.json-stat:empty { display: none; }
+.json-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.json-timing {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+/* 缩进选择器比别处更紧凑：三个短标签，别把工具栏撑开 */
+.json-indent .compare-tab {
+    font-family: var(--font-mono);
+    min-width: 1.9rem;
+    text-align: center;
+}
+
+/* 三个视图（编辑器 / 预览 / 空态）互斥，谁在就谁占满 */
+.json-in-pane, .json-out-pane { position: relative; }
+.json-in-pane > .editor-container,
+.json-out-pane > .editor-container { flex: 1 1 0; min-height: 0; }
+.json-in-pane.is-big > .editor-container { display: none; }
+.json-out-pane > .editor-container.is-hidden { display: none; }
+
+/* 行号槽必须是实心底：结果里塞着很长的字符串（curl、task_data 那种），
+   一行宽过面板时内容会横向滚到行号底下，槽透明就会看到数字被正文压住。
+   跟 CSV 页同一个坑，同一套修法。 */
+/* 只给纯色，别加 background-image / z-index：实测这两样（渐变那一层）会把行号
+   和折叠三角盖住，看起来就是「行号没了、也不能折叠」。 */
+.json-in-pane .CodeMirror-gutters,
+.json-out-pane .CodeMirror-gutters {
+    background-color: var(--bg-card, #ffffff) !important;
+}
+[data-dbx-theme="dark"] .json-in-pane .CodeMirror-gutters,
+[data-dbx-theme="dark"] .json-out-pane .CodeMirror-gutters {
+    background-color: #121214 !important;
+}
+
+.json-empty {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 2.2rem;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+.json-empty[hidden] { display: none; }
+
+/* ---- 错误条：说清「第几行第几列 + 附近原文」，能一键定位回输入框 ---- */
+.json-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    margin-top: 0.5rem;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid rgba(220, 38, 38, 0.35);
+    border-left: 3px solid #dc2626;
+    border-radius: var(--radius-md, 0.5rem);
+    background-color: rgba(220, 38, 38, 0.06);
+    flex-shrink: 0;
+}
+.json-error[hidden] { display: none; }
+.json-error-mark {
+    flex: 0 0 auto;
+    width: 1.1rem;
+    height: 1.1rem;
+    line-height: 1.1rem;
+    text-align: center;
+    border-radius: 50%;
+    background-color: #dc2626;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.json-error-body { flex: 1 1 auto; min-width: 0; }
+.json-error-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #b91c1c;
+}
+.json-error-where {
+    margin-top: 0.1rem;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+.json-error-where:empty { display: none; }
+.json-error-snippet {
+    display: block;
+    margin-top: 0.25rem;
+    padding: 0.25rem 0.4rem;
+    border-radius: var(--radius-sm, 4px);
+    background-color: var(--surface-muted, rgba(0, 0, 0, 0.04));
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-main);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+.json-error-snippet:empty { display: none; }
+[data-dbx-theme="dark"] .json-error {
+    border-color: rgba(248, 113, 113, 0.4);
+    background-color: rgba(248, 113, 113, 0.07);
+}
+[data-dbx-theme="dark"] .json-error-title { color: #fca5a5; }
+
+/* ---- 大文件输入卡：文件名 / 体积 / 行数，加两个按钮 ---- */
+.json-bigfile {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 0.75rem;
+    border: 1px dashed var(--border-light);
+    border-radius: var(--radius-md, 0.5rem);
+    background-color: var(--surface-muted, rgba(0, 0, 0, 0.03));
+    overflow: auto;
+}
+.json-bigfile[hidden] { display: none; }
+.json-bigfile-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.json-bigfile-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-main);
+    word-break: break-all;
+}
+.json-bigfile-tag {
+    flex: 0 0 auto;
+    padding: 0.05rem 0.4rem;
+    border-radius: 9999px;
+    background-color: rgba(180, 83, 9, 0.12);
+    color: #b45309;
+    font-size: 0.68rem;
+    font-weight: 600;
+}
+[data-dbx-theme="dark"] .json-bigfile-tag {
+    background-color: rgba(251, 191, 36, 0.16);
+    color: #fbbf24;
+}
+.json-bigfile-meta {
+    font-size: 0.74rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+.json-bigfile-acts {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+.json-bigfile-peek {
+    margin: 0;
+    padding: 0.5rem 0.55rem;
+    max-height: 18rem;
+    overflow: auto;
+    border-radius: var(--radius-sm, 4px);
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-light);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    line-height: 1.55;
+    color: var(--text-main);
+    white-space: pre;
+}
+.json-bigfile-peek[hidden] { display: none; }
+
+/* ---- 结果预览（结果太大时只渲染前一段） ---- */
+.json-preview {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.json-preview[hidden] { display: none; }
+.json-preview-pre {
+    flex: 1 1 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0.6rem 0.7rem;
+    overflow: auto;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md, 0.5rem);
+    background-color: var(--bg-card);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    line-height: 1.55;
+    color: var(--text-main);
+    white-space: pre;
+    tab-size: 2;
+}
+.json-preview-note {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    color: #b45309;
+    line-height: 1.5;
+}
+[data-dbx-theme="dark"] .json-preview-note { color: #fbbf24; }
+
+/* ---- 进度条：大文件跑的时候在底部横一条，可以中途取消 ---- */
+.json-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-shrink: 0;
+    padding: 0.35rem 0.7rem;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md, 0.5rem);
+    background-color: var(--bg-card);
+}
+.json-progress[hidden] { display: none; }
+.json-progress-text {
+    flex: 0 0 auto;
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.json-progress-track {
+    flex: 1 1 auto;
+    height: 4px;
+    border-radius: 9999px;
+    background-color: var(--accent-bg);
+    overflow: hidden;
+}
+.json-progress-bar {
+    width: 0;
+    height: 100%;
+    border-radius: 9999px;
+    background-color: var(--primary);
+    transition: width 0.12s linear;
+}
+/* 小一号的按钮：错误条 / 大文件卡里那些「定位」「看开头」，别和主按钮抢视线 */
+.btn.btn-xs {
+    padding: 0.18rem 0.5rem;
+    font-size: 0.72rem;
+    border-radius: var(--radius-sm, 4px);
+    line-height: 1.5;
+}
+
+@media (max-width: 1100px) {
+    .json-grid { grid-template-columns: minmax(240px, 1fr) minmax(0, 1fr); }
+}
+
+/* 错误定位时闪一下整行：颜色比错误条淡一档，不刺眼 */
+.json-err-line {
+    background-color: rgba(220, 38, 38, 0.14);
+    box-shadow: inset 2px 0 0 #dc2626;
+}
+[data-dbx-theme="dark"] .json-err-line {
+    background-color: rgba(248, 113, 113, 0.16);
+    box-shadow: inset 2px 0 0 #f87171;
+}
+
+/* 提示条（不是错误）：键排序跳过之类，结果本身可用 */
+.json-error.is-warn {
+    border-color: rgba(180, 83, 9, 0.35);
+    border-left-color: #d97706;
+    background-color: rgba(217, 119, 6, 0.07);
+}
+.json-error.is-warn .json-error-mark { background-color: #d97706; }
+.json-error.is-warn .json-error-title { color: #b45309; }
+.json-error.is-warn .json-error-snippet { display: none; }
+[data-dbx-theme="dark"] .json-error.is-warn {
+    border-color: rgba(251, 191, 36, 0.35);
+    background-color: rgba(251, 191, 36, 0.08);
+}
+[data-dbx-theme="dark"] .json-error.is-warn .json-error-title { color: #fbbf24; }
+
+/* 排序下拉：「排序 升序 ⌄」，值比标签重一档；沿用自绘 select，不用系统弹层 */
+.json-sort .custom-select-trigger { min-width: 6.4rem; }
+.json-sort .custom-select-trigger .label {
+    flex: 0 0 auto;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+.json-sort-value {
+    flex: 0 0 auto;
+    color: var(--text-main);
+    font-weight: 600;
+}
+.json-sort .custom-option.active { font-weight: 600; }

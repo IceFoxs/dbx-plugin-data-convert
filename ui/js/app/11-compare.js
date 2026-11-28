@@ -468,6 +468,8 @@ function exitOtherModes(keep) {
     if (keep !== 'csv' && typeof csvModeActive !== 'undefined' && csvModeActive) exitCsvMode();
     // 23-url.js 更晚（URL 分析页）
     if (keep !== 'url' && typeof urlModeActive !== 'undefined' && urlModeActive) exitUrlMode();
+    // 24-json.js 最晚（JSON 格式化页）
+    if (keep !== 'json' && typeof jsonModeActive !== 'undefined' && jsonModeActive) exitJsonMode();
 }
 
 // 当前停在哪一页（关掉快捷页时用来回原处），'' 表示格式转换页
@@ -486,6 +488,7 @@ function currentPageId() {
     if (typeof dataSqlModeActive !== 'undefined' && dataSqlModeActive) return 'navDataSql';
     if (typeof csvModeActive !== 'undefined' && csvModeActive) return 'navCsv';
     if (typeof urlModeActive !== 'undefined' && urlModeActive) return 'navUrl';
+    if (typeof jsonModeActive !== 'undefined' && jsonModeActive) return 'navJson';
     return '';
 }
 

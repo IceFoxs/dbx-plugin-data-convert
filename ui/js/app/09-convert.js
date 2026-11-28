@@ -461,6 +461,11 @@ function navGoto(link) {
         if (typeof enterUrlMode === 'function') enterUrlMode();
         return;
     }
+    // 「JSON 格式化」是贴 JSON → 缩进 / 压缩 / 导出 的独立页（大文件分片跑，不卡宿主）
+    if (link.id === 'navJson') {
+        if (typeof enterJsonMode === 'function') enterJsonMode();
+        return;
+    }
     // 剩下的是「格式转换」的十几对格式之一
     enterConvertPair(link, link.dataset.src, link.dataset.tgt);
 }
@@ -471,18 +476,25 @@ function navGoto(link) {
  * （link 为 null，这一对可能压根不在菜单里）都走这里，免得清场逻辑写两遍、写歪一处。
  */
 function enterConvertPair(link, src, tgt) {
-    if (compareMode) exitCompareMode();
-    if (sqlModeActive) exitSqlMode();
-    if (sheetModeActive) exitSheetMode();
-    if (imgModeActive) exitImageMode();
-    if (codeModeActive) exitCodeMode();
-    if (queryModeActive) exitQueryMode();
-    if (bytesModeActive) exitBytesMode();
-    if (chartModeActive) exitChartMode();
-    if (escModeActive) exitEscMode();
-    if (timeModeActive) exitTimeMode();
-    if (qrModeActive) exitQrMode();
-    if (statsModeActive) exitStatsMode();
+    // 统一走 11-compare.js 那张「所有页面」的表：这里原本手写一串 exitXxxMode，
+    // 后来加的 URL 分析 / JSON 格式化 / CSV 编辑 / SQL 分析没人回头补，
+    // 于是「从这些页点格式转换」会两层叠着，工具栏还藏着。
+    if (typeof exitOtherModes === 'function') {
+        exitOtherModes('');
+    } else {
+        if (compareMode) exitCompareMode();
+        if (sqlModeActive) exitSqlMode();
+        if (sheetModeActive) exitSheetMode();
+        if (imgModeActive) exitImageMode();
+        if (codeModeActive) exitCodeMode();
+        if (queryModeActive) exitQueryMode();
+        if (bytesModeActive) exitBytesMode();
+        if (chartModeActive) exitChartMode();
+        if (escModeActive) exitEscMode();
+        if (timeModeActive) exitTimeMode();
+        if (qrModeActive) exitQrMode();
+        if (statsModeActive) exitStatsMode();
+    }
     markConvertActive(link || null);
     clearTimeout(autoTimer);
     suppressAutoConvert = true;

@@ -70,6 +70,12 @@ const NAV_SEARCH_ALIAS = {
         py: 'url lianjie lj wangzhi wz dizhi dz yuming ym zhuji zj duankou dk lujing lj canshu cs'
             + ' jiexi jx chai jie fenxi fx'
     },
+    navJson: {
+        keys: ['json', '格式化', '美化', '缩进', '压缩', '紧凑', '校验', '折叠', '大文件',
+            'format', 'pretty', 'prettify', 'beautify', 'minify', 'indent', 'validate'],
+        py: 'json geshihua gsh meihua mh suojin yasuo ys jincou jc jiaoyan jy zhedie zd'
+            + ' dashujian dsj'
+    },
     navQuery: {
         keys: ['查询', '校验', '过滤', '筛选', '断言', 'jsonpath', 'jq', 'schema'],
         py: 'chaxun cx jiaoyan jy guolv gl shaixuan sx duanyan dy'
@@ -660,7 +666,9 @@ function applyI18n() {
         // 22-csv-edit.js 同理；它自己在末尾又会 applyI18n 一次，补上首屏这一次
         (typeof CSV_I18N !== 'undefined' ? (CSV_I18N[currentLang] || CSV_I18N.en || {}) : {}),
         // 23-url.js 同理
-        (typeof URL_I18N !== 'undefined' ? (URL_I18N[currentLang] || URL_I18N.en || {}) : {})
+        (typeof URL_I18N !== 'undefined' ? (URL_I18N[currentLang] || URL_I18N.en || {}) : {}),
+        // 24-json.js 同理（JSON 格式化页）
+        (typeof JSON_I18N !== 'undefined' ? (JSON_I18N[currentLang] || JSON_I18N.en || {}) : {})
     );
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');

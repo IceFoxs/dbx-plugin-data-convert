@@ -2847,8 +2847,8 @@ function check(name, fn) {
         if (convertMenu.querySelectorAll('a').length !== 7) {
             throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
         }
-        // 直属项（从左到右）：JSON 对比 / SQL 转换 / 图片 Base64 / 转义工具 / URL 分析 / 字节转换 / JSON 转图表 / 时间转换 / 二维码转换 / 代码生成 / 表格转 JSON / CSV 编辑 / 数据统计 / SQL 分析 / 查询校验
-        if (inlineNavLinks().length !== 15) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
+        // 直属项（从左到右）：JSON 对比 / JSON 格式化 / SQL 转换 / 图片 Base64 / 转义工具 / URL 分析 / 字节转换 / JSON 转图表 / 时间转换 / 二维码转换 / 代码生成 / 表格转 JSON / CSV 编辑 / 数据统计 / SQL 分析 / 查询校验
+        if (inlineNavLinks().length !== 16) throw new Error('导航条上直属项 ' + inlineNavLinks().length);
         if (!doc.getElementById('navConvertTrigger')) throw new Error('缺少「格式转换」触发器');
         // 触发器直接显示当前这一对格式，而不是固定的「格式转换」
         var label = doc.getElementById('navConvertLabel').textContent.trim();
@@ -2865,7 +2865,7 @@ function check(name, fn) {
     check('默认是顶部导航，切换按钮在', function () {
         if (!doc.getElementById('navToggle')) throw new Error('缺少切换按钮');
         if (doc.body.classList.contains('nav-left')) throw new Error('默认不该是左侧');
-        if (inlineNavLinks().length !== 15) throw new Error('顶部直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 16) throw new Error('顶部直属项 ' + inlineNavLinks().length);
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('左侧') === -1) throw new Error('提示文案: ' + label);
     });
@@ -2874,7 +2874,7 @@ function check(name, fn) {
     check('点切换后导航变左侧', function () {
         if (!doc.body.classList.contains('nav-left')) throw new Error('没切到左侧');
         // 竖排能放下全部项，不该再收进「更多」
-        if (inlineNavLinks().length !== 15) throw new Error('左侧直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 16) throw new Error('左侧直属项 ' + inlineNavLinks().length);
         if (moreEl.classList.contains('show')) throw new Error('左侧模式不该出现「更多」');
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('顶部') === -1) throw new Error('提示没切成「顶部」: ' + label);
@@ -2940,7 +2940,7 @@ function check(name, fn) {
         // 顶部布局下收起不成立：类要摘掉，否则顶部导航整条都点不到
         if (doc.body.classList.contains('nav-collapsed')) throw new Error('顶部布局还带着收起类');
         if (navSide.hasAttribute('inert')) throw new Error('顶部布局的导航被设成 inert');
-        if (inlineNavLinks().length !== 15) throw new Error('顶部直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 16) throw new Error('顶部直属项 ' + inlineNavLinks().length);
         doc.getElementById('navToggle').click();      // 切回左侧
         if (!doc.body.classList.contains('nav-collapsed')) throw new Error('切回左侧没恢复收起状态');
         if (!navSide.hasAttribute('inert')) throw new Error('恢复收起后没设 inert');
@@ -3184,7 +3184,7 @@ function check(name, fn) {
         searchBtn.click();
         if (doc.body.classList.contains('nav-searching')) throw new Error('再点没收起');
         if (searchBtn.getAttribute('aria-expanded') !== 'false') throw new Error('aria-expanded 没复位');
-        if (inlineNavLinks().length !== 15) throw new Error('收起后导航没回来: ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 16) throw new Error('收起后导航没回来: ' + inlineNavLinks().length);
     });
 
     check('Ctrl+K / ⌘K 也能唤起搜索', function () {
@@ -3328,7 +3328,7 @@ function check(name, fn) {
     doc.getElementById('navToggle').click();
     check('再点一次回到顶部导航', function () {
         if (doc.body.classList.contains('nav-left')) throw new Error('没切回顶部');
-        if (inlineNavLinks().length !== 15) throw new Error('回顶部后直属项 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 16) throw new Error('回顶部后直属项 ' + inlineNavLinks().length);
         var label = doc.getElementById('navToggle').getAttribute('aria-label') || '';
         if (label.indexOf('左侧') === -1) throw new Error('提示没切成「左侧」: ' + label);
         if (String(win.name || '').indexOf('dbx-nav:top') === -1) throw new Error('window.name 没跟着回到 top: ' + win.name);
@@ -3371,7 +3371,7 @@ function check(name, fn) {
         var names = [].map.call(moreMenu.querySelectorAll('a'), function (a) { return a.textContent.trim(); });
         // 120px 只塞得下一项：先是非置顶的搬走，还不够才动置顶项，塞得下就停；
         // 菜单顺序必须接着导航条往下排（置顶项在最前）
-        var expect = ['SQL 转换', '图片 Base64', '转义工具', 'URL 分析', '字节转换', 'JSON 转图表',
+        var expect = ['JSON 格式化', 'SQL 转换', '图片 Base64', '转义工具', 'URL 分析', '字节转换', 'JSON 转图表',
             '时间转换', '二维码转换', '代码生成', '表格转 JSON', 'CSV 编辑', '数据统计', 'SQL 分析', '查询校验'];
         if (names.join('|') !== expect.join('|')) {
             throw new Error('菜单项: ' + names.join(','));
@@ -3413,7 +3413,10 @@ function check(name, fn) {
             navTime: 'timeWorkspace',
             navQr: 'qrWorkspace',
             navStats: 'statsWorkspace',
-            navDataSql: 'dataSqlWorkspace'
+            navDataSql: 'dataSqlWorkspace',
+            navJson: 'jsonWorkspace',
+            navCsv: 'csvWorkspace',
+            navUrl: 'urlWorkspace'
         };
         if (!pageOf[id]) throw new Error('菜单项不是页面入口: ' + item.textContent.trim());
         if (!doc.getElementById(pageOf[id]).classList.contains('active')) {
@@ -3432,7 +3435,7 @@ function check(name, fn) {
     check('宽度恢复后导航项全部回到导航条', function () {
         if (moreEl.classList.contains('show')) throw new Error('「更多」仍显示');
         if (moreMenu.querySelectorAll('a').length !== 0) throw new Error('菜单仍有残留');
-        if (inlineNavLinks().length !== 15) throw new Error('导航项数 ' + inlineNavLinks().length);
+        if (inlineNavLinks().length !== 16) throw new Error('导航项数 ' + inlineNavLinks().length);
         if (convertMenu.querySelectorAll('a').length !== 7) throw new Error('下拉项数 ' + convertMenu.querySelectorAll('a').length);
     });
 
@@ -3464,17 +3467,17 @@ function check(name, fn) {
     });
 
     navCustomizeBtn.click();
-    check('面板列出全部 15 项，顺序跟导航条一致', function () {
+    check('面板列出全部 16 项，顺序跟导航条一致', function () {
         if (navPanelMask.hidden) throw new Error('面板没打开');
         var rows = panelRows();
-        if (rows.length !== 15) throw new Error('行数 ' + rows.length);
+        if (rows.length !== 16) throw new Error('行数 ' + rows.length);
         if (rows.join(',') !== navIds().join(',')) {
             throw new Error('面板 ' + rows.join(',') + ' / 导航 ' + navIds().join(','));
         }
     });
 
-    check('默认置顶就是原来那两个主入口', function () {
-        if (panelPinned().join(',') !== 'navCompare,navSql') throw new Error('置顶项: ' + panelPinned().join(','));
+    check('默认置顶：对比 / 格式化 / SQL 三个主入口', function () {
+        if (panelPinned().join(',') !== 'navCompare,navJson,navSql') throw new Error('置顶项: ' + panelPinned().join(','));
         var btn = navPanelList.querySelector('[data-nav-row="navCompare"] [data-nav-act="pin"]');
         if (btn.getAttribute('aria-pressed') !== 'true') throw new Error('置顶按钮没标 aria-pressed');
         if (!btn.classList.contains('on')) throw new Error('置顶按钮没高亮');
@@ -3482,32 +3485,34 @@ function check(name, fn) {
 
     check('点置顶：该项跳到置顶块末尾，导航条同步', function () {
         navPanelList.querySelector('[data-nav-row="navQr"] [data-nav-act="pin"]').click();
-        if (navIds().slice(0, 3).join(',') !== 'navCompare,navSql,navQr') {
+        if (navIds().slice(0, 4).join(',') !== 'navCompare,navJson,navSql,navQr') {
             throw new Error('导航顺序: ' + navIds().join(','));
         }
-        if (panelRows().slice(0, 3).join(',') !== 'navCompare,navSql,navQr') {
+        if (panelRows().slice(0, 4).join(',') !== 'navCompare,navJson,navSql,navQr') {
             throw new Error('面板顺序: ' + panelRows().join(','));
         }
-        if (panelPinned().length !== 3) throw new Error('置顶数 ' + panelPinned().length);
+        if (panelPinned().length !== 4) throw new Error('置顶数 ' + panelPinned().length);
     });
 
     check('取消置顶：回到普通块的最前面', function () {
         navPanelList.querySelector('[data-nav-row="navQr"] [data-nav-act="pin"]').click();
         var rows = panelRows();
-        if (rows.slice(0, 3).join(',') !== 'navCompare,navSql,navQr') {
-            throw new Error('取消置顶后位置: ' + rows.slice(0, 3).join(','));
+        if (rows.slice(0, 4).join(',') !== 'navCompare,navJson,navSql,navQr') {
+            throw new Error('取消置顶后位置: ' + rows.slice(0, 4).join(','));
         }
-        if (panelPinned().join(',') !== 'navCompare,navSql') throw new Error('置顶项: ' + panelPinned().join(','));
+        if (panelPinned().join(',') !== 'navCompare,navJson,navSql') throw new Error('置顶项: ' + panelPinned().join(','));
     });
 
     check('箭头：上移 / 下移改顺序，导航条跟着变', function () {
         var before = panelRows();
-        navPanelList.querySelector('[data-nav-row="' + before[2] + '"] [data-nav-act="down"]').click();
+        // 用「普通块的第一项」下移：置顶块最后一项再往下就越界了（下面有专门用例钉这条）
+        var from = before.indexOf('navImage');
+        navPanelList.querySelector('[data-nav-row="' + before[from] + '"] [data-nav-act="down"]').click();
         var after = panelRows();
-        if (after[2] !== before[3] || after[3] !== before[2]) {
-            throw new Error('没换位: ' + before.slice(2, 4).join(',') + ' -> ' + after.slice(2, 4).join(','));
+        if (after[from] !== before[from + 1] || after[from + 1] !== before[from]) {
+            throw new Error('没换位: ' + before.slice(from, from + 2).join(',') + ' -> ' + after.slice(from, from + 2).join(','));
         }
-        navPanelList.querySelector('[data-nav-row="' + before[2] + '"] [data-nav-act="up"]').click();
+        navPanelList.querySelector('[data-nav-row="' + before[from] + '"] [data-nav-act="up"]').click();
         if (panelRows().join(',') !== before.join(',')) throw new Error('上移没还原: ' + panelRows().join(','));
         if (navIds().join(',') !== before.join(',')) throw new Error('导航条没跟着: ' + navIds().join(','));
     });
@@ -3516,7 +3521,7 @@ function check(name, fn) {
         if (!navPanelList.children[0].querySelector('[data-nav-act="up"]').disabled) {
             throw new Error('首项还能上移');
         }
-        var boundary = navPanelList.children[2].querySelector('[data-nav-act="up"]');
+        var boundary = navPanelList.children[3].querySelector('[data-nav-act="up"]');
         if (!boundary.disabled) throw new Error('普通块首项还能上移挤进置顶块');
     });
 
@@ -3632,10 +3637,10 @@ function check(name, fn) {
     check('恢复默认：顺序、置顶、吸顶一起回出厂', function () {
         navPanelList.querySelector('[data-nav-row="navQr"] [data-nav-act="pin"]').click();
         doc.getElementById('navPanelReset').click();
-        if (navIds().slice(0, 3).join(',') !== 'navCompare,navSql,navImage') {
+        if (navIds().slice(0, 3).join(',') !== 'navCompare,navJson,navSql') {
             throw new Error('顺序: ' + navIds().join(','));
         }
-        if (panelPinned().join(',') !== 'navCompare,navSql') throw new Error('置顶项: ' + panelPinned().join(','));
+        if (panelPinned().join(',') !== 'navCompare,navJson,navSql') throw new Error('置顶项: ' + panelPinned().join(','));
         if (navStickyToggle.checked) throw new Error('吸顶没复位');
     });
 
@@ -3656,11 +3661,11 @@ function check(name, fn) {
     });
     check('新项也能置顶、也能被记住', function () {
         navPanelList.querySelector('[data-nav-row="navFuture"] [data-nav-act="pin"]').click();
-        if (navIds()[2] !== 'navFuture') throw new Error('置顶后顺序: ' + navIds().join(','));
+        if (navIds()[3] !== 'navFuture') throw new Error('置顶后顺序: ' + navIds().join(','));
         var name = String(win.name || '');
         if (name.indexOf('navFuture') === -1) throw new Error('没写进窗口记忆: ' + name);
-        // 面板行数跟着长到 16（导航原有 15 项 + 新加的 navFuture）
-        if (panelRows().length !== 16) throw new Error('行数 ' + panelRows().length);
+        // 面板行数跟着长到 17（导航原有 16 项 + 新加的 navFuture）
+        if (panelRows().length !== 17) throw new Error('行数 ' + panelRows().length);
     });
 
     check('偏好存在独立 key/token 里，旧版本那套读写不会碰它', function () {
@@ -3700,9 +3705,9 @@ function check(name, fn) {
     dom.window.dispatchEvent(new dom.window.Event('resize'));
     await wait(250);
 
-    check('摘掉临时项后回到 15 项、出厂顺序', function () {
-        if (inlineNavLinks().length !== 15) throw new Error('项数 ' + inlineNavLinks().length);
-        if (navIds().slice(0, 2).join(',') !== 'navCompare,navSql') throw new Error('顺序: ' + navIds().join(','));
+    check('摘掉临时项后回到 16 项、出厂顺序', function () {
+        if (inlineNavLinks().length !== 16) throw new Error('项数 ' + inlineNavLinks().length);
+        if (navIds().slice(0, 3).join(',') !== 'navCompare,navJson,navSql') throw new Error('顺序: ' + navIds().join(','));
     });
 
 
@@ -4819,6 +4824,251 @@ function check(name, fn) {
     check('离开 URL 分析页后入口状态复原', function () {
         if (urlWs.classList.contains('active')) throw new Error('页面还在显示');
         if (doc.getElementById('navUrl').classList.contains('active')) throw new Error('导航还高亮');
+    });
+
+    // ---- JSON 格式化页 ----
+    doc.getElementById('navJson').click();
+    var jsonWs = doc.getElementById('jsonWorkspace');
+    function jsonCm(id) {
+        var wrap = doc.getElementById(id).nextElementSibling;
+        return wrap && wrap.CodeMirror;
+    }
+    function jsonOut() {
+        var cm = jsonCm('jsonOutput');
+        return cm ? cm.getValue() : '';
+    }
+
+    check('进 JSON 格式化页：页面显示、导航高亮、两个编辑器就位', function () {
+        if (!jsonWs.classList.contains('active')) throw new Error('页面没显示');
+        if (!doc.getElementById('navJson').classList.contains('active')) throw new Error('导航没高亮');
+        if (!jsonCm('jsonInput')) throw new Error('输入编辑器没挂上');
+        if (!jsonCm('jsonOutput')) throw new Error('结果编辑器没挂上');
+        if (!doc.getElementById('mainWorkspace').classList.contains('hidden')) throw new Error('格式转换页没让位');
+    });
+
+    check('空页：结果区给提示，两个徽标都是 0', function () {
+        if (doc.getElementById('jsonEmpty').hidden) throw new Error('空态没显示');
+        if (doc.getElementById('jsonInBadge').textContent !== '0') throw new Error('输入徽标 ' + doc.getElementById('jsonInBadge').textContent);
+        if (doc.getElementById('jsonOutBadge').textContent !== '0') throw new Error('结果徽标 ' + doc.getElementById('jsonOutBadge').textContent);
+        if (doc.getElementById('jsonCopy').disabled !== true) throw new Error('空结果时复制该禁用');
+    });
+
+    jsonCm('jsonInput').setValue('{"b":1,"a":2,"c":{"z":1,"y":2}}');
+    await wait(800);      // 自动格式化有 380 ms 防抖
+
+    check('自动格式化：2 空格缩进、冒号后留空格', function () {
+        var want = '{\n  "b": 1,\n  "a": 2,\n  "c": {\n    "z": 1,\n    "y": 2\n  }\n}';
+        if (jsonOut() !== want) throw new Error('实际：' + JSON.stringify(jsonOut()));
+    });
+
+    check('统计条：体积 / 行数 / 值个数 / 深度', function () {
+        var t = doc.getElementById('jsonStat').textContent;
+        if (t.indexOf('8 行') < 0) throw new Error('行数不对: ' + t);
+        if (t.indexOf('深度 2') < 0) throw new Error('深度不对: ' + t);
+    });
+
+    doc.getElementById('jsonMinifyBtn').click();
+    await wait(300);
+
+    check('压缩：整条压成一行', function () {
+        if (jsonOut() !== '{"b":1,"a":2,"c":{"z":1,"y":2}}') throw new Error('实际：' + jsonOut());
+        if (doc.getElementById('jsonCopy').textContent !== '复制') throw new Error('小结果该是「复制」');
+    });
+
+    // 排序下拉：升序 / 降序（走自绘 select，不用系统弹层）
+    doc.querySelector('#jsonSort .custom-select-trigger').click();
+    doc.querySelector('#jsonSort .custom-option[data-sort="asc"]')
+        .dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await wait(400);
+
+    check('排序升序：成员按字典序重排（深层也跟着排）', function () {
+        var t = jsonOut();
+        if (t.indexOf('"a"') > t.indexOf('"b"')) throw new Error('外层没排序: ' + t);
+        if (t.indexOf('"y"') > t.indexOf('"z"')) throw new Error('深层没排序: ' + t);
+        if (doc.getElementById('jsonSortValue').textContent !== '升序') throw new Error('下拉标签没跟上');
+    });
+
+    doc.querySelector('#jsonSort .custom-select-trigger').click();
+    doc.querySelector('#jsonSort .custom-option[data-sort="desc"]')
+        .dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await wait(400);
+
+    check('排序降序：倒着排，数组顺序不动', function () {
+        var t = jsonOut();
+        if (t.indexOf('"b"') > t.indexOf('"a"')) throw new Error('降序没生效: ' + t);
+        if (t.indexOf('"c"') > t.indexOf('"b"')) throw new Error('c 应在最前: ' + t);
+    });
+
+    doc.querySelector('#jsonSort .custom-select-trigger').click();
+    doc.querySelector('#jsonSort .custom-option[data-sort="none"]')
+        .dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await wait(400);
+
+    check('排序回到默认：恢复原始顺序', function () {
+        var t = jsonOut();
+        if (t.indexOf('"b"') > t.indexOf('"a"')) throw new Error('没恢复原顺序: ' + t);
+    });
+
+    // 折叠 / 展开：要看得到折叠占位（不是「点了没反应」）
+    doc.getElementById('jsonFold').click();
+    await wait(200);
+    check('结果编辑器：行号槽和折叠槽都在（别被 setOption 清掉）', function () {
+        var cm = jsonCm('jsonOutput');
+        var gutters = cm.getOption('gutters') || [];
+        if (gutters.indexOf('CodeMirror-linenumbers') < 0) throw new Error('行号槽没了: ' + gutters.join(','));
+        if (gutters.indexOf('CodeMirror-foldgutter') < 0) throw new Error('折叠槽没了: ' + gutters.join(','));
+        if (cm.getOption('foldGutter') !== true) throw new Error('foldGutter 被关掉了');
+    });
+
+    check('折叠：结果是折叠态，占位符写清里面有几个成员', function () {
+        var marks = doc.querySelectorAll('.CodeMirror-foldmarker');
+        if (!marks.length) throw new Error('没有折叠占位，点了没生效');
+        var text = marks[0].textContent || '';
+        if (text.indexOf('{') < 0) throw new Error('占位符不是 { … } 形式: ' + text);
+        if (!/3\s*项|3\s*items/.test(text)) throw new Error('没带上成员数: ' + text);
+    });
+
+    doc.getElementById('jsonUnfold').click();
+    await wait(200);
+    check('展开：折叠占位全部撤掉，内容回来', function () {
+        if (doc.querySelectorAll('.CodeMirror-foldmarker').length) throw new Error('还有折叠没展开');
+        if (jsonOut().indexOf('"c"') < 0) throw new Error('内容没回来');
+    });
+
+    // 占位文案：数组必须是 `[ … ]  // N items`，别一律画成 `{ … }`
+    jsonCm('jsonInput').setValue('{"arr":[1,2,3],"obj":{"a":1,"b":2},"one":[7]}');
+    await wait(700);
+
+    check('折叠占位：数组给 [ … ] 带条数，对象给 { … } 带条数', function () {
+        var cm = jsonCm('jsonOutput');
+        var opts = cm.getOption('foldOptions');
+        if (!opts || typeof opts.widget !== 'function') throw new Error('foldOptions.widget 没了');
+        var lines = [];
+        for (var i = 0; i < cm.lineCount(); i++) lines.push(cm.getLine(i));
+        function foldText(match) {
+            var at = -1;
+            for (var k = 0; k < lines.length; k++) if (lines[k].trim().indexOf(match) === 0) { at = k; break; }
+            if (at < 0) throw new Error('结果里找不到 ' + match + ' 那一行: ' + lines.join('|'));
+            var range = opts.rangeFinder(cm, { line: at, ch: lines[at].length });
+            if (!range) throw new Error(match + ' 这行折不了');
+            return opts.widget(range.from, range.to);
+        }
+        var arr = foldText('"arr"');
+        if (arr.indexOf('[') !== 0) throw new Error('数组占位不是 [ … ] 开头: ' + arr);
+        if (!/3\s*项|3\s*items/.test(arr)) throw new Error('数组没带条数: ' + arr);
+        var obj = foldText('"obj"');
+        if (obj.indexOf('{') !== 0) throw new Error('对象占位不是 { … }: ' + obj);
+        if (!/2\s*项|2\s*items/.test(obj)) throw new Error('对象没带条数: ' + obj);
+    });
+
+    // 出错：错误条要说清原因 + 位置，并能一键定位
+    jsonCm('jsonInput').setValue('{\n  "a": 1\n  "b": 2\n}');
+    await wait(800);
+
+    check('出错：错误条给出原因与行列，结果区清空', function () {
+        var box = doc.getElementById('jsonError');
+        if (box.hidden) throw new Error('错误条没出现');
+        if (box.classList.contains('is-warn')) throw new Error('真错误不该是黄色提示');
+        if (doc.getElementById('jsonErrorTitle').textContent.indexOf('逗号') < 0) {
+            throw new Error('原因不对: ' + doc.getElementById('jsonErrorTitle').textContent);
+        }
+        if (doc.getElementById('jsonErrorWhere').textContent.indexOf('第 3 行') < 0) {
+            throw new Error('位置不对: ' + doc.getElementById('jsonErrorWhere').textContent);
+        }
+        if (jsonOut()) throw new Error('出错时结果区该清空');
+        if (doc.getElementById('jsonStat').textContent) throw new Error('出错时统计该清空，不然像成功了');
+    });
+
+    check('定位：光标回到出错那一行', function () {
+        doc.getElementById('jsonErrorGoto').click();
+        var cur = jsonCm('jsonInput').getCursor();
+        if (cur.line !== 2) throw new Error('光标在第 ' + (cur.line + 1) + ' 行');
+    });
+
+    // 大整数：排序时不能被改成 double
+    jsonCm('jsonInput').setValue('{"b":9007199254740993,"a":1}');
+    await wait(700);
+    doc.querySelector('#jsonSort .custom-select-trigger').click();
+    doc.querySelector('#jsonSort .custom-option[data-sort="asc"]')
+        .dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await wait(400);
+
+    check('大整数：排序照常，精度一位不丢，也不该弹「已跳过」', function () {
+        var t = jsonOut();
+        if (t.indexOf('9007199254740993') < 0) throw new Error('大整数被改了: ' + t);
+        if (t.indexOf('"a"') > t.indexOf('"b"')) throw new Error('没排序: ' + t);
+        if (!doc.getElementById('jsonError').hidden) throw new Error('不该有提示条');
+    });
+
+    // 导入 / 拖入就该直接出结果，不该再让人点一次「格式化」
+    win.jsonLoadText('{"b":1,"a":2}', 'auto.json', true);
+    await wait(900);
+
+    check('导入 / 拖入后自动格式化：右侧直接有结果', function () {
+        var t = jsonOut();
+        if (!t) throw new Error('没有自动出结果');
+        if (t.indexOf('"a": 2') < 0) throw new Error('结果不对: ' + t);
+        if (doc.getElementById('jsonEmpty').hidden !== true) throw new Error('空态还盖着结果');
+    });
+
+    // 默认门槛：4 MB 的活儿要能直接干（格式化 + 着色），这条是「放开」的契约
+    check('默认门槛：输入 4 MB、结果 10 MB，着色跟着结果走', function () {
+        var L = win.DBXJson.LIMITS;
+        if (L.cmInput < 4 * 1024 * 1024) throw new Error('cmInput 没放到 4 MB: ' + L.cmInput);
+        if (L.renderEdit < 2 * L.cmInput) throw new Error('renderEdit 装不下 4 MB 原文美化后的结果: ' + L.renderEdit);
+        if (L.preview < 1024 * 1024) throw new Error('预览段太短: ' + L.preview);
+    });
+
+    // 大文件：超过 cmInput 不进编辑器，改「摘要 + 预览」，格式化走分片
+    var jsonBigText = '{"note":"' + 'x'.repeat(win.DBXJson.LIMITS.cmInput + 1024) + '","n":1}';
+    win.jsonLoadText(jsonBigText, 'big.json', true);
+    await wait(300);
+
+    check('超过 cmInput：不进编辑器，换成只读摘要卡', function () {
+        if (!doc.querySelector('.json-in-pane').classList.contains('is-big')) throw new Error('没切大文件模式');
+        if (doc.getElementById('jsonBigIn').hidden) throw new Error('摘要卡没显示');
+        if (doc.getElementById('jsonBigInName').textContent.indexOf('big.json') < 0) throw new Error('文件名没填');
+    });
+
+    // 4 MB 进不来编辑器，但结果（4 MB 多一点）仍在 renderEdit 以内，走编辑器 + 着色
+    doc.getElementById('jsonRun').click();
+    await wait(2500);
+
+    check('4 MB 级：结果照样进编辑器、带 JSON 着色', function () {
+        if (!doc.getElementById('jsonPreview').hidden) throw new Error('不该退成预览');
+        var cm = jsonCm('jsonOutput');
+        if (!cm) throw new Error('结果编辑器不在');
+        if (cm.getOption('mode') !== 'application/json') throw new Error('没着色: ' + cm.getOption('mode'));
+        if (cm.getValue().indexOf('"note"') < 0) throw new Error('结果没进编辑器');
+    });
+
+    // 把 renderEdit 临时调小，验证「超大结果只渲染预览」这条闸还在
+    var oldRenderEdit = win.DBXJson.LIMITS.renderEdit;
+    win.DBXJson.LIMITS.renderEdit = 4096;
+    doc.getElementById('jsonRun').click();
+    await wait(2500);
+
+    check('超过 renderEdit：只渲染预览，折叠禁用，按钮变「导出」', function () {
+        if (doc.getElementById('jsonPreview').hidden) throw new Error('没走预览模式');
+        if (doc.getElementById('jsonFold').disabled !== true) throw new Error('预览模式下折叠该禁用');
+        if ((doc.getElementById('jsonFold').getAttribute('data-tip') || '').indexOf('折叠') < 0) throw new Error('禁用没给原因');
+        if (doc.getElementById('jsonCopy').textContent !== '导出') throw new Error('大结果该是「导出」，不是复制');
+    });
+    win.DBXJson.LIMITS.renderEdit = oldRenderEdit;
+
+    doc.getElementById('jsonClear').click();
+    await wait(200);
+
+    check('清空：输入、结果、徽标一起归零', function () {
+        if (jsonOut()) throw new Error('结果还在');
+        if (doc.getElementById('jsonInBadge').textContent !== '0') throw new Error('输入徽标没归零');
+        if (doc.getElementById('jsonEmpty').hidden) throw new Error('空态没回来');
+    });
+
+    check('离开 JSON 格式化页：工具栏与格式转换页回来', function () {
+        doc.querySelector('#navConvertMenu a[data-src="json"][data-tgt="yaml"]').click();
+        if (jsonWs.classList.contains('active')) throw new Error('页面还在显示');
+        if (doc.querySelector('.toolbar').classList.contains('hidden')) throw new Error('工具栏还藏着');
     });
 
     results.forEach(function (r) {

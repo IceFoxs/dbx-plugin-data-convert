@@ -53,6 +53,7 @@
     <script src="js/selectconv.js"></script>
     <script src="js/csvedit.js"></script>
     <script src="js/urlparse.js"></script>
+    <script src="js/jsonfmt.js"></script>
     <script src="js/flow.js"></script>
     <script src="js/nav.js"></script>
 
@@ -176,6 +177,7 @@
     </div>
     <nav class="nav-links" id="navLinks">
         <a id="navCompare" class="nav-compare" data-i18n="navCompare">JSON 对比</a>
+        <a id="navJson" class="nav-json" data-i18n="navJson">JSON 格式化</a>
         <a id="navSql" class="nav-sql" data-i18n="navSql">SQL 转换</a>
         <a id="navImage" class="nav-image" data-i18n="navImage">图片 Base64</a>
         <a id="navEscape" class="nav-escape" data-i18n="navEscape">转义工具</a>
@@ -893,6 +895,129 @@
                 </div>
                 <div class="url-results" id="urlResults"></div>
             </div>
+        </div>
+    </section>
+
+    <!-- ================= JSON 格式化 =================
+         左边贴 JSON（或拖 .json / .jsonl 进来），右边是格式化结果。
+         格式化在 js/jsonfmt.js（window.DBXJson）：一遍扫描、不建对象树、数字按原文抄。
+         大文件不塞 CodeMirror，也不在同一拍里跑完——分片扫描 + 进度 + 可取消，
+         所以 20 MB 的文件也只是「慢一点」，不会把宿主冻住；结果过大时复制改成导出。 -->
+    <section class="json-workspace" id="jsonWorkspace">
+        <div class="compare-bar json-bar">
+            <div class="json-bar-top">
+                <div class="custom-select select-compact json-samples" id="jsonSamples">
+                    <div class="custom-select-trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">
+                        <span class="label" data-i18n="jsonSamples">示例</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="custom-select-options">
+                        <div class="custom-option" data-sample="api" data-i18n="jsonSampleApi">接口返回</div>
+                        <div class="custom-option" data-sample="deep" data-i18n="jsonSampleDeep">深层嵌套</div>
+                        <div class="custom-option" data-sample="jsonl" data-i18n="jsonSampleJsonl">每行一条</div>
+                        <div class="custom-option" data-sample="broken" data-i18n="jsonSampleBroken">故意写错</div>
+                    </div>
+                </div>
+
+                <div class="compare-tabs sql-seg json-indent" id="jsonIndent" role="group">
+                    <button type="button" class="compare-tab active" data-indent="2">2</button>
+                    <button type="button" class="compare-tab" data-indent="4">4</button>
+                    <button type="button" class="compare-tab" data-indent="tab">Tab</button>
+                </div>
+
+                <div class="custom-select select-compact json-sort" id="jsonSort">
+                    <div class="custom-select-trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">
+                        <span class="label" data-i18n="jsonSortLabel">排序</span>
+                        <span class="json-sort-value" id="jsonSortValue">默认</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="custom-select-options">
+                        <div class="custom-option active" data-sort="none" data-i18n="jsonSortDefault">默认</div>
+                        <div class="custom-option" data-sort="asc" data-i18n="jsonSortAsc">升序</div>
+                        <div class="custom-option" data-sort="desc" data-i18n="jsonSortDesc">降序</div>
+                    </div>
+                </div>
+
+                <span class="json-stat" id="jsonStat"></span>
+            </div>
+
+            <div class="compare-actions">
+                <button type="button" class="btn btn-outline" id="jsonImport" data-i18n="jsonImport">导入</button>
+                <button type="button" class="btn btn-primary" id="jsonRun" data-i18n="jsonRun">格式化</button>
+                <button type="button" class="btn btn-outline" id="jsonMinifyBtn" data-i18n="jsonMinify">压缩</button>
+                <button type="button" class="btn btn-outline" id="jsonCopy" data-i18n="jsonCopy">复制</button>
+                <button type="button" class="btn btn-outline" id="jsonClear" data-i18n="jsonClear">清空</button>
+                <input type="file" id="jsonFile" class="json-file" accept=".json,.jsonl,.ndjson,.txt,application/json,text/plain" hidden>
+            </div>
+        </div>
+
+        <div class="compare-grid json-grid">
+            <div class="compare-pane json-in-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="jsonInput">JSON 输入</span>
+                        <span class="pane-badge" id="jsonInBadge">0</span>
+                    </div>
+                    <div class="pane-actions">
+                        <span class="json-hint" data-i18n="jsonInHint">粘贴，或把 .json / .jsonl 拖进来</span>
+                    </div>
+                </div>
+                <div class="editor-container" id="jsonInEditorWrap">
+                    <textarea id="jsonInput" class="textarea" spellcheck="false"></textarea>
+                </div>
+                <!-- 大文件模式：不把几 MB 的文本交给 CodeMirror，只给摘要 + 开头预览 -->
+                <div class="json-bigfile" id="jsonBigIn" hidden>
+                    <div class="json-bigfile-head">
+                        <div class="json-bigfile-name" id="jsonBigInName">—</div>
+                        <span class="json-bigfile-tag" data-i18n="jsonBigTag">大文件 · 只读预览</span>
+                    </div>
+                    <div class="json-bigfile-meta" id="jsonBigInMeta"></div>
+                    <div class="json-bigfile-acts">
+                        <button type="button" class="btn btn-outline btn-xs" id="jsonBigInPeek" data-i18n="jsonPeek">看开头</button>
+                        <button type="button" class="btn btn-outline btn-xs" id="jsonBigInForce" data-i18n="jsonForceEdit">仍要编辑</button>
+                    </div>
+                    <pre class="json-bigfile-peek" id="jsonBigInPeekPre" hidden></pre>
+                </div>
+            </div>
+
+            <div class="compare-pane json-out-pane">
+                <div class="pane-header">
+                    <div class="pane-title">
+                        <span data-i18n="jsonResult">格式化结果</span>
+                        <span class="pane-badge" id="jsonOutBadge">0</span>
+                    </div>
+                    <div class="pane-actions">
+                        <button type="button" class="btn btn-outline btn-xs" id="jsonFold" data-i18n="jsonFold">折叠</button>
+                        <button type="button" class="btn btn-outline btn-xs" id="jsonUnfold" data-i18n="jsonUnfold">展开</button>
+                        <span class="json-timing" id="jsonTiming"></span>
+                    </div>
+                </div>
+                <div class="editor-container" id="jsonOutEditorWrap">
+                    <textarea id="jsonOutput" class="textarea" spellcheck="false"></textarea>
+                </div>
+                <!-- 结果过大：只渲染前一段，全文留着导出 -->
+                <div class="json-preview" id="jsonPreview" hidden>
+                    <pre class="json-preview-pre" id="jsonPreviewPre"></pre>
+                    <div class="json-preview-note" id="jsonPreviewNote"></div>
+                </div>
+                <div class="json-empty" id="jsonEmpty" data-i18n="jsonEmptyHint">左边贴 JSON，这里出结果；Ctrl / ⌘ + Enter 直接跑</div>
+                <div class="json-error" id="jsonError" hidden>
+                    <span class="json-error-mark">!</span>
+                    <div class="json-error-body">
+                        <div class="json-error-title" id="jsonErrorTitle"></div>
+                        <div class="json-error-where" id="jsonErrorWhere"></div>
+                        <code class="json-error-snippet" id="jsonErrorSnippet"></code>
+                    </div>
+                    <button type="button" class="btn btn-outline btn-xs" id="jsonErrorGoto" data-i18n="jsonGoto">定位</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 大文件跑的时候盖一条进度：主线程每片只占几毫秒，界面照样能响应 -->
+        <div class="json-progress" id="jsonProgress" hidden>
+            <span class="json-progress-text" id="jsonProgressText"></span>
+            <div class="json-progress-track"><div class="json-progress-bar" id="jsonProgressBar"></div></div>
+            <button type="button" class="btn btn-outline btn-xs" id="jsonProgressCancel" data-i18n="jsonCancel">取消</button>
         </div>
     </section>
 
@@ -2053,6 +2178,7 @@
 <script src="js/app/21-editor-menu.js"></script>
 <script src="js/app/22-csv-edit.js"></script>
 <script src="js/app/23-url.js"></script>
+<script src="js/app/24-json.js"></script>
 
 </body>
 </html>

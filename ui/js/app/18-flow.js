@@ -1470,6 +1470,16 @@ function pageImportTargets(page, side) {
         };
     }
 
+    // JSON 格式化页：交给页面自己分体积处理——超过 1 MB 不进 CodeMirror，
+    // 由 24-json.js 换成「摘要 + 预览」，在这里 setValue 会把宿主冻住
+    if (page === 'navJson') {
+        return {
+            load: typeof jsonLoadText === 'function' ? jsonLoadText : null,
+            el: document.getElementById('jsonInput'),
+            tipId: ''
+        };
+    }
+
     if (page === 'navCodegen') return { editor: codeInputEditor, el: codeInput, tipId: 'codeTip' };
     if (page === 'navQuery') {
         const schemaPane = byId('querySchemaPane');
@@ -1521,6 +1531,12 @@ function convertSourceFormat(name, text) {
 }
 
 function putTextIntoPage(t, text) {
+    // 页面自己接管（JSON 格式化页要按体积决定进不进编辑器，不能一律 setValue）
+    if (typeof t.load === 'function') {
+        // 第三个参数 quiet：导入提示由这里统一报，页面别再补一条
+        t.load(text, t.name, true);
+        return;
+    }
     if (t.editor && typeof t.editor.setValue === 'function') {
         t.editor.setValue(text);
         return;
@@ -1584,7 +1600,11 @@ async function importTextIntoPage(page, file, side) {
     }
     const heavy = text.length > TEXT_AUTO_MAX;
     if (t.convert) loadTextIntoConvert(text, file.name || '', heavy);
-    else putTextIntoPage(t, text);
+    else {
+        // load 回调（JSON 格式化页）要文件名来做摘要卡
+        t.name = file.name || '';
+        putTextIntoPage(t, text);
+    }
 
     // 导入结果说两遍：提示条里常驻（页面自己刷新提示时可能被覆盖），
     // 再加一条 toast 保证「文件名 + 体积」这次一定看得到
