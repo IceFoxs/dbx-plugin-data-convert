@@ -5071,7 +5071,8 @@ function check(name, fn) {
         cell.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
         if (doc.getElementById('jsonCellModal').hidden) throw new Error('弹窗没开');
         if (doc.getElementById('jsonCellPre').hidden) throw new Error('小值该用 pre 展示');
-        if (doc.getElementById('jsonCellTitle').textContent.indexOf('1') < 0) throw new Error('标题没带行号');
+        var title = doc.getElementById('jsonCellTitle').textContent;
+        if (title.indexOf('第') < 0 || title.indexOf('id') < 0) throw new Error('标题不对: ' + title);
         doc.getElementById('jsonCellDoneBtn').click();
         if (!doc.getElementById('jsonCellModal').hidden) throw new Error('关不掉');
     });

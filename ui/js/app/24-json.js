@@ -926,8 +926,22 @@ function jsonHideProgress() {
     if (jsonProgressBar) jsonProgressBar.style.width = '0%';
 }
 
+let jsonRerunMode = null;
+
+/* 任何时候都能叫它：正在跑就记一笔，跑完再补一次，
+   免得「导入后点了格式化但正好在上一次运行中」被静默丢掉 */
 async function jsonRun(mode) {
-    if (jsonBusy) return;
+    if (jsonBusy) { jsonRerunMode = mode || 'format'; return; }
+    try {
+        await jsonRunNow(mode);
+    } finally {
+        const again = jsonRerunMode;
+        jsonRerunMode = null;
+        if (again) jsonRun(again);
+    }
+}
+
+async function jsonRunNow(mode) {
     clearTimeout(jsonTimer);
     const text = jsonCurrentText();
     if (!text.trim()) {
@@ -1540,6 +1554,9 @@ function jsonReadFileText(file) {
 
 async function jsonImportFile(file) {
     if (!file) return;
+    // 选文件那一刻就把左边腾空：读盘要几十毫秒，这期间别让人对着上一个文件犯迷糊
+    jsonClearInput();
+    if (jsonInBadge) jsonInBadge.textContent = '0';
     if (file.size > JSON_IMPORT_MAX) {
         showToast(jsonT('jsonFileTooBig', { max: jsonFmtBytes(JSON_IMPORT_MAX) }), 'error', 4500);
         return;
@@ -1945,6 +1962,7 @@ if (jsonTableScopeEl) {
    只读编辑器——几 MB 的 JSON 摊在 pre 里既难读也卡。 */
 
 const jsonCellModal = document.getElementById('jsonCellModal');
+const jsonCellBox = jsonCellModal ? jsonCellModal.querySelector('.json-cell-modal-box') : null;
 const jsonCellTitleEl = document.getElementById('jsonCellTitle');
 const jsonCellMeta = document.getElementById('jsonCellMeta');
 const jsonCellPre = document.getElementById('jsonCellPre');
@@ -2011,6 +2029,8 @@ function jsonCellOpen(colIndex, rowIndex) {
 
     if (jsonCellPre) jsonCellPre.hidden = big;
     if (jsonCellEditorWrap) jsonCellEditorWrap.hidden = !big;
+    // 小值不要撑成一块大白板，盒子跟着内容收
+    if (jsonCellBox) jsonCellBox.classList.toggle('is-compact', !big);
     if (jsonCellHint) jsonCellHint.textContent = big ? jsonT('jsonCellBig') : '';
     jsonCellModal.hidden = false;
     if (big && jsonCellEditor) {
@@ -2063,7 +2083,9 @@ if (jsonTableRowsEl) {
     });
 }
 
+const jsonCellCloseBtn = document.getElementById('jsonCellClose');
 if (jsonCellDoneBtn) jsonCellDoneBtn.addEventListener('click', jsonCellClose);
+if (jsonCellCloseBtn) jsonCellCloseBtn.addEventListener('click', jsonCellClose);
 if (jsonCellCopyBtn) jsonCellCopyBtn.addEventListener('click', jsonCellCopy);
 if (jsonCellModal) {
     jsonCellModal.addEventListener('click', (e) => {

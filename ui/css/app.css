@@ -5772,11 +5772,38 @@ li.CodeMirror-hint-active .datasql-hint-kind { opacity: 0.85; }
     position: absolute;
     left: 0;
     right: 0;
+    width: 100%;
     height: var(--json-table-row-h, 32px);
     border-bottom: 1px solid var(--border-light);
 }
-.json-table-row:nth-child(even) { background-color: rgba(127, 127, 127, 0.05); }
-.json-table-row:hover { background-color: rgba(127, 127, 127, 0.1); }
+/* 第一列横向滚动时钉在左边：列一多就得往右滚，滚没了 id 就不知道在看谁。
+   底必须是**不透明**的——后面滚过来的列会从半透明的斑马纹底下透出来，看起来像串行 */
+.json-table-head-cell:first-child,
+.json-table-cell:first-child {
+    position: sticky;
+    left: 0;
+}
+.json-table-head-cell:first-child {
+    z-index: 3;
+    background-color: var(--accent-bg, #f8fafc);
+}
+.json-table-row > .json-table-cell:first-child {
+    z-index: 1;
+    background-color: var(--bg-card);
+}
+/* 斑马纹用一层渐变叠在实底上，别改成半透明底色 */
+.json-table-row:nth-child(even) > .json-table-cell:first-child {
+    background-color: var(--bg-card);
+    background-image: linear-gradient(rgba(127, 127, 127, 0.045), rgba(127, 127, 127, 0.045));
+}
+.json-table-row:hover > .json-table-cell:first-child {
+    background-color: var(--bg-card);
+}
+
+/* 斑马纹铺在单元格上：行盒子在某些布局下会被内容撑成别的宽度，
+   铺在格子上就永远是整行一致的底色 */
+.json-table-row:nth-child(even) > .json-table-cell { background-color: rgba(127, 127, 127, 0.045); }
+.json-table-row:hover > .json-table-cell { background-color: rgba(127, 127, 127, 0.09); }
 .json-table-cell {
     display: flex;
     align-items: center;
@@ -5837,6 +5864,7 @@ li.CodeMirror-hint-active .datasql-hint-kind { opacity: 0.85; }
     flex-direction: column;
     width: min(760px, 92vw);
     height: min(620px, 82vh);
+    max-height: 86vh;
     background: var(--bg-card);
     border: 1px solid var(--border, var(--border-light));
     border-radius: calc(var(--radius-lg, 0.75rem) + 2px);
@@ -5920,6 +5948,15 @@ li.CodeMirror-hint-active .datasql-hint-kind { opacity: 0.85; }
     gap: 0.5rem;
     padding: 0.6rem 0.9rem 0.8rem;
 }
+/* 底部按钮按内容宽，别被 flex 拉成一大块 */
+.json-cell-modal-foot .btn {
+    flex: 0 0 auto;
+    min-width: 4.5rem;
+}
+/* 小值：盒子跟着内容收，不要给一行字撑一块大白板 */
+.json-cell-modal-box.is-compact { height: auto; }
+.json-cell-modal-box.is-compact .json-cell-modal-body { min-height: 3.4rem; }
+.json-cell-modal-box.is-compact .json-cell-pre { max-height: 46vh; }
 .json-cell-modal-hint {
     flex: 1 1 auto;
     font-size: 0.72rem;
