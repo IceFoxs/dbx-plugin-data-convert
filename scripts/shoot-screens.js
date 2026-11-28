@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // README 截图：1440×900、1x、亮色，逐页装好内容再抓，拍完直接写进 docs/。
 //
-//   node scripts/shoot-screens.js            全部 15 张
+//   node scripts/shoot-screens.js            全部 19 张
 //   node scripts/shoot-screens.js screen-qr  只拍一张（名字见下面 SHOTS）
 //
 // 装内容一律走页面自己的入口（loadTextIntoConvert / putTextIntoPage /
@@ -100,6 +100,36 @@ const URL_SAMPLE = JOIN([
     'https://demo:secret@api.example.com:8443/v1/items?page=2&size=20&q=%E4%B8%AD%E6%96%87#section-2',
     'sftp://deploy@files.example.com:2222/upload/inbox'
 ]);
+
+// JSON 格式化页：一个带嵌套的对象，折起来能看到 `// N 项`（全部自造）
+const JSON_SAMPLE = JOIN([
+    '{',
+    '  "order": "SO-1001",',
+    '  "customer": {',
+    '    "name": "张三",',
+    '    "level": "gold",',
+    '    "since": "2024-03-01"',
+    '  },',
+    '  "items": [',
+    '    { "sku": "A-1001", "qty": 2, "price": 39.9 },',
+    '    { "sku": "B-2007", "qty": 1, "price": 88 },',
+    '    { "sku": "C-3012", "qty": 5, "price": 12.5 }',
+    '  ],',
+    '  "total": 233.5,',
+    '  "paid": true',
+    '}'
+]);
+
+// JSON 表格视图：一条一个对象，列取并集（自造数据）；输入用两空格缩进，截图里好读
+const JSON_ROWS_ARR = [
+    { id: 'SO-1001', customer: '张三', city: 'bj', amount: 128 },
+    { id: 'SO-1002', customer: '李四', city: 'sh', amount: 59.9 },
+    { id: 'SO-1003', customer: '王五', city: 'bj', amount: 233.5 },
+    { id: 'SO-1004', customer: '赵六', city: 'gz', amount: 18 },
+    { id: 'SO-1005', customer: '孙七', city: 'bj', amount: 402 },
+    { id: 'SO-1006', customer: '周八', city: 'sh', amount: 75.5 }
+];
+const JSON_ROWS = JSON.stringify(JSON_ROWS_ARR, null, 2);
 
 // 故意混四种写法：纯数字、带单位、1024 制、字节序列（最后一行能出三种表示）
 const BYTES_TEXT = JOIN([
@@ -315,6 +345,54 @@ const SHOTS = [
         }
     },
     {
+        name: 'screen-json',
+        label: 'JSON 格式化',
+        async run(ev) {
+            await ev(`handleNavClick(document.getElementById('navJson'))`);
+            await sleep(500);
+            await ev(`jsonLoadText(${JSON.stringify(JSON_SAMPLE)}, 'orders.json', true)`);
+            // 自动格式化之后才有结果，等它跑完再折
+            await sleep(1400);
+            // 把嵌套对象折起来，占位符会写 `// N 项`（走 CM 自己的 foldCode，
+            // 带上编辑器里那份 foldOptions：widget 与 brace rangeFinder 都在里面）
+            await ev(`(() => {
+                const cm = document.getElementById('jsonOutput').nextElementSibling.CodeMirror;
+                if (!cm) return 'no-cm';
+                const opts = cm.getOption('foldOptions');
+                if (!opts) return 'no-opts';
+                let at = -1;
+                for (let i = 0; i < cm.lineCount(); i++) {
+                    if (cm.getLine(i).indexOf('"customer"') >= 0) { at = i; break; }
+                }
+                if (at < 0) return 'no-line';
+                cm.foldCode({ line: at, ch: cm.getLine(at).length }, opts, 'fold');
+                return 'folded';
+            })()`);
+            await sleep(500);
+        }
+    },
+    {
+        name: 'screen-json-table',
+        label: 'JSON 表格视图',
+        async run(ev) {
+            await ev(`handleNavClick(document.getElementById('navJson'))`);
+            await sleep(500);
+            await ev(`jsonLoadText(${JSON.stringify(JSON_ROWS)}, 'orders.json', true)`);
+            await sleep(1400);
+            await ev(`document.getElementById('jsonTableBtn').click()`);
+            await sleep(600);
+            // 灌一个关键字：命中行留白、命中的字标黄，行数写着「3 / 6 行」
+            await ev(`(() => {
+                const q = document.getElementById('jsonTableQuery');
+                const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                setter.call(q, 'bj');
+                q.dispatchEvent(new Event('input', { bubbles: true }));
+                return 'typed';
+            })()`);
+            await sleep(700);
+        }
+    },
+    {
         name: 'screen-url',
         label: 'URL 分析',
         async run(ev) {
@@ -368,6 +446,12 @@ if (!todo.length) {
 const profile = path.join(os.tmpdir(), 'dbx-shot-profile');
 const proc = spawn(CHROME, [
     '--headless=new',
+    // Chrome 111+ 起，CDP 的 WebSocket 会校验 Origin；不带这个开关会连上就断（1006）
+    '--remote-allow-origins=*',
+    // 受限环境里 Chrome 自带的沙箱起不来，GPU 进程跟着挂、整个浏览器直接 abort；
+    // 这个脚本只拍本地静态页，关掉沙箱不影响结果
+    '--no-sandbox',
+    '--disable-dev-shm-usage',
     '--disable-gpu',
     '--hide-scrollbars',
     '--no-first-run',

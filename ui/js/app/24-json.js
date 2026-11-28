@@ -1812,7 +1812,8 @@ function jsonTableRenderHead() {
     // 列宽用「写死的 px」，不用 1fr / minmax：表头和数据行必须拿到**同一串**列宽，
     // 靠 fr 去分剩余空间时两边算法稍有不一致就会错半列（踩过）
     const avail = jsonTableScroll ? Math.max(240, jsonTableScroll.clientWidth - 2) : 600;
-    const colW = cols <= 4 ? Math.max(140, Math.floor(avail / cols)) : 200;
+    // 列少时按面板宽度均分（最少 120 px，再窄就横着滚）；列多时固定 200 px
+    const colW = cols <= 4 ? Math.max(120, Math.floor(avail / cols)) : 200;
     jsonTableCellTemplate = colW + 'px';
     if (jsonTableInner) jsonTableInner.style.setProperty('--json-table-col-w', jsonTableCellTemplate);
     if (jsonTableHead) {
