@@ -1806,6 +1806,22 @@ function setupBrowserDrop() {
         dragDepth = 0;
         showDropVeil(false);
     }, true);
+    // 文件落在编辑器上：CodeMirror 5 自己也有 onDrop，它会把文件读成文本**插到光标处**，
+    // 于是「拖进来的新内容接在旧内容后面」——看起来就是没清空。CM 的监听挂在编辑器
+    // 容器上（捕获阶段），只有比它更早才能挡住，所以这里挂 window 捕获。
+    window.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt && dt.files;
+        if (!files || !files.length) return;
+        const t = e.target;
+        if (!t || !t.closest || !t.closest('.CodeMirror')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        dragDepth = 0;
+        showDropVeil(false);
+        if (!claimDrop('browser')) return;
+        handleDroppedFiles([].slice.call(files));
+    }, true);
     document.addEventListener('drop', (e) => {
         if (e.defaultPrevented) return;
         const files = e.dataTransfer && e.dataTransfer.files;

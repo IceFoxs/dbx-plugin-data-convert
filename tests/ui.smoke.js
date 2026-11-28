@@ -5148,6 +5148,28 @@ function check(name, fn) {
         if (doc.querySelector('.json-in-pane').classList.contains('is-big')) throw new Error('大文件摘要卡没清');
     });
 
+    // 落在编辑器上的拖拽：CodeMirror 5 的 onDrop 会把文件读成文本插到光标处，
+    // 必须在它的捕获监听之前拦下来，否则新内容接在旧内容后面（web 模式下就是这样）
+    win.jsonLoadText('{"keep":"old"}', 'keep.json', true);
+    await wait(900);
+    (function () {
+        var cm = jsonCm('jsonInput');
+        cm.setCursor({ line: 0, ch: 0 });
+        var ev = new win.Event('drop', { bubbles: true, cancelable: true });
+        Object.defineProperty(ev, 'dataTransfer', {
+            value: { files: [new win.File(['{"fresh":1}'], 'fresh.json', { type: 'application/json' })], types: ['Files'] }
+        });
+        cm.getWrapperElement().dispatchEvent(ev);
+    })();
+    await wait(1200);
+
+    check('文件落在编辑器里：旧内容被替换，不是接在后头', function () {
+        var t = jsonCm('jsonInput').getValue();
+        if (t.indexOf('keep') >= 0) throw new Error('旧内容还在: ' + t);
+        if (t.indexOf('fresh') < 0) throw new Error('新内容没进来: ' + t);
+        if ((t.match(/fresh/g) || []).length > 1) throw new Error('内容被插了两遍: ' + t);
+    });
+
     doc.getElementById('jsonTableBtn').click();
     await wait(250);
 
